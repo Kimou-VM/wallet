@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">يتحكم هذا المفتاح أيضًا في حساباتك على جميع شبكات EVM.</string>
   <string name="private_key_scope_cosmos">يتحكم هذا المفتاح أيضًا في حساباتك على جميع شبكات Cosmos.</string>
   <string name="private_key_accounts_info">عبارتك السرية تحتفظ بنسخة احتياطية من هذه الحسابات بالفعل. صدّر مفتاحًا فقط لاستخدام حساب واحد في محفظة أخرى.</string>
+  <string name="private_key_derivation_path">مسار الاشتقاق</string>
+  <string name="private_key_address_type">نوع العنوان</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">عند الاستيراد، اختر %1$s، وإلا فقد تعرض المحفظة عنوانًا مختلفًا.</string>
   <string name="social_x">X (تويتر سابقًا)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

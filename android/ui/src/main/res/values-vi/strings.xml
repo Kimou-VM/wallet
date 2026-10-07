@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">Khóa này cũng kiểm soát các tài khoản của bạn trên tất cả mạng EVM.</string>
   <string name="private_key_scope_cosmos">Khóa này cũng kiểm soát các tài khoản của bạn trên tất cả mạng Cosmos.</string>
   <string name="private_key_accounts_info">Cụm từ bí mật của bạn đã sao lưu các tài khoản này. Chỉ xuất khóa để dùng một tài khoản trong ví khác.</string>
+  <string name="private_key_derivation_path">Đường dẫn dẫn xuất</string>
+  <string name="private_key_address_type">Loại địa chỉ</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">Khi nhập, hãy chọn %1$s, nếu không ví có thể hiển thị địa chỉ khác.</string>
   <string name="social_x">X (trước đây là Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

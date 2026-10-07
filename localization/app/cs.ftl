@@ -457,6 +457,11 @@ private_key_select_account = Vyberte svůj účet
 private_key_scope_evm = Tento klíč ovládá také vaše účty ve všech sítích EVM.
 private_key_scope_cosmos = Tento klíč ovládá také vaše účty ve všech sítích Cosmos.
 private_key_accounts_info = Vaše tajná fráze už tyto účty zálohuje. Klíč exportujte, jen pokud chcete jeden účet použít v jiné peněžence.
+private_key_derivation_path = Derivační cesta
+private_key_address_type = Typ adresy
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Při importu zvolte %@, jinak může peněženka zobrazit jinou adresu.
 
 # Social
 

@@ -457,6 +457,11 @@ private_key_select_account = Выберите аккаунт
 private_key_scope_evm = Этот ключ также управляет вашими аккаунтами во всех сетях EVM.
 private_key_scope_cosmos = Этот ключ также управляет вашими аккаунтами во всех сетях Cosmos.
 private_key_accounts_info = Ваша секретная фраза уже служит резервной копией этих аккаунтов. Экспортируйте ключ, только чтобы использовать один аккаунт в другом кошельке.
+private_key_derivation_path = Путь деривации
+private_key_address_type = Тип адреса
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = При импорте выберите %@, иначе кошелек может показать другой адрес.
 
 # Social
 

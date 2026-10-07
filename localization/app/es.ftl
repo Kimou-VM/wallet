@@ -457,6 +457,11 @@ private_key_select_account = Selecciona tu cuenta
 private_key_scope_evm = Esta clave también controla tus cuentas en todas las redes EVM.
 private_key_scope_cosmos = Esta clave también controla tus cuentas en todas las redes Cosmos.
 private_key_accounts_info = Tu Frase Secreta ya respalda estas cuentas. Exporta una clave solo para usar una cuenta en otra billetera.
+private_key_derivation_path = Ruta de derivación
+private_key_address_type = Tipo de dirección
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Al importar, elige %@, o la billetera podría mostrar otra dirección.
 
 # Social
 

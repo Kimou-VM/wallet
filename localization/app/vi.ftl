@@ -457,6 +457,11 @@ private_key_select_account = Chọn tài khoản của bạn
 private_key_scope_evm = Khóa này cũng kiểm soát các tài khoản của bạn trên tất cả mạng EVM.
 private_key_scope_cosmos = Khóa này cũng kiểm soát các tài khoản của bạn trên tất cả mạng Cosmos.
 private_key_accounts_info = Cụm từ bí mật của bạn đã sao lưu các tài khoản này. Chỉ xuất khóa để dùng một tài khoản trong ví khác.
+private_key_derivation_path = Đường dẫn dẫn xuất
+private_key_address_type = Loại địa chỉ
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Khi nhập, hãy chọn %@, nếu không ví có thể hiển thị địa chỉ khác.
 
 # Social
 

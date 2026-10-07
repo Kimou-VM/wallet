@@ -29,17 +29,21 @@ import com.gemwallet.android.ui.components.DocsInfoButton
 import com.gemwallet.android.ui.components.buttons.CopyButton
 import com.gemwallet.android.ui.components.clipboard.clipboardManager
 import com.gemwallet.android.ui.components.clipboard.setCopy
+import com.gemwallet.android.ui.components.list_item.ListItem
 import com.gemwallet.android.ui.components.screen.LoadingScene
 import com.gemwallet.android.ui.components.screen.PhraseLayout
 import com.gemwallet.android.ui.components.screen.Scene
 import com.gemwallet.android.ui.localization.string
 import com.gemwallet.android.ui.localization.stringRes
+import com.gemwallet.android.ui.models.ListPosition
 import com.gemwallet.android.ui.theme.adaptivePadding
 import com.gemwallet.android.ui.theme.alpha10
 import com.gemwallet.android.ui.theme.paddingDefault
 import com.gemwallet.android.ui.theme.paddingMiddle
 import com.gemwallet.android.ui.theme.sceneContentPaddingValues
+import com.gemwallet.android.ui.theme.space0
 import com.gemwallet.android.ui.theme.space8
+import uniffi.gemstone.GemPrivateKeyDetails
 import uniffi.gemstone.GemSecretWarning
 import uniffi.gemstone.GemWalletSecret
 import uniffi.gemstone.privateKeyCopy
@@ -138,8 +142,51 @@ fun SecretDataScreen(onCancel: () -> Unit, viewModel: SecretDataViewModel = hilt
                     clipboardManager.setCopy(context, copy)
                 },
             )
+
+            (secret as? GemWalletSecret.PrivateKey)?.details?.let { PrivateKeyDetails(it) }
         }
     }
+}
+
+@Composable
+private fun PrivateKeyDetails(details: GemPrivateKeyDetails) {
+    val addressType = stringResource(details.addressType.stringRes())
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(space8)) {
+        Text(
+            modifier = Modifier.padding(horizontal = paddingDefault),
+            text = stringResource(R.string.common_details),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.secondary,
+        )
+        Column {
+            PrivateKeyDetailRow(R.string.transfer_network, details.row.title, ListPosition.First)
+            PrivateKeyDetailRow(R.string.common_address, details.address, ListPosition.Middle, stacked = true)
+            PrivateKeyDetailRow(R.string.private_key_address_type, addressType, ListPosition.Middle)
+            PrivateKeyDetailRow(R.string.private_key_derivation_path, details.derivationPath, ListPosition.Last)
+        }
+        Text(
+            modifier = Modifier.padding(horizontal = paddingDefault),
+            text = stringResource(R.string.private_key_address_type_hint, addressType),
+            color = MaterialTheme.colorScheme.secondary,
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+}
+
+@Composable
+private fun PrivateKeyDetailRow(@StringRes title: Int, value: String, listPosition: ListPosition, stacked: Boolean = false) {
+    val valueText: @Composable () -> Unit = { Text(value, color = MaterialTheme.colorScheme.secondary) }
+    ListItem(
+        listPosition = listPosition,
+        paddingHorizontal = space0,
+        title = { Text(stringResource(title)) },
+        subtitle = valueText.takeIf { stacked },
+        trailing = if (stacked) {
+            null
+        } else {
+            { valueText() }
+        },
+    )
 }
 
 @Composable

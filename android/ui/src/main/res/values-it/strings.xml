@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">Questa chiave controlla anche i tuoi account su tutte le reti EVM.</string>
   <string name="private_key_scope_cosmos">Questa chiave controlla anche i tuoi account su tutte le reti Cosmos.</string>
   <string name="private_key_accounts_info">La tua frase segreta fa già il backup di questi account. Esporta una chiave solo per usare un account in un altro portafoglio.</string>
+  <string name="private_key_derivation_path">Percorso di derivazione</string>
+  <string name="private_key_address_type">Tipo di indirizzo</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">Durante l\'importazione scegli %1$s, altrimenti il portafoglio potrebbe mostrare un indirizzo diverso.</string>
   <string name="social_x">X (ex Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

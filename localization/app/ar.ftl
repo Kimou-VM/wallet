@@ -457,6 +457,11 @@ private_key_select_account = اختر حسابك
 private_key_scope_evm = يتحكم هذا المفتاح أيضًا في حساباتك على جميع شبكات EVM.
 private_key_scope_cosmos = يتحكم هذا المفتاح أيضًا في حساباتك على جميع شبكات Cosmos.
 private_key_accounts_info = عبارتك السرية تحتفظ بنسخة احتياطية من هذه الحسابات بالفعل. صدّر مفتاحًا فقط لاستخدام حساب واحد في محفظة أخرى.
+private_key_derivation_path = مسار الاشتقاق
+private_key_address_type = نوع العنوان
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = عند الاستيراد، اختر %@، وإلا فقد تعرض المحفظة عنوانًا مختلفًا.
 
 # Social
 

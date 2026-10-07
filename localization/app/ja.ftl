@@ -457,6 +457,11 @@ private_key_select_account = アカウントを選択
 private_key_scope_evm = このキーは、すべてのEVMネットワーク上のアカウントも操作できます。
 private_key_scope_cosmos = このキーは、すべてのCosmosネットワーク上のアカウントも操作できます。
 private_key_accounts_info = これらのアカウントはリカバリーフレーズですでにバックアップされています。キーのエクスポートは、別のウォレットで1つのアカウントを使う場合のみ行ってください。
+private_key_derivation_path = 導出パス
+private_key_address_type = アドレスタイプ
+private_key_address_type_native_segwit = ネイティブSegWit
+private_key_address_type_legacy = レガシー
+private_key_address_type_hint = インポート時に%@を選択してください。選択しないと、ウォレットに別のアドレスが表示される場合があります。
 
 # Social
 

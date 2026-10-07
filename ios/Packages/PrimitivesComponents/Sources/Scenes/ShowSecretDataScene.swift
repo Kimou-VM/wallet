@@ -2,6 +2,7 @@
 
 import Components
 import struct Gemstone.GemCopy
+import struct Gemstone.GemPrivateKeyDetails
 import struct Gemstone.GemSecretScreen
 import enum Gemstone.GemWalletSecret
 import func Gemstone.privateKeyCopy
@@ -51,6 +52,19 @@ public struct ShowSecretDataScene: View {
             )
             .frame(maxWidth: .infinity, alignment: .center)
             .cleanListRow()
+
+            if let details {
+                Section {
+                    ListItemView(model: ListItemModel(title: Localized.Transfer.network, subtitle: details.row.title))
+                    ListItemView(model: ListItemModel(title: Localized.Common.address, titleExtra: details.address.preventingHyphenation, titleStyleExtra: .calloutSecondary))
+                    ListItemView(model: ListItemModel(title: Localized.PrivateKey.addressType, subtitle: details.addressType.title))
+                    ListItemView(model: ListItemModel(title: Localized.PrivateKey.derivationPath, subtitle: details.derivationPath))
+                } header: {
+                    Text(Localized.Common.details)
+                } footer: {
+                    Text(Localized.PrivateKey.addressTypeHint(details.addressType.title))
+                }
+            }
         }
         .safeAreaButton(isVisible: continueAction != nil) {
             StateButton(
@@ -77,14 +91,21 @@ public struct ShowSecretDataScene: View {
     private var scope: String? {
         switch secret {
         case .words: nil
-        case let .privateKey(_, scope): scope.description
+        case let .privateKey(_, scope, _): scope.description
+        }
+    }
+
+    private var details: GemPrivateKeyDetails? {
+        switch secret {
+        case .words: nil
+        case let .privateKey(_, _, details): details
         }
     }
 
     private var secretCopy: GemCopy {
         switch secret {
         case let .words(words): secretPhraseCopy(words: words)
-        case let .privateKey(key, _): privateKeyCopy(key: key)
+        case let .privateKey(key, _, _): privateKeyCopy(key: key)
         }
     }
 

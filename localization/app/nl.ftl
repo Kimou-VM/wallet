@@ -457,6 +457,11 @@ private_key_select_account = Selecteer uw account
 private_key_scope_evm = Deze sleutel beheert ook uw accounts op alle EVM-netwerken.
 private_key_scope_cosmos = Deze sleutel beheert ook uw accounts op alle Cosmos-netwerken.
 private_key_accounts_info = Uw geheime zin maakt al een back-up van deze accounts. Exporteer alleen een sleutel om één account in een andere portemonnee te gebruiken.
+private_key_derivation_path = Afleidingspad
+private_key_address_type = Adrestype
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Kies bij het importeren %@, anders toont de portemonnee mogelijk een ander adres.
 
 # Social
 

@@ -457,6 +457,11 @@ private_key_select_account = Wybierz swoje konto
 private_key_scope_evm = Ten klucz kontroluje również Twoje konta we wszystkich sieciach EVM.
 private_key_scope_cosmos = Ten klucz kontroluje również Twoje konta we wszystkich sieciach Cosmos.
 private_key_accounts_info = Twoje tajne wyrażenie już tworzy kopię zapasową tych kont. Eksportuj klucz tylko, aby użyć jednego konta w innym portfelu.
+private_key_derivation_path = Ścieżka derywacji
+private_key_address_type = Typ adresu
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Podczas importu wybierz %@, w przeciwnym razie portfel może pokazać inny adres.
 
 # Social
 

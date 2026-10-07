@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">Цей ключ також керує вашими обліковими записами в усіх мережах EVM.</string>
   <string name="private_key_scope_cosmos">Цей ключ також керує вашими обліковими записами в усіх мережах Cosmos.</string>
   <string name="private_key_accounts_info">Ваша секретна фраза вже є резервною копією цих облікових записів. Експортуйте ключ, лише щоб використати один обліковий запис в іншому гаманці.</string>
+  <string name="private_key_derivation_path">Шлях деривації</string>
+  <string name="private_key_address_type">Тип адреси</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">Під час імпорту виберіть %1$s, інакше гаманець може показати іншу адресу.</string>
   <string name="social_x">X (раніше Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

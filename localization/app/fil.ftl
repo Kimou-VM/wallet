@@ -457,6 +457,11 @@ private_key_select_account = Piliin ang iyong account
 private_key_scope_evm = Kontrolado rin ng susing ito ang iyong mga account sa lahat ng EVM network.
 private_key_scope_cosmos = Kontrolado rin ng susing ito ang iyong mga account sa lahat ng Cosmos network.
 private_key_accounts_info = Naka-back up na ang mga account na ito sa iyong Lihim na Parirala. Mag-export lang ng susi para gamitin ang isang account sa ibang wallet.
+private_key_derivation_path = Derivation Path
+private_key_address_type = Uri ng Address
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Kapag nag-import, piliin ang %@, kung hindi ay maaaring magpakita ang wallet ng ibang address.
 
 # Social
 

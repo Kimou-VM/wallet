@@ -457,6 +457,11 @@ private_key_select_account = حساب خود را انتخاب کنید
 private_key_scope_evm = این کلید حساب‌های شما در همه شبکه‌های EVM را نیز کنترل می‌کند.
 private_key_scope_cosmos = این کلید حساب‌های شما در همه شبکه‌های Cosmos را نیز کنترل می‌کند.
 private_key_accounts_info = عبارات خصوصی شما از قبل از این حساب‌ها پشتیبان دارد. فقط برای استفاده از یک حساب در کیف پول دیگر، کلید را خروجی بگیرید.
+private_key_derivation_path = مسیر استخراج
+private_key_address_type = نوع آدرس
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = هنگام وارد کردن، %@ را انتخاب کنید، وگرنه کیف پول ممکن است آدرس دیگری نشان دهد.
 
 # Social
 

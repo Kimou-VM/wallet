@@ -91,7 +91,8 @@ flowchart LR
 | The user edits the name | it is saved as typed; a blank name keeps the last one | |
 | The wallet has a single network | its screen shows the address with an explorer link | |
 | The wallet is watch-only | no "Show Secret Phrase" or "Show Private Key" row | |
-| A Secret Phrase wallet lists accounts for a private key | only networks whose raw key another wallet can import; no Bitcoin-family or Cardano account, EVM networks one row each | a Bitcoin key would be raw, not WIF, and Cardano has no raw-key import |
+| A Secret Phrase wallet lists accounts for a private key | every network except Cardano, EVM networks one row each | Cardano's extended key has no format other wallets import |
+| A Bitcoin-family key is shown | as compressed WIF with that network's version byte, plus a Details section with network, address, address type (Native SegWit or Legacy) and derivation path, and a hint to pick that address type when importing; other networks show no Details | WIF does not say which address type it belongs to, and Gem uses one address per network, so the key covers the whole account; other networks have one standard address per key |
 | A private key is shown | its warning names the key, not the Secret Phrase; when the wallet holds another account on a network sharing the key, it adds that the key also controls the wallet's accounts on all EVM or all Cosmos networks | one key unlocks every network that shares its derivation path; a single-network wallet has no other account to warn about |
 | A wallet imported from a private key shows its key | the security reminders and the warning above the key name the private key, never the Secret Phrase | the phrase wording on a key screen misled users (#1394) |
 | A wallet is deleted | the app switches to the next wallet: Multi-Coin first, then the oldest | |

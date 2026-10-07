@@ -457,6 +457,11 @@ private_key_select_account = Pilih akaun anda
 private_key_scope_evm = Kunci ini juga mengawal akaun anda di semua rangkaian EVM.
 private_key_scope_cosmos = Kunci ini juga mengawal akaun anda di semua rangkaian Cosmos.
 private_key_accounts_info = Frasa Rahsia anda sudah menyandarkan akaun ini. Eksport kunci hanya untuk menggunakan satu akaun dalam dompet lain.
+private_key_derivation_path = Laluan Terbitan
+private_key_address_type = Jenis Alamat
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Semasa mengimport, pilih %@, atau dompet mungkin memaparkan alamat yang berbeza.
 
 # Social
 

@@ -457,6 +457,11 @@ private_key_select_account = เลือกบัญชีของคุณ
 private_key_scope_evm = คีย์นี้ยังควบคุมบัญชีของคุณบนเครือข่าย EVM ทั้งหมดด้วย
 private_key_scope_cosmos = คีย์นี้ยังควบคุมบัญชีของคุณบนเครือข่าย Cosmos ทั้งหมดด้วย
 private_key_accounts_info = วลีลับของคุณสำรองบัญชีเหล่านี้ไว้แล้ว ส่งออกคีย์เฉพาะเมื่อต้องการใช้บัญชีเดียวในกระเป๋าเงินอื่น
+private_key_derivation_path = Derivation Path
+private_key_address_type = ประเภทที่อยู่
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = เมื่อนำเข้า ให้เลือก %@ มิฉะนั้นกระเป๋าเงินอาจแสดงที่อยู่อื่น
 
 # Social
 

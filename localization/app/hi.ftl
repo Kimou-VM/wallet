@@ -457,6 +457,11 @@ private_key_select_account = अपना खाता चुनें
 private_key_scope_evm = यह कुंजी सभी EVM नेटवर्क पर आपके खातों को भी नियंत्रित करती है।
 private_key_scope_cosmos = यह कुंजी सभी Cosmos नेटवर्क पर आपके खातों को भी नियंत्रित करती है।
 private_key_accounts_info = आपका गुप्त वाक्यांश इन खातों का पहले से बैकअप रखता है। किसी दूसरे वॉलेट में एक खाता इस्तेमाल करने के लिए ही कुंजी एक्सपोर्ट करें।
+private_key_derivation_path = व्युत्पत्ति पथ
+private_key_address_type = पते का प्रकार
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = इम्पोर्ट करते समय %@ चुनें, वरना वॉलेट कोई दूसरा पता दिखा सकता है।
 
 # Social
 

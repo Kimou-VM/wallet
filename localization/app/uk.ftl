@@ -457,6 +457,11 @@ private_key_select_account = Виберіть обліковий запис
 private_key_scope_evm = Цей ключ також керує вашими обліковими записами в усіх мережах EVM.
 private_key_scope_cosmos = Цей ключ також керує вашими обліковими записами в усіх мережах Cosmos.
 private_key_accounts_info = Ваша секретна фраза вже є резервною копією цих облікових записів. Експортуйте ключ, лише щоб використати один обліковий запис в іншому гаманці.
+private_key_derivation_path = Шлях деривації
+private_key_address_type = Тип адреси
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Під час імпорту виберіть %@, інакше гаманець може показати іншу адресу.
 
 # Social
 

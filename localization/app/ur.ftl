@@ -457,6 +457,11 @@ private_key_select_account = اپنا اکاؤنٹ منتخب کریں
 private_key_scope_evm = یہ کلید تمام EVM نیٹ ورکس پر آپ کے اکاؤنٹس کو بھی کنٹرول کرتی ہے۔
 private_key_scope_cosmos = یہ کلید تمام Cosmos نیٹ ورکس پر آپ کے اکاؤنٹس کو بھی کنٹرول کرتی ہے۔
 private_key_accounts_info = آپ کا خفیہ جملہ پہلے ہی ان اکاؤنٹس کا بیک اپ ہے۔ کسی اور والیٹ میں ایک اکاؤنٹ استعمال کرنے کے لیے ہی کلید ایکسپورٹ کریں۔
+private_key_derivation_path = ڈیریویشن پاتھ
+private_key_address_type = ایڈریس کی قسم
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = امپورٹ کرتے وقت %@ منتخب کریں، ورنہ والیٹ مختلف ایڈریس دکھا سکتا ہے۔
 
 # Social
 

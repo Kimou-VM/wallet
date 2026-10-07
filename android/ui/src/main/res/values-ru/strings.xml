@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">Этот ключ также управляет вашими аккаунтами во всех сетях EVM.</string>
   <string name="private_key_scope_cosmos">Этот ключ также управляет вашими аккаунтами во всех сетях Cosmos.</string>
   <string name="private_key_accounts_info">Ваша секретная фраза уже служит резервной копией этих аккаунтов. Экспортируйте ключ, только чтобы использовать один аккаунт в другом кошельке.</string>
+  <string name="private_key_derivation_path">Путь деривации</string>
+  <string name="private_key_address_type">Тип адреса</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">При импорте выберите %1$s, иначе кошелек может показать другой адрес.</string>
   <string name="social_x">X (бывший Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

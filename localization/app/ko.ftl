@@ -457,6 +457,11 @@ private_key_select_account = 계정 선택
 private_key_scope_evm = 이 키는 모든 EVM 네트워크의 계정도 제어합니다.
 private_key_scope_cosmos = 이 키는 모든 Cosmos 네트워크의 계정도 제어합니다.
 private_key_accounts_info = 비밀 문구로 이미 이 계정들이 백업되어 있습니다. 다른 지갑에서 계정 하나를 사용할 때만 키를 내보내세요.
+private_key_derivation_path = 파생 경로
+private_key_address_type = 주소 유형
+private_key_address_type_native_segwit = 네이티브 SegWit
+private_key_address_type_legacy = 레거시
+private_key_address_type_hint = 가져올 때 %@을(를) 선택하세요. 그렇지 않으면 지갑에 다른 주소가 표시될 수 있습니다.
 
 # Social
 

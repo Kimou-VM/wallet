@@ -457,6 +457,11 @@ private_key_select_account = Seleziona il tuo account
 private_key_scope_evm = Questa chiave controlla anche i tuoi account su tutte le reti EVM.
 private_key_scope_cosmos = Questa chiave controlla anche i tuoi account su tutte le reti Cosmos.
 private_key_accounts_info = La tua frase segreta fa già il backup di questi account. Esporta una chiave solo per usare un account in un altro portafoglio.
+private_key_derivation_path = Percorso di derivazione
+private_key_address_type = Tipo di indirizzo
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Durante l'importazione scegli %@, altrimenti il portafoglio potrebbe mostrare un indirizzo diverso.
 
 # Social
 

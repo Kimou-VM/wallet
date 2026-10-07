@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">Kunci ini juga mengendalikan akun Anda di semua jaringan EVM.</string>
   <string name="private_key_scope_cosmos">Kunci ini juga mengendalikan akun Anda di semua jaringan Cosmos.</string>
   <string name="private_key_accounts_info">Frasa Rahasia Anda sudah mencadangkan akun-akun ini. Ekspor kunci hanya untuk memakai satu akun di dompet lain.</string>
+  <string name="private_key_derivation_path">Jalur Derivasi</string>
+  <string name="private_key_address_type">Jenis Alamat</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">Saat mengimpor, pilih %1$s, atau dompet mungkin menampilkan alamat yang berbeda.</string>
   <string name="social_x">X (sebelumnya Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

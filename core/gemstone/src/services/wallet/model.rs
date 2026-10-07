@@ -112,17 +112,18 @@ pub enum GemWalletDeletion {
     LastWalletDeleted,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, uniffi::Enum)]
 pub enum GemWalletSecret {
     Words { words: Vec<String> },
-    PrivateKey { key: String, scope: GemPrivateKeyScope },
+    PrivateKey { key: String, scope: GemPrivateKeyScope, details: Option<GemPrivateKeyDetails> },
 }
 
 impl fmt::Debug for GemWalletSecret {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Words { words } => f.debug_struct("Words").field("word_count", &words.len()).finish(),
-            Self::PrivateKey { scope, .. } => f.debug_struct("PrivateKey").field("scope", scope).finish_non_exhaustive(),
+            Self::PrivateKey { scope, details, .. } => f.debug_struct("PrivateKey").field("scope", scope).field("details", details).finish_non_exhaustive(),
         }
     }
 }
@@ -244,6 +245,20 @@ pub enum GemPrivateKeyScope {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum GemBitcoinAddressType {
+    NativeSegwit,
+    Legacy,
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct GemPrivateKeyDetails {
+    pub row: GemChainRow,
+    pub address: String,
+    pub address_type: GemBitcoinAddressType,
+    pub derivation_path: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum GemWalletSecretKind {
     Phrase,
     PrivateKey,
@@ -271,6 +286,7 @@ mod secret_debug_tests {
             GemWalletSecret::PrivateKey {
                 key: "0xsecretkey".into(),
                 scope: GemPrivateKeyScope::OneChain,
+                details: None,
             },
         );
 

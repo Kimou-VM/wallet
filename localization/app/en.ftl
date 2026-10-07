@@ -839,6 +839,16 @@ private_key_scope_evm = This key also controls your accounts on all EVM networks
 private_key_scope_cosmos = This key also controls your accounts on all Cosmos networks.
 # Used in the neutral info card above the account list where the user picks which network's private key to reveal.
 private_key_accounts_info = Your Secret Phrase already backs up these accounts. Export a key only to use one account in another wallet.
+# Used as a row title in the Details section of a revealed Bitcoin-family private key.
+private_key_derivation_path = Derivation Path
+# Used as a row title in the Details section of a revealed Bitcoin-family private key.
+private_key_address_type = Address Type
+# Used as the address type value for a Native SegWit (bc1q/ltc1q) Bitcoin-family address. Keep the technical term when it is not usually translated.
+private_key_address_type_native_segwit = Native SegWit
+# Used as the address type value for a Legacy (P2PKH) Bitcoin-family address. Keep the technical term when it is not usually translated.
+private_key_address_type_legacy = Legacy
+# Used under the Details section of a revealed Bitcoin-family private key. Contains 1 string placeholder for the address type value.
+private_key_address_type_hint = When importing, choose %@, or the wallet may show a different address.
 
 # Social
 

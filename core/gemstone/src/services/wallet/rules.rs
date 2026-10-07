@@ -2,12 +2,12 @@ use std::collections::BTreeMap;
 
 use gem_derivation::default_derivation_path;
 use gem_keystore::Mnemonic;
-use primitives::{Account, AddressName, AddressType, BlockExplorerLink, Chain, ChainType, NameRecord, OptionStringExt, VerificationStatus, Wallet, WalletId, WalletListItem, WalletSource, WalletType};
+use primitives::{Account, AddressName, AddressType, BitcoinChain, BlockExplorerLink, Chain, ChainType, NameRecord, OptionStringExt, VerificationStatus, Wallet, WalletId, WalletListItem, WalletSource, WalletType};
 
 use super::error::GemWalletImportError;
 use super::model::{
-    GemPrivateKeyAccount, GemPrivateKeyScope, GemSecretExport, GemSecretPhraseRow, GemSecretRow, GemSecretScreen, GemSecretWarning, GemWalletDetails, GemWalletImportKind, GemWalletImportScreen, GemWalletImportType, GemWalletPlaceholder,
-    GemWalletRow, GemWalletSecretKind, GemWalletSection, GemWalletSectionKind, GemWalletSubtitle,
+    GemBitcoinAddressType, GemPrivateKeyAccount, GemPrivateKeyDetails, GemPrivateKeyScope, GemSecretExport, GemSecretPhraseRow, GemSecretRow, GemSecretScreen, GemSecretWarning, GemWalletDetails, GemWalletImportKind, GemWalletImportScreen,
+    GemWalletImportType, GemWalletPlaceholder, GemWalletRow, GemWalletSecretKind, GemWalletSection, GemWalletSectionKind, GemWalletSubtitle,
 };
 use crate::address_formatter::{GemAddressFormatStyle, format_address};
 use crate::models::list::{GemAddressRow, GemListRowTitle};
@@ -128,7 +128,7 @@ pub fn secret_export(wallet: &Wallet) -> SecretExport {
 
 pub fn private_key_chains(wallet: &Wallet) -> Vec<Chain> {
     match wallet.wallet_type {
-        WalletType::Multicoin | WalletType::Single => wallet.accounts.iter().map(|account| account.chain).filter(signer::supports_private_key_import).collect(),
+        WalletType::Multicoin | WalletType::Single => wallet.accounts.iter().map(|account| account.chain).filter(signer::supports_private_key_export).collect(),
         WalletType::PrivateKey => wallet.accounts.iter().map(|account| account.chain).collect(),
         WalletType::View => Vec::new(),
     }
@@ -155,6 +155,24 @@ pub fn private_key_scope(wallet: &Wallet, chain: Chain) -> GemPrivateKeyScope {
         Some(ChainType::Ethereum) if shared => GemPrivateKeyScope::EvmChains,
         Some(ChainType::Cosmos) if shared => GemPrivateKeyScope::CosmosChains,
         _ => GemPrivateKeyScope::OneChain,
+    }
+}
+
+pub fn private_key_details(wallet: &Wallet, chain: Chain) -> Option<GemPrivateKeyDetails> {
+    let bitcoin_chain = BitcoinChain::from_chain(chain)?;
+    let account = wallet.account(chain)?;
+    Some(GemPrivateKeyDetails {
+        row: chain_row(chain),
+        address: account.address.clone(),
+        address_type: bitcoin_address_type(bitcoin_chain),
+        derivation_path: account.derivation_path.clone(),
+    })
+}
+
+fn bitcoin_address_type(chain: BitcoinChain) -> GemBitcoinAddressType {
+    match chain {
+        BitcoinChain::Bitcoin | BitcoinChain::Litecoin => GemBitcoinAddressType::NativeSegwit,
+        BitcoinChain::BitcoinCash | BitcoinChain::Doge | BitcoinChain::Dash | BitcoinChain::Zcash => GemBitcoinAddressType::Legacy,
     }
 }
 
@@ -572,7 +590,7 @@ mod tests {
         let row = |export| Some(secret_row(export));
         let multicoin = Wallet::mock_with_id(WalletId::Multicoin("0x1".to_string()), &[Chain::Ethereum, Chain::Bitcoin, Chain::Solana]);
         let single = Wallet::mock_with_id(WalletId::Single(Chain::Solana, "0x2".to_string()), &[Chain::Solana]);
-        let single_bitcoin = Wallet::mock_with_id(WalletId::Single(Chain::Bitcoin, "0x3".to_string()), &[Chain::Bitcoin]);
+        let single_cardano = Wallet::mock_with_id(WalletId::Single(Chain::Cardano, "0x3".to_string()), &[Chain::Cardano]);
         let private_key = Wallet::mock_with_id(WalletId::PrivateKey(Chain::Ethereum, "0x4".to_string()), &[Chain::Ethereum]);
         let view = Wallet::mock_with_id(WalletId::View(Chain::Ethereum, "0x5".to_string()), &[Chain::Ethereum]);
 
@@ -582,7 +600,7 @@ mod tests {
         assert_eq!(multicoin.advanced.unwrap().title, GemLocalizedText::ShowSecret { kind: GemWalletSecretKind::PrivateKey });
 
         assert_eq!(details(&single, link).advanced, row(GemSecretExport::PrivateKey { chain: Chain::Solana }), "one account skips the picker");
-        assert_eq!(details(&single_bitcoin, link).advanced, None, "no exportable key, no Advanced section");
+        assert_eq!(details(&single_cardano, link).advanced, None, "no exportable key, no Advanced section");
 
         let private_key = details(&private_key, link);
         assert_eq!(
@@ -603,10 +621,22 @@ mod tests {
         let view = Wallet::mock_with_id(WalletId::View(Chain::Ethereum, "0x3".to_string()), &[Chain::Ethereum]);
 
         let accounts = private_key_accounts(&multicoin);
-        assert_eq!(accounts.iter().map(|account| account.row.chain).collect::<Vec<_>>(), vec![Chain::Ethereum, Chain::Solana, Chain::Base]);
-        assert_eq!(accounts[1].address, format_address(&multicoin.account(Chain::Solana).unwrap().address, Some(Chain::Solana), PRIVATE_KEY_ACCOUNT_ADDRESS_STYLE));
+        assert_eq!(accounts.iter().map(|account| account.row.chain).collect::<Vec<_>>(), vec![Chain::Bitcoin, Chain::Ethereum, Chain::Solana, Chain::Base]);
+        assert_eq!(accounts[2].address, format_address(&multicoin.account(Chain::Solana).unwrap().address, Some(Chain::Solana), PRIVATE_KEY_ACCOUNT_ADDRESS_STYLE));
         assert_eq!(private_key_chains(&private_key), vec![Chain::Ethereum]);
         assert!(private_key_chains(&view).is_empty());
+    }
+
+    #[test]
+    fn test_private_key_details_only_for_the_bitcoin_family() {
+        let wallet = Wallet::mock_with_id(WalletId::Multicoin("0x1".to_string()), &[Chain::Bitcoin, Chain::Doge, Chain::Ethereum]);
+
+        let bitcoin = private_key_details(&wallet, Chain::Bitcoin).unwrap();
+        assert_eq!((bitcoin.row.chain, bitcoin.address_type), (Chain::Bitcoin, GemBitcoinAddressType::NativeSegwit));
+        assert_eq!(bitcoin.address, wallet.account(Chain::Bitcoin).unwrap().address);
+        assert_eq!(private_key_details(&wallet, Chain::Doge).unwrap().address_type, GemBitcoinAddressType::Legacy);
+        assert_eq!(private_key_details(&wallet, Chain::Ethereum), None);
+        assert_eq!(private_key_details(&wallet, Chain::Litecoin), None, "no account, no details");
     }
 
     #[test]

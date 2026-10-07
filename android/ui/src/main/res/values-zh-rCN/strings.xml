@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">此私钥同时控制您在所有 EVM 网络上的账户。</string>
   <string name="private_key_scope_cosmos">此私钥同时控制您在所有 Cosmos 网络上的账户。</string>
   <string name="private_key_accounts_info">助记词已经备份了这些账户。只有需要在其他钱包中使用某个账户时，才导出私钥。</string>
+  <string name="private_key_derivation_path">派生路径</string>
+  <string name="private_key_address_type">地址类型</string>
+  <string name="private_key_address_type_native_segwit">原生隔离见证</string>
+  <string name="private_key_address_type_legacy">传统</string>
+  <string name="private_key_address_type_hint">导入时请选择%1$s，否则钱包可能显示其他地址。</string>
   <string name="social_x">X（前 Twitter）</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">红迪</string>

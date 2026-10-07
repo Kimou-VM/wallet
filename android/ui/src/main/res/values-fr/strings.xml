@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">Cette clé contrôle aussi vos comptes sur tous les réseaux EVM.</string>
   <string name="private_key_scope_cosmos">Cette clé contrôle aussi vos comptes sur tous les réseaux Cosmos.</string>
   <string name="private_key_accounts_info">Votre phrase secrète sauvegarde déjà ces comptes. Exportez une clé uniquement pour utiliser un compte dans un autre portefeuille.</string>
+  <string name="private_key_derivation_path">Chemin de dérivation</string>
+  <string name="private_key_address_type">Type d\'adresse</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">Lors de l\'import, choisissez %1$s, sinon le portefeuille peut afficher une autre adresse.</string>
   <string name="social_x">X (anciennement Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

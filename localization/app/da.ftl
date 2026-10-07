@@ -457,6 +457,11 @@ private_key_select_account = Vælg din konto
 private_key_scope_evm = Denne nøgle styrer også dine konti på alle EVM-netværk.
 private_key_scope_cosmos = Denne nøgle styrer også dine konti på alle Cosmos-netværk.
 private_key_accounts_info = Din hemmelige sætning sikkerhedskopierer allerede disse konti. Eksportér kun en nøgle for at bruge én konto i en anden tegnebog.
+private_key_derivation_path = Afledningssti
+private_key_address_type = Adressetype
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Vælg %@ ved import, ellers kan tegnebogen vise en anden adresse.
 
 # Social
 

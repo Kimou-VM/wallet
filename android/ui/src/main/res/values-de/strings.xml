@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">Dieser Schlüssel steuert auch Ihre Konten in allen EVM-Netzwerken.</string>
   <string name="private_key_scope_cosmos">Dieser Schlüssel steuert auch Ihre Konten in allen Cosmos-Netzwerken.</string>
   <string name="private_key_accounts_info">Ihre geheime Phrase sichert diese Konten bereits. Exportieren Sie einen Schlüssel nur, um ein Konto in einer anderen Wallet zu nutzen.</string>
+  <string name="private_key_derivation_path">Ableitungspfad</string>
+  <string name="private_key_address_type">Adresstyp</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">Wählen Sie beim Import %1$s, sonst zeigt die Wallet möglicherweise eine andere Adresse an.</string>
   <string name="social_x">X (ehemals Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

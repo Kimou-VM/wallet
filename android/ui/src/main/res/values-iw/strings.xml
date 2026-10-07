@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">מפתח זה שולט גם בחשבונות שלך בכל רשתות EVM.</string>
   <string name="private_key_scope_cosmos">מפתח זה שולט גם בחשבונות שלך בכל רשתות Cosmos.</string>
   <string name="private_key_accounts_info">הביטוי הסודי שלך כבר מגבה את החשבונות האלה. ייצא מפתח רק כדי להשתמש בחשבון אחד בארנק אחר.</string>
+  <string name="private_key_derivation_path">נתיב גזירה</string>
+  <string name="private_key_address_type">סוג כתובת</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">בעת הייבוא, בחר %1$s, אחרת הארנק עלול להציג כתובת אחרת.</string>
   <string name="social_x">X (לשעבר Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

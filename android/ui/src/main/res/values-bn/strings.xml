@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">এই কী সব EVM নেটওয়ার্কে আপনার অ্যাকাউন্টগুলোও নিয়ন্ত্রণ করে।</string>
   <string name="private_key_scope_cosmos">এই কী সব Cosmos নেটওয়ার্কে আপনার অ্যাকাউন্টগুলোও নিয়ন্ত্রণ করে।</string>
   <string name="private_key_accounts_info">আপনার গোপন বাক্যাংশ ইতিমধ্যে এই অ্যাকাউন্টগুলোর ব্যাকআপ রাখে। শুধু অন্য ওয়ালেটে একটি অ্যাকাউন্ট ব্যবহার করতে কী এক্সপোর্ট করুন।</string>
+  <string name="private_key_derivation_path">ডেরিভেশন পাথ</string>
+  <string name="private_key_address_type">ঠিকানার ধরন</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">ইমপোর্ট করার সময় %1$s বেছে নিন, নইলে ওয়ালেট একটি ভিন্ন ঠিকানা দেখাতে পারে।</string>
   <string name="social_x">X (পূর্বে Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

@@ -457,6 +457,11 @@ private_key_select_account = Wählen Sie Ihr Konto
 private_key_scope_evm = Dieser Schlüssel steuert auch Ihre Konten in allen EVM-Netzwerken.
 private_key_scope_cosmos = Dieser Schlüssel steuert auch Ihre Konten in allen Cosmos-Netzwerken.
 private_key_accounts_info = Ihre geheime Phrase sichert diese Konten bereits. Exportieren Sie einen Schlüssel nur, um ein Konto in einer anderen Wallet zu nutzen.
+private_key_derivation_path = Ableitungspfad
+private_key_address_type = Adresstyp
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Wählen Sie beim Import %@, sonst zeigt die Wallet möglicherweise eine andere Adresse an.
 
 # Social
 

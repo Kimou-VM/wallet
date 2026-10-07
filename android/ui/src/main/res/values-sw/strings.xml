@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">Ufunguo huu pia unadhibiti akaunti zako kwenye mitandao yote ya EVM.</string>
   <string name="private_key_scope_cosmos">Ufunguo huu pia unadhibiti akaunti zako kwenye mitandao yote ya Cosmos.</string>
   <string name="private_key_accounts_info">Maneno yako ya siri tayari yanahifadhi akaunti hizi. Hamisha ufunguo tu ili kutumia akaunti moja kwenye pochi nyingine.</string>
+  <string name="private_key_derivation_path">Derivation Path</string>
+  <string name="private_key_address_type">Aina ya Anwani</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">Unapoleta, chagua %1$s, la sivyo pochi inaweza kuonyesha anwani tofauti.</string>
   <string name="social_x">X (formerly Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

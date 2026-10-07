@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">این کلید حساب‌های شما در همه شبکه‌های EVM را نیز کنترل می‌کند.</string>
   <string name="private_key_scope_cosmos">این کلید حساب‌های شما در همه شبکه‌های Cosmos را نیز کنترل می‌کند.</string>
   <string name="private_key_accounts_info">عبارات خصوصی شما از قبل از این حساب‌ها پشتیبان دارد. فقط برای استفاده از یک حساب در کیف پول دیگر، کلید را خروجی بگیرید.</string>
+  <string name="private_key_derivation_path">مسیر استخراج</string>
+  <string name="private_key_address_type">نوع آدرس</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">هنگام وارد کردن، %1$s را انتخاب کنید، وگرنه کیف پول ممکن است آدرس دیگری نشان دهد.</string>
   <string name="social_x">X (توییتر سابق)</string>
   <string name="social_discord">دیسکورد</string>
   <string name="social_reddit">ردیت</string>

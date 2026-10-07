@@ -457,6 +457,11 @@ private_key_select_account = Selectează-ți contul
 private_key_scope_evm = Această cheie controlează și conturile tale din toate rețelele EVM.
 private_key_scope_cosmos = Această cheie controlează și conturile tale din toate rețelele Cosmos.
 private_key_accounts_info = Expresia ta secretă face deja backup acestor conturi. Exportă o cheie doar pentru a folosi un cont într-un alt portofel.
+private_key_derivation_path = Cale de derivare
+private_key_address_type = Tip adresă
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = La import, alege %@, altfel portofelul poate afișa o altă adresă.
 
 # Social
 

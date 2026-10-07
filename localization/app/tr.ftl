@@ -457,6 +457,11 @@ private_key_select_account = Hesabınızı seçin
 private_key_scope_evm = Bu anahtar, tüm EVM ağlarındaki hesaplarınızı da kontrol eder.
 private_key_scope_cosmos = Bu anahtar, tüm Cosmos ağlarındaki hesaplarınızı da kontrol eder.
 private_key_accounts_info = Gizli İfadeniz bu hesapları zaten yedekliyor. Anahtarı yalnızca bir hesabı başka bir cüzdanda kullanmak için dışa aktarın.
+private_key_derivation_path = Türetme Yolu
+private_key_address_type = Adres Türü
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = İçe aktarırken %@ seçin, aksi halde cüzdan farklı bir adres gösterebilir.
 
 # Social
 

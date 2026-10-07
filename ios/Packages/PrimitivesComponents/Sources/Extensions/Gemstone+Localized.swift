@@ -19,6 +19,7 @@ import enum Gemstone.GemBalanceRowValue
 import enum Gemstone.GemBannerButton
 import enum Gemstone.GemBannerDescription
 import enum Gemstone.GemBannerTitle
+import enum Gemstone.GemBitcoinAddressType
 import enum Gemstone.GemCandleTooltipRow
 import enum Gemstone.GemChainSettingsSection
 import enum Gemstone.GemChainsFilterSummary
@@ -1290,6 +1291,15 @@ public extension GemWalletSecret {
         switch self {
         case .words: Localized.Common.secretPhrase
         case .privateKey: Localized.Common.privateKey
+        }
+    }
+}
+
+public extension GemBitcoinAddressType {
+    var title: String {
+        switch self {
+        case .nativeSegwit: Localized.PrivateKey.addressTypeNativeSegwit
+        case .legacy: Localized.PrivateKey.addressTypeLegacy
         }
     }
 }

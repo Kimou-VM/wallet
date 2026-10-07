@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">Esta clave también controla tus cuentas en todas las redes EVM.</string>
   <string name="private_key_scope_cosmos">Esta clave también controla tus cuentas en todas las redes Cosmos.</string>
   <string name="private_key_accounts_info">Tu Frase Secreta ya respalda estas cuentas. Exporta una clave solo para usar una cuenta en otra billetera.</string>
+  <string name="private_key_derivation_path">Ruta de derivación</string>
+  <string name="private_key_address_type">Tipo de dirección</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">Al importar, elige %1$s, o la billetera podría mostrar otra dirección.</string>
   <string name="social_x">X (antes Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

@@ -182,6 +182,7 @@ impl GemWalletService {
             rules::SecretExport::PrivateKey(chain) => Ok(GemWalletSecret::PrivateKey {
                 key: self.keystore.export_private_key(keystore_id, chain, password)?,
                 scope: rules::private_key_scope(&wallet, chain),
+                details: rules::private_key_details(&wallet, chain),
             }),
             rules::SecretExport::None => Err(GemServiceError::Core {
                 msg: format!("wallet {} keeps no secret", wallet.id.id()),
@@ -204,6 +205,7 @@ impl GemWalletService {
         Ok(GemWalletSecret::PrivateKey {
             key: self.keystore.export_private_key(keystore_id_for_wallet(wallet.id.id()), chain, password)?,
             scope: rules::private_key_scope(&wallet, chain),
+            details: rules::private_key_details(&wallet, chain),
         })
     }
 
@@ -652,10 +654,37 @@ mod tests {
                 context.service.export_secret(private.id.clone()).await.unwrap(),
                 GemWalletSecret::PrivateKey {
                     key,
-                    scope: model::GemPrivateKeyScope::OneChain
+                    scope: model::GemPrivateKeyScope::OneChain,
+                    details: None,
                 }
             );
             assert!(context.service.export_secret(view.id.clone()).await.is_err());
+        });
+    }
+
+    #[test]
+    fn test_bitcoin_family_keys_export_as_wif_of_the_phrase_account() {
+        block_on(async {
+            let context = WalletTestkit::new();
+            let chains = vec![Chain::Bitcoin, Chain::Litecoin, Chain::Doge];
+            let import = GemWalletImportType::MulticoinPhrase {
+                words: PHRASE.iter().map(ToString::to_string).collect(),
+                chains: chains.clone(),
+            };
+            let wallet = context.service.store_import("Phrase".to_string(), import, WalletSource::Import).await.unwrap().wallet();
+
+            for chain in chains {
+                let GemWalletSecret::PrivateKey { key, details, .. } = context.service.export_private_key(wallet.id.clone(), chain).await.unwrap() else {
+                    panic!("expected a private key");
+                };
+                let details = details.unwrap();
+                assert_eq!(details.address, wallet.account(chain).unwrap().address, "{chain}");
+                assert_eq!(details.derivation_path, wallet.account(chain).unwrap().derivation_path, "{chain}");
+                let payload = bs58::decode(&key).with_check(None).into_vec().unwrap();
+                assert_eq!((payload.len(), payload[33]), (34, 0x01), "{chain}");
+                let account = gem_derivation::derive_account_from_private_key(&payload[1..33], chain).unwrap();
+                assert_eq!(account.address, wallet.account(chain).unwrap().address, "{chain}");
+            }
         });
     }
 
@@ -677,7 +706,8 @@ mod tests {
                 context.service.export_private_key(private.id.clone(), Chain::Ethereum).await.unwrap(),
                 GemWalletSecret::PrivateKey {
                     key,
-                    scope: model::GemPrivateKeyScope::OneChain
+                    scope: model::GemPrivateKeyScope::OneChain,
+                    details: None,
                 }
             );
             assert!(context.service.export_private_key(phrase.id.clone(), Chain::Bitcoin).await.is_err());

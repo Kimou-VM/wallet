@@ -457,6 +457,11 @@ private_key_select_account = 選擇帳戶
 private_key_scope_evm = 此私鑰同時控制您在所有 EVM 網路上的帳戶。
 private_key_scope_cosmos = 此私鑰同時控制您在所有 Cosmos 網路上的帳戶。
 private_key_accounts_info = 助記詞已經備份了這些帳戶。只有需要在其他錢包中使用某個帳戶時，才匯出私鑰。
+private_key_derivation_path = 衍生路徑
+private_key_address_type = 地址類型
+private_key_address_type_native_segwit = 原生隔離見證
+private_key_address_type_legacy = 傳統
+private_key_address_type_hint = 匯入時請選擇%@，否則錢包可能顯示其他地址。
 
 # Social
 

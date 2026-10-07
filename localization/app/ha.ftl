@@ -457,6 +457,11 @@ private_key_select_account = Zaɓi asusunku
 private_key_scope_evm = Wannan maɓalli kuma yana sarrafa asusunku a duk hanyoyin sadarwa na EVM.
 private_key_scope_cosmos = Wannan maɓalli kuma yana sarrafa asusunku a duk hanyoyin sadarwa na Cosmos.
 private_key_accounts_info = Kalmar sirrinku ta riga ta adana waɗannan asusun. Fitar da maɓalli kawai don amfani da asusu ɗaya a wata walat.
+private_key_derivation_path = Derivation Path
+private_key_address_type = Nau'in Adireshi
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Lokacin shigo da shi, zaɓi %@, in ba haka ba walat na iya nuna wani adireshi daban.
 
 # Social
 

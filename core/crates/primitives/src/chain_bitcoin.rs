@@ -33,6 +33,15 @@ impl BitcoinChain {
         }
     }
 
+    pub fn wif_version(&self) -> u8 {
+        match self {
+            BitcoinChain::Bitcoin | BitcoinChain::BitcoinCash | BitcoinChain::Zcash => 0x80,
+            BitcoinChain::Litecoin => 0xB0,
+            BitcoinChain::Doge => 0x9E,
+            BitcoinChain::Dash => 0xCC,
+        }
+    }
+
     pub fn minimum_byte_fee(&self) -> i32 {
         match self {
             BitcoinChain::Bitcoin => 1,

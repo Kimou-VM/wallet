@@ -457,6 +457,11 @@ private_key_select_account = আপনার অ্যাকাউন্ট ন�
 private_key_scope_evm = এই কী সব EVM নেটওয়ার্কে আপনার অ্যাকাউন্টগুলোও নিয়ন্ত্রণ করে।
 private_key_scope_cosmos = এই কী সব Cosmos নেটওয়ার্কে আপনার অ্যাকাউন্টগুলোও নিয়ন্ত্রণ করে।
 private_key_accounts_info = আপনার গোপন বাক্যাংশ ইতিমধ্যে এই অ্যাকাউন্টগুলোর ব্যাকআপ রাখে। শুধু অন্য ওয়ালেটে একটি অ্যাকাউন্ট ব্যবহার করতে কী এক্সপোর্ট করুন।
+private_key_derivation_path = ডেরিভেশন পাথ
+private_key_address_type = ঠিকানার ধরন
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = ইমপোর্ট করার সময় %@ বেছে নিন, নইলে ওয়ালেট একটি ভিন্ন ঠিকানা দেখাতে পারে।
 
 # Social
 

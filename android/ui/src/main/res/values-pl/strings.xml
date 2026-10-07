@@ -388,6 +388,11 @@
   <string name="private_key_scope_evm">Ten klucz kontroluje również Twoje konta we wszystkich sieciach EVM.</string>
   <string name="private_key_scope_cosmos">Ten klucz kontroluje również Twoje konta we wszystkich sieciach Cosmos.</string>
   <string name="private_key_accounts_info">Twoje tajne wyrażenie już tworzy kopię zapasową tych kont. Eksportuj klucz tylko, aby użyć jednego konta w innym portfelu.</string>
+  <string name="private_key_derivation_path">Ścieżka derywacji</string>
+  <string name="private_key_address_type">Typ adresu</string>
+  <string name="private_key_address_type_native_segwit">Native SegWit</string>
+  <string name="private_key_address_type_legacy">Legacy</string>
+  <string name="private_key_address_type_hint">Podczas importu wybierz %1$s, w przeciwnym razie portfel może pokazać inny adres.</string>
   <string name="social_x">X (dawniej Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>

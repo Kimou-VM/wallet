@@ -457,6 +457,11 @@ private_key_select_account = Chagua akaunti yako
 private_key_scope_evm = Ufunguo huu pia unadhibiti akaunti zako kwenye mitandao yote ya EVM.
 private_key_scope_cosmos = Ufunguo huu pia unadhibiti akaunti zako kwenye mitandao yote ya Cosmos.
 private_key_accounts_info = Maneno yako ya siri tayari yanahifadhi akaunti hizi. Hamisha ufunguo tu ili kutumia akaunti moja kwenye pochi nyingine.
+private_key_derivation_path = Derivation Path
+private_key_address_type = Aina ya Anwani
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = Unapoleta, chagua %@, la sivyo pochi inaweza kuonyesha anwani tofauti.
 
 # Social
 

@@ -24,7 +24,7 @@ struct PrivateKeyExportViewModelTests {
 
     @Test
     func theAccountListHasOnlyChainsWithAnExportableKey() async {
-        let wallet = Primitives.Wallet.mock(id: .multicoin(address: "0x1"), type: .multicoin, accounts: [.mock(chain: .bitcoin), .mock(chain: .ethereum), .mock(chain: .solana)])
+        let wallet = Primitives.Wallet.mock(id: .multicoin(address: "0x1"), type: .multicoin, accounts: [.mock(chain: .cardano), .mock(chain: .ethereum), .mock(chain: .solana)])
         let model = PrivateKeyExportViewModel(walletId: wallet.id, export: .privateKeyAccounts, service: GemWalletService.mock(db: DB.mock(wallets: [wallet])))
 
         await model.fetchAccounts()

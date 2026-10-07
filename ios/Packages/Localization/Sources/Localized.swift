@@ -1065,6 +1065,18 @@ public enum Localized {
   public enum PrivateKey {
     /// Your Secret Phrase already backs up these accounts. Export a key only to use one account in another wallet.
     public static let accountsInfo = Localized.tr("Localizable", "private_key.accounts_info", fallback: "Your Secret Phrase already backs up these accounts. Export a key only to use one account in another wallet.")
+    /// Address Type
+    public static let addressType = Localized.tr("Localizable", "private_key.address_type", fallback: "Address Type")
+    /// When importing, choose %@, or the wallet may show a different address.
+    public static func addressTypeHint(_ p1: Any) -> String {
+      return Localized.tr("Localizable", "private_key.address_type_hint", String(describing: p1), fallback: "When importing, choose %@, or the wallet may show a different address.")
+    }
+    /// Legacy
+    public static let addressTypeLegacy = Localized.tr("Localizable", "private_key.address_type_legacy", fallback: "Legacy")
+    /// Native SegWit
+    public static let addressTypeNativeSegwit = Localized.tr("Localizable", "private_key.address_type_native_segwit", fallback: "Native SegWit")
+    /// Derivation Path
+    public static let derivationPath = Localized.tr("Localizable", "private_key.derivation_path", fallback: "Derivation Path")
     /// Select your account
     public static let selectAccount = Localized.tr("Localizable", "private_key.select_account", fallback: "Select your account")
     public enum DoNotShare {

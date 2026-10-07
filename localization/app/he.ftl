@@ -457,6 +457,11 @@ private_key_select_account = בחר את החשבון שלך
 private_key_scope_evm = מפתח זה שולט גם בחשבונות שלך בכל רשתות EVM.
 private_key_scope_cosmos = מפתח זה שולט גם בחשבונות שלך בכל רשתות Cosmos.
 private_key_accounts_info = הביטוי הסודי שלך כבר מגבה את החשבונות האלה. ייצא מפתח רק כדי להשתמש בחשבון אחד בארנק אחר.
+private_key_derivation_path = נתיב גזירה
+private_key_address_type = סוג כתובת
+private_key_address_type_native_segwit = Native SegWit
+private_key_address_type_legacy = Legacy
+private_key_address_type_hint = בעת הייבוא, בחר %@, אחרת הארנק עלול להציג כתובת אחרת.
 
 # Social
 
