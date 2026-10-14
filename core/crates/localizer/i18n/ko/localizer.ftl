@@ -1,12 +1,12 @@
 notification_sent_title = 💸 전송됨: {$value}
-notification_sent_description = {$address} 로
+notification_sent_description = {$address}(으)로
 notification_received_title = 💰 수신: {$value}
-notification_received_description = {$address} 에서
+notification_received_description = {$address}에서
 notification_unstake_title = 🔒 { notification_action_unstake } {$value}
 notification_claim_rewards_title = 🎁 { notification_action_claim_rewards } {$value}
 notification_withdraw_title = 🔓 { notification_action_withdraw } {$value}
 notification_redelegate_title = 🔄 { notification_action_redelegate } {$value}
-notification_swap_title = 🔄 {$from_symbol} 에서 {$to_symbol} 로 교환
+notification_swap_title = 🔄 {$from_symbol}에서 {$to_symbol}(으)로 교환
 notification_swap_description = {$from_value} > {$to_value}
 notification_test = 테스트
 notification_token_approval_title = ✅ { notification_action_token_approval } {$token}
