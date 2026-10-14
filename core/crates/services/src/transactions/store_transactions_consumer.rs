@@ -398,6 +398,23 @@ mod tests {
     }
 
     #[test]
+    fn test_relay_forward_token_enters_cross_chain_processing() {
+        let response: JsonRpcResult<SingleTransaction> = serde_json::from_str(include_str!("../../../gem_solana/testdata/relay_forward_token.json")).unwrap();
+        let source = BlockTransaction {
+            meta: response.result.meta,
+            transaction: response.result.transaction,
+        };
+        let transaction = map_transaction(&source, response.result.block_time).unwrap();
+        let deposit_addresses = DepositAddressMap::from([("0xf9acf2b30950256def67cea790e16eaaa70a9f91bf4b4d64f33e9a217f8a42f6".to_string(), SwapProvider::Relay)]);
+        let transactions = StoreTransactionsConsumer::transactions_for_storage(vec![transaction], &deposit_addresses, &SendAddressMap::new(), &TransactionNotificationType::NewTransaction);
+
+        assert_eq!(transactions.len(), 1);
+        assert_eq!(transactions[0].transaction_type, TransactionType::Swap);
+        assert_eq!(transactions[0].state, TransactionState::InTransit);
+        assert_eq!(in_transit_deposit_ids(&transactions, &deposit_addresses), BTreeMap::from([(SwapProvider::Relay, vec![transactions[0].id.to_string()])]));
+    }
+
+    #[test]
     fn test_relay_lookup_table_deposit_enters_cross_chain_processing() {
         let response: JsonRpcResult<SingleTransaction> = serde_json::from_str(include_str!("../../../gem_solana/testdata/relay_deposit_token_lookup_table.json")).unwrap();
         let source = BlockTransaction {
