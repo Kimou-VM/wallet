@@ -243,7 +243,7 @@ errors_authentication_locked_out = Te veel mislukte pogingen. Probeer het later 
 errors_authentication_failed = Verificatie mislukt. Probeer het opnieuw.
 errors_connections_expired = Deze verbindingslink is verlopen. Haal een nieuwe QR-code op en probeer het opnieuw.
 errors_connections_not_found = Deze verbinding bestaat niet meer.
-errors_connections_relay_unavailable = WalletConnect is niet bereikbaar. Controleer je internetverbinding en probeer het opnieuw.
+errors_connections_relay_unavailable = WalletConnect is niet bereikbaar. Controleer uw internetverbinding en probeer het opnieuw.
 errors_swap_amount_too_small = Bedrag te klein
 errors_scan_transaction_malicious_description = Deze transactie kan niet worden voltooid: het adres van de bestemmingswallet is gekoppeld aan verdachte of schadelijke activiteiten.
 errors_scan_transaction_memo_required = %@ bestemmingswalletadres vereist een bestemmingstag / memo
@@ -532,7 +532,7 @@ price_alerts_added_price_over = Melding toegevoegd voor prijs boven %@
 price_alerts_added_price_under = Melding toegevoegd voor prijs onder %@
 price_alerts_added_increases_by = Melding toegevoegd voor prijsstijging van %@
 price_alerts_added_decreases_by = Melding toegevoegd voor prijsdaling van %@
-price_alerts_state_empty_title = Uw meldingen verschijnen hier
+price_alerts_state_empty_title = Uw prijswaarschuwingen verschijnen hier
 price_alerts_state_empty_description = Schakel ze in door munten toe te voegen aan de track
 price_alerts_auto_footer = Waarschuwingen worden geactiveerd bij aanzienlijke prijsbewegingen.
 price_alerts_set_alert_title = Prijswaarschuwing instellen
@@ -550,7 +550,7 @@ lock_unlock = Ontgrendelen
 lock_footer = Beveilig de toegang tot deze app op uw apparaat
 lock_passcode = Toegangscode
 lock_passcode_off_title = Toegangscode van apparaat staat uit
-lock_passcode_off_description = Gem is vergrendeld met de toegangscode van je apparaat. Zet een toegangscode aan in de apparaatinstellingen om Gem te openen. Je portemonnees zijn veilig.
+lock_passcode_off_description = Gem is vergrendeld met de toegangscode van uw apparaat. Zet een toegangscode aan in de apparaatinstellingen om Gem te openen. Uw portemonnees zijn veilig.
 
 # Verify
 
@@ -566,7 +566,7 @@ sell_title = Verkoop %@
 
 # Info
 
-info_region_unavailable_description = Deze functie is niet beschikbaar in je regio. De beschikbaarheid hangt af van lokale regels en de vereisten van aanbieders.
+info_region_unavailable_description = Deze functie is niet beschikbaar in uw regio. De beschikbaarheid hangt af van lokale regels en de vereisten van aanbieders.
 
 info_network_fee_title = Netwerkkosten
 info_watch_wallet_title = Kijk-portemonnee

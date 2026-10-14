@@ -258,7 +258,7 @@
   <string name="transaction_status_completed">تکمیل شد</string>
   <string name="transaction_status_inprogress">در حال انجام است</string>
   <string name="transaction_status_refunded">بازپرداخت شد</string>
-  <string name="transaction_status_expired">منقضی شد</string>
+  <string name="transaction_status_expired">منقضی شده</string>
   <string name="asset_balances">موجودی ها</string>
   <string name="asset_balances_available">در دسترس</string>
   <string name="asset_price">قيمت</string>
@@ -296,14 +296,14 @@
   <string name="charts_year">1 سال</string>
   <string name="charts_all">همه</string>
   <string name="charts_entry">ورود</string>
-  <string name="charts_price_open">باز</string>
-  <string name="charts_price_close">بستن</string>
+  <string name="charts_price_open">باز شدن</string>
+  <string name="charts_price_close">بسته شدن</string>
   <string name="charts_price_high">بالا</string>
   <string name="charts_price_low">کم</string>
   <string name="charts_price_change">تغییر</string>
   <string name="date_today">امروز</string>
   <string name="date_yesterday">دیروز</string>
-  <string name="date_day_time">%1$s, %2$s</string>
+  <string name="date_day_time">%1$s، %2$s</string>
   <string name="wallet_connect_title">WalletConnect</string>
   <string name="wallet_connect_connection_title">اتصال</string>
   <string name="wallet_connect_disconnect">قطع اتصال</string>
@@ -416,7 +416,7 @@
   <string name="banner_asset_status_description">رمز ممکن است ناامن یا گمراه کننده باشد. فقط در صورت اعتماد کامل به آن ادامه دهید.</string>
   <string name="banner_onboarding_title">کیف پول شما آماده است</string>
   <string name="banner_onboarding_description">برای شروع، کریپتو بخرید یا دریافت کنید</string>
-  <string name="banner_perpetuals_title">معاملات دائمی در Hyperliquid</string>
+  <string name="banner_perpetuals_title">معامله Perpetuals در Hyperliquid</string>
   <string name="banner_perpetuals_description">با Hyperliquid perpetuals سپرده گذاری کنید، تجارت کنید و کسب درآمد کنید</string>
   <string name="filter_clear">پاک کردن</string>
   <string name="filter_title">فیلترها</string>
@@ -458,7 +458,7 @@
   <string name="verify_phrase_title">تایید کنید</string>
   <string name="warnings_externally_controlled_account">ممکن است شخص دیگری این حساب %1$s را کنترل کند. تا زمانی که مطمئن نیستید کنترل آن در دست شماست، وجهی به آن ارسال نکنید، وگرنه ممکن است دارایی‌های خود را برای همیشه از دست بدهید.</string>
   <string name="sell_title">فروش %1$s</string>
-  <string name="info_region_unavailable_description">این قابلیت در منطقه شما در دسترس نیست. دسترسی به قوانین محلی و الزامات ارائه‌دهندگان بستگی دارد.</string>
+  <string name="info_region_unavailable_description">این قابلیت در منطقه شما در دسترس نیست. در دسترس بودن آن به قوانین محلی و الزامات ارائه‌دهندگان بستگی دارد.</string>
   <string name="info_network_fee_title">کارمزد شبکه</string>
   <string name="info_watch_wallet_title">کیف پول مشاهده‌ای</string>
   <string name="info_watch_wallet_description">کیف پولی که به آن دسترسی ندارید اما می توانید تراکنش ها و حرکات آن را تماشا کنید.</string>
@@ -570,8 +570,8 @@
   <string name="perpetual_account_leverage">اهرم حساب</string>
   <string name="perpetual_margin_cross">کراس</string>
   <string name="perpetual_margin_isolated">جدا شده</string>
-  <string name="perpetuals_title">دائمی‌ها</string>
-  <string name="perpetuals_trade">معامله دائمی‌ها</string>
+  <string name="perpetuals_title">Perpetuals</string>
+  <string name="perpetuals_trade">معامله Perpetuals</string>
   <string name="perpetuals_markets">بازارها</string>
   <string name="perpetuals_empty_state_no_markets_found">هیچ بازاری یافت نشد</string>
   <string name="rewards_title">پاداش‌ها</string>
@@ -593,7 +593,7 @@
   <string name="rewards_ways_spend_title">راه‌های خرج کردن</string>
   <string name="rewards_ways_spend_asset_title">دریافت %1$s</string>
   <string name="rewards_insufficient_points">امتیاز ناکافی</string>
-  <string name="rewards_confirm_redeem">دریافت %1$s برای %2$s!</string>
+  <string name="rewards_confirm_redeem">دریافت %1$s در ازای %2$s!</string>
   <string name="rewards_pending_title">پاداش در انتظار</string>
   <string name="rewards_pending_description">موجود در %1$s</string>
   <string name="rewards_pending_description_ready">جایزه شما آماده است!</string>

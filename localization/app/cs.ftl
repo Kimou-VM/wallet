@@ -391,7 +391,7 @@ stake_rewards = Odměny
 stake_validator = Validátor
 stake_validators = Validátoři
 stake_apr = APR %@
-stake_available_in = Dostupné v
+stake_available_in = Dostupné za
 stake_inactive = Neaktivní
 stake_lock_time = Čas zámku
 stake_activating = Aktivace
@@ -709,9 +709,9 @@ perpetual_margin_isolated = Izolovaný
 
 # Perpetuals
 
-perpetuals_title = Věčné
+perpetuals_title = Perpetuals
 # Used in the wallet screen row that opens Perpetuals when the wallet holds no positions.
-perpetuals_trade = Obchodovat věčné
+perpetuals_trade = Obchodovat Perpetuals
 perpetuals_markets = Trhy
 perpetuals_empty_state_no_markets_found = Nenalezeny žádné trhy
 

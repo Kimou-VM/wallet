@@ -391,7 +391,7 @@ stake_rewards = Nagrody
 stake_validator = Walidator
 stake_validators = Walidatory
 stake_apr = APR %@
-stake_available_in = Dostępne w
+stake_available_in = Dostępne za
 stake_inactive = Nieaktywny
 stake_lock_time = Czas blokady
 stake_activating = Aktywacja
@@ -503,7 +503,7 @@ banner_asset_status_title = Podejrzany zasób
 banner_asset_status_description = Token może być niebezpieczny lub wprowadzać w błąd. Kontynuuj tylko wtedy, gdy w pełni mu ufasz.
 banner_onboarding_title = Twój portfel jest gotowy
 banner_onboarding_description = Kup lub odbierz kryptowalutę, aby zacząć
-banner_perpetuals_title = Handluj instrumentami perpetuals na Hyperliquid
+banner_perpetuals_title = Handluj Perpetuals na Hyperliquid
 banner_perpetuals_description = Wpłacaj, handluj i zarabiaj dzięki Hyperliquid Perpetuals
 
 # Filter
@@ -709,9 +709,9 @@ perpetual_margin_isolated = Izolowana
 
 # Perpetuals
 
-perpetuals_title = Wieczyste
+perpetuals_title = Perpetuals
 # Used in the wallet screen row that opens Perpetuals when the wallet holds no positions.
-perpetuals_trade = Handluj wieczystymi
+perpetuals_trade = Handluj Perpetuals
 perpetuals_markets = Rynki
 perpetuals_empty_state_no_markets_found = Nie znaleziono rynków
 

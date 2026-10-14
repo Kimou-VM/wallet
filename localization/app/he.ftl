@@ -101,7 +101,7 @@ wallet_more = עוד
 wallet_import_contract_address_field = חוזה או מזהה טוקן
 wallet_import_address_warning = ניתן לצפות ביתרות ועסקאות עבור כתובת זו, אך **לא ניתן לשלוח או למכור כספים**.
 wallet_deposit = הפקד
-wallet_withdraw = משיכה
+wallet_withdraw = משוך
 wallet_available_balance = זמין: %@
 # Used in the insufficient network fee sheet for the buy option subtitle.
 wallet_pay_with_card_or_bank = שלם בכרטיס או בבנק
@@ -130,7 +130,7 @@ buy_no_results = אין הצעות מחיר זמינות
 # Transfer
 
 transfer_network_fee = עמלת רשת
-transfer_pay_with = לשלם באמצעות
+transfer_pay_with = תשלום באמצעות
 transfer_payment_title = תשלום
 transfer_memo = תזכיר
 transfer_confirm = אשר
@@ -145,7 +145,7 @@ transfer_recipient_address_field = כתובת או שם
 transfer_send_title = שליחה
 transfer_insufficient_balance = יתרת %@ לא מספקת.
 transfer_insufficient_network_fee_balance = יתרת %@ לא מספקת לכיסוי עמלות הרשת.
-transfer_approve_title = לאשר
+transfer_approve_title = אישור
 transfer_stake_title = סטייקינג
 transfer_claim_rewards_title = תבע תגמולים
 transfer_unstake_title = ביטול סטייקינג
@@ -503,7 +503,7 @@ banner_asset_status_title = נכס חשוד
 banner_asset_status_description = האסימון עשוי להיות לא בטוח או מטעה. המשך רק אם אתה סומך עליו לחלוטין.
 banner_onboarding_title = הארנק שלך מוכן
 banner_onboarding_description = קנה או קבל קריפטו כדי להתחיל
-banner_perpetuals_title = סחר נצחים ב-Hyperliquid
+banner_perpetuals_title = מסחר ב-Perpetuals ב-Hyperliquid
 banner_perpetuals_description = הפקד, סחר והרוויח עם Hyperliquid Perpetuals
 
 # Filter
@@ -624,7 +624,7 @@ nft_collections = אוספים
 nft_collection = אוסף
 nft_save_to_photos = שמור בתמונות
 nft_set_as_avatar = הגדר כאווטר
-nft_state_empty_title = ה-NFT שלך יופיע כאן
+nft_state_empty_title = פריטי ה-NFT שלך יופיעו כאן
 nft_state_empty_description = קבל את ה-NFT הראשון שלך
 nft_report_reason_spam = ספאם
 nft_report_reason_malicious = זדוני
@@ -709,9 +709,9 @@ perpetual_margin_isolated = מבודד
 
 # Perpetuals
 
-perpetuals_title = נצחיים
+perpetuals_title = Perpetuals
 # Used in the wallet screen row that opens Perpetuals when the wallet holds no positions.
-perpetuals_trade = מסחר בנצחיים
+perpetuals_trade = מסחר ב-Perpetuals
 perpetuals_markets = שווקים
 perpetuals_empty_state_no_markets_found = לא נמצאו שווקים
 

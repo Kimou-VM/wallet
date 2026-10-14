@@ -429,7 +429,7 @@ secret_phrase_do_not_share_description = Nếu ai đó có cụm từ bí mật 
 secret_phrase_save_phrase_safely = Lưu cụm từ bí mật của bạn ở nơi an toàn\n mà chỉ có bạn kiểm soát.
 secret_phrase_confirm_quick_test_title = Hãy hoàn thành bài kiểm tra nhanh này để xác nhận rằng bạn đã lưu mọi thứ một cách chính xác.
 secret_phrase_screenshot_detected_title = Đã phát hiện ảnh chụp màn hình
-secret_phrase_screenshot_detected_description = Ảnh chụp màn hình có thể được các ứng dụng khác truy cập, nhưng chúng có thể khiến cụm từ bí mật của bạn gặp rủi ro nếu được lưu theo cách này.
+secret_phrase_screenshot_detected_description = Ảnh chụp màn hình có thể được các ứng dụng khác truy cập và có thể khiến cụm từ bí mật của bạn gặp rủi ro nếu được lưu theo cách này.
 secret_phrase_content_hidden_description = Nội dung bị ẩn trong quá trình ghi màn hình
 
 # Private Key
@@ -677,8 +677,8 @@ perpetual_margin = Ký quỹ
 perpetual_position = Vị thế
 perpetual_close_position = Đóng vị thế
 perpetual_pnl = PnL
-perpetual_long = Dài
-perpetual_short = Ngắn
+perpetual_long = Long
+perpetual_short = Short
 perpetual_entry_price = Giá vào lệnh
 perpetual_modify = Sửa đổi
 perpetual_reduce_position = Giảm vị thế

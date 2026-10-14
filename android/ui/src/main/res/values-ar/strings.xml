@@ -253,7 +253,7 @@
   <string name="transaction_status_failed">فشل</string>
   <string name="transaction_status_reverted">التراجع</string>
   <string name="transaction_title_received">تم الاستلام</string>
-  <string name="transaction_title_sent">مرسل</string>
+  <string name="transaction_title_sent">تم الإرسال</string>
   <string name="transaction_swap_again">التبديل مرة أخرى</string>
   <string name="transaction_status_completed">مكتمل</string>
   <string name="transaction_status_inprogress">في تَقَدم</string>
@@ -303,7 +303,7 @@
   <string name="charts_price_change">التغيير</string>
   <string name="date_today">اليوم</string>
   <string name="date_yesterday">أمس</string>
-  <string name="date_day_time">%1$s, %2$s</string>
+  <string name="date_day_time">%1$s، %2$s</string>
   <string name="wallet_connect_title">WalletConnect</string>
   <string name="wallet_connect_connection_title">اتصال</string>
   <string name="wallet_connect_disconnect">قطع الاتصال</string>
@@ -453,7 +453,7 @@
   <string name="lock_unlock">فتح</string>
   <string name="lock_footer">حماية الوصول إلى هذا التطبيق على جهازك</string>
   <string name="lock_passcode">رمز المرور</string>
-  <string name="lock_passcode_off_title">رمز مرور الجهاز متوقف</string>
+  <string name="lock_passcode_off_title">رمز مرور الجهاز غير مفعّل</string>
   <string name="lock_passcode_off_description">Gem مقفل برمز مرور جهازك. فعّل رمز المرور من إعدادات جهازك لفتح Gem. محافظك آمنة.</string>
   <string name="verify_phrase_title">يتأكد</string>
   <string name="warnings_externally_controlled_account">قد يتحكم شخص آخر في حساب %1$s هذا. لا ترسل أموالًا إليه إلا إذا كنت متأكدًا من أنك تتحكم فيه، وإلا فقد تفقد أصولك بشكل دائم.</string>

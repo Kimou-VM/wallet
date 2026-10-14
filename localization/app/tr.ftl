@@ -503,8 +503,8 @@ banner_asset_status_title = Şüpheli Öğe
 banner_asset_status_description = Token güvenli olmayabilir veya yanıltıcı olabilir. Yalnızca tamamen güveniyorsanız devam edin.
 banner_onboarding_title = Cüzdanınız hazır
 banner_onboarding_description = Başlamak için kripto satın alın veya alın
-banner_perpetuals_title = Hyperliquid'de Sürekli İşlemler Yapın
-banner_perpetuals_description = Hyperliquid kalıcı varlıklarıyla para yatırın, ticaret yapın ve kazanın
+banner_perpetuals_title = Hyperliquid'de Perpetuals işlemi yapın
+banner_perpetuals_description = Hyperliquid Perpetuals ile para yatırın, işlem yapın ve kazanın
 
 # Filter
 
@@ -709,9 +709,9 @@ perpetual_margin_isolated = İzole
 
 # Perpetuals
 
-perpetuals_title = Sürekliler
+perpetuals_title = Perpetuals
 # Used in the wallet screen row that opens Perpetuals when the wallet holds no positions.
-perpetuals_trade = Süreklileri al-sat
+perpetuals_trade = Perpetuals al-sat
 perpetuals_markets = Piyasalar
 perpetuals_empty_state_no_markets_found = Hiçbir pazar bulunamadı
 

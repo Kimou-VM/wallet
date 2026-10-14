@@ -342,8 +342,8 @@
   <string name="stake_awaiting_withdrawal">In attesa di ritiro</string>
   <string name="stake_active_in">Attivo dentro</string>
   <string name="stake_minimum_amount">Importo minimo</string>
-  <string name="stake_state_empty_title">Le tue puntate appariranno qui</string>
-  <string name="stake_state_empty_description">Punta i tuoi primi %1$s</string>
+  <string name="stake_state_empty_title">Le tue posizioni in staking appariranno qui</string>
+  <string name="stake_state_empty_description">Metti in staking i tuoi primi %1$s</string>
   <string name="stake_state_empty_validators_title">Nessun validatore trovato</string>
   <string name="stake_resource">Risorsa</string>
   <string name="stake_resource_energy">Energia</string>

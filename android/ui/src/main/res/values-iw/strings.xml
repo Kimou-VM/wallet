@@ -95,7 +95,7 @@
   <string name="wallet_import_contract_address_field">חוזה או מזהה טוקן</string>
   <string name="wallet_import_address_warning">ניתן לצפות ביתרות ועסקאות עבור כתובת זו, אך **לא ניתן לשלוח או למכור כספים**.</string>
   <string name="wallet_deposit">הפקד</string>
-  <string name="wallet_withdraw">משיכה</string>
+  <string name="wallet_withdraw">משוך</string>
   <string name="wallet_available_balance">זמין: %1$s</string>
   <string name="wallet_pay_with_card_or_bank">שלם בכרטיס או בבנק</string>
   <string name="wallet_from_your_wallet_assets">מנכסי הארנק שלך</string>
@@ -109,7 +109,7 @@
   <string name="buy_rate">שער</string>
   <string name="buy_no_results">אין הצעות מחיר זמינות</string>
   <string name="transfer_network_fee">עמלת רשת</string>
-  <string name="transfer_pay_with">לשלם באמצעות</string>
+  <string name="transfer_pay_with">תשלום באמצעות</string>
   <string name="transfer_payment_title">תשלום</string>
   <string name="transfer_memo">תזכיר</string>
   <string name="transfer_confirm">אשר</string>
@@ -124,7 +124,7 @@
   <string name="transfer_send_title">שליחה</string>
   <string name="transfer_insufficient_balance">יתרת %1$s לא מספקת.</string>
   <string name="transfer_insufficient_network_fee_balance">יתרת %1$s לא מספקת לכיסוי עמלות הרשת.</string>
-  <string name="transfer_approve_title">לאשר</string>
+  <string name="transfer_approve_title">אישור</string>
   <string name="transfer_stake_title">סטייקינג</string>
   <string name="transfer_claim_rewards_title">תבע תגמולים</string>
   <string name="transfer_unstake_title">ביטול סטייקינג</string>
@@ -416,7 +416,7 @@
   <string name="banner_asset_status_description">האסימון עשוי להיות לא בטוח או מטעה. המשך רק אם אתה סומך עליו לחלוטין.</string>
   <string name="banner_onboarding_title">הארנק שלך מוכן</string>
   <string name="banner_onboarding_description">קנה או קבל קריפטו כדי להתחיל</string>
-  <string name="banner_perpetuals_title">סחר נצחים ב-Hyperliquid</string>
+  <string name="banner_perpetuals_title">מסחר ב-Perpetuals ב-Hyperliquid</string>
   <string name="banner_perpetuals_description">הפקד, סחר והרוויח עם Hyperliquid Perpetuals</string>
   <string name="filter_clear">נקה</string>
   <string name="filter_title">מסננים</string>
@@ -509,7 +509,7 @@
   <string name="nft_collection">אוסף</string>
   <string name="nft_save_to_photos">שמור בתמונות</string>
   <string name="nft_set_as_avatar">הגדר כאווטר</string>
-  <string name="nft_state_empty_title">ה-NFT שלך יופיע כאן</string>
+  <string name="nft_state_empty_title">פריטי ה-NFT שלך יופיעו כאן</string>
   <string name="nft_state_empty_description">קבל את ה-NFT הראשון שלך</string>
   <string name="nft_report_reason_spam">ספאם</string>
   <string name="nft_report_reason_malicious">זדוני</string>
@@ -570,8 +570,8 @@
   <string name="perpetual_account_leverage">מינוף חשבון</string>
   <string name="perpetual_margin_cross">מוצלב</string>
   <string name="perpetual_margin_isolated">מבודד</string>
-  <string name="perpetuals_title">נצחיים</string>
-  <string name="perpetuals_trade">מסחר בנצחיים</string>
+  <string name="perpetuals_title">Perpetuals</string>
+  <string name="perpetuals_trade">מסחר ב-Perpetuals</string>
   <string name="perpetuals_markets">שווקים</string>
   <string name="perpetuals_empty_state_no_markets_found">לא נמצאו שווקים</string>
   <string name="rewards_title">תגמולים</string>

@@ -101,7 +101,7 @@ wallet_more = مزید
 wallet_import_contract_address_field = کنٹریکٹ یا ٹوکن ID
 wallet_import_address_warning = آپ اس پتے کے بیلنس اور لین دین دیکھ سکتے ہیں، لیکن **فنڈز بھیج یا فروخت نہیں کر سکتے**۔
 wallet_deposit = جمع
-wallet_withdraw = واپس لینا
+wallet_withdraw = نکالیں
 wallet_available_balance = دستیاب: %@
 # Used in the insufficient network fee sheet for the buy option subtitle.
 wallet_pay_with_card_or_bank = کارڈ یا بینک سے ادائیگی کریں
@@ -351,7 +351,7 @@ charts_price_change = تبدیلی
 
 date_today = آج
 date_yesterday = کل
-date_day_time = %@, %@
+date_day_time = %@، %@
 
 # Wallet Connect
 
@@ -503,7 +503,7 @@ banner_asset_status_title = مشکوک اثاثہ
 banner_asset_status_description = ٹوکن غیر محفوظ یا گمراہ کن ہو سکتا ہے۔ صرف اس صورت میں آگے بڑھیں جب آپ کو اس پر مکمل اعتماد ہو۔
 banner_onboarding_title = آپ کا والیٹ تیار ہے
 banner_onboarding_description = شروع کرنے کے لیے کریپٹو خریدیں یا وصول کریں۔
-banner_perpetuals_title = Hyperliquid پر مستقل تجارت
+banner_perpetuals_title = Hyperliquid پر Perpetuals ٹریڈ کریں
 banner_perpetuals_description = Hyperliquid perpetual کے ساتھ جمع کریں، تجارت کریں اور کمائیں۔
 
 # Filter
@@ -523,7 +523,7 @@ price_alerts_direction_under = کے تحت
 price_alerts_direction_increases_by = سے بڑھتا ہے
 price_alerts_direction_decreases_by = سے کم ہوتا ہے
 price_alerts_set_alert_price_over = جب قیمت اس سے اوپر ہو
-price_alerts_set_alert_price_under = جب قیمت کم ہو۔
+price_alerts_set_alert_price_under = جب قیمت اس سے نیچے ہو
 price_alerts_set_alert_price_increases_by = جب قیمت بڑھ جاتی ہے
 price_alerts_set_alert_price_decreases_by = جب قیمت کم ہوتی ہے
 price_alerts_set_alert_set_target_price = ہدف کی قیمت مقرر کریں
@@ -697,7 +697,7 @@ perpetual_reduce_direction = کم کریں %@
 perpetual_auto_close_expected_profit = متوقع منافع
 perpetual_auto_close_expected_loss = متوقع نقصان
 perpetual_modify_position = پوزیشن میں ترمیم کریں
-perpetual_auto_close_stop_loss = نقصان کو روکیں۔
+perpetual_auto_close_stop_loss = اسٹاپ لاس
 perpetual_value = قدر
 perpetual_unrealized_pnl = غیر حقیقی PnL
 perpetual_volume = حجم
@@ -709,9 +709,9 @@ perpetual_margin_isolated = الگ تھلگ
 
 # Perpetuals
 
-perpetuals_title = دائمی
+perpetuals_title = Perpetuals
 # Used in the wallet screen row that opens Perpetuals when the wallet holds no positions.
-perpetuals_trade = دائمی ٹریڈ کریں
+perpetuals_trade = Perpetuals ٹریڈ کریں
 perpetuals_markets = منڈیاں
 perpetuals_empty_state_no_markets_found = کوئی بازار نہیں ملا
 
@@ -738,7 +738,7 @@ rewards_ways_spend_asset_title = %@ حاصل کریں
 rewards_insufficient_points = ناکافی پوائنٹس
 rewards_confirm_redeem = %2$@ کے بدلے %1$@ حاصل کریں!
 rewards_pending_title = بونس زیر التواء
-rewards_pending_description = میں دستیاب ہے۔ %@
+rewards_pending_description = %@ میں دستیاب
 rewards_pending_description_ready = آپ کا بونس تیار ہے!
 rewards_nickname = عرفی نام
 rewards_unverified_title = انعامات ابھی فعال نہیں ہیں۔

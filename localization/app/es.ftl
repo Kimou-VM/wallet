@@ -16,7 +16,7 @@ common_loading = Cargando
 common_address = Dirección
 common_try_again = Inténtalo de nuevo
 common_paste = Pegar
-common_delete = Borrar
+common_delete = Eliminar
 common_delete_confirmation = ¿Estás seguro de que deseas eliminar %@?
 common_hide = Ocultar
 common_wallet = Billetera
@@ -99,7 +99,7 @@ wallet_sell = Vender
 wallet_receive_collection = Recibir colección
 wallet_more = Más
 wallet_import_contract_address_field = Contrato o ID de token
-wallet_import_address_warning = Puede ver los saldos y las transacciones de esta dirección, pero **no puede enviar ni vender fondos**.
+wallet_import_address_warning = Puedes ver los saldos y las transacciones de esta dirección, pero **no puedes enviar ni vender fondos**.
 wallet_deposit = Depósito
 wallet_withdraw = Retirar
 wallet_available_balance = Disponible: %@
@@ -161,7 +161,7 @@ transfer_destination_account_activation = La dirección de destino requiere un m
 transfer_smart_contract_title = Contrato inteligente
 transfer_other_title = Otro
 transfer_maximum_amount = El importe máximo es %@
-transfer_reserved_fees = Hemos dejado %@ en su saldo para cubrir futuras tarifas de red.
+transfer_reserved_fees = Hemos dejado %@ en tu saldo para cubrir futuras tarifas de red.
 transfer_freeze_title = Congelar
 transfer_unfreeze_title = Descongelar
 transfer_review_request = Revisar solicitud
@@ -227,9 +227,9 @@ errors_connections_user_cancelled = Cancelado por el usuario
 errors_not_supported = No compatible
 errors_permissions_not_granted = Permisos no concedidos
 errors_unknown = Desconocido
-errors_not_supported_qr = Este dispositivo no admite el escaneo de códigos QR. Solo puede seleccionar la imagen del código QR de la biblioteca.
-errors_camera_permissions_not_granted = Permiso de cámara no concedido. Habilite el acceso a la cámara en la configuración para escanear el código QR.
-errors_decoding_qr = No se pudo decodificar el código QR. Inténtelo de nuevo con un código QR diferente.
+errors_not_supported_qr = Este dispositivo no admite el escaneo de códigos QR. Solo puedes seleccionar la imagen del código QR de la biblioteca.
+errors_camera_permissions_not_granted = Permiso de cámara no concedido. Habilita el acceso a la cámara en la configuración para escanear el código QR.
+errors_decoding_qr = No se pudo decodificar el código QR. Inténtalo de nuevo con un código QR diferente.
 errors_transfer_error = Error de transferencia
 errors_unable_estimate_network_fee = Actualmente no podemos calcular la tarifa de red.
 errors_invalid_asset_address = Dirección %@ no válida
@@ -238,12 +238,12 @@ errors_swap_no_quote_available = No hay cotización disponible.
 errors_swap_not_supported_asset = Activo no admitido.
 errors_connections_no_supported_wallets = No hay billeteras compatibles disponibles.
 errors_connections_unsupported_chain = La cadena proporcionada no es compatible.
-errors_authentication_unavailable = La autenticación no está configurada en este dispositivo. Active la biometría o un código de acceso en los ajustes del dispositivo.
-errors_authentication_locked_out = Demasiados intentos fallidos. Inténtelo de nuevo más tarde.
-errors_authentication_failed = La autenticación falló. Inténtelo de nuevo.
-errors_connections_expired = Este enlace de conexión ha caducado. Obtenga un nuevo código QR e inténtelo de nuevo.
+errors_authentication_unavailable = La autenticación no está configurada en este dispositivo. Activa la biometría o un código de acceso en los ajustes del dispositivo.
+errors_authentication_locked_out = Demasiados intentos fallidos. Inténtalo de nuevo más tarde.
+errors_authentication_failed = La autenticación falló. Inténtalo de nuevo.
+errors_connections_expired = Este enlace de conexión ha caducado. Obtén un nuevo código QR e inténtalo de nuevo.
 errors_connections_not_found = Esta conexión ya no existe.
-errors_connections_relay_unavailable = No se pudo conectar con WalletConnect. Compruebe su conexión a internet e inténtelo de nuevo.
+errors_connections_relay_unavailable = No se pudo conectar con WalletConnect. Comprueba tu conexión a internet e inténtalo de nuevo.
 errors_swap_amount_too_small = Cantidad demasiado pequeña
 errors_scan_transaction_malicious_description = Esta transacción no se puede completar: la dirección de la billetera de destino está vinculada a actividades sospechosas o dañinas.
 errors_scan_transaction_memo_required = La dirección de destino de %@ requiere una etiqueta de destino / nota
@@ -273,10 +273,10 @@ activity_state_empty_search_title = No se encontraron actividades
 # Update App
 
 update_app_title = ¡Nueva actualización disponible!
-update_app_description = La versión %@ de la aplicación ya está disponible. Actualice y disfrute de las últimas funciones y mejoras.
+update_app_description = La versión %@ de la aplicación ya está disponible. Actualiza y disfruta de las últimas funciones y mejoras.
 update_app_action = Actualizar
 update_app_permission_title = Permitir instalación
-update_app_permission_description = Vaya a configuración y permita la instalación desde fuentes externas
+update_app_permission_description = Ve a configuración y permite la instalación desde fuentes externas
 update_app_permission_open_settings = Ir a configuración
 
 # Transaction
@@ -320,7 +320,7 @@ asset_state_empty_title = Tus transacciones aparecerán aquí
 asset_state_empty_description = Recibir, intercambiar o comprar %@
 asset_verification_unverified = No verificado
 asset_verification_suspicious = Sospechoso
-asset_verification_warning_title = Sepa lo que está agregando
+asset_verification_warning_title = Revisa lo que estás agregando
 asset_verification_warning_message = Cualquiera puede crear uno, incluidos los tokens falsos o maliciosos.
 asset_buy_asset = Comprar %@
 asset_get_asset = Obtener %@
@@ -336,7 +336,7 @@ asset_all_time_low = Mínimo histórico
 
 charts_day = 1D
 charts_hour = 1H
-charts_week = 1W
+charts_week = 1S
 charts_month = 1M
 charts_year = 1A
 charts_all = Todo
@@ -362,7 +362,7 @@ wallet_connect_connect_title = Conectar
 wallet_connect_app = Aplicación
 wallet_connect_brand_name = WalletConnect
 wallet_connect_no_active_connections = No hay conexiones activas
-wallet_connect_state_empty_description = Escanee o pegue el código para conectarse a la DApp
+wallet_connect_state_empty_description = Escanea o pega el código para conectarte a la DApp
 wallet_connect_permissions_title = Permisos
 wallet_connect_permissions_view_balance = Ver tu saldo y actividad
 wallet_connect_permissions_approval_requests = Enviar solicitudes de aprobación
@@ -381,7 +381,7 @@ swap_price_impact_warning_description = Perderás %@ de tus %@ en esta operació
 swap_price_impact_warning_title = Alto impacto en el precio
 swap_estimated_time_title = Tiempo estimado
 swap_min_receive = Mínimo a recibir
-swap_use_minimum_amount = Utilice la cantidad mínima
+swap_use_minimum_amount = Usar cantidad mínima
 
 # Stake
 
@@ -470,9 +470,9 @@ nodes_import_node_chain_id = ID de cadena
 nodes_import_node_in_sync = En sincronización
 nodes_import_node_latest_block = Último bloque
 nodes_import_node_latency = Latencia
-nodes_gem_wallet_node = Gem Wallet Node
+nodes_gem_wallet_node = Nodo de Gem Wallet
 nodes_stream = Transmisión
-nodes_import_node_warning_message = Los nodos personalizados pueden ser maliciosos y pueden exponer sus datos de transacciones o proporcionar información falsa.
+nodes_import_node_warning_message = Los nodos personalizados pueden ser maliciosos y pueden exponer tus datos de transacciones o proporcionar información falsa.
 
 # Library
 
@@ -498,9 +498,9 @@ banner_account_activation_title = Tarifa de activación de cuenta
 banner_account_activation_description = La red %@ requiere una tarifa única de %@.
 banner_stake_title = Empezar a hacer stake de %@
 banner_stake_description = Gana recompensas de %@ por tu stake mientras duermes.
-banner_activate_asset_description = Para utilizar el activo %@, primero debe habilitarlo en la red %@ cumpliendo con los requisitos específicos de la red.
+banner_activate_asset_description = Para utilizar el activo %@, primero debes habilitarlo en la red %@ cumpliendo con los requisitos específicos de la red.
 banner_asset_status_title = Activo sospechoso
-banner_asset_status_description = El token puede ser inseguro o engañoso. Continúe sólo si confía plenamente en ello.
+banner_asset_status_description = El token puede ser inseguro o engañoso. Continúa solo si confías plenamente en él.
 banner_onboarding_title = Tu billetera está lista
 banner_onboarding_description = Compra o recibe criptomonedas para empezar
 banner_perpetuals_title = Opera con perpetuos en Hyperliquid
@@ -518,7 +518,7 @@ filter_has_balance = Tiene saldo
 price_alerts_enabled_for = Alerta de precio habilitada para %@
 price_alerts_disabled_for = Alerta de precio deshabilitada para %@
 price_alerts_get_notified_explain_message = Recibe notificaciones cuando haya un cambio de precio significativo en tus criptoactivos favoritos.
-price_alerts_direction_over = Más
+price_alerts_direction_over = Sobre
 price_alerts_direction_under = Bajo
 price_alerts_direction_increases_by = Aumenta en
 price_alerts_direction_decreases_by = Disminuye en
@@ -547,10 +547,10 @@ lock_one_hour = 1 hora
 lock_six_hours = 6 horas
 lock_require_authentication = Requerir autenticación
 lock_unlock = Desbloquear
-lock_footer = Proteger el acceso a esta aplicación en su dispositivo
+lock_footer = Protege el acceso a esta aplicación en tu dispositivo
 lock_passcode = Código de acceso
 lock_passcode_off_title = El código del dispositivo está desactivado
-lock_passcode_off_description = Gem está bloqueado con el código de su dispositivo. Active un código en los ajustes del dispositivo para abrir Gem. Sus billeteras están a salvo.
+lock_passcode_off_description = Gem está bloqueado con el código de tu dispositivo. Activa un código en los ajustes del dispositivo para abrir Gem. Tus billeteras están a salvo.
 
 # Verify
 
@@ -558,7 +558,7 @@ verify_phrase_title = Confirmar
 
 # Warnings
 
-warnings_externally_controlled_account = Esta cuenta de %@ puede estar controlada por otra persona. No envíe fondos a ella a menos que esté seguro de que la controla, o podría perder sus activos de forma permanente.
+warnings_externally_controlled_account = Esta cuenta de %@ puede estar controlada por otra persona. No le envíes fondos a menos que estés seguro de que la controlas, o podrías perder tus activos de forma permanente.
 
 # Sell
 
@@ -573,13 +573,13 @@ info_watch_wallet_title = Billetera de observación
 info_watch_wallet_description = Una billetera a la que no tienes acceso, pero puedes observar sus transacciones y movimientos.
 info_payment_verification_title = Verificación del pago
 info_payment_verification_description = El comercio requiere información adicional antes del pago.
-info_network_fee_description = Cada transacción en la red %@ requiere una tarifa en %@ pagada a los mineros para procesar su transacción, no a Gem Wallet. Las tarifas de red varían según el uso de la red.
-info_transaction_error_description = La transacción no se pudo completar debido a un error, como fondos insuficientes, una entrada no válida o un rechazo de la red. Revise los detalles y vuelva a intentarlo.
-info_transaction_pending_description = La transacción se ha enviado y está pendiente de confirmación en la red. El tiempo de procesamiento puede variar. Por favor, vuelva a consultar para obtener actualizaciones.
+info_network_fee_description = Cada transacción en la red %@ requiere una tarifa en %@ pagada a los mineros para procesar tu transacción, no a Gem Wallet. Las tarifas de red varían según el uso de la red.
+info_transaction_error_description = La transacción no se pudo completar debido a un error, como fondos insuficientes, una entrada no válida o un rechazo de la red. Revisa los detalles y vuelve a intentarlo.
+info_transaction_pending_description = La transacción se ha enviado y está pendiente de confirmación en la red. El tiempo de procesamiento puede variar. Vuelve a consultar más tarde para ver actualizaciones.
 info_estimated_confirmation_description = Esta estimación se basa en la comisión de la transacción y la actividad actual de la red %@. El tiempo real de confirmación puede cambiar y no está garantizado.
 info_transaction_success_description = La transacción se ha completado y confirmado en la red. Puedes revisar los detalles para verificar su estado.
 info_lock_time_description = El tiempo de bloqueo, también conocido como período de desvinculación o descongelación, es el período durante el cual los activos en stake son inaccesibles después de que decides retirarlos del stake.
-info_price_impact_description = El impacto en el precio es el cambio en el precio del token causado por el tamaño de la operación. Un mayor impacto en el precio significa que recibe menos tokens debido a una baja liquidez o a un gran tamaño de la orden.
+info_price_impact_description = El impacto en el precio es el cambio en el precio del token causado por el tamaño de la operación. Un mayor impacto en el precio significa que recibes menos tokens debido a una baja liquidez o a un gran tamaño de la orden.
 info_slippage_description = El deslizamiento se refiere a la diferencia entre el precio esperado de una operación y el precio real al que se ejecuta.
 info_asset_status_unverified_description = Los tokens no verificados no han sido verificados adecuadamente por servicios externos de confianza. Podrían aparecer en tu billetera debido a airdrops, transferencias o importaciones manuales.
 info_asset_status_suspicious_description = Los tokens sospechosos o spam se identifican como posibles estafas o activos dañinos. Pueden aparecer en tu billetera debido a airdrops, transferencias o importaciones manuales.
@@ -589,9 +589,9 @@ info_insufficient_balance_title = Saldo insuficiente
 info_balance_required_description = Esta transacción requiere %@, pero solo hay %@ disponibles. Necesitas %@ más para continuar.
 info_account_minimum_balance_title = Saldo mínimo
 info_perpetual_funding_payments_title = Pagos de financiación
-info_perpetual_funding_payments_description = Los pagos de financiación son pagos periódicos entre comerciantes para mantener el precio del contrato perpetuo cerca del precio al contado del activo subyacente. La financiación positiva significa que las posiciones largas pagan posiciones cortas, mientras que la financiación negativa significa que las posiciones cortas pagan posiciones largas.
+info_perpetual_funding_payments_description = Los pagos de financiación son pagos periódicos entre operadores para mantener el precio del contrato perpetuo cerca del precio al contado del activo subyacente. La financiación positiva significa que las posiciones largas pagan a las posiciones cortas, mientras que la financiación negativa significa que las posiciones cortas pagan a las posiciones largas.
 info_perpetual_liquidation_price_title = Precio de liquidación
-info_perpetual_liquidation_price_description = El precio de liquidación es el nivel de precio en el que su posición se cerrará automáticamente para evitar mayores pérdidas. Cuando el precio de mercado alcanza este nivel, su posición se liquida y pierde su margen.
+info_perpetual_liquidation_price_description = El precio de liquidación es el nivel de precio en el que tu posición se cerrará automáticamente para evitar mayores pérdidas. Cuando el precio de mercado alcanza este nivel, tu posición se liquida y pierdes tu margen.
 info_perpetual_open_interest_title = Interés abierto
 info_perpetual_open_interest_description = El interés abierto representa el valor total de todos los contratos perpetuos pendientes que no se han liquidado. Proporciona información sobre la actividad y la liquidez del mercado.
 info_no_quote_description = No se puede devolver una cotización para el par de tokens seleccionado, posiblemente debido a una cantidad baja, falta de liquidez o limitaciones técnicas.
@@ -615,7 +615,7 @@ info_swap_minimum_amount_description = %@ requiere un mínimo de %@, pero la can
 
 # Input
 
-input_enter_amount_to = Por favor ingrese la cantidad a %@
+input_enter_amount_to = Introduce la cantidad a %@
 
 # Nft
 
@@ -644,7 +644,7 @@ markets_daily_volume = Volumen de 24 horas
 
 # Search
 
-search_state_empty_description = Verifique la ortografía o intente una nueva búsqueda.
+search_state_empty_description = Verifica la ortografía o intenta una nueva búsqueda.
 
 # Networks
 
@@ -660,7 +660,7 @@ onboarding_security_create_wallet_no_recovery_subtitle = Si pierdes tu frase sec
 onboarding_security_create_wallet_keep_safe_title = Guárdala en un lugar seguro
 onboarding_security_create_wallet_no_recovery_title = No podemos ayudarte a recuperarla
 onboarding_accept_terms_title = Aceptar términos
-onboarding_accept_terms_message = Lea y acepte los siguientes términos antes de continuar.
+onboarding_accept_terms_message = Lee y acepta los siguientes términos antes de continuar.
 onboarding_accept_terms_item1_message = Entiendo que soy el único responsable de la seguridad y el respaldo de mis billeteras, no Gem.
 onboarding_accept_terms_item2_message = Entiendo que Gem no es un banco ni un exchange y que su uso con fines ilegales está estrictamente prohibido.
 onboarding_accept_terms_item3_message = Entiendo que si alguna vez pierdo el acceso a mis billeteras, Gem no es responsable y no puede ayudar de ninguna manera.
@@ -721,7 +721,7 @@ rewards_title = Recompensas
 rewards_share_text = Únete a Gem Wallet con mi enlace de referencia y gana recompensas: %@
 rewards_my_referral_code = Mi código de referencia
 rewards_invite_friends_title = Invitar amigos
-rewards_invite_friends_description = Ganar %@ puntos por cada amigo que se una.
+rewards_invite_friends_description = Gana %@ puntos por cada amigo que se una.
 rewards_referral_code = Código de referencia
 rewards_invited_by = Invitado por
 rewards_points = Puntos
@@ -768,7 +768,7 @@ contacts_title = Contactos
 contacts_contact = Contacto
 contacts_addresses = Direcciones
 contacts_state_empty_title = Sin contactos
-contacts_state_empty_description = Guarde sus direcciones de uso frecuente
+contacts_state_empty_description = Guarda tus direcciones de uso frecuente
 contacts_create_new_contact = Crear nuevo contacto
 contacts_add_to_existing_contact = Añadir a un contacto
 
@@ -796,7 +796,7 @@ application_name = Gem
 # Rootcheck
 
 rootcheck_security_alert = Advertencia de seguridad
-rootcheck_jailbreak_body = Su dispositivo parece tener jailbreak. Esto puede poner en riesgo su billetera y sus fondos.
-rootcheck_body = Su dispositivo parece tener acceso root, lo que puede aumentar significativamente los riesgos de seguridad. El uso de esta aplicación en un dispositivo rooteado puede exponer sus activos a acceso no autorizado y a una posible pérdida. Para la seguridad de sus fondos, le recomendamos encarecidamente que utilice un dispositivo no rooteado.
+rootcheck_jailbreak_body = Tu dispositivo parece tener jailbreak. Esto puede poner en riesgo tu billetera y tus fondos.
+rootcheck_body = Tu dispositivo parece tener acceso root, lo que puede aumentar significativamente los riesgos de seguridad. El uso de esta aplicación en un dispositivo rooteado puede exponer tus activos a acceso no autorizado y a una posible pérdida. Para la seguridad de tus fondos, te recomendamos encarecidamente que utilices un dispositivo no rooteado.
 rootcheck_ignore = Ignorar
 rootcheck_exit = Salir

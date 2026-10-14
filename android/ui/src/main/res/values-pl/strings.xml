@@ -334,7 +334,7 @@
   <string name="stake_validator">Walidator</string>
   <string name="stake_validators">Walidatory</string>
   <string name="stake_apr">APR %1$s</string>
-  <string name="stake_available_in">Dostępne w</string>
+  <string name="stake_available_in">Dostępne za</string>
   <string name="stake_inactive">Nieaktywny</string>
   <string name="stake_lock_time">Czas blokady</string>
   <string name="stake_activating">Aktywacja</string>
@@ -416,7 +416,7 @@
   <string name="banner_asset_status_description">Token może być niebezpieczny lub wprowadzać w błąd. Kontynuuj tylko wtedy, gdy w pełni mu ufasz.</string>
   <string name="banner_onboarding_title">Twój portfel jest gotowy</string>
   <string name="banner_onboarding_description">Kup lub odbierz kryptowalutę, aby zacząć</string>
-  <string name="banner_perpetuals_title">Handluj instrumentami perpetuals na Hyperliquid</string>
+  <string name="banner_perpetuals_title">Handluj Perpetuals na Hyperliquid</string>
   <string name="banner_perpetuals_description">Wpłacaj, handluj i zarabiaj dzięki Hyperliquid Perpetuals</string>
   <string name="filter_clear">Wyczyść</string>
   <string name="filter_title">Filtry</string>
@@ -570,8 +570,8 @@
   <string name="perpetual_account_leverage">Dźwignia konta</string>
   <string name="perpetual_margin_cross">Krzyż</string>
   <string name="perpetual_margin_isolated">Izolowana</string>
-  <string name="perpetuals_title">Wieczyste</string>
-  <string name="perpetuals_trade">Handluj wieczystymi</string>
+  <string name="perpetuals_title">Perpetuals</string>
+  <string name="perpetuals_trade">Handluj Perpetuals</string>
   <string name="perpetuals_markets">Rynki</string>
   <string name="perpetuals_empty_state_no_markets_found">Nie znaleziono rynków</string>
   <string name="rewards_title">Nagrody</string>

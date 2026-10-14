@@ -137,7 +137,7 @@
   <string name="transfer_recipient_view_wallets">Wallets anzeigen</string>
   <string name="transfer_minimum_account_balance">Danach muss ein Mindestguthaben %1$s übrig bleiben, es sei denn, Sie nutzen Ihr gesamtes Guthaben.</string>
   <string name="transfer_destination_account_activation">Die Zieladresse erfordert ein Minimum von %1$s.</string>
-  <string name="transfer_smart_contract_title">Intelligenter Vertrag</string>
+  <string name="transfer_smart_contract_title">Smart Contract</string>
   <string name="transfer_other_title">Andere</string>
   <string name="transfer_maximum_amount">Der Höchstbetrag beträgt %1$s</string>
   <string name="transfer_reserved_fees">Wir haben %1$s auf Ihrem Guthaben belassen, um zukünftige Netzwerkgebühren abzudecken.</string>
@@ -342,8 +342,8 @@
   <string name="stake_awaiting_withdrawal">Warten auf Auszahlung</string>
   <string name="stake_active_in">Aktiv in</string>
   <string name="stake_minimum_amount">Mindestbetrag</string>
-  <string name="stake_state_empty_title">Ihre Einsätze werden hier angezeigt</string>
-  <string name="stake_state_empty_description">Setzen Sie Ihre ersten %1$s ein</string>
+  <string name="stake_state_empty_title">Ihre Staking-Positionen werden hier angezeigt</string>
+  <string name="stake_state_empty_description">Staken Sie Ihre ersten %1$s</string>
   <string name="stake_state_empty_validators_title">Keine Validatoren gefunden</string>
   <string name="stake_resource">Ressource</string>
   <string name="stake_resource_energy">Energie</string>

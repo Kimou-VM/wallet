@@ -98,7 +98,7 @@ wallet_add_token_title = Добавить токен
 wallet_sell = Продать
 wallet_receive_collection = Получить коллекцию
 wallet_more = Ещё
-wallet_import_contract_address_field = Контракт или токен ID
+wallet_import_contract_address_field = Контракт или ID токена
 wallet_import_address_warning = Вы можете просматривать балансы и транзакции для этого адреса, но **не можете отправлять или продавать средства**.
 wallet_deposit = Внести
 wallet_withdraw = Вывести
@@ -129,7 +129,7 @@ buy_no_results = Нет доступных котировок
 
 # Transfer
 
-transfer_network_fee = Сетевая плата
+transfer_network_fee = Комиссия сети
 transfer_pay_with = Оплатить с помощью
 transfer_payment_title = Платёж
 transfer_memo = Мемо
@@ -161,7 +161,7 @@ transfer_destination_account_activation = Адрес назначения тре
 transfer_smart_contract_title = Смарт-контракт
 transfer_other_title = Прочее
 transfer_maximum_amount = Максимальная сумма %@
-transfer_reserved_fees = Мы оставили %@ на вашем балансе для покрытия будущих сетевых сборов.
+transfer_reserved_fees = Мы оставили %@ на вашем балансе для оплаты будущих комиссий сети.
 transfer_freeze_title = Заморозить
 transfer_unfreeze_title = Разморозить
 transfer_review_request = Просмотр запроса
@@ -311,7 +311,7 @@ asset_circulating_supply = В обороте
 asset_balances_reserved = Зарезервировано
 asset_view_token_on = Посмотреть токен на %@
 asset_view_address_on = Посмотреть адрес на %@
-asset_name = Имя
+asset_name = Название
 asset_symbol = Символ
 asset_decimals = Десятичные знаки
 asset_token_id = ID токена
@@ -503,8 +503,8 @@ banner_asset_status_title = Подозрительный актив
 banner_asset_status_description = Токен может быть небезопасным или вводить в заблуждение. Продолжайте, только если вы полностью ему доверяете.
 banner_onboarding_title = Ваш кошелек готов
 banner_onboarding_description = Купите или получите криптовалюту, чтобы начать
-banner_perpetuals_title = Торгуйте бессрочными контрактами на Hyperliquid
-banner_perpetuals_description = Вносите депозит, торгуйте и зарабатывайте с бессрочными контрактами Hyperliquid
+banner_perpetuals_title = Торгуйте перпами на Hyperliquid
+banner_perpetuals_description = Вносите депозит, торгуйте и зарабатывайте на перпах Hyperliquid
 
 # Filter
 
@@ -568,7 +568,7 @@ sell_title = Продать %@
 
 info_region_unavailable_description = Эта функция недоступна в вашем регионе. Доступность зависит от местных правил и требований провайдеров.
 
-info_network_fee_title = Сетевая плата
+info_network_fee_title = Комиссия сети
 info_watch_wallet_title = Кошелек для наблюдения
 info_watch_wallet_description = Кошелек, к которому у вас нет доступа, но вы можете следить за его транзакциями и движениями.
 info_payment_verification_title = Проверка платежа
@@ -695,7 +695,7 @@ perpetual_liquidation = Liq
 perpetual_increase_direction = Увеличить %@
 perpetual_reduce_direction = Уменьшить %@
 perpetual_auto_close_expected_profit = Ожидаемая прибыль
-perpetual_auto_close_expected_loss = Ожидаемые потери
+perpetual_auto_close_expected_loss = Ожидаемый убыток
 perpetual_modify_position = Изменить позицию
 perpetual_auto_close_stop_loss = Стоп-лосс
 perpetual_value = Стоимость
@@ -709,16 +709,16 @@ perpetual_margin_isolated = Изолированная
 
 # Perpetuals
 
-perpetuals_title = Перпетуалы
+perpetuals_title = Перпы
 # Used in the wallet screen row that opens Perpetuals when the wallet holds no positions.
-perpetuals_trade = Торговать перпетуалами
+perpetuals_trade = Торговать перпами
 perpetuals_markets = Рынки
 perpetuals_empty_state_no_markets_found = Рынки не найдены
 
 # Rewards
 
 rewards_title = Награды
-rewards_share_text = Создайте Gem Wallet по моей реферальной ссылке и получите вознаграждение: %@
+rewards_share_text = Присоединяйтесь к Gem Wallet по моей реферальной ссылке и получайте награды: %@
 rewards_my_referral_code = Мой реферальный код
 rewards_invite_friends_title = Пригласите друзей
 rewards_invite_friends_description = Зарабатывайте %@ баллов за каждого друга, который присоединится.
@@ -774,7 +774,7 @@ contacts_add_to_existing_contact = Добавить в контакт
 
 # Simulation
 
-simulation_header_unlimited_asset = Без ограничений %@
+simulation_header_unlimited_asset = %@ без ограничений
 simulation_warning_unlimited_token_approval_description = Это даёт получателю одобрения доступ к использованию этого токена до тех пор, пока вы не отзовёте разрешение или оно не истечёт.
 simulation_warning_externally_owned_spender_description = Это разрешение позволяет обычному адресу кошелька (EOA) использовать ваши активы. Подтверждайте только если доверяете этому адресу.
 simulation_warning_nft_collection_approval_title = Запрошен полный доступ к коллекции NFT.

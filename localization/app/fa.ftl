@@ -297,7 +297,7 @@ transaction_swap_again = دوباره مبادله کنید
 transaction_status_completed = تکمیل شد
 transaction_status_inprogress = در حال انجام است
 transaction_status_refunded = بازپرداخت شد
-transaction_status_expired = منقضی شد
+transaction_status_expired = منقضی شده
 
 # Asset
 
@@ -341,8 +341,8 @@ charts_month = ۱ ماه
 charts_year = 1 سال
 charts_all = همه
 charts_entry = ورود
-charts_price_open = باز
-charts_price_close = بستن
+charts_price_open = باز شدن
+charts_price_close = بسته شدن
 charts_price_high = بالا
 charts_price_low = کم
 charts_price_change = تغییر
@@ -351,7 +351,7 @@ charts_price_change = تغییر
 
 date_today = امروز
 date_yesterday = دیروز
-date_day_time = %@, %@
+date_day_time = %@، %@
 
 # Wallet Connect
 
@@ -503,7 +503,7 @@ banner_asset_status_title = دارایی مشکوک
 banner_asset_status_description = رمز ممکن است ناامن یا گمراه کننده باشد. فقط در صورت اعتماد کامل به آن ادامه دهید.
 banner_onboarding_title = کیف پول شما آماده است
 banner_onboarding_description = برای شروع، کریپتو بخرید یا دریافت کنید
-banner_perpetuals_title = معاملات دائمی در Hyperliquid
+banner_perpetuals_title = معامله Perpetuals در Hyperliquid
 banner_perpetuals_description = با Hyperliquid perpetuals سپرده گذاری کنید، تجارت کنید و کسب درآمد کنید
 
 # Filter
@@ -566,7 +566,7 @@ sell_title = فروش %@
 
 # Info
 
-info_region_unavailable_description = این قابلیت در منطقه شما در دسترس نیست. دسترسی به قوانین محلی و الزامات ارائه‌دهندگان بستگی دارد.
+info_region_unavailable_description = این قابلیت در منطقه شما در دسترس نیست. در دسترس بودن آن به قوانین محلی و الزامات ارائه‌دهندگان بستگی دارد.
 
 info_network_fee_title = کارمزد شبکه
 info_watch_wallet_title = کیف پول مشاهده‌ای
@@ -709,9 +709,9 @@ perpetual_margin_isolated = جدا شده
 
 # Perpetuals
 
-perpetuals_title = دائمی‌ها
+perpetuals_title = Perpetuals
 # Used in the wallet screen row that opens Perpetuals when the wallet holds no positions.
-perpetuals_trade = معامله دائمی‌ها
+perpetuals_trade = معامله Perpetuals
 perpetuals_markets = بازارها
 perpetuals_empty_state_no_markets_found = هیچ بازاری یافت نشد
 
@@ -736,7 +736,7 @@ rewards_username = نام کاربری
 rewards_ways_spend_title = راه‌های خرج کردن
 rewards_ways_spend_asset_title = دریافت %@
 rewards_insufficient_points = امتیاز ناکافی
-rewards_confirm_redeem = دریافت %@ برای %@!
+rewards_confirm_redeem = دریافت %@ در ازای %@!
 rewards_pending_title = پاداش در انتظار
 rewards_pending_description = موجود در %@
 rewards_pending_description_ready = جایزه شما آماده است!

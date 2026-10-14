@@ -416,8 +416,8 @@
   <string name="banner_asset_status_description">Token güvenli olmayabilir veya yanıltıcı olabilir. Yalnızca tamamen güveniyorsanız devam edin.</string>
   <string name="banner_onboarding_title">Cüzdanınız hazır</string>
   <string name="banner_onboarding_description">Başlamak için kripto satın alın veya alın</string>
-  <string name="banner_perpetuals_title">Hyperliquid\'de Sürekli İşlemler Yapın</string>
-  <string name="banner_perpetuals_description">Hyperliquid kalıcı varlıklarıyla para yatırın, ticaret yapın ve kazanın</string>
+  <string name="banner_perpetuals_title">Hyperliquid\'de Perpetuals işlemi yapın</string>
+  <string name="banner_perpetuals_description">Hyperliquid Perpetuals ile para yatırın, işlem yapın ve kazanın</string>
   <string name="filter_clear">Temizle</string>
   <string name="filter_title">Filtreler</string>
   <string name="filter_types">Türler</string>
@@ -570,8 +570,8 @@
   <string name="perpetual_account_leverage">Hesap Kaldıraç</string>
   <string name="perpetual_margin_cross">Çapraz</string>
   <string name="perpetual_margin_isolated">İzole</string>
-  <string name="perpetuals_title">Sürekliler</string>
-  <string name="perpetuals_trade">Süreklileri al-sat</string>
+  <string name="perpetuals_title">Perpetuals</string>
+  <string name="perpetuals_trade">Perpetuals al-sat</string>
   <string name="perpetuals_markets">Piyasalar</string>
   <string name="perpetuals_empty_state_no_markets_found">Hiçbir pazar bulunamadı</string>
   <string name="rewards_title">Ödüller</string>

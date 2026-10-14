@@ -92,7 +92,7 @@
   <string name="wallet_sell">Продать</string>
   <string name="wallet_receive_collection">Получить коллекцию</string>
   <string name="wallet_more">Ещё</string>
-  <string name="wallet_import_contract_address_field">Контракт или токен ID</string>
+  <string name="wallet_import_contract_address_field">Контракт или ID токена</string>
   <string name="wallet_import_address_warning">Вы можете просматривать балансы и транзакции для этого адреса, но **не можете отправлять или продавать средства**.</string>
   <string name="wallet_deposit">Внести</string>
   <string name="wallet_withdraw">Вывести</string>
@@ -108,7 +108,7 @@
   <string name="buy_providers_title">Провайдеры</string>
   <string name="buy_rate">Курс</string>
   <string name="buy_no_results">Нет доступных котировок</string>
-  <string name="transfer_network_fee">Сетевая плата</string>
+  <string name="transfer_network_fee">Комиссия сети</string>
   <string name="transfer_pay_with">Оплатить с помощью</string>
   <string name="transfer_payment_title">Платёж</string>
   <string name="transfer_memo">Мемо</string>
@@ -140,7 +140,7 @@
   <string name="transfer_smart_contract_title">Смарт-контракт</string>
   <string name="transfer_other_title">Прочее</string>
   <string name="transfer_maximum_amount">Максимальная сумма %1$s</string>
-  <string name="transfer_reserved_fees">Мы оставили %1$s на вашем балансе для покрытия будущих сетевых сборов.</string>
+  <string name="transfer_reserved_fees">Мы оставили %1$s на вашем балансе для оплаты будущих комиссий сети.</string>
   <string name="transfer_freeze_title">Заморозить</string>
   <string name="transfer_unfreeze_title">Разморозить</string>
   <string name="transfer_review_request">Просмотр запроса</string>
@@ -269,7 +269,7 @@
   <string name="asset_balances_reserved">Зарезервировано</string>
   <string name="asset_view_token_on">Посмотреть токен на %1$s</string>
   <string name="asset_view_address_on">Посмотреть адрес на %1$s</string>
-  <string name="asset_name">Имя</string>
+  <string name="asset_name">Название</string>
   <string name="asset_symbol">Символ</string>
   <string name="asset_decimals">Десятичные знаки</string>
   <string name="asset_token_id">ID токена</string>
@@ -416,8 +416,8 @@
   <string name="banner_asset_status_description">Токен может быть небезопасным или вводить в заблуждение. Продолжайте, только если вы полностью ему доверяете.</string>
   <string name="banner_onboarding_title">Ваш кошелек готов</string>
   <string name="banner_onboarding_description">Купите или получите криптовалюту, чтобы начать</string>
-  <string name="banner_perpetuals_title">Торгуйте бессрочными контрактами на Hyperliquid</string>
-  <string name="banner_perpetuals_description">Вносите депозит, торгуйте и зарабатывайте с бессрочными контрактами Hyperliquid</string>
+  <string name="banner_perpetuals_title">Торгуйте перпами на Hyperliquid</string>
+  <string name="banner_perpetuals_description">Вносите депозит, торгуйте и зарабатывайте на перпах Hyperliquid</string>
   <string name="filter_clear">Очистить</string>
   <string name="filter_title">Фильтры</string>
   <string name="filter_types">Типы</string>
@@ -459,7 +459,7 @@
   <string name="warnings_externally_controlled_account">Этот аккаунт %1$s может контролировать кто-то другой. Не отправляйте на него средства, если вы не уверены, что контролируете его, иначе вы можете навсегда потерять свои активы.</string>
   <string name="sell_title">Продать %1$s</string>
   <string name="info_region_unavailable_description">Эта функция недоступна в вашем регионе. Доступность зависит от местных правил и требований провайдеров.</string>
-  <string name="info_network_fee_title">Сетевая плата</string>
+  <string name="info_network_fee_title">Комиссия сети</string>
   <string name="info_watch_wallet_title">Кошелек для наблюдения</string>
   <string name="info_watch_wallet_description">Кошелек, к которому у вас нет доступа, но вы можете следить за его транзакциями и движениями.</string>
   <string name="info_payment_verification_title">Проверка платежа</string>
@@ -559,7 +559,7 @@
   <string name="perpetual_increase_direction">Увеличить %1$s</string>
   <string name="perpetual_reduce_direction">Уменьшить %1$s</string>
   <string name="perpetual_auto_close_expected_profit">Ожидаемая прибыль</string>
-  <string name="perpetual_auto_close_expected_loss">Ожидаемые потери</string>
+  <string name="perpetual_auto_close_expected_loss">Ожидаемый убыток</string>
   <string name="perpetual_modify_position">Изменить позицию</string>
   <string name="perpetual_auto_close_stop_loss">Стоп-лосс</string>
   <string name="perpetual_value">Стоимость</string>
@@ -570,12 +570,12 @@
   <string name="perpetual_account_leverage">Кредитное плечо счета</string>
   <string name="perpetual_margin_cross">Кросс</string>
   <string name="perpetual_margin_isolated">Изолированная</string>
-  <string name="perpetuals_title">Перпетуалы</string>
-  <string name="perpetuals_trade">Торговать перпетуалами</string>
+  <string name="perpetuals_title">Перпы</string>
+  <string name="perpetuals_trade">Торговать перпами</string>
   <string name="perpetuals_markets">Рынки</string>
   <string name="perpetuals_empty_state_no_markets_found">Рынки не найдены</string>
   <string name="rewards_title">Награды</string>
-  <string name="rewards_share_text">Создайте Gem Wallet по моей реферальной ссылке и получите вознаграждение: %1$s</string>
+  <string name="rewards_share_text">Присоединяйтесь к Gem Wallet по моей реферальной ссылке и получайте награды: %1$s</string>
   <string name="rewards_my_referral_code">Мой реферальный код</string>
   <string name="rewards_invite_friends_title">Пригласите друзей</string>
   <string name="rewards_invite_friends_description">Зарабатывайте %1$s баллов за каждого друга, который присоединится.</string>
@@ -616,7 +616,7 @@
   <string name="contacts_state_empty_description">Сохраните часто используемые адреса.</string>
   <string name="contacts_create_new_contact">Создать новый контакт</string>
   <string name="contacts_add_to_existing_contact">Добавить в контакт</string>
-  <string name="simulation_header_unlimited_asset">Без ограничений %1$s</string>
+  <string name="simulation_header_unlimited_asset">%1$s без ограничений</string>
   <string name="simulation_warning_unlimited_token_approval_description">Это даёт получателю одобрения доступ к использованию этого токена до тех пор, пока вы не отзовёте разрешение или оно не истечёт.</string>
   <string name="simulation_warning_externally_owned_spender_description">Это разрешение позволяет обычному адресу кошелька (EOA) использовать ваши активы. Подтверждайте только если доверяете этому адресу.</string>
   <string name="simulation_warning_nft_collection_approval_title">Запрошен полный доступ к коллекции NFT.</string>

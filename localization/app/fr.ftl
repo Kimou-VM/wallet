@@ -548,7 +548,7 @@ lock_six_hours = 6 heures
 lock_require_authentication = Exiger une authentification
 lock_unlock = Déverrouiller
 lock_footer = Protégez l'accès à cette application sur votre appareil
-lock_passcode = Mot de passe
+lock_passcode = Code
 lock_passcode_off_title = Le code de l'appareil est désactivé
 lock_passcode_off_description = Gem est verrouillé par le code de votre appareil. Activez un code dans les réglages de l'appareil pour ouvrir Gem. Vos portefeuilles sont en sécurité.
 

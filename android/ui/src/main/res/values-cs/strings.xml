@@ -334,7 +334,7 @@
   <string name="stake_validator">Validátor</string>
   <string name="stake_validators">Validátoři</string>
   <string name="stake_apr">APR %1$s</string>
-  <string name="stake_available_in">Dostupné v</string>
+  <string name="stake_available_in">Dostupné za</string>
   <string name="stake_inactive">Neaktivní</string>
   <string name="stake_lock_time">Čas zámku</string>
   <string name="stake_activating">Aktivace</string>
@@ -570,8 +570,8 @@
   <string name="perpetual_account_leverage">Pákový efekt účtu</string>
   <string name="perpetual_margin_cross">Cross</string>
   <string name="perpetual_margin_isolated">Izolovaný</string>
-  <string name="perpetuals_title">Věčné</string>
-  <string name="perpetuals_trade">Obchodovat věčné</string>
+  <string name="perpetuals_title">Perpetuals</string>
+  <string name="perpetuals_trade">Obchodovat Perpetuals</string>
   <string name="perpetuals_markets">Trhy</string>
   <string name="perpetuals_empty_state_no_markets_found">Nenalezeny žádné trhy</string>
   <string name="rewards_title">Odměny</string>

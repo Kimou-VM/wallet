@@ -95,7 +95,7 @@
   <string name="wallet_import_contract_address_field">کنٹریکٹ یا ٹوکن ID</string>
   <string name="wallet_import_address_warning">آپ اس پتے کے بیلنس اور لین دین دیکھ سکتے ہیں، لیکن **فنڈز بھیج یا فروخت نہیں کر سکتے**۔</string>
   <string name="wallet_deposit">جمع</string>
-  <string name="wallet_withdraw">واپس لینا</string>
+  <string name="wallet_withdraw">نکالیں</string>
   <string name="wallet_available_balance">دستیاب: %1$s</string>
   <string name="wallet_pay_with_card_or_bank">کارڈ یا بینک سے ادائیگی کریں</string>
   <string name="wallet_from_your_wallet_assets">اپنے والیٹ اثاثوں سے</string>
@@ -303,7 +303,7 @@
   <string name="charts_price_change">تبدیلی</string>
   <string name="date_today">آج</string>
   <string name="date_yesterday">کل</string>
-  <string name="date_day_time">%1$s, %2$s</string>
+  <string name="date_day_time">%1$s، %2$s</string>
   <string name="wallet_connect_title">WalletConnect</string>
   <string name="wallet_connect_connection_title">کنکشن</string>
   <string name="wallet_connect_disconnect">منقطع کرنا</string>
@@ -416,7 +416,7 @@
   <string name="banner_asset_status_description">ٹوکن غیر محفوظ یا گمراہ کن ہو سکتا ہے۔ صرف اس صورت میں آگے بڑھیں جب آپ کو اس پر مکمل اعتماد ہو۔</string>
   <string name="banner_onboarding_title">آپ کا والیٹ تیار ہے</string>
   <string name="banner_onboarding_description">شروع کرنے کے لیے کریپٹو خریدیں یا وصول کریں۔</string>
-  <string name="banner_perpetuals_title">Hyperliquid پر مستقل تجارت</string>
+  <string name="banner_perpetuals_title">Hyperliquid پر Perpetuals ٹریڈ کریں</string>
   <string name="banner_perpetuals_description">Hyperliquid perpetual کے ساتھ جمع کریں، تجارت کریں اور کمائیں۔</string>
   <string name="filter_clear">صاف</string>
   <string name="filter_title">فلٹرز</string>
@@ -430,7 +430,7 @@
   <string name="price_alerts_direction_increases_by">سے بڑھتا ہے</string>
   <string name="price_alerts_direction_decreases_by">سے کم ہوتا ہے</string>
   <string name="price_alerts_set_alert_price_over">جب قیمت اس سے اوپر ہو</string>
-  <string name="price_alerts_set_alert_price_under">جب قیمت کم ہو۔</string>
+  <string name="price_alerts_set_alert_price_under">جب قیمت اس سے نیچے ہو</string>
   <string name="price_alerts_set_alert_price_increases_by">جب قیمت بڑھ جاتی ہے</string>
   <string name="price_alerts_set_alert_price_decreases_by">جب قیمت کم ہوتی ہے</string>
   <string name="price_alerts_set_alert_set_target_price">ہدف کی قیمت مقرر کریں</string>
@@ -561,7 +561,7 @@
   <string name="perpetual_auto_close_expected_profit">متوقع منافع</string>
   <string name="perpetual_auto_close_expected_loss">متوقع نقصان</string>
   <string name="perpetual_modify_position">پوزیشن میں ترمیم کریں</string>
-  <string name="perpetual_auto_close_stop_loss">نقصان کو روکیں۔</string>
+  <string name="perpetual_auto_close_stop_loss">اسٹاپ لاس</string>
   <string name="perpetual_value">قدر</string>
   <string name="perpetual_unrealized_pnl">غیر حقیقی PnL</string>
   <string name="perpetual_volume">حجم</string>
@@ -570,8 +570,8 @@
   <string name="perpetual_account_leverage">اکاؤنٹ لیوریج</string>
   <string name="perpetual_margin_cross">کراس</string>
   <string name="perpetual_margin_isolated">الگ تھلگ</string>
-  <string name="perpetuals_title">دائمی</string>
-  <string name="perpetuals_trade">دائمی ٹریڈ کریں</string>
+  <string name="perpetuals_title">Perpetuals</string>
+  <string name="perpetuals_trade">Perpetuals ٹریڈ کریں</string>
   <string name="perpetuals_markets">منڈیاں</string>
   <string name="perpetuals_empty_state_no_markets_found">کوئی بازار نہیں ملا</string>
   <string name="rewards_title">انعامات</string>
@@ -595,7 +595,7 @@
   <string name="rewards_insufficient_points">ناکافی پوائنٹس</string>
   <string name="rewards_confirm_redeem">%2$s کے بدلے %1$s حاصل کریں!</string>
   <string name="rewards_pending_title">بونس زیر التواء</string>
-  <string name="rewards_pending_description">میں دستیاب ہے۔ %1$s</string>
+  <string name="rewards_pending_description">%1$s میں دستیاب</string>
   <string name="rewards_pending_description_ready">آپ کا بونس تیار ہے!</string>
   <string name="rewards_nickname">عرفی نام</string>
   <string name="rewards_unverified_title">انعامات ابھی فعال نہیں ہیں۔</string>

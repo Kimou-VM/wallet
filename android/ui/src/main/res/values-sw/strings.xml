@@ -185,7 +185,7 @@
   <string name="errors_token_invalid_id">Kitambulisho Batili cha Tokeni</string>
   <string name="errors_import_invalid_secret_phrase">Maneno ya Siri Batili</string>
   <string name="errors_import_invalid_secret_phrase_word">Neno batili la Neno la Siri: %1$s</string>
-  <string name="errors_import_invalid_private_key">Ufunguo wa faragha si sahihi</string>
+  <string name="errors_import_invalid_private_key">Ufunguo wa kibinafsi si sahihi</string>
   <string name="errors_keystore_access">Imeshindwa kufikia funguo za pochi hii kwenye kifaa hiki. Ikiwa una fungu lako la kurejesha, ondoa pochi hii kisha uiingize tena ili kurejesha ufikiaji.</string>
   <string name="errors_wallet_account_missing">Pochi hii haina akaunti ya mtandao huu</string>
   <string name="errors_invalid_url">URL batili</string>
@@ -274,7 +274,7 @@
   <string name="asset_decimals">Desimali</string>
   <string name="asset_token_id">Kitambulisho cha Tokeni</string>
   <string name="asset_contract">Mkataba</string>
-  <string name="asset_state_empty_title">Shughuli zako za malipo zitaonekana hapa</string>
+  <string name="asset_state_empty_title">Miamala yako itaonekana hapa</string>
   <string name="asset_state_empty_description">Pokea, badilisha au nunua %1$s</string>
   <string name="asset_verification_unverified">Haijathibitishwa</string>
   <string name="asset_verification_suspicious">Inatiliwa shaka</string>
@@ -343,7 +343,7 @@
   <string name="stake_active_in">Inayotumika Katika</string>
   <string name="stake_minimum_amount">Kiasi cha chini</string>
   <string name="stake_state_empty_title">Hisa zako zitaonekana hapa</string>
-  <string name="stake_state_empty_description">Shiriki %1$s yako ya kwanza</string>
+  <string name="stake_state_empty_description">Weka %1$s yako ya kwanza kwenye hisa</string>
   <string name="stake_state_empty_validators_title">Hakuna vithibitishaji vilivyopatikana</string>
   <string name="stake_resource">Rasilimali</string>
   <string name="stake_resource_energy">Nishati</string>
@@ -469,7 +469,7 @@
   <string name="info_transaction_pending_description">Muamala umewasilishwa na unasubiri uthibitisho kwenye mtandao. Nyakati za usindikaji zinaweza kutofautiana. Tafadhali angalia tena kwa sasisho.</string>
   <string name="info_estimated_confirmation_description">Makadirio haya yanategemea ada ya muamala na shughuli za sasa za mtandao wa %1$s. Muda halisi wa uthibitisho unaweza kubadilika na haujahakikishwa.</string>
   <string name="info_transaction_success_description">Muamala umekamilika na kuthibitishwa kwenye mtandao. Unaweza kukagua maelezo ili kuthibitisha hali yake.</string>
-  <string name="info_lock_time_description">Muda wa kufunga, unaojulikana pia kama kipindi cha kuunganisha au kufungia, ni muda ambao mali zilizowekwa kwenye hisa haziwezi kufikiwa baada ya kuamua kuziondoa.</string>
+  <string name="info_lock_time_description">Muda wa kufunga, unaojulikana pia kama kipindi cha unbonding au cha kuondoa kuganda, ni muda ambao mali zilizowekwa kwenye hisa haziwezi kufikiwa baada ya kuamua kuziondoa kwenye hisa.</string>
   <string name="info_price_impact_description">Athari ya bei ni mabadiliko ya bei ya tokeni yanayosababishwa na ukubwa wa biashara yako. Athari ya bei ya juu inamaanisha unapokea tokeni chache kutokana na ukwasi mdogo au ukubwa mkubwa wa agizo.</string>
   <string name="info_slippage_description">Slippage inarejelea tofauti kati ya bei inayotarajiwa ya biashara na bei halisi ambayo inatekelezwa.</string>
   <string name="info_asset_status_unverified_description">Tokeni ambazo hazijathibitishwa hazijathibitishwa vya kutosha na huduma zinazoaminika za wahusika wengine. Huenda zikaonekana kwenye mkoba wako kwa sababu ya matone ya hewa, uhamisho, au uagizaji wa mikono.</string>
@@ -489,8 +489,8 @@
   <string name="info_stake_reserved_title">Imehifadhiwa kwa Ada ya Mtandao</string>
   <string name="info_stake_reserved_description">Kiasi kidogo husalia kwenye mkoba wako ili kulipia ada za shughuli kama vile kuondoa hisa au kudai zawadi.</string>
   <string name="info_stake_apr_description">Kiwango cha Asilimia cha Mwaka (APR) ni kiwango cha tuzo cha kila mwaka cha kuweka sarafu yako ya cryptocurrency.</string>
-  <string name="info_stake_frozen_required_title">Ganda TRX ili kuweka hisa</string>
-  <string name="info_stake_frozen_required_description">Kuweka hisa kwenye TRON huhusisha hatua mbili. Kwanza ganda TRX, kisha uziweke hisa ili kupata zawadi.</string>
+  <string name="info_stake_frozen_required_title">Gandisha TRX ili kuweka hisa</string>
+  <string name="info_stake_frozen_required_description">Kuweka hisa kwenye TRON huhusisha hatua mbili. Kwanza gandisha TRX, kisha uziweke hisa ili kupata zawadi.</string>
   <string name="info_perpetual_auto_close_description">Funga nafasi yako kiotomatiki katika viwango vya bei vilivyowekwa. Take Profit hulinda faida, Stop Loss hupunguza hasara.</string>
   <string name="info_fully_diluted_valuation_title">Thamani Iliyopunguzwa Kikamilifu</string>
   <string name="info_fully_diluted_valuation_description">Thamani ya kinadharia ya soko ikiwa sarafu zote zilikuwa zikitumika. Imehesabiwa kama bei ikizidishwa na usambazaji wa juu zaidi.</string>
@@ -568,7 +568,7 @@
   <string name="perpetual_all_time_pnl">PnL ya Wakati Wote</string>
   <string name="perpetual_margin_usage">Matumizi ya Margin</string>
   <string name="perpetual_account_leverage">Uwiano wa Mtaji wa Akaunti</string>
-  <string name="perpetual_margin_cross">Msalaba</string>
+  <string name="perpetual_margin_cross">Cross</string>
   <string name="perpetual_margin_isolated">Imetengwa</string>
   <string name="perpetuals_title">Perpetuals</string>
   <string name="perpetuals_trade">Fanya biashara ya Perpetuals</string>

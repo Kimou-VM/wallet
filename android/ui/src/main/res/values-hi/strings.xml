@@ -64,9 +64,9 @@
   <string name="welcome_title">Gem Family में आपका स्वागत है</string>
   <string name="wallet_create_new_wallet">एक नया वॉलेट बनाएं</string>
   <string name="wallet_import_existing_wallet">मौजूदा वॉलेट आयात करें</string>
-  <string name="wallet_send">भेजना</string>
+  <string name="wallet_send">भेजें</string>
   <string name="wallet_receive">प्राप्त करें</string>
-  <string name="wallet_buy">खरीदना</string>
+  <string name="wallet_buy">खरीदें</string>
   <string name="wallet_swap">स्वैप</string>
   <string name="wallet_import_title">वॉलेट आयात करें</string>
   <string name="wallet_new_title">नया बटुआ</string>
@@ -89,13 +89,13 @@
   <string name="wallet_receive_no_destination_tag_required">किसी गंतव्य टैग की आवश्यकता नहीं है</string>
   <string name="wallet_title">बटुआ</string>
   <string name="wallet_add_token_title">टोकन जोड़ें</string>
-  <string name="wallet_sell">बेचना</string>
+  <string name="wallet_sell">बेचें</string>
   <string name="wallet_receive_collection">संग्रह प्राप्त करें</string>
   <string name="wallet_more">अधिक</string>
   <string name="wallet_import_contract_address_field">कॉन्ट्रैक्ट या टोकन ID</string>
   <string name="wallet_import_address_warning">आप इस पते के लिए शेष राशि और लेनदेन देख सकते हैं, लेकिन **धन भेज या बेच नहीं सकते**।</string>
   <string name="wallet_deposit">जमा</string>
-  <string name="wallet_withdraw">निकालना</string>
+  <string name="wallet_withdraw">निकालें</string>
   <string name="wallet_available_balance">उपलब्ध: %1$s</string>
   <string name="wallet_pay_with_card_or_bank">कार्ड या बैंक से भुगतान करें</string>
   <string name="wallet_from_your_wallet_assets">आपके वॉलेट एसेट्स से</string>
@@ -489,8 +489,8 @@
   <string name="info_stake_reserved_title">नेटवर्क शुल्क के लिए आरक्षित</string>
   <string name="info_stake_reserved_description">आपके वॉलेट में एक छोटी राशि रहती है, जो अनस्टेकिंग या पुरस्कार का दावा करने जैसे कार्यों के लिए शुल्क को कवर करती है।</string>
   <string name="info_stake_apr_description">वार्षिक प्रतिशत दर (एपीआर) आपकी क्रिप्टोकरेंसी को स्टेक करने पर मिलने वाली वार्षिक पुरस्कार दर है।</string>
-  <string name="info_stake_frozen_required_title">स्टेक करने के लिए TRX जमाएं</string>
-  <string name="info_stake_frozen_required_description">TRON पर स्टेकिंग दो चरणों में होती है। पहले TRX जमाएं, फिर इनाम पाने के लिए उसे स्टेक करें।</string>
+  <string name="info_stake_frozen_required_title">स्टेक करने के लिए TRX फ़्रीज़ करें</string>
+  <string name="info_stake_frozen_required_description">TRON पर स्टेकिंग दो चरणों में होती है। पहले TRX फ़्रीज़ करें, फिर इनाम पाने के लिए उसे स्टेक करें।</string>
   <string name="info_perpetual_auto_close_description">निर्धारित मूल्य स्तरों पर अपनी पोजीशन स्वचालित रूप से बंद करें। टेक प्रॉफिट लाभ को लॉक करता है, स्टॉप लॉस नुकसान को सीमित करता है।</string>
   <string name="info_fully_diluted_valuation_title">पूर्णतः पतला मूल्यांकन</string>
   <string name="info_fully_diluted_valuation_description">यदि सभी सिक्के प्रचलन में होते तो उनका सैद्धांतिक बाजार मूल्य क्या होता? इसकी गणना मूल्य को अधिकतम आपूर्ति से गुणा करके की जाती है।</string>
@@ -595,7 +595,7 @@
   <string name="rewards_insufficient_points">अपर्याप्त अंक</string>
   <string name="rewards_confirm_redeem">%2$s के बदले %1$s पाएं!</string>
   <string name="rewards_pending_title">बोनस लंबित है</string>
-  <string name="rewards_pending_description">उपलब्ध है %1$s</string>
+  <string name="rewards_pending_description">%1$s में उपलब्ध</string>
   <string name="rewards_pending_description_ready">आपका बोनस तैयार है!</string>
   <string name="rewards_nickname">उपनाम</string>
   <string name="rewards_unverified_title">पुरस्कार अभी सक्रिय नहीं हैं।</string>

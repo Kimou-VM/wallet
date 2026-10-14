@@ -452,7 +452,7 @@
   <string name="lock_require_authentication">Exiger une authentification</string>
   <string name="lock_unlock">Déverrouiller</string>
   <string name="lock_footer">Protégez l\'accès à cette application sur votre appareil</string>
-  <string name="lock_passcode">Mot de passe</string>
+  <string name="lock_passcode">Code</string>
   <string name="lock_passcode_off_title">Le code de l\'appareil est désactivé</string>
   <string name="lock_passcode_off_description">Gem est verrouillé par le code de votre appareil. Activez un code dans les réglages de l\'appareil pour ouvrir Gem. Vos portefeuilles sont en sécurité.</string>
   <string name="verify_phrase_title">Confirmer</string>

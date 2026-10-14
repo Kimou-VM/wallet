@@ -303,7 +303,7 @@
   <string name="charts_price_change">เปลี่ยน</string>
   <string name="date_today">วันนี้</string>
   <string name="date_yesterday">เมื่อวาน</string>
-  <string name="date_day_time">%1$s, %2$s</string>
+  <string name="date_day_time">%1$s %2$s</string>
   <string name="wallet_connect_title">WalletConnect</string>
   <string name="wallet_connect_connection_title">การเชื่อมต่อ</string>
   <string name="wallet_connect_disconnect">ตัดการเชื่อมต่อ</string>
@@ -567,9 +567,9 @@
   <string name="perpetual_volume">ปริมาณ</string>
   <string name="perpetual_all_time_pnl">กำไรขาดทุนตลอดกาล</string>
   <string name="perpetual_margin_usage">การใช้มาร์จิน</string>
-  <string name="perpetual_account_leverage">การใช้ประโยชน์จากบัญชี</string>
-  <string name="perpetual_margin_cross">ข้าม</string>
-  <string name="perpetual_margin_isolated">โดดเดี่ยว</string>
+  <string name="perpetual_account_leverage">เลเวอเรจของบัญชี</string>
+  <string name="perpetual_margin_cross">Cross</string>
+  <string name="perpetual_margin_isolated">Isolated</string>
   <string name="perpetuals_title">Perpetuals</string>
   <string name="perpetuals_trade">ซื้อขาย Perpetuals</string>
   <string name="perpetuals_markets">ตลาด</string>

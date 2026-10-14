@@ -292,7 +292,7 @@ transaction_status_pending = قيد الانتظار
 transaction_status_failed = فشل
 transaction_status_reverted = التراجع
 transaction_title_received = تم الاستلام
-transaction_title_sent = مرسل
+transaction_title_sent = تم الإرسال
 transaction_swap_again = التبديل مرة أخرى
 transaction_status_completed = مكتمل
 transaction_status_inprogress = في تَقَدم
@@ -351,7 +351,7 @@ charts_price_change = التغيير
 
 date_today = اليوم
 date_yesterday = أمس
-date_day_time = %@, %@
+date_day_time = %@، %@
 
 # Wallet Connect
 
@@ -549,7 +549,7 @@ lock_require_authentication = تتطلب المصادقة
 lock_unlock = فتح
 lock_footer = حماية الوصول إلى هذا التطبيق على جهازك
 lock_passcode = رمز المرور
-lock_passcode_off_title = رمز مرور الجهاز متوقف
+lock_passcode_off_title = رمز مرور الجهاز غير مفعّل
 lock_passcode_off_description = Gem مقفل برمز مرور جهازك. فعّل رمز المرور من إعدادات جهازك لفتح Gem. محافظك آمنة.
 
 # Verify

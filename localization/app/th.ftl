@@ -351,7 +351,7 @@ charts_price_change = เปลี่ยน
 
 date_today = วันนี้
 date_yesterday = เมื่อวาน
-date_day_time = %@, %@
+date_day_time = %@ %@
 
 # Wallet Connect
 
@@ -703,9 +703,9 @@ perpetual_unrealized_pnl = กำไรขาดทุนที่ยังไ�
 perpetual_volume = ปริมาณ
 perpetual_all_time_pnl = กำไรขาดทุนตลอดกาล
 perpetual_margin_usage = การใช้มาร์จิน
-perpetual_account_leverage = การใช้ประโยชน์จากบัญชี
-perpetual_margin_cross = ข้าม
-perpetual_margin_isolated = โดดเดี่ยว
+perpetual_account_leverage = เลเวอเรจของบัญชี
+perpetual_margin_cross = Cross
+perpetual_margin_isolated = Isolated
 
 # Perpetuals
 

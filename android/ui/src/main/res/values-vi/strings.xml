@@ -363,7 +363,7 @@
   <string name="secret_phrase_save_phrase_safely">Lưu cụm từ bí mật của bạn ở nơi an toàn\n mà chỉ có bạn kiểm soát.</string>
   <string name="secret_phrase_confirm_quick_test_title">Hãy hoàn thành bài kiểm tra nhanh này để xác nhận rằng bạn đã lưu mọi thứ một cách chính xác.</string>
   <string name="secret_phrase_screenshot_detected_title">Đã phát hiện ảnh chụp màn hình</string>
-  <string name="secret_phrase_screenshot_detected_description">Ảnh chụp màn hình có thể được các ứng dụng khác truy cập, nhưng chúng có thể khiến cụm từ bí mật của bạn gặp rủi ro nếu được lưu theo cách này.</string>
+  <string name="secret_phrase_screenshot_detected_description">Ảnh chụp màn hình có thể được các ứng dụng khác truy cập và có thể khiến cụm từ bí mật của bạn gặp rủi ro nếu được lưu theo cách này.</string>
   <string name="secret_phrase_content_hidden_description">Nội dung bị ẩn trong quá trình ghi màn hình</string>
   <string name="private_key_reminder_intro">Khóa riêng này là bản sao lưu duy nhất của ví bạn.</string>
   <string name="private_key_reminder_keep_safe_title">Lưu trữ nó ở nơi an toàn</string>
@@ -541,8 +541,8 @@
   <string name="perpetual_position">Vị thế</string>
   <string name="perpetual_close_position">Đóng vị thế</string>
   <string name="perpetual_pnl">PnL</string>
-  <string name="perpetual_long">Dài</string>
-  <string name="perpetual_short">Ngắn</string>
+  <string name="perpetual_long">Long</string>
+  <string name="perpetual_short">Short</string>
   <string name="perpetual_entry_price">Giá vào lệnh</string>
   <string name="perpetual_modify">Sửa đổi</string>
   <string name="perpetual_reduce_position">Giảm vị thế</string>
