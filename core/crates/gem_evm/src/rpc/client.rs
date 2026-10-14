@@ -153,7 +153,7 @@ impl<C: Client + Clone> EthereumClient<C> {
                 })
             })
             .collect::<Result<_, _>>()?;
-        let results = self.client.batch_request::<String, _>(requests).await?.take_all()?;
+        let results = self.client.requests::<String, _>(requests).await?.take_all()?;
         results.try_into().map_err(|_| "Array conversion failed".into())
     }
 
@@ -170,7 +170,7 @@ impl<C: Client + Clone> EthereumClient<C> {
                 block: BlockParameter::Latest,
             })
             .collect();
-        Ok(self.client.batch_request(requests).await?.take_all()?)
+        Ok(self.client.requests(requests).await?.take_all()?)
     }
 
     pub async fn estimate_gas(&self, from: Option<&str>, to: &str, value: Option<&str>, data: Option<&str>) -> Result<String, JsonRpcError> {

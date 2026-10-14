@@ -44,7 +44,7 @@ impl<C: Client + Clone> JsonRpcClient<C> {
         result.take()
     }
 
-    pub async fn batch_request<U: DeserializeOwned + Send, T: ToJsonRpcRequest>(&self, requests: Vec<T>) -> Result<JsonRpcResults<U>, JsonRpcError> {
+    pub async fn requests<U: DeserializeOwned + Send, T: ToJsonRpcRequest>(&self, requests: Vec<T>) -> Result<JsonRpcResults<U>, JsonRpcError> {
         let requests: Vec<JsonRpcRequest> = requests.iter().enumerate().map(|(index, request)| request.to_jsonrpc_request(index as u64 + 1)).collect();
         let mut results: Vec<JsonRpcResult<U>> = match requests.as_slice() {
             [] => return Ok(Default::default()),
@@ -97,7 +97,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_batch_request_single() {
+    async fn test_requests() {
         let client = |batch: bool| {
             JsonRpcClient::new(MockClient::new().with_post(move |_, body| {
                 let body: Value = serde_json::from_slice(body).unwrap();
@@ -111,8 +111,8 @@ mod tests {
             }))
         };
 
-        let single = client(false).batch_request::<String, _>(vec![Method("a")]).await.unwrap();
-        let batch = client(true).batch_request::<String, _>(vec![Method("a"), Method("b")]).await.unwrap();
+        let single = client(false).requests::<String, _>(vec![Method("a")]).await.unwrap();
+        let batch = client(true).requests::<String, _>(vec![Method("a"), Method("b")]).await.unwrap();
 
         assert_eq!(single.take_all().unwrap(), vec!["a"]);
         assert_eq!(batch.take_all().unwrap(), vec!["a", "b"]);
