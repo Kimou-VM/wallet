@@ -145,6 +145,9 @@ impl<C: Client + Clone> SolanaClient<C> {
     }
 
     pub async fn get_token_accounts(&self, address: &str, token_mints: &[String]) -> Result<Vec<ValueResult<Vec<TokenAccountInfo>>>, Box<dyn Error + Send + Sync>> {
+        if let [mint] = token_mints {
+            return Ok(vec![self.get_token_accounts_by_mint(address, mint).await?]);
+        }
         let requests: Vec<SolanaRpc> = token_mints.iter().map(|mint| SolanaRpc::GetTokenAccountsByOwner(address.to_string(), SolanaTokenAccountsFilter::Mint(mint.clone()))).collect();
         Ok(self.client.batch_request(requests).await?.take_all()?)
     }
@@ -162,5 +165,35 @@ mod tests {
 
         let result = load_json_rpc_result::<ResultTokenInfo>(include_str!("../../testdata/usdc_mint.json"));
         assert_eq!(result.value.data.parsed.info.decimals, 6);
+    }
+}
+
+#[cfg(all(test, feature = "rpc"))]
+mod rpc_tests {
+    use super::*;
+    use gem_client::testkit::MockClient;
+    use serde_json::{Value, json};
+
+    fn token_accounts_client(batch: bool) -> SolanaClient<MockClient> {
+        let client = MockClient::new().with_post(move |_, body| {
+            let response = |request: &Value| json!({ "jsonrpc": "2.0", "id": request["id"], "result": { "value": [] } });
+            let body: Value = serde_json::from_slice(body).unwrap();
+            assert_eq!(body.is_array(), batch);
+            let body = match body {
+                Value::Array(requests) => Value::Array(requests.iter().map(response).collect()),
+                request => response(&request),
+            };
+            Ok(serde_json::to_vec(&body).unwrap())
+        });
+        SolanaClient::new(JsonRpcClient::new(client))
+    }
+
+    #[tokio::test]
+    async fn test_get_token_accounts() {
+        let single = token_accounts_client(false).get_token_accounts("owner", &["mint".to_string()]).await.unwrap();
+        let batch = token_accounts_client(true).get_token_accounts("owner", &["mint_a".to_string(), "mint_b".to_string()]).await.unwrap();
+
+        assert_eq!(single.len(), 1);
+        assert_eq!(batch.len(), 2);
     }
 }
