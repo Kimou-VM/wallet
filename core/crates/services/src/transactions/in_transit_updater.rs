@@ -18,7 +18,7 @@ use swapper::cross_chain::{self, DepositAddressMap};
 use swapper::swapper::GemSwapper;
 
 use crate::config::repository::Repository as ConfigurationRepository;
-use crate::transactions::{CheckSchedule, SwapVaultAddressClient, TransactionQueue, TransactionQueueGroup, TransactionQueueMetrics, swap_result_metadata, swap_state_updates};
+use crate::transactions::{CheckSchedule, SwapVaultAddressClient, TransactionQueue, TransactionQueueGroup, TransactionQueueMetrics, swap_result_metadata, swap_state_updates, transaction_with_swap_state};
 
 struct InTransitConfig {
     timeout: Duration,
@@ -149,12 +149,12 @@ impl InTransitUpdater {
     }
 
     async fn save_and_publish(&self, chain: Chain, transaction: &Transaction, state: TransactionState, metadata: Option<serde_json::Value>) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let updates = swap_state_updates(state, metadata.as_ref());
+        let transaction = transaction_with_swap_state(transaction.clone(), state, metadata.clone());
+        let updates = swap_state_updates(&transaction, metadata.as_ref());
         self.repository
             .update_transactions(vec![TransactionFilter::Chain(chain.as_ref().to_string()), TransactionFilter::Hash(transaction.id.hash.clone())], updates)
             .await?;
 
-        let transaction = transaction.clone().with_swap_state(state, metadata.clone());
         self.stream_producer.publish_transactions(TransactionsPayload::new_state_change_with_notify(chain, vec![transaction])).await?;
         Ok(())
     }
