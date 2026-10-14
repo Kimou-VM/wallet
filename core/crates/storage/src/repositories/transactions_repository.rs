@@ -103,6 +103,7 @@ fn upsert_transaction(connection: &mut PgConnection, transaction: &Transaction) 
     }
     diesel::update(target)
         .set((
+            transactions_dsl::asset_id.eq(&new_transaction.asset_id),
             transactions_dsl::from_address.eq(&new_transaction.from_address),
             transactions_dsl::to_address.eq(&new_transaction.to_address),
             transactions_dsl::value.eq(&new_transaction.value),
@@ -400,7 +401,8 @@ impl TransactionsRepository for DatabaseClient {
 mod database_integration_tests {
     use chrono::{DateTime, Duration, Utc};
     use diesel::prelude::*;
-    use primitives::{Asset, Chain, Transaction, TransactionDirection, TransactionId};
+    use num_bigint::BigUint;
+    use primitives::{Asset, Chain, Transaction, TransactionDirection, TransactionId, TransactionType};
 
     use super::TransactionFilter;
     use crate::models::NewWalletAddressRow;
@@ -536,6 +538,39 @@ mod database_integration_tests {
         assert_eq!(from_before, 0);
         assert_eq!(to_before, 1);
         assert_eq!(from_after, 1);
+    }
+
+    #[tokio::test]
+    async fn test_upsert_transaction_replaces_asset_with_value() {
+        let database = Database::mock();
+        let token = Asset::mock_spl_token();
+        let call = Transaction {
+            id: TransactionId::new(Chain::Solana, "upsertassettest".to_string()),
+            asset_id: Chain::Solana.as_asset_id(),
+            fee_asset_id: Chain::Solana.as_asset_id(),
+            transaction_type: TransactionType::SmartContractCall,
+            value: BigUint::from(2_993_832u64),
+            ..Transaction::mock()
+        };
+        let swap = Transaction {
+            asset_id: token.id.clone(),
+            transaction_type: TransactionType::Swap,
+            value: BigUint::from(13_002_173_634u64),
+            ..call.clone()
+        };
+        let stored = database
+            .run(move |client| -> Result<_, DatabaseError> {
+                client.add_chains(vec![Chain::Solana])?;
+                client.add_assets(vec![Asset::from_chain(Chain::Solana).as_basic_primitive(), token.as_basic_primitive()])?;
+                client.set_transactions(vec![call])?;
+                client.set_transactions(vec![swap])?;
+                client.get_transactions_by_hash("upsertassettest")
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(stored[0].asset_id, Asset::mock_spl_token().id);
+        assert_eq!(stored[0].value, BigUint::from(13_002_173_634u64));
     }
 }
 
