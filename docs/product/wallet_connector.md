@@ -27,6 +27,7 @@ flowchart LR
 | The dapp fails verification | the proposal shows it before the user connects | |
 | A request to sign comes for a wallet that is not the current one | that wallet becomes current before the request shows, the wallet's screens return to its main screen, and it stays current after the user signs or rejects | the request, its fee and any Buy, Swap or Receive it offers all belong to the connected wallet |
 | The user rejects a request | a refusal goes back to the dapp | |
+| A new request arrives while another one is on screen | the new request shows and the earlier one is refused, so its dapp is told | the earlier review is gone and can no longer be approved |
 | The same connection code is opened again while its proposal is on screen | the proposal stays; approving or rejecting it closes it | the SDK delivers a pending proposal again when its code is paired twice |
 | A request has expired | "Request expired"; it cannot be approved and is never signed | |
 | A message to sign comes from a site flagged as malicious | it is refused before anything is signed | a message to sign is checked like a transaction |
@@ -55,6 +56,7 @@ Toasts follow the shared [Toasts](../PRODUCT.md#toasts) section.
 | When | iOS | Android | Expected |
 |---|---|---|---|
 | A dapp asks to sign in with one-click authentication | not supported | supported | Intentional |
+| A new request comes from a different connection while another one is on screen | the earlier one is refused | the earlier one gets no answer and its dapp times out | Android to match iOS |
 
 ## Rules
 
