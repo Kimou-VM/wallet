@@ -39,7 +39,7 @@ common_open_settings = Abrir configuración
 common_pin = Fijar
 common_pinned = Fijado
 common_lists = Listas
-common_unpin = Desanclar
+common_unpin = Desfijar
 common_pinned_asset = Fijado: %@
 common_unpinned_asset = Desfijado: %@
 common_skip = Saltar
@@ -124,7 +124,7 @@ receive_warning = Esta es tu dirección: envía solo %@ en la red %@.
 
 buy_title = Comprar %@
 buy_providers_title = Proveedores
-buy_rate = Tarifa
+buy_rate = Tasa
 buy_no_results = No hay cotizaciones disponibles
 
 # Transfer
@@ -156,7 +156,7 @@ transfer_minimum_amount = La cantidad mínima es %@
 transfer_activate_asset_title = Activar activo
 transfer_recipient_my_wallets = Mis billeteras
 transfer_recipient_view_wallets = Ver billeteras
-transfer_minimum_account_balance = Después de esto, debe quedar un saldo mínimo %@, a menos que utilice su saldo completo.
+transfer_minimum_account_balance = Después de esto, debe quedar un saldo mínimo de %@, a menos que uses tu saldo completo.
 transfer_destination_account_activation = La dirección de destino requiere un mínimo de %@.
 transfer_smart_contract_title = Contrato inteligente
 transfer_other_title = Otro
@@ -218,12 +218,12 @@ errors_import_invalid_secret_phrase_word = Palabra de frase secreta no válida: 
 errors_import_invalid_private_key = Clave privada no válida
 errors_keystore_access = No se pudo acceder a las claves de esta billetera en este dispositivo. Si tienes tu frase de recuperación, elimina esta billetera e impórtala de nuevo para restaurar el acceso.
 errors_wallet_account_missing = Esta billetera no tiene una cuenta para esta red
-errors_invalid_url = URL invalida
+errors_invalid_url = URL no válida
 errors_error_occurred = ¡Ocurrió un error!
 errors_invalid_network_id = ID de red no válida
 errors_error = Error
 errors_cancelled = Cancelado
-errors_connections_user_cancelled = Usuario cancelado
+errors_connections_user_cancelled = Cancelado por el usuario
 errors_not_supported = No compatible
 errors_permissions_not_granted = Permisos no concedidos
 errors_unknown = Desconocido
@@ -246,7 +246,7 @@ errors_connections_not_found = Esta conexión ya no existe.
 errors_connections_relay_unavailable = No se pudo conectar con WalletConnect. Compruebe su conexión a internet e inténtelo de nuevo.
 errors_swap_amount_too_small = Cantidad demasiado pequeña
 errors_scan_transaction_malicious_description = Esta transacción no se puede completar: la dirección de la billetera de destino está vinculada a actividades sospechosas o dañinas.
-errors_scan_transaction_memo_required = %@ La dirección de la billetera de destino requiere una etiqueta/nota de destino.
+errors_scan_transaction_memo_required = La dirección de destino de %@ requiere una etiqueta de destino / nota
 errors_scan_transaction_malicious_title = Actividad sospechosa
 errors_connections_malicious_origin = Esta conexión proviene de una fuente no confiable.
 errors_no_data_available = No hay datos disponibles
@@ -345,7 +345,7 @@ charts_price_open = Apertura
 charts_price_close = Cierre
 charts_price_high = Alto
 charts_price_low = Bajo
-charts_price_change = Cambiar
+charts_price_change = Cambio
 
 # Date
 
@@ -364,13 +364,13 @@ wallet_connect_brand_name = WalletConnect
 wallet_connect_no_active_connections = No hay conexiones activas
 wallet_connect_state_empty_description = Escanee o pegue el código para conectarse a la DApp
 wallet_connect_permissions_title = Permisos
-wallet_connect_permissions_view_balance = Consulta tu saldo y actividad.
+wallet_connect_permissions_view_balance = Ver tu saldo y actividad
 wallet_connect_permissions_approval_requests = Enviar solicitudes de aprobación
 wallet_connect_request_expired = Solicitud caducada
 
 # Swap
 
-swap_you_pay = Tu pagas
+swap_you_pay = Pagas
 swap_you_receive = Recibes
 swap_price_impact = Impacto en el precio
 swap_slippage = Deslizamiento
@@ -398,7 +398,7 @@ stake_activating = Activando
 stake_deactivating = Desactivando
 stake_awaiting_withdrawal = En espera de retiro
 stake_active_in = Activo en
-stake_minimum_amount = Monto minimo
+stake_minimum_amount = Monto mínimo
 stake_state_empty_title = Tu stake aparecerá aquí
 stake_state_empty_description = Haz stake de tus primeros %@
 stake_state_empty_validators_title = No se encontraron validadores
@@ -426,8 +426,8 @@ sign_message_view_full_message = Ver mensaje completo
 
 secret_phrase_do_not_share_title = ¡No compartas tu Frase Secreta!
 secret_phrase_do_not_share_description = ¡Si alguien tiene tu frase secreta tendrá control total de tu billetera!
-secret_phrase_save_phrase_safely = Guarda tu Frase Secreta en un lugar seguro\n que solo tu controlas.
-secret_phrase_confirm_quick_test_title = Complete esta prueba rápida para confirmar que ha guardado todo correctamente.
+secret_phrase_save_phrase_safely = Guarda tu Frase Secreta en un lugar seguro \nque solo tú controlas.
+secret_phrase_confirm_quick_test_title = Completa esta prueba rápida para confirmar que has guardado todo correctamente.
 secret_phrase_screenshot_detected_title = Captura de pantalla detectada
 secret_phrase_screenshot_detected_description = Las capturas de pantalla pueden ser accesibles a otras aplicaciones y, si se guardan de esta manera, pueden poner en riesgo tu frase secreta.
 secret_phrase_content_hidden_description = Contenido oculto durante la grabación de pantalla
@@ -447,7 +447,7 @@ private_key_screenshot_detected_description = Las capturas de pantalla pueden se
 
 # Social
 
-social_x = X (formerly Twitter)
+social_x = X (antes Twitter)
 social_discord = Discord
 social_reddit = Reddit
 social_telegram = Telegram
@@ -482,7 +482,7 @@ library_select_from_photo_library = Seleccionar de la biblioteca de fotos
 
 fee_rates_info = La velocidad de la transacción está determinada por la tarifa de red pagada a los mineros de la red.
 fee_rates_fast = Rápido
-fee_rates_normal = Normales
+fee_rates_normal = Normal
 
 # Fee Rate
 
@@ -533,7 +533,7 @@ price_alerts_added_price_under = Alerta añadida para precio por debajo de %@
 price_alerts_added_increases_by = Alerta añadida para subida de precio de %@
 price_alerts_added_decreases_by = Alerta añadida para bajada de precio de %@
 price_alerts_state_empty_title = Tus alertas aparecerán aquí
-price_alerts_state_empty_description = Habilítelos agregando monedas para realizar un seguimiento
+price_alerts_state_empty_description = Habilítalas agregando monedas para seguirlas
 price_alerts_auto_footer = Las alertas se activan ante movimientos de precios significativos.
 price_alerts_set_alert_title = Establecer alerta de precio
 
@@ -605,7 +605,7 @@ info_fully_diluted_valuation_title = Valoración totalmente diluida
 info_fully_diluted_valuation_description = El valor teórico de mercado si todas las monedas estuvieran en circulación. Se calcula multiplicando el precio por la oferta máxima.
 info_circulating_supply_description = La cantidad de monedas actualmente disponibles y comercializadas en el mercado.
 info_total_supply_description = El número total de monedas que existen, incluidas las monedas bloqueadas o reservadas.
-info_max_supply_title = Suministro máximo
+info_max_supply_title = Oferta máxima
 info_max_supply_description = El número máximo de monedas que jamás existirán.
 info_perpetual_funding_apr_title = TAE de financiación
 info_perpetual_funding_apr_description = La tasa anualizada a la que los largos pagan a los cortos (si es negativa, los cortos pagan a los largos). No hay tarifas asociadas con la financiación, que es una transferencia de igual a igual entre usuarios para impulsar los precios hacia el precio al contado.
@@ -653,12 +653,12 @@ networks_state_empty_search_title = No se encontraron redes
 # Onboarding
 
 onboarding_security_create_wallet_intro_title = Recibirás una frase secreta: es la única forma de acceder a tu billetera.
-onboarding_security_create_wallet_do_not_share_title = No lo compartas con nadie
+onboarding_security_create_wallet_do_not_share_title = No la compartas con nadie
 onboarding_security_create_wallet_do_not_share_subtitle = Cualquiera que obtenga tu frase secreta podrá tomar control total de tu billetera.
 onboarding_security_create_wallet_keep_safe_subtitle = La frase secreta es la única forma de acceder a tu billetera.
-onboarding_security_create_wallet_no_recovery_subtitle = Si pierde su frase secreta, perderá el acceso a su billetera.
-onboarding_security_create_wallet_keep_safe_title = Guárdalo en un lugar seguro
-onboarding_security_create_wallet_no_recovery_title = No podemos ayudarle a recuperarlo
+onboarding_security_create_wallet_no_recovery_subtitle = Si pierdes tu frase secreta, perderás el acceso a tu billetera.
+onboarding_security_create_wallet_keep_safe_title = Guárdala en un lugar seguro
+onboarding_security_create_wallet_no_recovery_title = No podemos ayudarte a recuperarla
 onboarding_accept_terms_title = Aceptar términos
 onboarding_accept_terms_message = Lea y acepte los siguientes términos antes de continuar.
 onboarding_accept_terms_item1_message = Entiendo que soy el único responsable de la seguridad y el respaldo de mis billeteras, no Gem.
@@ -687,24 +687,24 @@ perpetual_open_direction = Abrir %@
 perpetual_close_direction = Cerrar %@
 perpetual_leverage = Apalancamiento
 perpetual_auto_close = Cierre automático
-perpetual_auto_close_take_profit = Tomar ganancias
+perpetual_auto_close_take_profit = Take Profit
 perpetual_market_price = Precio de mercado
 perpetual_take_profit = TP
 perpetual_stop_loss = SL
 perpetual_liquidation = Liq
-perpetual_increase_direction = Incremento %@
+perpetual_increase_direction = Aumentar %@
 perpetual_reduce_direction = Reducir %@
 perpetual_auto_close_expected_profit = Beneficio esperado
 perpetual_auto_close_expected_loss = Pérdida esperada
 perpetual_modify_position = Modificar posición
-perpetual_auto_close_stop_loss = Detener la pérdida
+perpetual_auto_close_stop_loss = Stop Loss
 perpetual_value = Valor
 perpetual_unrealized_pnl = PnL no realizado
 perpetual_volume = Volumen
 perpetual_all_time_pnl = PnL de todos los tiempos
 perpetual_margin_usage = Uso del margen
 perpetual_account_leverage = Apalancamiento de la cuenta
-perpetual_margin_cross = Cruz
+perpetual_margin_cross = Cruzado
 perpetual_margin_isolated = Aislado
 
 # Perpetuals
@@ -727,7 +727,7 @@ rewards_invited_by = Invitado por
 rewards_points = Puntos
 rewards_referrals = Referencias
 rewards_earn_points_title = Gana puntos
-rewards_get_rewards_title = Obtenga recompensas
+rewards_get_rewards_title = Obtén recompensas
 rewards_activate_referral_code_description = ¿Tienes un código de referencia de un amigo?
 rewards_activate_referral_code_title = Canjear código
 rewards_create_referral_code_title = Crear nombre de usuario
@@ -736,7 +736,7 @@ rewards_username = Nombre de usuario
 rewards_ways_spend_title = Formas de gastar
 rewards_ways_spend_asset_title = Conseguir %@
 rewards_insufficient_points = Puntos insuficientes
-rewards_confirm_redeem = Conseguir %@ para %@!
+rewards_confirm_redeem = ¡Conseguir %@ por %@!
 rewards_pending_title = Bono pendiente
 rewards_pending_description = Disponible en %@
 rewards_pending_description_ready = ¡Tu bono está listo!
@@ -750,7 +750,7 @@ rewards_state_empty_description = Crea o importa una billetera multi-moneda para
 
 recent_activity_title = Recientes
 recent_activity_state_empty_title = Tus recientes aparecerán aquí
-recent_activity_state_empty_description = Los recursos que has usado recientemente aparecerán aquí
+recent_activity_state_empty_description = Los activos que has usado recientemente aparecerán aquí
 
 # Notifications
 
@@ -775,7 +775,7 @@ contacts_add_to_existing_contact = Añadir a un contacto
 # Simulation
 
 simulation_header_unlimited_asset = Ilimitado %@
-simulation_warning_unlimited_token_approval_description = Esto le da al gastador acceso para usar este token hasta que revoque la aprobación o expire.
+simulation_warning_unlimited_token_approval_description = Esto permite a la dirección autorizada usar este token hasta que revoques la aprobación o expire.
 simulation_warning_externally_owned_spender_description = Esta aprobación permite que una dirección de billetera normal (EOA) use tus activos. Confirma solo si confías en esta dirección.
 simulation_warning_nft_collection_approval_title = Se solicita acceso completo a la colección NFT
 simulation_warning_unlimited_token_approval_title = Aprobación ilimitada de tokens

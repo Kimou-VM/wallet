@@ -631,7 +631,7 @@ nft_report_reason_malicious = Berniat jahat
 nft_report_reason_inappropriate = Kandungan Tidak Sesuai
 nft_report_reason_copyright = Hak Cipta
 nft_report_reason_other = Lain-lain
-nft_report_report_button_title = Laporan
+nft_report_report_button_title = Laporkan
 
 # Permissions
 
@@ -775,7 +775,7 @@ contacts_add_to_existing_contact = Tambah ke Kenalan
 # Simulation
 
 simulation_header_unlimited_asset = Tidak terhad %@
-simulation_warning_unlimited_token_approval_description = Ini memberi pembeli akses untuk menggunakan token ini sehingga anda membatalkan kelulusan atau ia tamat tempoh.
+simulation_warning_unlimited_token_approval_description = Ini memberi akses kepada pembelanja untuk menggunakan token ini sehingga anda membatalkan kelulusan atau kelulusan itu tamat tempoh.
 simulation_warning_externally_owned_spender_description = Kelulusan ini membenarkan alamat dompet biasa (EOA) menggunakan aset anda. Sahkan hanya jika anda mempercayai alamat ini.
 simulation_warning_nft_collection_approval_title = Akses koleksi NFT penuh diminta
 simulation_warning_unlimited_token_approval_title = Kelulusan token tanpa had

@@ -704,7 +704,7 @@ perpetual_volume = Dami
 perpetual_all_time_pnl = All Time PnL
 perpetual_margin_usage = Paggamit ng Margin
 perpetual_account_leverage = Leverage ng Account
-perpetual_margin_cross = Krus
+perpetual_margin_cross = Cross
 perpetual_margin_isolated = Nakahiwalay
 
 # Perpetuals
@@ -774,7 +774,7 @@ contacts_add_to_existing_contact = Idagdag sa Contact
 
 # Simulation
 
-simulation_header_unlimited_asset = Walang limitasyon %@
+simulation_header_unlimited_asset = Walang limitasyong %@
 simulation_warning_unlimited_token_approval_description = Nagbibigay ito sa gumagastos ng access na gamitin ang token na ito hanggang sa bawiin mo ang pag-apruba o hanggang sa mag-expire ito.
 simulation_warning_externally_owned_spender_description = Hinahayaan ng pag-aprubang ito ang isang karaniwang wallet address (EOA) na gamitin ang iyong mga asset. Kumpirmahin lang kung pinagkakatiwalaan mo ang address na ito.
 simulation_warning_nft_collection_approval_title = Hiniling ang kumpletong access sa koleksyon ng NFT

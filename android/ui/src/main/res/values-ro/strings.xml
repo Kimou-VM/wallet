@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <resources>
-  <string name="common_cancel">Anula</string>
+  <string name="common_cancel">Anulează</string>
   <string name="common_hidden">Ascunse</string>
   <string name="common_done">Gata</string>
   <string name="common_maximum_value">Valoarea maximă este %1$s</string>
@@ -36,7 +36,7 @@
   <string name="common_private_key">Cheie privată</string>
   <string name="common_latency_in_ms">%1$d ms</string>
   <string name="common_open_settings">Deschideți setările</string>
-  <string name="common_pin">Pin</string>
+  <string name="common_pin">Fixează</string>
   <string name="common_pinned">Fixat</string>
   <string name="common_lists">Liste</string>
   <string name="common_unpin">Anulați fixarea</string>
@@ -58,15 +58,15 @@
   <string name="common_expiration">Expirare</string>
   <string name="common_suspicious_address">Adresă suspectă</string>
   <string name="common_suspicious_address_description">Această adresă este asociată cu o activitate suspectă sau dăunătoare.</string>
-  <string name="common_refresh">Reîmprospăta</string>
+  <string name="common_refresh">Reîmprospătează</string>
   <string name="common_grant_permission">Acordați permisiunea</string>
   <string name="common_required_field">%1$s este necesar</string>
   <string name="welcome_title">Bun venit la Gem Family</string>
   <string name="wallet_create_new_wallet">Creați un portofel nou</string>
   <string name="wallet_import_existing_wallet">Importați un portofel existent</string>
   <string name="wallet_send">Trimite</string>
-  <string name="wallet_receive">Primi</string>
-  <string name="wallet_buy">Cumpăra</string>
+  <string name="wallet_receive">Primește</string>
+  <string name="wallet_buy">Cumpără</string>
   <string name="wallet_swap">Schimb</string>
   <string name="wallet_import_title">Importați portofelul</string>
   <string name="wallet_new_title">Portofel nou</string>
@@ -108,7 +108,7 @@
   <string name="buy_providers_title">Furnizorii</string>
   <string name="buy_rate">Rata</string>
   <string name="buy_no_results">Nu există oferte disponibile</string>
-  <string name="transfer_network_fee">Taxa de retea</string>
+  <string name="transfer_network_fee">Taxa de rețea</string>
   <string name="transfer_pay_with">Plătește cu</string>
   <string name="transfer_payment_title">Plată</string>
   <string name="transfer_memo">Notă</string>
@@ -544,10 +544,10 @@
   <string name="perpetual_long">Lung</string>
   <string name="perpetual_short">Scurt</string>
   <string name="perpetual_entry_price">Preț de intrare</string>
-  <string name="perpetual_modify">Modifica</string>
+  <string name="perpetual_modify">Modifică</string>
   <string name="perpetual_reduce_position">Reduceți poziția</string>
   <string name="perpetual_increase_position">Creșteți poziția</string>
-  <string name="perpetual_open_direction">Deschis %1$s</string>
+  <string name="perpetual_open_direction">Deschide %1$s</string>
   <string name="perpetual_close_direction">Închide %1$s</string>
   <string name="perpetual_leverage">Efect de levier</string>
   <string name="perpetual_auto_close">Închidere automată</string>
@@ -625,6 +625,6 @@
   <string name="rootcheck_security_alert">Avertisment de securitate</string>
   <string name="rootcheck_jailbreak_body">Dispozitivul dvs. pare să aibă jailbreak. Acest lucru vă poate pune portofelul și fondurile în pericol.</string>
   <string name="rootcheck_body">Dispozitivul dvs. pare să aibă acces root, ceea ce poate crește semnificativ riscurile de securitate. Utilizarea acestei aplicații pe un dispozitiv înrădăcinat poate expune activele dvs. la acces neautorizat și la o potențială pierdere. Pentru siguranța fondurilor dvs., vă recomandăm insistent să utilizați un dispozitiv care nu este rootat.</string>
-  <string name="rootcheck_ignore">Ignora</string>
+  <string name="rootcheck_ignore">Ignoră</string>
   <string name="rootcheck_exit">Ieșire</string>
 </resources>

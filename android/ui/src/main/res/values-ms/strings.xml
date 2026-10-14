@@ -516,7 +516,7 @@
   <string name="nft_report_reason_inappropriate">Kandungan Tidak Sesuai</string>
   <string name="nft_report_reason_copyright">Hak Cipta</string>
   <string name="nft_report_reason_other">Lain-lain</string>
-  <string name="nft_report_report_button_title">Laporan</string>
+  <string name="nft_report_report_button_title">Laporkan</string>
   <string name="permissions_access_denied">Akses Ditolak</string>
   <string name="permissions_image_photo_access_denied_description">Apl ini tidak mempunyai kebenaran untuk mengakses pustaka foto anda. Sila dayakan akses dalam tetapan peranti anda.</string>
   <string name="markets_daily_volume">Volum 24j</string>
@@ -617,7 +617,7 @@
   <string name="contacts_create_new_contact">Cipta Kenalan Baharu</string>
   <string name="contacts_add_to_existing_contact">Tambah ke Kenalan</string>
   <string name="simulation_header_unlimited_asset">Tidak terhad %1$s</string>
-  <string name="simulation_warning_unlimited_token_approval_description">Ini memberi pembeli akses untuk menggunakan token ini sehingga anda membatalkan kelulusan atau ia tamat tempoh.</string>
+  <string name="simulation_warning_unlimited_token_approval_description">Ini memberi akses kepada pembelanja untuk menggunakan token ini sehingga anda membatalkan kelulusan atau kelulusan itu tamat tempoh.</string>
   <string name="simulation_warning_externally_owned_spender_description">Kelulusan ini membenarkan alamat dompet biasa (EOA) menggunakan aset anda. Sahkan hanya jika anda mempercayai alamat ini.</string>
   <string name="simulation_warning_nft_collection_approval_title">Akses koleksi NFT penuh diminta</string>
   <string name="simulation_warning_unlimited_token_approval_title">Kelulusan token tanpa had</string>

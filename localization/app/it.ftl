@@ -1,6 +1,6 @@
 # Common
 
-common_cancel = Cancellare
+common_cancel = Annulla
 common_hidden = Nascosti
 common_done = Fatto
 common_maximum_value = Il valore massimo è %@
@@ -550,7 +550,7 @@ lock_unlock = Sblocca
 lock_footer = Proteggi l'accesso a questa app sul tuo dispositivo
 lock_passcode = Codice di accesso
 lock_passcode_off_title = Il codice del dispositivo è disattivato
-lock_passcode_off_description = Gem è bloccato con il codice del tuo dispositivo. Attiva un codice nelle impostazioni del dispositivo per aprire Gem. I tuoi wallet sono al sicuro.
+lock_passcode_off_description = Gem è bloccato con il codice del tuo dispositivo. Attiva un codice nelle impostazioni del dispositivo per aprire Gem. I tuoi portafogli sono al sicuro.
 
 # Verify
 
@@ -677,8 +677,8 @@ perpetual_margin = Margine
 perpetual_position = Posizione
 perpetual_close_position = Chiudi posizione
 perpetual_pnl = PnL
-perpetual_long = Lungo
-perpetual_short = Breve
+perpetual_long = Long
+perpetual_short = Short
 perpetual_entry_price = Prezzo d'ingresso
 perpetual_modify = Modifica
 perpetual_reduce_position = Riduci posizione
@@ -796,7 +796,7 @@ application_name = Gem
 # Rootcheck
 
 rootcheck_security_alert = Avviso di sicurezza
-rootcheck_jailbreak_body = Il tuo dispositivo sembra essere jailbroken. Questo può mettere a rischio il wallet e i fondi.
+rootcheck_jailbreak_body = Il tuo dispositivo sembra essere jailbroken. Questo può mettere a rischio il tuo portafoglio e i tuoi fondi.
 rootcheck_body = Il tuo dispositivo sembra avere accesso root, il che può aumentare significativamente i rischi per la sicurezza. L'utilizzo di questa app su un dispositivo rooted potrebbe esporre i tuoi asset ad accessi non autorizzati e potenziali perdite. Per la sicurezza dei tuoi fondi, ti consigliamo vivamente di utilizzare un dispositivo non rooted.
 rootcheck_ignore = Ignora
 rootcheck_exit = Esci

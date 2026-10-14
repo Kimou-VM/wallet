@@ -24,7 +24,7 @@ common_show = Toon %@
 common_copied = Gekopieerd: %@
 common_copied_to_clipboard = Gekopieerd naar klembord
 common_recommended = Aanbevolen
-common_all = Allemaal
+common_all = Alle
 common_not_available = Niet beschikbaar
 common_phrase = Zin
 common_manage = Beheer
@@ -99,7 +99,7 @@ wallet_sell = Verkopen
 wallet_receive_collection = Ontvang collectie
 wallet_more = Meer
 wallet_import_contract_address_field = Contract of token-ID
-wallet_import_address_warning = U kunt het saldo en de transacties voor dit adres bekijken, maar u kunt geen geld verzenden of verkopen.
+wallet_import_address_warning = U kunt het saldo en de transacties voor dit adres bekijken, maar **u kunt geen geld verzenden of verkopen**.
 wallet_deposit = Storten
 wallet_withdraw = Opnemen
 wallet_available_balance = Beschikbaar: %@
@@ -796,7 +796,7 @@ application_name = Gem
 # Rootcheck
 
 rootcheck_security_alert = Beveiligingswaarschuwing
-rootcheck_jailbreak_body = Uw apparaat lijkt gejailbreakt te zijn. Dit kan uw wallet en tegoeden in gevaar brengen.
+rootcheck_jailbreak_body = Uw apparaat lijkt gejailbreakt te zijn. Dit kan uw portemonnee en tegoeden in gevaar brengen.
 rootcheck_body = Het lijkt erop dat uw apparaat root-toegang heeft, wat de beveiligingsrisico's aanzienlijk kan vergroten. Als u deze app op een geroot apparaat gebruikt, kunnen uw bezittingen worden blootgesteld aan ongeoorloofde toegang en mogelijk verlies. Voor de veiligheid van uw geld raden wij u ten zeerste aan een niet-geroot apparaat te gebruiken.
 rootcheck_ignore = Negeer
 rootcheck_exit = Afsluiten

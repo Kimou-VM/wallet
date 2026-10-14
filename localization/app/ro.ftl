@@ -1,6 +1,6 @@
 # Common
 
-common_cancel = Anula
+common_cancel = Anulează
 common_hidden = Ascunse
 common_done = Gata
 common_maximum_value = Valoarea maximă este %@
@@ -36,7 +36,7 @@ common_url = URL
 common_private_key = Cheie privată
 common_latency_in_ms = %d ms
 common_open_settings = Deschideți setările
-common_pin = Pin
+common_pin = Fixează
 common_pinned = Fixat
 common_lists = Liste
 common_unpin = Anulați fixarea
@@ -58,7 +58,7 @@ common_token = Token
 common_expiration = Expirare
 common_suspicious_address = Adresă suspectă
 common_suspicious_address_description = Această adresă este asociată cu o activitate suspectă sau dăunătoare.
-common_refresh = Reîmprospăta
+common_refresh = Reîmprospătează
 common_grant_permission = Acordați permisiunea
 common_required_field = %@ este necesar
 
@@ -71,8 +71,8 @@ welcome_title = Bun venit la Gem Family
 wallet_create_new_wallet = Creați un portofel nou
 wallet_import_existing_wallet = Importați un portofel existent
 wallet_send = Trimite
-wallet_receive = Primi
-wallet_buy = Cumpăra
+wallet_receive = Primește
+wallet_buy = Cumpără
 wallet_swap = Schimb
 wallet_import_title = Importați portofelul
 wallet_new_title = Portofel nou
@@ -129,7 +129,7 @@ buy_no_results = Nu există oferte disponibile
 
 # Transfer
 
-transfer_network_fee = Taxa de retea
+transfer_network_fee = Taxa de rețea
 transfer_pay_with = Plătește cu
 transfer_payment_title = Plată
 transfer_memo = Notă
@@ -680,10 +680,10 @@ perpetual_pnl = PnL
 perpetual_long = Lung
 perpetual_short = Scurt
 perpetual_entry_price = Preț de intrare
-perpetual_modify = Modifica
+perpetual_modify = Modifică
 perpetual_reduce_position = Reduceți poziția
 perpetual_increase_position = Creșteți poziția
-perpetual_open_direction = Deschis %@
+perpetual_open_direction = Deschide %@
 perpetual_close_direction = Închide %@
 perpetual_leverage = Efect de levier
 perpetual_auto_close = Închidere automată
@@ -798,5 +798,5 @@ application_name = Gem
 rootcheck_security_alert = Avertisment de securitate
 rootcheck_jailbreak_body = Dispozitivul dvs. pare să aibă jailbreak. Acest lucru vă poate pune portofelul și fondurile în pericol.
 rootcheck_body = Dispozitivul dvs. pare să aibă acces root, ceea ce poate crește semnificativ riscurile de securitate. Utilizarea acestei aplicații pe un dispozitiv înrădăcinat poate expune activele dvs. la acces neautorizat și la o potențială pierdere. Pentru siguranța fondurilor dvs., vă recomandăm insistent să utilizați un dispozitiv care nu este rootat.
-rootcheck_ignore = Ignora
+rootcheck_ignore = Ignoră
 rootcheck_exit = Ieșire

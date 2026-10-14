@@ -480,7 +480,7 @@ library_select_from_photo_library = Chagua kutoka kwa Maktaba ya Picha
 
 # Fee Rates
 
-fee_rates_info = Kasi ya ununuzi imedhamiriwa na ada ya mtandao inayolipwa kwa wachimbaji wa mtandao.
+fee_rates_info = Kasi ya muamala huamuliwa na ada ya mtandao inayolipwa kwa wachimbaji wa mtandao.
 fee_rates_fast = Haraka
 fee_rates_normal = Kawaida
 
@@ -496,7 +496,7 @@ fee_rate_base = Ada ya Msingi
 
 banner_account_activation_title = Ada ya Kuanzisha Akaunti
 banner_account_activation_description = Mtandao wa %@ unahitaji ada ya mara moja ya %@.
-banner_stake_title = Anza kugoma %@
+banner_stake_title = Anza kuweka hisa %@
 banner_stake_description = Pata zawadi %@ kwenye hisa yako unapolala.
 banner_activate_asset_description = Ili kutumia kipengee %@, lazima kwanza uiwashe kwenye mtandao wa %@ kwa kutimiza mahitaji mahususi ya mtandao.
 banner_asset_status_title = Mali Inayotiliwa Shaka
@@ -544,7 +544,7 @@ lock_one_minute = Dakika 1
 lock_five_minutes = Dakika 5
 lock_fifteen_minutes = Dakika 15
 lock_one_hour = Saa 1
-lock_six_hours = 6 masaa
+lock_six_hours = Saa 6
 lock_require_authentication = Inahitaji uthibitishaji
 lock_unlock = Fungua
 lock_footer = Linda ufikiaji wa programu hii kwenye kifaa chako
@@ -596,7 +596,7 @@ info_perpetual_open_interest_title = Riba Wazi
 info_perpetual_open_interest_description = Riba ya wazi inawakilisha jumla ya thamani ya kandarasi zote za kudumu ambazo hazijatatuliwa. Inatoa maarifa juu ya shughuli za soko na ukwasi.
 info_no_quote_description = Haikuweza kurejesha nukuu kwa jozi ya tokeni iliyochaguliwa, labda kwa sababu ya kiasi kidogo, ukosefu wa ukwasi, au vikwazo vya kiufundi.
 info_stake_reserved_title = Imehifadhiwa kwa Ada ya Mtandao
-info_stake_reserved_description = Kiasi kidogo husalia kwenye mkoba wako ili kulipia ada za shughuli kama vile kutoweka au kudai zawadi.
+info_stake_reserved_description = Kiasi kidogo husalia kwenye mkoba wako ili kulipia ada za shughuli kama vile kuondoa hisa au kudai zawadi.
 info_stake_apr_description = Kiwango cha Asilimia cha Mwaka (APR) ni kiwango cha tuzo cha kila mwaka cha kuweka sarafu yako ya cryptocurrency.
 info_stake_frozen_required_title = Ganda TRX ili kuweka hisa
 info_stake_frozen_required_description = Kuweka hisa kwenye TRON huhusisha hatua mbili. Kwanza ganda TRX, kisha uziweke hisa ili kupata zawadi.
@@ -671,7 +671,7 @@ onboarding_accept_terms_continue = Kubali na Uendelee
 
 # Perpetual
 
-perpetual_positions = Vyeo
+perpetual_positions = Nafasi
 perpetual_size = Ukubwa
 perpetual_margin = Margin
 perpetual_position = Nafasi
@@ -774,7 +774,7 @@ contacts_add_to_existing_contact = Ongeza kwa anwani
 
 # Simulation
 
-simulation_header_unlimited_asset = Isiyo na kikomo %@
+simulation_header_unlimited_asset = %@ isiyo na kikomo
 simulation_warning_unlimited_token_approval_description = Hii inampa mtumiaji uwezo wa kutumia tokeni hii hadi utakapobatilisha idhini au itakapoisha muda wake.
 simulation_warning_externally_owned_spender_description = Idhini hii inaruhusu anwani ya kawaida ya pochi (EOA) kutumia mali zako. Thibitisha tu ikiwa unaiamini anwani hii.
 simulation_warning_nft_collection_approval_title = Ufikiaji kamili wa ukusanyaji wa NFT umeombwa

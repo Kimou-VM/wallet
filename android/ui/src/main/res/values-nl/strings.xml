@@ -24,7 +24,7 @@
   <string name="common_copied">Gekopieerd: %1$s</string>
   <string name="common_copied_to_clipboard">Gekopieerd naar klembord</string>
   <string name="common_recommended">Aanbevolen</string>
-  <string name="common_all">Allemaal</string>
+  <string name="common_all">Alle</string>
   <string name="common_not_available">Niet beschikbaar</string>
   <string name="common_phrase">Zin</string>
   <string name="common_manage">Beheer</string>
@@ -93,7 +93,7 @@
   <string name="wallet_receive_collection">Ontvang collectie</string>
   <string name="wallet_more">Meer</string>
   <string name="wallet_import_contract_address_field">Contract of token-ID</string>
-  <string name="wallet_import_address_warning">U kunt het saldo en de transacties voor dit adres bekijken, maar u kunt geen geld verzenden of verkopen.</string>
+  <string name="wallet_import_address_warning">U kunt het saldo en de transacties voor dit adres bekijken, maar **u kunt geen geld verzenden of verkopen**.</string>
   <string name="wallet_deposit">Storten</string>
   <string name="wallet_withdraw">Opnemen</string>
   <string name="wallet_available_balance">Beschikbaar: %1$s</string>
@@ -623,7 +623,7 @@
   <string name="simulation_warning_unlimited_token_approval_title">Onbeperkte tokengoedkeuring</string>
   <string name="application_name">Gem</string>
   <string name="rootcheck_security_alert">Beveiligingswaarschuwing</string>
-  <string name="rootcheck_jailbreak_body">Uw apparaat lijkt gejailbreakt te zijn. Dit kan uw wallet en tegoeden in gevaar brengen.</string>
+  <string name="rootcheck_jailbreak_body">Uw apparaat lijkt gejailbreakt te zijn. Dit kan uw portemonnee en tegoeden in gevaar brengen.</string>
   <string name="rootcheck_body">Het lijkt erop dat uw apparaat root-toegang heeft, wat de beveiligingsrisico\'s aanzienlijk kan vergroten. Als u deze app op een geroot apparaat gebruikt, kunnen uw bezittingen worden blootgesteld aan ongeoorloofde toegang en mogelijk verlies. Voor de veiligheid van uw geld raden wij u ten zeerste aan een niet-geroot apparaat te gebruiken.</string>
   <string name="rootcheck_ignore">Negeer</string>
   <string name="rootcheck_exit">Afsluiten</string>
