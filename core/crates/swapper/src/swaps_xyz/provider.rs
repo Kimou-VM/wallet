@@ -22,6 +22,8 @@ use crate::{
     client_factory::create_ton_client, config::get_swap_provider_url, fees::default_referral_fees,
 };
 
+const APP_ID: &str = "0xcf511a8a";
+
 pub struct SwapsXyz<C>
 where
     C: Client + Clone + Send + Sync + Debug + 'static,
@@ -215,7 +217,7 @@ where
             return Ok(SwapResult::pending());
         };
         let metadata = response.action_response.zip(response.dst_tx.and_then(|transaction| transaction.payment_token)).and_then(|(status, amount_out)| {
-            let referral_fee = status.application_fee.and_then(|fee| {
+            let referral_fee = status.application_fee.filter(|_| response.org.as_ref().and_then(|org| org.app_id.as_deref()) == Some(APP_ID)).and_then(|fee| {
                 Some(TransactionSwapReferralFee {
                     asset_id: AssetId::from_chain(fee.native_chain()?.chain),
                     value: fee.amount,
@@ -359,6 +361,36 @@ mod tests {
                 }))
             )
         );
+    }
+
+    #[tokio::test]
+    async fn test_swap_result_preserves_foreign_swap_without_referral_fee() {
+        for app_id in [Some("0x41a2fb79"), Some("0x225f7707"), Some("0x5d0a204f"), None] {
+            let mut response: serde_json::Value = serde_json::from_slice(include_bytes!("testdata/status_foreign_xrp_to_stellar.json")).unwrap();
+            match app_id {
+                Some(app_id) => response["org"]["appId"] = app_id.into(),
+                None => {
+                    response.as_object_mut().unwrap().remove("org");
+                }
+            }
+            let upstream = MockClient::new().with_get(move |_| Ok(serde_json::to_vec(&response).unwrap()));
+            let provider = SwapsXyz::with_client(SwapsXyzClient::new(upstream, MockClient::new()), TonClient::new(MockClient::new()));
+            let result = provider.get_swap_result(&SwapResultRequest::new(Chain::Xrp, "source-hash")).await.unwrap();
+            assert_eq!(
+                result,
+                SwapResult {
+                    status: SwapStatus::Completed,
+                    metadata: Some(TransactionSwapMetadata::new(
+                        Chain::Xrp.as_asset_id(),
+                        BigUint::from(1_000_000_u64),
+                        Chain::Stellar.as_asset_id(),
+                        BigUint::from(70_001_865_u64),
+                        SwapperProvider::SwapsXyz
+                    )),
+                    eta_in_seconds: None,
+                }
+            );
+        }
     }
 
     #[tokio::test]

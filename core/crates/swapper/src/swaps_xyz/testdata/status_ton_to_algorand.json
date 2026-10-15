@@ -31,5 +31,8 @@
       "decimals": 6,
       "isNative": true
     }
+  },
+  "org": {
+    "appId": "0xcf511a8a"
   }
 }
