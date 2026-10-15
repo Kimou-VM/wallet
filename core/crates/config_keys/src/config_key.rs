@@ -371,7 +371,7 @@ impl ConfigKey {
             Self::TransactionTimerCleanup => "1d",
             Self::TransactionTimerInTransitUpdate => "60s",
             Self::TransactionTimerSwapVaultAddresses => "5m",
-            Self::TransactionInTransitTimeout => "12h",
+            Self::TransactionInTransitTimeout => "1d",
             Self::TransactionInTransitQueryLimit => "100",
             Self::TransactionInTransitMaxCheckInterval => "5m",
             Self::TransactionInTransitCheckIntervalFactor => "2.0",
