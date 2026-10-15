@@ -3,9 +3,12 @@ use super::{
         CETUS_CLMM_PUBLISHED_AT, CETUS_GLOBAL_CONFIG, CETUS_PARTNER, CETUS_PARTNER_INIT_VERSION, CETUS_POOLS_REGISTRY, CETUS_SHARED_INIT_VERSION, FUNCTION_CALCULATE_SWAP_RESULT, FUNCTION_CALCULATED_SWAP_RESULT_AMOUNT_OUT,
         FUNCTION_FLASH_SWAP_WITH_PARTNER, FUNCTION_NEW_POOL_KEY, FUNCTION_POOL_ID, FUNCTION_POOL_SIMPLE_INFO, FUNCTION_REPAY_FLASH_SWAP_WITH_PARTNER, MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64, MODULE_FACTORY, MODULE_POOL,
     },
-    model::{FeeSide, Hop, PoolRoute},
+    model::{Hop, PoolRoute},
 };
-use crate::{Quote, SwapperError, SwapperQuoteData, fees::ReferralFee, fees::subtract_bps};
+use crate::{
+    Quote, SwapperError, SwapperQuoteData,
+    fees::{FeeSide, ReferralFee, subtract_bps},
+};
 use gem_sui::{
     EMPTY_ADDRESS, ESTIMATION_GAS_BUDGET, SuiClient,
     address::SuiAddress,
@@ -295,13 +298,6 @@ fn pay_referral_fee(txb: &mut TransactionBuilder, input_coin: Argument, fee: u64
     Ok(input_coin)
 }
 
-pub(super) fn referral_fee_amount(amount: u64, bps: u32) -> Result<u64, SwapperError> {
-    amount
-        .checked_mul(u64::from(bps))
-        .map(|value| value / 10_000)
-        .ok_or_else(|| SwapperError::ComputeQuoteError("Cetus CLMM referral fee overflow".into()))
-}
-
 fn transfer_coin(txb: &mut TransactionBuilder, coin: Argument, recipient: Address) {
     let recipient = txb.pure(&recipient);
     txb.transfer_objects(vec![coin], recipient);
@@ -353,12 +349,5 @@ mod tests {
         );
         assert!(b2a_limit > after);
         assert!(b2a_limit <= MAX_SQRT_PRICE_X64);
-    }
-
-    #[test]
-    fn test_referral_fee_amount() {
-        assert_eq!(referral_fee_amount(1_000_000, 50).unwrap(), 5_000);
-        assert_eq!(referral_fee_amount(1_000_000, 0).unwrap(), 0);
-        assert!(referral_fee_amount(u64::MAX, 100).is_err());
     }
 }

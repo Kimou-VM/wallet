@@ -334,7 +334,7 @@ mod tests {
 
     use super::*;
     use crate::provider::testkit::TEST_TRANSACTION_ID;
-    use crate::{PYUSD_TOKEN_MINT, RELAY_DEPOSITORY_PROGRAM_ID, USDT_TOKEN_MINT, models::SolanaTransaction};
+    use crate::{PYUSD_TOKEN_MINT, RELAY_DEPOSITORY_PROGRAM_ID, USDC_TOKEN_MINT, USDT_TOKEN_MINT, models::SolanaTransaction};
     use gem_jsonrpc::types::JsonRpcErrorResponse;
     use primitives::{JsonRpcResult, asset_constants::SOLANA_USDC_ASSET_ID, testkit::json::load_json_rpc_result};
 
@@ -364,6 +364,49 @@ mod tests {
             Some(TransactionSwapReferralFee {
                 asset_id: AssetId::from_token(Chain::Solana, USDT_TOKEN_MINT),
                 value: BigUint::from(6000u32),
+            })
+        );
+    }
+
+    #[test]
+    fn test_map_orca_swap_native_output_referral_fee() {
+        let transaction = map_single_transaction(load_json_rpc_result(include_str!("../../testdata/swap_orca_native_referral_fee.json"))).unwrap();
+
+        assert_eq!(transaction.transaction_type, TransactionType::Swap);
+        assert_eq!(transaction.state, TransactionState::Confirmed);
+        assert_eq!(
+            transaction.swap_metadata(),
+            Some(TransactionSwapMetadata {
+                from_asset: AssetId::from_token(Chain::Solana, USDT_TOKEN_MINT),
+                from_value: BigUint::from(1_000_000u32),
+                to_asset: AssetId::from_chain(Chain::Solana),
+                to_value: BigUint::from(9_391_724u32),
+                provider: Some("orca".to_string()),
+                referral_fee: Some(TransactionSwapReferralFee {
+                    asset_id: AssetId::from_chain(Chain::Solana),
+                    value: BigUint::from(47_196u32),
+                }),
+            })
+        );
+    }
+
+    #[test]
+    fn test_map_orca_swap_native_input_referral_fee() {
+        let transaction = map_single_transaction(load_json_rpc_result(include_str!("../../testdata/swap_orca_native_input_referral_fee.json"))).unwrap();
+
+        assert_eq!(transaction.transaction_type, TransactionType::Swap);
+        assert_eq!(
+            transaction.swap_metadata(),
+            Some(TransactionSwapMetadata {
+                from_asset: AssetId::from_chain(Chain::Solana),
+                from_value: BigUint::from(10_000_000u32),
+                to_asset: AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT),
+                to_value: BigUint::from(1_053_552u32),
+                provider: Some("orca".to_string()),
+                referral_fee: Some(TransactionSwapReferralFee {
+                    asset_id: AssetId::from_chain(Chain::Solana),
+                    value: BigUint::from(50_000u32),
+                }),
             })
         );
     }

@@ -2,10 +2,11 @@ use super::DEFAULT_SWAP_FEE_BPS;
 use primitives::{
     Chain, ChainType,
     swap::{
-        APTOS_REFERRAL_ADDRESS, COSMOS_REFERRAL_ADDRESS, EVM_REFERRAL_ADDRESS, INJECTIVE_REFERRAL_ADDRESS, NEAR_REFERRAL_ADDRESS, SOLANA_REFERRAL_ADDRESS, SUI_REFERRAL_ADDRESS, THORCHAIN_REFERRAL_ADDRESS, TON_REFERRAL_ADDRESS,
-        TRON_REFERRAL_ADDRESS,
+        APTOS_REFERRAL_ADDRESS, COSMOS_REFERRAL_ADDRESS, EVM_REFERRAL_ADDRESS, HUNDRED_PERCENT_IN_BPS, INJECTIVE_REFERRAL_ADDRESS, NEAR_REFERRAL_ADDRESS, SOLANA_REFERRAL_ADDRESS, SUI_REFERRAL_ADDRESS, THORCHAIN_REFERRAL_ADDRESS,
+        TON_REFERRAL_ADDRESS, TRON_REFERRAL_ADDRESS,
     },
 };
+use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct ReferralFees {
@@ -25,6 +26,29 @@ pub struct ReferralFees {
 pub struct ReferralFee {
     pub address: String,
     pub bps: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FeeSide {
+    Input,
+    Output,
+}
+
+impl FeeSide {
+    pub fn by_priority<T>(priority: &[T], is_input: impl Fn(&T) -> bool, is_output: impl Fn(&T) -> bool) -> Option<Self> {
+        priority.iter().find_map(|preferred| match (is_input(preferred), is_output(preferred)) {
+            (true, _) => Some(Self::Input),
+            (false, true) => Some(Self::Output),
+            (false, false) => None,
+        })
+    }
+}
+
+impl ReferralFee {
+    pub fn fee_value(&self, value: u64) -> u64 {
+        u64::try_from(u128::from(value) * u128::from(self.bps) / u128::from(HUNDRED_PERCENT_IN_BPS)).unwrap_or_default()
+    }
 }
 
 impl ReferralFees {
@@ -103,4 +127,31 @@ fn default_referral_fee(chain: Chain) -> ReferralFee {
 
 pub fn default_referral_address(chain: Chain) -> String {
     default_referral_fee(chain).address
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fee_side_by_priority() {
+        let priority = ["sol", "usdc"];
+        let select = |input: &str, output: &str| FeeSide::by_priority(&priority, |preferred| *preferred == input, |preferred| *preferred == output);
+
+        assert_eq!(select("sol", "usdc"), Some(FeeSide::Input));
+        assert_eq!(select("usdc", "sol"), Some(FeeSide::Output));
+        assert_eq!(select("bonk", "usdc"), Some(FeeSide::Output));
+        assert_eq!(select("usdc", "bonk"), Some(FeeSide::Input));
+        assert_eq!(select("bonk", "wif"), None);
+    }
+
+    #[test]
+    fn test_fee_value() {
+        let fee = ReferralFee { address: String::new(), bps: 50 };
+
+        assert_eq!(fee.fee_value(1_000_000), 5_000);
+        assert_eq!(fee.fee_value(199), 0);
+        assert_eq!(fee.fee_value(u64::MAX), u64::MAX / 200);
+        assert_eq!(ReferralFee { bps: 0, ..fee }.fee_value(1_000_000), 0);
+    }
 }

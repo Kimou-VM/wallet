@@ -262,6 +262,7 @@ These tables compare implemented coverage with provider-advertised support acros
 | [Wagmi](../core/crates/swapper/src/uniswap/v3/provider.rs) | 1/57 | Sonic | Missing: Ethereum, BNB Chain, Avalanche C-Chain, Polygon, Fantom, Arbitrum, Optimism, Base | <sub>[code](../core/crates/gem_evm/src/uniswap/deployment/v3.rs) · [contracts](https://docs.wagmi.com/wagmi/contracts)</sub> |
 | [Aerodrome](../core/crates/swapper/src/uniswap/v3/provider.rs) | 1/57 | Base | ➖ | <sub>[code](../core/crates/gem_evm/src/uniswap/deployment/v3.rs) · [contracts](https://aerodrome.finance/security)</sub> |
 | [Jupiter](../core/crates/swapper/src/jupiter/provider.rs) | 1/57 | Solana | ➖ | <sub>[code](../core/crates/swapper/src/jupiter/provider.rs) · [quote API](https://developers.jup.ag/docs/swap/v1/get-quote)</sub> |
+| [Orca](../core/crates/swapper/src/orca/protocol.rs) | 1/57 | Solana | Direct standard-fee Whirlpools (tick spacing 1, 4, 8, 16, 64) between SOL and SPL tokens; adaptive-fee pools and Token-2022 not routed | <sub>[code](../core/crates/swapper/src/orca/protocol.rs) · [Whirlpool program](https://github.com/orca-so/whirlpools/tree/main/programs/whirlpool)</sub> |
 | [Panora](../core/crates/swapper/src/panora/provider.rs) | 1/57 | Aptos | ➖ | <sub>[code](../core/crates/swapper/src/panora/provider.rs) · [swap API](https://docs.panora.exchange/developer/swap/api)</sub> |
 | [STON.fi v2](../core/crates/swapper/src/stonfi/provider.rs) | 1/57 | TON | ➖ | <sub>[code](../core/crates/swapper/src/stonfi/provider.rs) · [DEX API](https://docs.ston.fi/developer-section/dex/api/reference)</sub> |
 | [Cetus CLMM](../core/crates/swapper/src/cetus_clmm/provider.rs) | 1/57 | Sui | Missing: Aptos | <sub>[code](../core/crates/swapper/src/cetus_clmm/provider.rs) · [Sui developer docs](https://cetus-1.gitbook.io/cetus-developer-docs) · [Cetus chain support](https://cetus-1.gitbook.io/cetus-docs/guides/faq)</sub> |
@@ -296,6 +297,7 @@ These tables compare implemented coverage with provider-advertised support acros
 | [Wagmi](../core/crates/swapper/src/uniswap/v3/provider.rs) | On-chain | Fixed | Exact | ➖ | ➖ |
 | [Aerodrome](../core/crates/swapper/src/uniswap/v3/provider.rs) | On-chain | Fixed | Exact | ➖ | ➖ |
 | [Jupiter](../core/crates/swapper/src/jupiter/provider.rs) | On-chain | Fixed | Exact | ➖ | ➖ |
+| [Orca](../core/crates/swapper/src/orca/protocol.rs) | On-chain | Fixed | Exact | ➖ | ➖ |
 | [Panora](../core/crates/swapper/src/panora/provider.rs) | On-chain | Fixed | Exact | ➖ | ➖ |
 | [STON.fi v2](../core/crates/swapper/src/stonfi/provider.rs) | On-chain | Fixed | Exact | ➖ | ➖ |
 | [Cetus CLMM](../core/crates/swapper/src/cetus_clmm/provider.rs) | On-chain | Fixed | Exact | ➖ | ➖ |
@@ -317,7 +319,7 @@ On-chain swaps use normal transaction tracking; cross-chain providers may also t
 
 `Omnichain` providers may be eligible for selected same-chain routes as well as cross-chain routes. Chainflip allows same-chain swaps on Tron (USDT ↔ TRX), subject to broker liquidity. `Bridge` and `Cross-chain` providers require different source and destination chains.
 
-<sub>Reviewed 2026-09-02. Source: [active swap providers](../core/crates/swapper/src/swapper.rs). Cetus Aggregator and Orca are inactive.</sub>
+<sub>Reviewed 2026-09-02. Source: [active swap providers](../core/crates/swapper/src/swapper.rs). Cetus Aggregator is inactive.</sub>
 
 ## Fiat exchange rates
 

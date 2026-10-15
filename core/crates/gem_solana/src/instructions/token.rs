@@ -5,6 +5,7 @@ use crate::{
 
 const TRANSFER_DISCRIMINANT: u8 = 3;
 const TRANSFER_CHECKED_DISCRIMINANT: u8 = 12;
+const CLOSE_ACCOUNT_DISCRIMINANT: u8 = 9;
 const SYNC_NATIVE_DISCRIMINANT: u8 = 17;
 
 pub fn transfer(source: &Pubkey, destination: &Pubkey, owner: &Pubkey, amount: u64) -> Instruction {
@@ -33,6 +34,14 @@ pub fn transfer_checked_with_program_id(source: &Pubkey, mint: &Pubkey, destinat
         program_id: *token_program_id,
         accounts: vec![AccountMeta::new_writable(*source), AccountMeta::new_readonly(*mint), AccountMeta::new_writable(*destination), AccountMeta::new_signer(*owner)],
         data,
+    }
+}
+
+pub fn close_account(account: &Pubkey, destination: &Pubkey, owner: &Pubkey) -> Instruction {
+    Instruction {
+        program_id: token_program(),
+        accounts: vec![AccountMeta::new_writable(*account), AccountMeta::new_writable(*destination), AccountMeta::new_signer(*owner)],
+        data: vec![CLOSE_ACCOUNT_DISCRIMINANT],
     }
 }
 
@@ -69,5 +78,9 @@ mod tests {
         let instruction = sync_native(&source);
         assert_eq!(instruction.accounts, vec![AccountMeta::new_writable(source)]);
         assert_eq!(instruction.data, [17]);
+
+        let instruction = close_account(&source, &destination, &owner);
+        assert_eq!(instruction.accounts, vec![AccountMeta::new_writable(source), AccountMeta::new_writable(destination), AccountMeta::new_signer(owner)]);
+        assert_eq!(instruction.data, [9]);
     }
 }

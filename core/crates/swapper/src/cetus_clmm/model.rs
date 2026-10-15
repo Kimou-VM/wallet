@@ -2,29 +2,14 @@ use gem_sui::{SUI_COIN_TYPE_FULL, coin_type_matches};
 use primitives::asset_constants::SUI_USDC_TOKEN_ID;
 use serde::{Deserialize, Serialize};
 
+use crate::fees::FeeSide;
+
 pub(super) const INTERMEDIATE_COIN_TYPES: &[&str] = &[SUI_COIN_TYPE_FULL, SUI_USDC_TOKEN_ID];
 
 const FEE_PRIORITY_COINS: &[&str] = &[SUI_COIN_TYPE_FULL, SUI_USDC_TOKEN_ID];
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(super) enum FeeSide {
-    Input,
-    Output,
-}
-
-impl FeeSide {
-    pub fn select(input_coin_type: &str, output_coin_type: &str) -> Self {
-        for preferred in FEE_PRIORITY_COINS {
-            if coin_type_matches(input_coin_type, preferred) {
-                return Self::Input;
-            }
-            if coin_type_matches(output_coin_type, preferred) {
-                return Self::Output;
-            }
-        }
-        Self::Output
-    }
+pub(super) fn fee_side(input_coin_type: &str, output_coin_type: &str) -> FeeSide {
+    FeeSide::by_priority(FEE_PRIORITY_COINS, |preferred| coin_type_matches(input_coin_type, preferred), |preferred| coin_type_matches(output_coin_type, preferred)).unwrap_or(FeeSide::Output)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -115,13 +100,13 @@ mod tests {
 
     #[test]
     fn test_fee_side_preference() {
-        assert_eq!(FeeSide::select(SUI_FULL, USDC), FeeSide::Input);
-        assert_eq!(FeeSide::select(USDC, SUI_FULL), FeeSide::Output);
-        assert_eq!(FeeSide::select(SUI_FULL, BLUE), FeeSide::Input);
-        assert_eq!(FeeSide::select(BLUE, SUI_FULL), FeeSide::Output);
-        assert_eq!(FeeSide::select(USDC, BLUE), FeeSide::Input);
-        assert_eq!(FeeSide::select(BLUE, USDC), FeeSide::Output);
-        assert_eq!(FeeSide::select(BLUE, "0xfoo::bar::BAR"), FeeSide::Output);
+        assert_eq!(fee_side(SUI_FULL, USDC), FeeSide::Input);
+        assert_eq!(fee_side(USDC, SUI_FULL), FeeSide::Output);
+        assert_eq!(fee_side(SUI_FULL, BLUE), FeeSide::Input);
+        assert_eq!(fee_side(BLUE, SUI_FULL), FeeSide::Output);
+        assert_eq!(fee_side(USDC, BLUE), FeeSide::Input);
+        assert_eq!(fee_side(BLUE, USDC), FeeSide::Output);
+        assert_eq!(fee_side(BLUE, "0xfoo::bar::BAR"), FeeSide::Output);
     }
 
     #[test]

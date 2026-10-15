@@ -44,6 +44,10 @@ pub fn quote_preferences() -> Vec<QuotePreference> {
             provider: SwapperProvider::Across,
             tolerance_bps: 10,
         },
+        QuotePreference::Provider {
+            provider: SwapperProvider::Orca,
+            tolerance_bps: 10,
+        },
         QuotePreference::DustFreeMaxAmount { tolerance_bps: 25 },
     ]
 }

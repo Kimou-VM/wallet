@@ -1,0 +1,154 @@
+use borsh::BorshDeserialize;
+use gem_solana::{Pubkey, find_program_address};
+
+use super::whirlpool::{TICK_ARRAY_SIZE, WHIRLPOOL_PROGRAM, Whirlpool, anchor_account_body};
+use crate::{
+    SwapperError,
+    solana_dex::{ClmmTick, MAX_TICK_INDEX, MIN_TICK_INDEX},
+};
+
+const TICK_GROWTHS_LEN: usize = 96;
+const FIXED_TICK_ARRAY: &str = "TickArray";
+const DYNAMIC_TICK_ARRAY: &str = "DynamicTickArray";
+
+#[derive(BorshDeserialize)]
+struct FixedTick {
+    initialized: bool,
+    liquidity_net: i128,
+    _liquidity_gross_and_growths: [u8; TICK_GROWTHS_LEN],
+}
+
+#[derive(BorshDeserialize)]
+struct FixedTickArray {
+    start_tick_index: i32,
+    ticks: [FixedTick; TICK_ARRAY_SIZE as usize],
+    whirlpool: Pubkey,
+}
+
+#[derive(BorshDeserialize)]
+struct DynamicTickData {
+    liquidity_net: i128,
+    _liquidity_gross_and_growths: [u8; TICK_GROWTHS_LEN],
+}
+
+#[derive(BorshDeserialize)]
+enum DynamicTick {
+    Uninitialized,
+    Initialized(DynamicTickData),
+}
+
+#[derive(BorshDeserialize)]
+struct DynamicTickArray {
+    start_tick_index: i32,
+    whirlpool: Pubkey,
+    _tick_bitmap: u128,
+    ticks: [DynamicTick; TICK_ARRAY_SIZE as usize],
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(super) struct TickArray {
+    pub start_tick_index: i32,
+    whirlpool: Pubkey,
+    liquidity_nets: Vec<Option<i128>>,
+}
+
+impl TickArray {
+    pub fn address(whirlpool: &Pubkey, start_tick_index: i32) -> Result<Pubkey, SwapperError> {
+        Ok(find_program_address(&WHIRLPOOL_PROGRAM, &[b"tick_array".as_slice(), whirlpool.as_bytes(), start_tick_index.to_string().as_bytes()])?.0)
+    }
+
+    pub fn addresses(whirlpool: &Pubkey, start_tick_indexes: &[i32]) -> Result<Vec<Pubkey>, SwapperError> {
+        start_tick_indexes.iter().map(|start| Self::address(whirlpool, *start)).collect()
+    }
+
+    pub fn decode(data: &[u8]) -> Result<Self, SwapperError> {
+        if let Ok(body) = anchor_account_body(data, FIXED_TICK_ARRAY) {
+            let array = FixedTickArray::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)?;
+            return Ok(Self {
+                start_tick_index: array.start_tick_index,
+                whirlpool: array.whirlpool,
+                liquidity_nets: array.ticks.iter().map(|tick| tick.initialized.then_some(tick.liquidity_net)).collect(),
+            });
+        }
+        let body = anchor_account_body(data, DYNAMIC_TICK_ARRAY)?;
+        let array = DynamicTickArray::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)?;
+        Ok(Self {
+            start_tick_index: array.start_tick_index,
+            whirlpool: array.whirlpool,
+            liquidity_nets: array
+                .ticks
+                .iter()
+                .map(|tick| match tick {
+                    DynamicTick::Uninitialized => None,
+                    DynamicTick::Initialized(data) => Some(data.liquidity_net),
+                })
+                .collect(),
+        })
+    }
+
+    fn initialized_ticks(&self, tick_spacing: u16, a_to_b: bool) -> Vec<ClmmTick> {
+        let ticks = (0..TICK_ARRAY_SIZE).zip(&self.liquidity_nets).filter_map(|(offset, liquidity_net)| {
+            liquidity_net.map(|liquidity_net| ClmmTick {
+                index: self.start_tick_index + offset * i32::from(tick_spacing),
+                liquidity_net,
+            })
+        });
+        if a_to_b { ticks.rev().collect() } else { ticks.collect() }
+    }
+}
+
+pub(super) fn swap_ticks(address: &Pubkey, whirlpool: &Whirlpool, a_to_b: bool, accounts: &[Option<Vec<u8>>]) -> Result<(Vec<ClmmTick>, i32), SwapperError> {
+    let starts = whirlpool.swap_start_tick_indexes(a_to_b);
+    let last_start = *starts.last().ok_or(SwapperError::NoQuoteAvailable)?;
+    let arrays = starts
+        .iter()
+        .zip(accounts)
+        .filter_map(|(start, account)| account.as_ref().map(|data| (start, data)))
+        .map(|(start, data)| {
+            let array = TickArray::decode(data)?;
+            if array.start_tick_index != *start || array.whirlpool != *address {
+                return Err(SwapperError::compute_quote_error("Unexpected tick array"));
+            }
+            Ok(array)
+        })
+        .collect::<Result<Vec<_>, SwapperError>>()?;
+    let current = whirlpool.tick_current_index;
+    let ticks = arrays
+        .iter()
+        .flat_map(|array| array.initialized_ticks(whirlpool.tick_spacing, a_to_b))
+        .filter(|tick| if a_to_b { tick.index <= current } else { tick.index > current })
+        .collect();
+    let range_end = if a_to_b { last_start.max(MIN_TICK_INDEX) } else { (last_start + whirlpool.ticks_in_array() - 1).min(MAX_TICK_INDEX) };
+    Ok((ticks, range_end))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::orca::testkit::{TEST_WHIRLPOOL, mock_dynamic_tick_array, mock_tick_array_accounts};
+
+    #[test]
+    fn test_decode() {
+        let dynamic = TickArray::decode(&mock_dynamic_tick_array()).unwrap();
+        let fixed = TickArray::decode(mock_tick_array_accounts(&[-22_528])[0].as_ref().unwrap()).unwrap();
+
+        assert_eq!(TickArray::address(&Pubkey::from_base58(TEST_WHIRLPOOL).unwrap(), -11_264).unwrap().to_base58(), "81T5kNuPRkyVzhwbe2RpKR7wmQpGJ7RBkGPdTqyfa5vq");
+        assert_eq!(dynamic.whirlpool.to_base58(), "8dZ2YFFshshetWR7m99yaymqWGk36FDwuptnKZWrqEUe");
+        assert_eq!(
+            dynamic.initialized_ticks(1, false),
+            vec![
+                ClmmTick {
+                    index: -86_325,
+                    liquidity_net: 971_423_482_536_773_736
+                },
+                ClmmTick {
+                    index: -86_314,
+                    liquidity_net: -971_423_482_536_773_736
+                },
+            ]
+        );
+        assert_eq!(fixed.start_tick_index, -22_528);
+        assert_eq!(fixed.whirlpool.to_base58(), TEST_WHIRLPOOL);
+        assert_eq!(TickArray::decode(&[0; 16]), Err(SwapperError::compute_quote_error("Invalid DynamicTickArray account")));
+    }
+}

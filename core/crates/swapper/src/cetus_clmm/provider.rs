@@ -1,10 +1,10 @@
 use super::{
     client::CetusClmm,
     constants::CETUS_CLMM_PUBLISHED_AT,
-    model::{FeeSide, PoolRoute},
+    model::{PoolRoute, fee_side},
     tx_builder,
 };
-use crate::{FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData};
+use crate::{FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData, fees::FeeSide};
 use async_trait::async_trait;
 use gem_sui::coin_type_matches;
 use num_bigint::BigUint;
@@ -45,10 +45,10 @@ impl Swapper for CetusClmm {
 
         let from_coin_type = CetusClmm::coin_type(&from_asset);
         let to_coin_type = CetusClmm::coin_type(&to_asset);
-        let fee_side = FeeSide::select(&from_coin_type, &to_coin_type);
+        let fee_side = fee_side(&from_coin_type, &to_coin_type);
 
         let referral_fee = CetusClmm::referral_fee();
-        let input_fee_amount = tx_builder::referral_fee_amount(amount, referral_fee.bps)?;
+        let input_fee_amount = referral_fee.fee_value(amount);
         let swap_amount = match fee_side {
             FeeSide::Input => amount.checked_sub(input_fee_amount).ok_or_else(|| SwapperError::ComputeQuoteError("Cetus CLMM referral fee exceeds input amount".into()))?,
             FeeSide::Output => amount,
@@ -59,7 +59,7 @@ impl Swapper for CetusClmm {
         let gross_amount_out = hops.last().map(|h| h.amount_out).unwrap_or_default();
         let fee_amount = match fee_side {
             FeeSide::Input => input_fee_amount,
-            FeeSide::Output => tx_builder::referral_fee_amount(gross_amount_out, referral_fee.bps)?,
+            FeeSide::Output => referral_fee.fee_value(gross_amount_out),
         };
         let route = PoolRoute { hops, fee_amount, fee_side };
 

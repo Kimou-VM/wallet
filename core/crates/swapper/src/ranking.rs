@@ -178,6 +178,22 @@ mod tests {
     }
 
     #[test]
+    fn test_orca_is_preferred_within_10_bps_of_the_best_quote() {
+        let solana = request(AssetId::from_chain(Chain::Solana), false);
+        let rank = |orca_out: &str| {
+            providers(rank_quotes(
+                &solana,
+                vec![quote(&solana, SwapperProvider::Jupiter, "10000"), quote(&solana, SwapperProvider::Orca, orca_out), quote(&solana, SwapperProvider::Okx, "9995")],
+                &quote_preferences(),
+                deposit_only_near_intents,
+            ))
+        };
+
+        assert_eq!(rank("9990"), vec![SwapperProvider::Orca, SwapperProvider::Jupiter, SwapperProvider::Okx]);
+        assert_eq!(rank("9989"), vec![SwapperProvider::Jupiter, SwapperProvider::Okx, SwapperProvider::Orca], "further than 10 bps, the best quote wins");
+    }
+
+    #[test]
     fn test_a_max_swap_that_leaves_nothing_behind_outranks_the_across_preference() {
         let solana_max = request(AssetId::from_chain(Chain::Solana), true);
         let ranked = rank_quotes(

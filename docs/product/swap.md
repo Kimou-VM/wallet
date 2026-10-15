@@ -55,7 +55,7 @@ flowchart LR
 |---|---|---|
 | the provider swaps whatever arrives: Near Intents except HyperCore, Chainflip, Thorchain and Relay from Bitcoin and other non-Ethereum networks | the full balance is quoted; the network fee comes off when the transaction is signed, so nothing is left behind | a deposit can be any amount |
 | what is left after the fee is under that provider's minimum | the minimum is shown, not a balance error | the provider would reject or refund it |
-| the provider needs the exact amount: Uniswap, PancakeSwap, OKX, Jupiter, Squid, Mayan, Across, Bridgers | Swap quotes the balance minus a fee reserve, so the quote is close; the confirmation screen then asks for everything but the actual network fee and shows that amount | the reserve is a guess; the fee is known only on the confirmation screen |
+| the provider needs the exact amount: Uniswap, PancakeSwap, OKX, Jupiter, Orca, Squid, Mayan, Across, Bridgers | Swap quotes the balance minus a fee reserve, so the quote is close; the confirmation screen then asks for everything but the actual network fee and shows that amount | the reserve is a guess; the fee is known only on the confirmation screen |
 | that provider is used on Solana, TON, Tron, Sui or Aptos | the reserve stays in the wallet | those networks charge more than the fee shown: rent, forwarding, energy |
 | the provider says it can take any amount but builds a contract call | it is treated as needing the exact amount | otherwise the full balance would be quoted and the fee would not fit |
 | a provider that leaves nothing behind quotes within `0.25%` of the best quote | that provider is chosen | a slightly smaller amount received beats a reserve stuck in the wallet |
@@ -77,6 +77,7 @@ flowchart LR
 | An answer arrives for an amount or pair the user has already changed | it is thrown away | |
 | The price impact is a loss of more than `1%` | Details shows the Price Impact | |
 | Across quotes within `0.1%` of the best quote | Across is chosen; for a 100% swap, a provider that leaves nothing behind within `0.25%` still comes first | Across settles in seconds through a direct deposit on the paying network |
+| Orca quotes within `0.1%` of the best quote | Orca is chosen; for a 100% swap, a provider that leaves nothing behind within `0.25%` still comes first | |
 | The user picks another provider | the choice survives refreshes | |
 | A chosen Slippage is `3%` or more | a warning | |
 | Slippage is Auto, including Solana's `3%` | no warning | |

@@ -4,11 +4,11 @@ use futures::try_join;
 use gem_encoding::decode_base64;
 use gem_evm::EVM_ZERO_ADDRESS;
 use gem_solana::{
-    ASSOCIATED_TOKEN_ACCOUNT_PROGRAM, AccountMeta, Base64InstructionData, Instruction, Pubkey, SYSTEM_PROGRAM_ID, SolanaAddress, SolanaClient, WSOL_TOKEN_ADDRESS,
+    ASSOCIATED_TOKEN_ACCOUNT_PROGRAM, AccountMeta, Base64InstructionData, Instruction, Pubkey, SYSTEM_PROGRAM_ID, SolanaAddress, SolanaClient,
     associated_token::{create_associated_token_account_idempotent_with_address, get_associated_token_address_with_program_id},
     compute_budget, encode_v0_transaction, instruction_from_primitive,
     instructions::program_ids,
-    instructions_from_primitives, system, token,
+    instructions_from_primitives, token, wrapped_sol,
 };
 use num_bigint::BigUint;
 use primitives::{Chain, SolanaInstruction};
@@ -108,20 +108,14 @@ pub(in crate::mayan::tx_builder) fn setup_instructions(instructions: Vec<SolanaI
 }
 
 pub(in crate::mayan::tx_builder) fn setup_wraps_native_sol(instructions: &[SolanaInstruction], owner: &Pubkey) -> Result<bool, SwapperError> {
-    let wrapped_account = wrapped_sol_account(owner)?;
+    let wrapped_account = wrapped_sol::wrapped_sol_account(owner).map_err(solana_error)?;
     Ok(instructions.iter().any(|instruction| {
         instruction.program_id == SYSTEM_PROGRAM_ID && instruction.accounts.get(1).is_some_and(|account| account.pubkey == wrapped_account.to_string()) && decode_base64(&instruction.data).is_ok_and(|data| data.starts_with(&[2, 0, 0, 0]))
     }))
 }
 
 pub(in crate::mayan::tx_builder) fn wrap_native_sol_instructions(owner: &Pubkey, amount: u64) -> Result<Vec<Instruction>, SwapperError> {
-    let wrapped_mint = wrapped_sol_mint()?;
-    let wrapped_account = get_associated_token_address_with_program_id(owner, &wrapped_mint, &program_ids::token_program()).map_err(solana_error)?;
-    Ok(vec![
-        wrap_instruction_in_cpi_proxy(create_associated_token_account_idempotent_with_address(owner, &wrapped_account, owner, &wrapped_mint, &program_ids::token_program()))?,
-        wrap_instruction_in_cpi_proxy(system::transfer(owner, &wrapped_account, amount))?,
-        wrap_instruction_in_cpi_proxy(token::sync_native(&wrapped_account))?,
-    ])
+    wrapped_sol::wrap_instructions(owner, amount).map_err(solana_error)?.into_iter().map(wrap_instruction_in_cpi_proxy).collect()
 }
 
 fn override_setup_payer(mut instruction: SolanaInstruction, payer: &Pubkey) -> Result<SolanaInstruction, SwapperError> {
@@ -138,14 +132,6 @@ fn override_setup_payer(mut instruction: SolanaInstruction, payer: &Pubkey) -> R
         instruction.accounts[0].pubkey = payer.to_string();
     }
     Ok(instruction)
-}
-
-fn wrapped_sol_account(owner: &Pubkey) -> Result<Pubkey, SwapperError> {
-    get_associated_token_address_with_program_id(owner, &wrapped_sol_mint()?, &program_ids::token_program()).map_err(solana_error)
-}
-
-fn wrapped_sol_mint() -> Result<Pubkey, SwapperError> {
-    Ok(SolanaAddress::parse(WSOL_TOKEN_ADDRESS).map_err(solana_error)?.into())
 }
 
 pub(in crate::mayan::tx_builder) fn wrap_instruction_in_cpi_proxy(instruction: Instruction) -> Result<Instruction, SwapperError> {

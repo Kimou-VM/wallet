@@ -5,3 +5,4 @@ pub mod memo;
 pub mod program_ids;
 pub mod system;
 pub mod token;
+pub mod wrapped_sol;
