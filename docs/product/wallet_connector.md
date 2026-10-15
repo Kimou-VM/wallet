@@ -1,6 +1,6 @@
 # WalletConnect
 
-Connect the wallet to a dapp by scanning or pasting its code, then approve or reject what the dapp asks: sign a message, sign a transaction, or switch network.
+Connect the wallet to a dapp by scanning or pasting its code, then approve or reject what the dapp asks to sign: a message or a transaction. A switch to another network follows the dapp without a review.
 
 ```mermaid
 flowchart LR
@@ -34,6 +34,9 @@ flowchart LR
 | A permit to sign names a flagged spender | a critical warning on the review | |
 | A one-click sign-in names a different site than the app asking | it is refused and the app is told so | the signature would log the user in to that other site |
 | A transaction approves a token: an approval, an allowance increase or a Permit2 approval | the review shows a token approval with the token, spender and amount; a flagged spender or token stops Confirm | the spender is who can move the token afterwards |
+| A dapp asks to switch to a network Gem supports where the wallet has an account | the network joins the connection and the dapp switches, with no review | the address is the same on every Ethereum-style network, so nothing new is shared |
+| A dapp asks to switch to a network Gem does not support | the dapp is told the network is unknown; nothing shows | |
+| A dapp connected only on non-Ethereum networks asks to switch | the dapp is told the network is unknown | it was never given the Ethereum address |
 | A WalletConnect Pay link | a payment review instead of a connection (see [Transfer](transfer.md)) | |
 | A WalletConnect Pay verification page is over https on the payment's own host | it loads | |
 | A WalletConnect Pay verification page is anywhere else | it opens in the browser | |
