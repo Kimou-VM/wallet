@@ -1,10 +1,8 @@
-use num_traits::ToPrimitive;
 use std::{fmt::Debug, sync::Arc};
 
 use async_trait::async_trait;
 use gem_client::Client;
 use gem_encoding::decode_base64;
-use gem_sui::{build_transfer_message_bytes, rpc::SuiClient};
 use gem_ton::rpc::client::TonClient;
 use num_bigint::BigUint;
 use number_formatter::BigNumberFormatter;
@@ -21,9 +19,7 @@ use super::{
 };
 use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
-    client_factory::{create_sui_client, create_ton_client},
-    config::get_swap_provider_url,
-    fees::default_referral_fees,
+    client_factory::create_ton_client, config::get_swap_provider_url, fees::default_referral_fees,
 };
 
 pub struct SwapsXyz<C>
@@ -32,7 +28,6 @@ where
 {
     provider: ProviderType,
     client: SwapsXyzClient<C>,
-    sui_client: SuiClient,
     ton_client: TonClient<C>,
 }
 
@@ -41,17 +36,15 @@ where
     C: Client + Clone + Send + Sync + Debug + 'static,
 {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("SwapsXyz").field("provider", &self.provider).field("client", &self.client).field("sui_client", &"SuiClient").finish()
+        formatter.debug_struct("SwapsXyz").field("provider", &self.provider).field("client", &self.client).finish()
     }
 }
 
 impl SwapsXyz<RpcClient> {
     pub fn new(rpc_provider: Arc<dyn RpcProvider>) -> Option<Self> {
-        let sui_client = create_sui_client(rpc_provider.clone()).ok()?;
         let ton_client = create_ton_client(rpc_provider.clone()).ok()?;
         Some(Self::with_client(
             SwapsXyzClient::new(RpcClient::new(super::base_url(), rpc_provider.clone()), RpcClient::new(get_swap_provider_url(SwapperProvider::SwapsXyz), rpc_provider)),
-            sui_client,
             ton_client,
         ))
     }
@@ -61,11 +54,10 @@ impl<C> SwapsXyz<C>
 where
     C: Client + Clone + Send + Sync + Debug + 'static,
 {
-    fn with_client(client: SwapsXyzClient<C>, sui_client: SuiClient, ton_client: TonClient<C>) -> Self {
+    fn with_client(client: SwapsXyzClient<C>, ton_client: TonClient<C>) -> Self {
         Self {
             provider: ProviderType::new(SwapperProvider::SwapsXyz),
             client,
-            sui_client,
             ton_client,
         }
     }
@@ -209,15 +201,7 @@ where
         let source = SwapsXyzChain::from_chain(quote.request.from_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
         let destination = SwapsXyzChain::from_chain(quote.request.to_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
         Self::validate_response(&response, &quote.request, source, destination)?;
-        let data = SwapperQuoteData::new_transfer(response.tx.to, response.tx.value.clone(), response.tx.to_extra.non_empty());
-        if source.chain != Chain::Sui {
-            return Ok(data);
-        }
-        let amount = data.value.to_u64().ok_or_else(|| SwapperError::ComputeQuoteError("Sui deposit amount is too large".into()))?;
-        let payload = build_transfer_message_bytes(&self.sui_client, &quote.request.wallet_address, &data.to, amount, None)
-            .await
-            .map_err(|error| SwapperError::TransactionError(format!("Failed to build Sui deposit data: {error}")))?;
-        Ok(SwapperQuoteData { data: payload, ..data })
+        Ok(SwapperQuoteData::new_transfer(response.tx.to, response.tx.value, response.tx.to_extra.non_empty()))
     }
 
     async fn get_swap_result(&self, request: &SwapResultRequest) -> Result<SwapResult, SwapperError> {
@@ -320,7 +304,7 @@ mod tests {
             },
         ] {
             let upstream = MockClient::new().with_get(move |_| Err(error.clone()));
-            let provider = SwapsXyz::with_client(SwapsXyzClient::new(upstream, MockClient::new()), SuiClient::new("https://example.com"), TonClient::new(MockClient::new()));
+            let provider = SwapsXyz::with_client(SwapsXyzClient::new(upstream, MockClient::new()), TonClient::new(MockClient::new()));
             let result = provider.get_swap_result(&SwapResultRequest::new(Chain::Algorand, "source-hash")).await.unwrap();
             assert_eq!(result.status, SwapStatus::Pending);
         }
@@ -328,28 +312,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_quote_data_preserves_deposit_memo() {
-        let provider = SwapsXyz::with_client(SwapsXyzClient::new(MockClient::new(), MockClient::new()), SuiClient::new("https://example.com"), TonClient::new(MockClient::new()));
-        let request = QuoteRequest::mock_cosmos_to_stellar();
-        let response = ActionResponse::mock();
-        let quote = Quote {
-            from_value: response.amount_in.amount.clone(),
-            min_from_value: None,
-            to_value: response.amount_out.amount.clone(),
-            data: ProviderData {
-                provider: provider.provider.clone(),
-                slippage_bps: request.options.slippage.bps,
-                routes: vec![Route {
-                    input: request.from_asset.asset_id(),
-                    output: request.to_asset.asset_id(),
-                    route_data: serde_json::to_string(&response).unwrap(),
-                }],
-            },
-            request,
-            eta_in_seconds: None,
-        };
-
+        let provider = SwapsXyz::with_client(SwapsXyzClient::new(MockClient::new(), MockClient::new()), TonClient::new(MockClient::new()));
+        let quote = Quote::mock_swaps_xyz(QuoteRequest::mock_cosmos_to_stellar(), ActionResponse::mock());
         let data = provider.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
-        assert_eq!(data.memo.as_deref(), Some("1234"));
+        assert_eq!(data, SwapperQuoteData::new_transfer("deposit".to_string(), BigUint::from(1_000_000_u64), Some("1234".to_string())));
+    }
+
+    #[tokio::test]
+    async fn test_sui_quote_data_is_transfer() {
+        let provider = SwapsXyz::with_client(SwapsXyzClient::new(MockClient::new(), MockClient::new()), TonClient::new(MockClient::new()));
+        let quote = Quote::mock_swaps_xyz(QuoteRequest::mock_sui_to_ton(), ActionResponse::mock_sui_to_ton());
+        let data = provider.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
+        assert_eq!(
+            data,
+            SwapperQuoteData::new_transfer("0x82d03c6b623f1e15164c9329b1c49e066ff7814be70ff86f8e19125292661040".to_string(), BigUint::from(3_379_105_015_u64), None)
+        );
     }
 
     #[test]
@@ -363,7 +340,7 @@ mod tests {
     #[tokio::test]
     async fn test_swap_result_uses_received_amount() {
         let upstream = MockClient::new().with_get(|_| Ok(include_bytes!("testdata/status_cosmos_to_ton.json").to_vec()));
-        let provider = SwapsXyz::with_client(SwapsXyzClient::new(upstream, MockClient::new()), SuiClient::new("https://example.com"), TonClient::new(MockClient::new()));
+        let provider = SwapsXyz::with_client(SwapsXyzClient::new(upstream, MockClient::new()), TonClient::new(MockClient::new()));
         let result = provider.get_swap_result(&SwapResultRequest::new(Chain::Cosmos, "source-hash")).await.unwrap();
         assert_eq!(result.status, SwapStatus::Completed);
         assert_eq!(
@@ -398,7 +375,7 @@ mod tests {
             assert_eq!(path, "/getStatus?txHash=4d0644f73d746cb1e921ff2a1edb3e651e7b708df59d9c8b705d1aecedbddacc&chainId=999000337");
             Ok(include_bytes!("testdata/status_ton_to_algorand.json").to_vec())
         });
-        let provider = SwapsXyz::with_client(SwapsXyzClient::new(upstream, MockClient::new()), SuiClient::new("https://example.com"), TonClient::new(ton_client));
+        let provider = SwapsXyz::with_client(SwapsXyzClient::new(upstream, MockClient::new()), TonClient::new(ton_client));
         let result = provider.get_swap_result(&SwapResultRequest::new(Chain::Ton, "8f7f20d5f727af5c6f632d94ff676c70049a4b5aeaf0be974f8b742b6670b371")).await.unwrap();
         assert_eq!(result.status, SwapStatus::Completed);
         assert_eq!(result.metadata.unwrap().to_value, BigUint::from(885_912_855_u64));
@@ -409,7 +386,7 @@ mod tests {
         let mut response: serde_json::Value = serde_json::from_slice(include_bytes!("testdata/status_cosmos_to_ton.json")).unwrap();
         response["dstTx"] = serde_json::Value::Null;
         let upstream = MockClient::new().with_get(move |_| Ok(serde_json::to_vec(&response).unwrap()));
-        let provider = SwapsXyz::with_client(SwapsXyzClient::new(upstream, MockClient::new()), SuiClient::new("https://example.com"), TonClient::new(MockClient::new()));
+        let provider = SwapsXyz::with_client(SwapsXyzClient::new(upstream, MockClient::new()), TonClient::new(MockClient::new()));
         let result = provider.get_swap_result(&SwapResultRequest::new(Chain::Cosmos, "source-hash")).await.unwrap();
         assert_eq!(
             result,
@@ -424,7 +401,7 @@ mod tests {
     #[tokio::test]
     async fn test_ton_swap_result_waits_for_trace() {
         let ton_client = MockClient::new().with_get(|_| Ok(br#"{"traces":[]}"#.to_vec()));
-        let provider = SwapsXyz::with_client(SwapsXyzClient::new(MockClient::new(), MockClient::new()), SuiClient::new("https://example.com"), TonClient::new(ton_client));
+        let provider = SwapsXyz::with_client(SwapsXyzClient::new(MockClient::new(), MockClient::new()), TonClient::new(ton_client));
         let result = provider.get_swap_result(&SwapResultRequest::new(Chain::Ton, "source-hash")).await.unwrap();
         assert_eq!(result, SwapResult::pending());
     }
