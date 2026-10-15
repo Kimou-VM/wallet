@@ -7395,6 +7395,7 @@ dependencies = [
  "gem_hash",
  "gem_hypercore",
  "gem_jsonrpc",
+ "gem_polkadot",
  "gem_solana",
  "gem_sui",
  "gem_ton",
