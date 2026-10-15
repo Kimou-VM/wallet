@@ -50,6 +50,7 @@ pub const TREASURY_ADDRESSES: [(Chain, &str); 17] = [
     (Chain::Cardano, "addr1v8wfpcg4qfhmnzprzysj6j9c53u5j56j8rvhyjp08s53s6g07rfjm"),
 ];
 
+#[derive(Debug)]
 pub struct NearIntents<C>
 where
     C: gem_client::Client + Clone + Send + Sync + Debug + 'static,
@@ -58,20 +59,6 @@ where
     client: NearIntentsClient<C>,
     explorer: NearIntentsExplorer<C>,
     supported_assets: Vec<SwapperChainAsset>,
-}
-
-impl<C> std::fmt::Debug for NearIntents<C>
-where
-    C: gem_client::Client + Clone + Send + Sync + Debug + 'static,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NearIntents")
-            .field("provider", &self.provider)
-            .field("client", &self.client)
-            .field("explorer", &self.explorer)
-            .field("supported_assets", &self.supported_assets)
-            .finish()
-    }
 }
 
 impl NearIntents<RpcClient> {
