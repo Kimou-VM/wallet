@@ -388,7 +388,7 @@ impl ConfigKey {
             Self::PerpetualClassifierInterval => "15m",
             Self::PerpetualClassifierConcurrency => "3",
             Self::PerpetualObserverInterval => "1m",
-            Self::PerpetualAddressRefreshInterval => "1h",
+            Self::PerpetualAddressRefreshInterval => "6h",
             Self::PerpetualPriorityObserverInterval => "10s",
             Self::PerpetualPriorityTriggerBps => "100",
             Self::PerpetualPriorityLiquidationBps => "300",
