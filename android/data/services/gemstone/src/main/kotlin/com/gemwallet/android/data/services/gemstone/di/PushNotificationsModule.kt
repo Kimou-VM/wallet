@@ -6,6 +6,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import uniffi.gemstone.GemPushNotificationService
 import uniffi.gemstone.GemPushNotificationServiceInterface
+import uniffi.gemstone.Platform
 import javax.inject.Singleton
 
 @InstallIn(SingletonComponent::class)
@@ -14,7 +15,7 @@ object PushNotificationsModule {
 
     @Provides
     @Singleton
-    fun provideGemPushNotificationService(): GemPushNotificationService = GemPushNotificationService()
+    fun provideGemPushNotificationService(): GemPushNotificationService = GemPushNotificationService(Platform.ANDROID)
 
     @Provides
     @Singleton

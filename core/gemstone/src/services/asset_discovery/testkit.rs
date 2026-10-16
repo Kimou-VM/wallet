@@ -3,17 +3,13 @@ use std::sync::{Arc, Mutex};
 use primitives::{Wallet, WalletId};
 
 use super::GemAssetDiscoveryService;
-use crate::api::GemStaticApiClient;
 use crate::api::{GemApiClient, GemDeviceApiClient};
 use crate::gateway::GemGateway;
-use crate::payment::GemPaymentService;
 use crate::services::assets::GemAssetsService;
 use crate::services::assets::testkit::MemoryAssetStore;
 use crate::services::balance::GemBalanceService;
 use crate::services::balance::testkit::MemoryBalanceStore;
-use crate::services::config::GemConfigService;
 use crate::services::device::GemDeviceKeyService;
-use crate::services::explorer::GemExplorerService;
 use crate::services::name::GemNameService;
 use crate::services::nft::GemNftService;
 use crate::services::nft::testkit::MemoryNftStore;
@@ -22,10 +18,7 @@ use crate::services::preferences::GemPreferencesService;
 use crate::services::preferences::testkit::MemoryPreferencesStore;
 use crate::services::price::GemPriceService;
 use crate::services::price::testkit::MemoryPriceStore;
-use crate::services::stake::GemStakeService;
-use crate::services::stake::testkit::UnusedStakeStore;
 use crate::services::stream::testkit::SubscriptionTestkit;
-use crate::services::transaction_state::GemTransactionStateService;
 use crate::services::transaction_state::testkit::{MemoryTransactionStateStore, RecordingTransactionStatus};
 use crate::services::transactions::GemTransactionsService;
 use crate::services::wallet::testkit::{MemoryAddressStore, MemoryWalletStore};
@@ -37,11 +30,11 @@ use crate::testkit::{EmptyPreferences, TestAlienProvider};
 
 pub struct DiscoveryTestkit {
     pub discovery: Arc<GemAssetDiscoveryService>,
-    pub state: Arc<GemTransactionStateService>,
-    pub status: Arc<RecordingTransactionStatus>,
     pub assets: Arc<GemAssetsService>,
     pub asset_store: Arc<MemoryAssetStore>,
     pub transactions: Arc<GemTransactionsService>,
+    pub transaction_store: Arc<MemoryTransactionStateStore>,
+    pub transaction_status: Arc<RecordingTransactionStatus>,
     pub wallets: Arc<MemoryWalletStore>,
     pub balance: Arc<GemBalanceService>,
     pub provider: Arc<TestAlienProvider>,
@@ -81,46 +74,27 @@ impl DiscoveryTestkit {
         let balance = Arc::new(GemBalanceService::new(gateway.clone(), balances.clone(), assets.clone(), session.clone(), Arc::new(SubscriptionTestkit::new(&[], &[]).service)));
         let names = Arc::new(GemNameService::new(device_api.clone(), Arc::new(MemoryAddressStore::default())));
         let wallet_preferences = Arc::new(GemWalletPreferencesService::new(Arc::new(MemoryWalletPreferencesStore::default())));
+        let transaction_store = Arc::new(MemoryTransactionStateStore::default());
+        let transaction_status = Arc::new(RecordingTransactionStatus::default());
         let transactions = Arc::new(GemTransactionsService::new(
             device_api.clone(),
             assets.clone(),
             balance.clone(),
-            Arc::new(MemoryTransactionStateStore::default()),
+            transaction_store.clone(),
             names.clone(),
             wallet_preferences.clone(),
             session.clone(),
-            Arc::new(RecordingTransactionStatus::default()),
+            transaction_status.clone(),
         ));
         let nft = Arc::new(GemNftService::new(device_api.clone(), Arc::new(MemoryNftStore::default()), session.clone()));
-        let status = Arc::new(RecordingTransactionStatus::default());
-        let state = Arc::new(GemTransactionStateService::new(
-            gateway.clone(),
-            Arc::new(MemoryTransactionStateStore::default()),
-            balance.clone(),
-            Arc::new(GemStakeService::new(
-                gateway,
-                Arc::new(GemStaticApiClient::new(provider.clone())),
-                Arc::new(UnusedStakeStore),
-                assets.clone(),
-                names,
-                Arc::new(GemExplorerService::new(preferences.clone())),
-                preferences.clone(),
-                session.clone(),
-                primitives::Platform::IOS,
-                Arc::new(GemConfigService::new(Arc::new(GemApiClient::new(provider.clone())), preferences.clone())),
-            )),
-            nft.clone(),
-            Arc::new(GemPaymentService::new(provider.clone(), assets.clone(), balance.clone())),
-        ));
-        state.set_status(status.clone());
         let discovery = Arc::new(GemAssetDiscoveryService::new(device_api, balance.clone(), transactions.clone(), nft, session.clone(), wallet_preferences.clone()));
         Self {
             discovery,
-            state,
-            status,
             assets,
             asset_store,
             transactions,
+            transaction_store,
+            transaction_status,
             wallets,
             balance,
             provider,

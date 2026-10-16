@@ -9,7 +9,7 @@ use crate::services::transaction_state::GemTransactionStateStore;
 use std::sync::Arc;
 
 use chrono::Utc;
-use primitives::{AssetId, Chain, Transaction, Wallet, WalletId};
+use primitives::{AssetId, Chain, Transaction, TransactionId, Wallet, WalletId};
 
 pub use details::GemTransactionDetailsService;
 pub use model::{
@@ -95,14 +95,39 @@ impl GemTransactionsService {
         let timestamp = Utc::now().timestamp() as u64;
         let response = self.api.client.get_transactions(wallet_id.id(), asset_id.as_ref().map(ToString::to_string), from_timestamp).await.map_err(GemApiError::from)?;
 
-        let new_asset_ids = self.assets.sync_missing_assets(rules::transaction_asset_ids(&response.transactions)).await?;
+        self.save_api_transactions(wallet_id.clone(), response.transactions).await?;
+        self.names.save_names(response.address_names).await?;
+        self.wallet_preferences.set_transactions_timestamp(wallet_id, asset_id, timestamp)?;
+        Ok(())
+    }
+
+    pub async fn notification_transaction(&self, wallet_id: WalletId, transaction_id: TransactionId, pushed: Option<Transaction>) -> Result<Transaction, GemServiceError> {
+        match pushed {
+            Some(transaction) => {
+                self.store.add_transactions(wallet_id.clone(), vec![transaction.clone()]).await?;
+                self.transaction_status.track(wallet_id, vec![transaction.clone()]);
+                Ok(transaction)
+            }
+            None => self.wallet_transaction(wallet_id, transaction_id).await,
+        }
+    }
+
+    async fn wallet_transaction(&self, wallet_id: WalletId, transaction_id: TransactionId) -> Result<Transaction, GemServiceError> {
+        if let Some(stored) = self.store.get_transaction(wallet_id.clone(), transaction_id.clone()).await? {
+            return Ok(stored.transaction);
+        }
+        let transaction = self.api.client.get_transaction(wallet_id.id(), transaction_id.to_string()).await.map_err(GemApiError::from)?;
+        self.save_api_transactions(wallet_id, vec![transaction.clone()]).await?;
+        Ok(transaction)
+    }
+
+    async fn save_api_transactions(&self, wallet_id: WalletId, transactions: Vec<Transaction>) -> Result<(), GemServiceError> {
+        let new_asset_ids = self.assets.sync_missing_assets(rules::transaction_asset_ids(&transactions)).await?;
         if !new_asset_ids.is_empty() {
             self.balance.add_missing_balances(wallet_id.clone(), new_asset_ids).await?;
         }
-        let pending = rules::pending_transactions(&response.transactions);
-        self.store.add_transactions(wallet_id.clone(), response.transactions).await?;
-        self.names.save_names(response.address_names).await?;
-        self.wallet_preferences.set_transactions_timestamp(wallet_id.clone(), asset_id, timestamp)?;
+        let pending = rules::pending_transactions(&transactions);
+        self.store.add_transactions(wallet_id.clone(), transactions).await?;
         if !pending.is_empty() {
             self.transaction_status.track(wallet_id, pending);
         }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum::{AsRefStr, EnumString};
 
-use primitives::{AssetId, Transaction, WalletId};
+use primitives::{AssetId, Platform, Transaction, Version, WalletId};
 
 #[derive(Debug, Serialize, Deserialize, Clone, AsRefStr, EnumString)]
 #[serde(rename_all = "camelCase")]
@@ -41,6 +41,19 @@ impl PushNotification {
         }
     }
 
+    pub fn new_transaction(wallet_id: WalletId, transaction: &Transaction, platform: Platform, app_version: &str) -> Self {
+        let payload = PushNotificationTransaction {
+            wallet_id,
+            asset_id: transaction.asset_id.clone(),
+            transaction_id: transaction.id.to_string(),
+            transaction: carries_transaction(platform, app_version).then(|| transaction.clone()),
+        };
+        Self {
+            notification_type: PushNotificationTypes::Transaction,
+            data: serde_json::to_value(payload).ok(),
+        }
+    }
+
     pub fn new_stake(wallet_id: WalletId, asset_id: AssetId) -> Self {
         Self {
             notification_type: PushNotificationTypes::Stake,
@@ -55,7 +68,16 @@ pub struct PushNotificationTransaction {
     pub wallet_id: WalletId,
     pub asset_id: AssetId,
     pub transaction_id: String,
-    pub transaction: Transaction,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction: Option<Transaction>,
+}
+
+fn carries_transaction(platform: Platform, app_version: &str) -> bool {
+    match platform {
+        Platform::IOS => true,
+        // TODO(X176): remove this version check on 2027-01-16, three months after Android 2.114.73 reads only the transaction id.
+        Platform::Android => !app_version.parse::<Version>().is_ok_and(|version| version >= Version::new(2, 114, 73)),
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -95,5 +117,26 @@ impl PushNotification {
             notification_type: PushNotificationTypes::Test,
             data: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_a_transaction_push_leaves_out_the_transaction_only_for_android_apps_that_read_the_id() {
+        let transaction = Transaction::mock();
+        let payload = |platform: Platform, app_version: &str| {
+            serde_json::from_value::<PushNotificationTransaction>(PushNotification::new_transaction(WalletId::Multicoin("0x1".to_string()), &transaction, platform, app_version).data.unwrap()).unwrap()
+        };
+
+        assert_eq!(payload(Platform::Android, "2.114.72").transaction, Some(transaction.clone()));
+        assert_eq!(payload(Platform::Android, "2.114.73").transaction, None);
+        assert_eq!(payload(Platform::Android, "2.115").transaction, None);
+        assert_eq!(payload(Platform::Android, "unknown").transaction, Some(transaction.clone()), "an unreadable version keeps the payload old apps need");
+        assert_eq!(payload(Platform::IOS, "2.114.73").transaction, Some(transaction.clone()), "only Apple can deliver an iOS push, so it keeps the transaction");
+        assert_eq!(payload(Platform::Android, "2.114.73").transaction_id, transaction.id.to_string());
+        assert_eq!(payload(Platform::Android, "2.114.73").asset_id, transaction.asset_id);
     }
 }

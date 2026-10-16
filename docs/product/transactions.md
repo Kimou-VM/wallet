@@ -74,3 +74,9 @@ A settled transaction pushes to every device subscribed to the wallet. A failed 
 | Asset activation, perpetual modify | no push | no push |
 
 The second line is the push body; a failed swap, approval, stake action or contract call has none. A failed transfer says Transfer rather than Sent, because nothing was sent.
+
+## Platform differences
+
+| When | iOS | Android | Expected |
+|---|---|---|---|
+| A transaction push is tapped | the transaction the push carries is saved and opens | the transaction opens from the wallet's history, or from Gem's server when the wallet does not have it yet; if neither has it, the asset opens | Intentional: Android trusts only the wallet's history and Gem's server for what a transaction shows; only Apple can deliver an iOS push |

@@ -30,6 +30,7 @@ import uniffi.gemstone.GemNavigationTarget
 import uniffi.gemstone.GemPushNotification
 import uniffi.gemstone.GemPushNotificationService
 import uniffi.gemstone.GemWalletSessionServiceInterface
+import uniffi.gemstone.Platform
 
 class NotificationNavigationTest {
 
@@ -39,7 +40,7 @@ class NotificationNavigationTest {
         val navigationService = mockk<GemNavigationServiceInterface> {
             coEvery { openNotification(any()) } returns target
         }
-        return NotificationNavigation(navigationService, GemPushNotificationService(), walletSessionService)
+        return NotificationNavigation(navigationService, GemPushNotificationService(Platform.ANDROID), walletSessionService)
     }
 
     @Test
@@ -69,7 +70,7 @@ class NotificationNavigationTest {
 
         val routes = navigation(GemNavigationTarget.Transaction(asset.toGem(), walletId.id, transaction.toGem(), isPerpetual = false))
             .prepareNavigation(
-                GemPushNotification.Transaction(walletId = walletId.id, assetId = assetId.toIdentifier(), transaction = transaction.toGem()),
+                GemPushNotification.Transaction(walletId = walletId.id, assetId = assetId.toIdentifier(), transactionId = transaction.id.toIdentifier(), transaction = null),
             ).routes
 
         assertEquals(listOf(AssetRoute(asset.id), TransactionRoute(walletId, transaction.id)), routes)

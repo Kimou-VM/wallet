@@ -9,7 +9,7 @@ use primitives::name::NameRecord;
 use primitives::rewards::{RedemptionRequest, RedemptionResult};
 use primitives::{
     AddressDetails, AddressName, AuthNonce, AuthenticatedRequest, ChainAddress, ChartPeriod, Device, FiatQuoteType, FiatQuoteUrl, FiatQuotes, FiatTransactionData, InAppNotification, NFTAssetData, NFTAssetId, NFTData, PortfolioAssets,
-    PortfolioAssetsRequest, PriceAlert, ReferralCode, ReportNft, Rewards, ScanTransaction, ScanTransactionPayload, SupportMessage, SupportMessageInput, TransactionsResponse, WalletConfigurationResult, WalletSubscription,
+    PortfolioAssetsRequest, PriceAlert, ReferralCode, ReportNft, Rewards, ScanTransaction, ScanTransactionPayload, SupportMessage, SupportMessageInput, Transaction, TransactionsResponse, WalletConfigurationResult, WalletSubscription,
     WalletSubscriptionChains, transactions_page_limit,
 };
 use serde::de::DeserializeOwned;
@@ -102,6 +102,10 @@ impl<E: RpcClientError> GemDeviceApiClient<E> {
     pub async fn delete_price_alerts(&self, alerts: Vec<PriceAlert>) -> Result<(), ClientError> {
         self.send::<serde_json::Value>(GemDeviceApiTarget::DeletePriceAlerts(alerts)).await?;
         Ok(())
+    }
+
+    pub async fn get_transaction(&self, wallet_id: String, transaction_id: String) -> Result<Transaction, ClientError> {
+        self.send(GemDeviceApiTarget::GetTransaction { wallet_id, transaction_id }).await
     }
 
     pub async fn get_transactions(&self, wallet_id: String, asset_id: Option<String>, from_timestamp: u64) -> Result<TransactionsResponse, ClientError> {

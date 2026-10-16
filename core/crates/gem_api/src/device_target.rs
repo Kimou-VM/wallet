@@ -38,6 +38,10 @@ pub enum GemDeviceApiTarget {
         limit: usize,
         offset: usize,
     },
+    GetTransaction {
+        wallet_id: String,
+        transaction_id: String,
+    },
     GetAssetsList {
         wallet_id: String,
         from_timestamp: u64,
@@ -126,6 +130,7 @@ impl GemDeviceApiTarget {
             | Self::GetSubscriptions
             | Self::GetPriceAlerts { .. }
             | Self::GetTransactions { .. }
+            | Self::GetTransaction { .. }
             | Self::GetAssetsList { .. }
             | Self::GetWalletConfiguration { .. }
             | Self::GetNftAssets { .. }
@@ -176,6 +181,7 @@ impl GemDeviceApiTarget {
             ),
             Self::GetAssetsList { from_timestamp, .. } => format!("/v3/devices/assets?from_timestamp={from_timestamp}"),
             Self::GetWalletConfiguration { .. } => "/v3/devices/wallet-configuration".to_string(),
+            Self::GetTransaction { transaction_id, .. } => format!("/v3/devices/transactions/{transaction_id}"),
             Self::ScanTransaction(_) => "/v3/devices/transactions/scan".to_string(),
             Self::GetNftAssets { .. } => "/v3/devices/nft-assets".to_string(),
             Self::GetNftAsset(asset_id) => format!("/v3/devices/nft-assets/{asset_id}"),
@@ -203,6 +209,7 @@ impl GemDeviceApiTarget {
     pub fn wallet_id(&self) -> &str {
         match self {
             Self::GetTransactions { wallet_id, .. }
+            | Self::GetTransaction { wallet_id, .. }
             | Self::GetAssetsList { wallet_id, .. }
             | Self::GetWalletConfiguration { wallet_id }
             | Self::GetNftAssets { wallet_id }

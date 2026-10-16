@@ -67,7 +67,6 @@ import uniffi.gemstone.GemSupportService
 import uniffi.gemstone.GemSupportStore
 import uniffi.gemstone.GemSwapService
 import uniffi.gemstone.GemSwapServiceInterface
-import uniffi.gemstone.GemTransactionStateService
 import uniffi.gemstone.GemTransactionsService
 import uniffi.gemstone.GemWalletConfigurationService
 import uniffi.gemstone.GemWalletSessionService
@@ -236,8 +235,8 @@ object AssetsModule {
 
     @Provides
     @Singleton
-    fun provideGemNavigationService(assets: GemAssetsService, balance: GemBalanceService, session: GemWalletSessionService, transactionState: GemTransactionStateService): GemNavigationService =
-        GemNavigationService(assets, balance, session, transactionState)
+    fun provideGemNavigationService(assets: GemAssetsService, balance: GemBalanceService, session: GemWalletSessionService, transactions: GemTransactionsService): GemNavigationService =
+        GemNavigationService(assets, balance, session, transactions)
 
     @Provides
     fun provideGemNavigationServiceInterface(service: GemNavigationService): GemNavigationServiceInterface = service

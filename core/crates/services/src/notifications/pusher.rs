@@ -4,7 +4,7 @@ use std::sync::Arc;
 use localizer::{LanguageLocalizer, TransactionAction};
 use number_formatter::{ValueFormatter, ValueStyle};
 use primitives::{AddressFormatStyle, AddressFormatter, Asset, AssetVecExt, Chain, DeviceSubscription, FiatQuoteType, Transaction, TransactionNFTTransferMetadata, TransactionPerpetualMetadata, TransactionSwapMetadata, TransactionType};
-use push_notification::{GorushNotification, PushNotification, PushNotificationTransaction, PushNotificationTypes};
+use push_notification::{GorushNotification, PushNotification};
 use storage::DatabaseError;
 
 use pusher::Message;
@@ -176,16 +176,7 @@ impl Pusher {
         let localizer = LanguageLocalizer::new_with_language(subscription.device.locale.as_ref());
         let message = Self::message(localizer, &transaction, &subscription.address, &assets, &to_address, &from_address)?;
 
-        let notification_transaction = PushNotificationTransaction {
-            wallet_id: subscription.wallet_id.clone(),
-            transaction_id: transaction.id.to_string(),
-            transaction: transaction.clone(),
-            asset_id: transaction.asset_id.clone(),
-        };
-        let data = PushNotification {
-            notification_type: PushNotificationTypes::Transaction,
-            data: serde_json::to_value(&notification_transaction).ok(),
-        };
+        let data = PushNotification::new_transaction(subscription.wallet_id.clone(), &transaction, subscription.device.platform, &subscription.device.version);
 
         Ok(GorushNotification::from_device(subscription.device.clone(), message.title, message.message.unwrap_or_default(), data).into_iter().collect())
     }
