@@ -193,14 +193,14 @@ pub struct OutMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageContent {
-    pub decoded: Option<serde_json::Value>,
+    pub decoded: Option<DecodedBody>,
 }
 
 impl MessageContent {
     pub fn text_comment(&self) -> Option<&str> {
         let decoded = self.decoded.as_ref()?;
-        (decoded.get("type")?.as_str()? == "text_comment").then_some(())?;
-        decoded.get("comment")?.as_str()
+        (decoded.body_type.as_deref()? == "text_comment").then_some(())?;
+        decoded.comment.as_deref()
     }
 }
 
