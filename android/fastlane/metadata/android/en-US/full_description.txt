@@ -1,28 +1,42 @@
-<p>Gem Wallet is an open-source, non-custodial crypto wallet for managing assets across 100+ blockchains. No personal account is required: back up your recovery phrase and stay in control of your funds.</p>
+<p>Gem Wallet is an open-source, non-custodial crypto wallet for 50+ blockchains. No registration or personal data is required: back up your recovery phrase and stay in control of your funds.</p>
 
-<strong>Wallet Features</strong>
+<strong>Wallet</strong>
 <ul>
-    <li>Send and receive Bitcoin, Ethereum, Solana, USDT, USDC, BNB, XRP, Tron, and many other assets.</li>
+    <li>Send and receive Bitcoin, Ethereum, Solana, USDT, USDC, BNB, XRP, TRON, TON, and many other assets.</li>
+    <li>Manage USDT on TRON (TRC20), Ethereum (ERC20), Solana, TON, and more.</li>
     <li>Manage multiple wallets and accounts in one app.</li>
-    <li>Protect access with local encryption, PIN protection, and biometric authentication.</li>
     <li>Add custom tokens and custom RPC nodes.</li>
-    <li>View balances, transactions, NFTs, staking, and market data.</li>
+    <li>View and send NFTs on popular blockchains.</li>
+    <li>Find any asset quickly with search, and follow trending tokens and market data.</li>
 </ul>
 
-<strong>DeFi and Payments</strong>
+<strong>Swap, Earn, and Trade</strong>
 <ul>
-    <li>Swap tokens through integrated decentralized exchange providers.</li>
-    <li>Use QR codes and saved contacts for payments.</li>
-    <li>Stake supported assets and track rewards.</li>
+    <li>Swap tokens on the same chain or across chains through integrated providers such as Uniswap, PancakeSwap, Jupiter, Orca, THORChain, Chainflip, Mayan, Relay, and STON.fi.</li>
+    <li>Stake supported assets and track your rewards.</li>
+    <li>Earn with yield-bearing stablecoins.</li>
+    <li>Trade Hyperliquid perpetuals.</li>
+    <li>Buy and sell crypto through third-party providers.</li>
+</ul>
+
+<strong>Payments</strong>
+<ul>
+    <li>Pay with QR codes or from saved contacts.</li>
+    <li>Only the blockchain network fee is charged on transfers.</li>
     <li>Review transaction details before signing.</li>
 </ul>
 
-<strong>Privacy and Control</strong>
+<strong>Security and Privacy</strong>
 <ul>
-    <li>Non-custodial design keeps private keys on your device.</li>
+    <li>Private keys are encrypted and never leave your device.</li>
+    <li>Protect access with a PIN and biometric authentication.</li>
+    <li>Warnings for suspicious tokens and transactions.</li>
     <li>No registration or personal account is required.</li>
     <li>Open-source code is available for review.</li>
 </ul>
+
+<strong>F-Droid Build</strong>
+<p>This build has no Google Play Services, push notifications, or WalletConnect.</p>
 
 <strong>Project Information</strong>
 <p>Author: Gem Wallet</p>

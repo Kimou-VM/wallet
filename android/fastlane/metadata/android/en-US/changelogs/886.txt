@@ -1,0 +1,7 @@
+- Swap on Solana through Orca
+- Swap to DOT through Chainflip
+- See your trades on the perpetual chart, with each Hyperliquid order in its own Activity row
+- Clearer amounts when a balance is too low
+- See why a Bitcoin transaction was rejected
+- More reliable secure storage startup
+- Translation fixes
