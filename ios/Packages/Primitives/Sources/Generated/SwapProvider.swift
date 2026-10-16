@@ -27,4 +27,5 @@ public enum SwapProvider: String, Codable, Equatable, Hashable, Sendable {
 	case swapsXyz = "swaps_xyz"
 	case bridgers
 	case hyperion
+	case raydiumClmm = "raydium_clmm"
 }

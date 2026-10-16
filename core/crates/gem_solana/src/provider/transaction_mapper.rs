@@ -2,8 +2,8 @@ use chrono::DateTime;
 use num_bigint::{BigUint, Sign};
 
 use crate::{
-    COMPUTE_BUDGET_PROGRAM_ID, JUPITER_PROGRAM_ID, MEMO_PROGRAM_ID, METAPLEX_CORE_PROGRAM, METAPLEX_PROGRAM, OKX_DEX_V2_PROGRAM_ID, ORCA_WHIRLPOOL_PROGRAM_ID, SYSTEM_PROGRAM_ID, SYSTEM_PROGRAMS, TOKEN_PROGRAM, TOKEN_PROGRAM_2022,
-    WSOL_TOKEN_ADDRESS,
+    COMPUTE_BUDGET_PROGRAM_ID, JUPITER_PROGRAM_ID, MEMO_PROGRAM_ID, METAPLEX_CORE_PROGRAM, METAPLEX_PROGRAM, OKX_DEX_V2_PROGRAM_ID, ORCA_WHIRLPOOL_PROGRAM_ID, RAYDIUM_CLMM_PROGRAM_ID, SYSTEM_PROGRAM_ID, SYSTEM_PROGRAMS, TOKEN_PROGRAM,
+    TOKEN_PROGRAM_2022, WSOL_TOKEN_ADDRESS,
     models::{BlockTransaction, BlockTransactions, Instruction, SingleTransaction, TokenBalanceChange},
 };
 use primitives::{
@@ -13,7 +13,12 @@ use primitives::{
 use super::parsers::ProtocolParsers;
 
 const CHAIN: Chain = Chain::Solana;
-const SWAP_PROGRAMS: &[(SwapProvider, &str)] = &[(SwapProvider::Jupiter, JUPITER_PROGRAM_ID), (SwapProvider::Okx, OKX_DEX_V2_PROGRAM_ID), (SwapProvider::Orca, ORCA_WHIRLPOOL_PROGRAM_ID)];
+const SWAP_PROGRAMS: &[(SwapProvider, &str)] = &[
+    (SwapProvider::Jupiter, JUPITER_PROGRAM_ID),
+    (SwapProvider::Okx, OKX_DEX_V2_PROGRAM_ID),
+    (SwapProvider::Orca, ORCA_WHIRLPOOL_PROGRAM_ID),
+    (SwapProvider::RaydiumClmm, RAYDIUM_CLMM_PROGRAM_ID),
+];
 const NATIVE_TRANSFER_PROGRAMS: [&str; 3] = [SYSTEM_PROGRAM_ID, COMPUTE_BUDGET_PROGRAM_ID, MEMO_PROGRAM_ID];
 const MPL_CORE_TRANSFER_V1: u8 = 14;
 const MPL_TOKEN_METADATA_TRANSFER_V1: u8 = 49;

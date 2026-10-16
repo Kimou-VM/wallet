@@ -18,6 +18,7 @@ pub(crate) trait DexProtocol: Send + Sync {
 
     const PROVIDER: SwapperProvider;
     const PROGRAM_ID: Pubkey;
+    const INTERMEDIATE_TOKEN_ACCOUNT: bool;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError>;
     fn decode_pool(&self, data: &[u8]) -> Result<Self::Pool, SwapperError>;

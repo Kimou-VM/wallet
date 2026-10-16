@@ -2,7 +2,7 @@ mod protocol;
 mod provider;
 mod route;
 #[cfg(test)]
-mod testkit;
+pub(crate) mod testkit;
 mod token;
 mod transaction;
 

@@ -159,6 +159,7 @@ pub fn swap_explorer(provider: SwapProvider, chain: Chain) -> Option<Box<dyn Blo
         | SwapProvider::Aerodrome
         | SwapProvider::Hyperliquid
         | SwapProvider::Orca
+        | SwapProvider::RaydiumClmm
         | SwapProvider::Hyperion => None,
     }
 }

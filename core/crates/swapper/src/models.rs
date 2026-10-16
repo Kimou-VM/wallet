@@ -48,6 +48,7 @@ impl ProviderType {
             | SwapperProvider::StonfiV2
             | SwapperProvider::Aerodrome
             | SwapperProvider::Orca
+            | SwapperProvider::RaydiumClmm
             | SwapperProvider::Hyperion
             | SwapperProvider::Okx => SwapProviderMode::OnChain,
             SwapperProvider::Mayan | SwapperProvider::Mayachain | SwapperProvider::Squid | SwapperProvider::SwapsXyz | SwapperProvider::Bridgers => SwapProviderMode::CrossChain,
@@ -74,6 +75,7 @@ impl ProviderType {
             | SwapperProvider::StonfiV2
             | SwapperProvider::Aerodrome
             | SwapperProvider::Orca
+            | SwapperProvider::RaydiumClmm
             | SwapperProvider::Hyperion
             | SwapperProvider::Mayachain
             | SwapperProvider::Chainflip

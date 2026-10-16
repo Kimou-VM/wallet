@@ -33,6 +33,7 @@ pub enum SwapProvider {
     SwapsXyz,
     Bridgers,
     Hyperion,
+    RaydiumClmm,
 }
 
 impl SwapProvider {
@@ -47,7 +48,20 @@ impl SwapProvider {
     pub fn is_cross_chain(&self) -> bool {
         match self {
             Self::Thorchain | Self::Mayachain | Self::Across | Self::Mayan | Self::Chainflip | Self::NearIntents | Self::Relay | Self::Hyperliquid | Self::Squid | Self::SwapsXyz | Self::Bridgers => true,
-            Self::UniswapV3 | Self::UniswapV4 | Self::PancakeswapV3 | Self::Panora | Self::Jupiter | Self::Okx | Self::Oku | Self::Wagmi | Self::CetusClmm | Self::StonfiV2 | Self::Aerodrome | Self::Orca | Self::Hyperion => false,
+            Self::UniswapV3
+            | Self::UniswapV4
+            | Self::PancakeswapV3
+            | Self::Panora
+            | Self::Jupiter
+            | Self::Okx
+            | Self::Oku
+            | Self::Wagmi
+            | Self::CetusClmm
+            | Self::StonfiV2
+            | Self::Aerodrome
+            | Self::Orca
+            | Self::Hyperion
+            | Self::RaydiumClmm => false,
         }
     }
 
@@ -80,6 +94,7 @@ impl SwapProvider {
             Self::SwapsXyz => "Swaps.xyz",
             Self::Bridgers => "Bridgers",
             Self::Hyperion => "Hyperion",
+            Self::RaydiumClmm => "Raydium",
         }
     }
 
@@ -93,6 +108,7 @@ impl SwapProvider {
             Self::Oku => "Oku",
             Self::StonfiV2 => "STON.fi v2",
             Self::CetusClmm => "Cetus",
+            Self::RaydiumClmm => "Raydium CLMM",
             Self::Thorchain
             | Self::Mayachain
             | Self::Jupiter

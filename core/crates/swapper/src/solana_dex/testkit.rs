@@ -1,5 +1,13 @@
-use gem_solana::{Instruction, Pubkey, USDC_TOKEN_MINT, instructions::program_ids::token_program};
+use borsh::BorshDeserialize;
+use gem_encoding::decode_base64;
+use gem_solana::{
+    Instruction, Pubkey, USDC_TOKEN_MINT,
+    instructions::program_ids::{sysvar_clock, token_program},
+    models::Clock,
+};
 use primitives::swap::SOLANA_REFERRAL_ADDRESS;
+use serde_json::Value;
+use std::collections::HashMap;
 
 use super::{protocol::PoolSwap, token::SwapToken, transaction::DexTransaction};
 use crate::fees::{FeeSide, ReferralTransfer};
@@ -35,6 +43,29 @@ impl<'a> DexTransaction<'a> {
                 accounts: vec![],
                 data: vec![],
             },
+            intermediate_token_account: false,
         }
     }
+}
+
+pub(crate) fn mock_rpc_snapshot(snapshot: &str) -> Vec<(String, Value)> {
+    let snapshot: Value = serde_json::from_str(snapshot).unwrap();
+    snapshot["addresses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|address| address.as_str().unwrap().to_string())
+        .zip(snapshot["result"]["value"].as_array().unwrap().iter().cloned())
+        .collect()
+}
+
+pub(crate) fn mock_account_snapshot(snapshot: &str) -> (Vec<Pubkey>, HashMap<Pubkey, Option<Vec<u8>>>, u64) {
+    let snapshot = mock_rpc_snapshot(snapshot);
+    let addresses = snapshot.iter().map(|(address, _)| Pubkey::from_base58(address).unwrap()).collect::<Vec<_>>();
+    let accounts = snapshot
+        .iter()
+        .map(|(address, account)| (Pubkey::from_base58(address).unwrap(), account["data"][0].as_str().map(|data| decode_base64(data).unwrap())))
+        .collect::<HashMap<_, _>>();
+    let clock = Clock::try_from_slice(accounts[&sysvar_clock()].as_ref().unwrap()).unwrap();
+    (addresses, accounts, u64::try_from(clock.unix_timestamp).unwrap())
 }

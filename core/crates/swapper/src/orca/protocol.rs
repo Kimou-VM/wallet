@@ -19,6 +19,7 @@ impl DexProtocol for Orca {
 
     const PROVIDER: SwapperProvider = SwapperProvider::Orca;
     const PROGRAM_ID: Pubkey = orca_whirlpool_program();
+    const INTERMEDIATE_TOKEN_ACCOUNT: bool = false;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         Whirlpool::addresses(input_mint, output_mint)
@@ -205,6 +206,8 @@ mod tests {
             ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_AQUA_MINT))
         };
         let request = |from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset| QuoteRequest {
+            wallet_address: TEST_SOLANA_SENDER.to_string(),
+            destination_address: TEST_SOLANA_SENDER.to_string(),
             value: BigUint::from(100_000_000u64),
             ..mock_quote(from_asset.clone(), to_asset.clone())
         };

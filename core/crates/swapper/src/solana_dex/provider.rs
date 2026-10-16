@@ -11,7 +11,8 @@ use num_bigint::BigUint;
 use primitives::Chain;
 use serde_json::Value;
 use std::{
-    collections::{BTreeSet, HashMap},
+    cmp::Reverse,
+    collections::{BTreeMap, BTreeSet, HashMap},
     fmt,
     sync::Arc,
 };
@@ -43,6 +44,8 @@ struct PoolLookup<Pool> {
 }
 
 type PathLookup<Pool> = (RoutePath<Pubkey>, Vec<PoolLookup<Pool>>);
+
+const SIZE_CHECK_BLOCKHASH: &str = "11111111111111111111111111111111";
 
 pub(crate) struct SolanaDex<P: DexProtocol, C: Client + Clone = RpcClient> {
     provider: ProviderType,
@@ -133,11 +136,11 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         routes.iter().filter_map(|route| self.route_quote_accounts(route)).flatten().flatten().collect()
     }
 
-    async fn quote_best_route(&self, routes: Vec<PoolRoute<P::Pool>>, amount_in: u64, accounts: Accounts, timestamp: u64) -> Result<(Vec<DexHop>, u64), SwapperError> {
+    async fn ranked_routes(&self, routes: Vec<PoolRoute<P::Pool>>, amount_in: u64, accounts: Accounts, timestamp: u64) -> Result<Vec<(PoolRoute<P::Pool>, u64)>, SwapperError> {
         let route_accounts = routes.iter().map(|route| self.route_quote_accounts(route)).collect::<Vec<_>>();
         let missing = route_accounts.iter().flatten().flatten().flatten().filter(|address| !accounts.contains_key(address)).copied().collect();
         let accounts = accounts.into_iter().chain(self.fetch_accounts(missing).await?).collect::<Accounts>();
-        routes
+        let quoted = routes
             .into_iter()
             .zip(route_accounts)
             .filter_map(|(route, hop_accounts)| {
@@ -145,10 +148,29 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
                     let data = addresses.iter().map(|account| Self::program_data(&accounts, account)).collect::<Result<Vec<_>, _>>().ok()?;
                     self.protocol.quote(&hop.pool, pool, &hop.input_mint, amount, &data, timestamp).ok()
                 })?;
-                Some((route.into_iter().map(|(hop, _)| hop).collect::<Vec<_>>(), output_value))
+                Some((route, output_value))
             })
-            .max_by(|(left, left_value), (right, right_value)| left_value.cmp(right_value).then(right.len().cmp(&left.len())))
-            .ok_or(SwapperError::NoQuoteAvailable)
+            .collect::<Vec<_>>();
+        let ranked = quoted.into_iter().enumerate().map(|(index, (route, value))| ((Reverse(value), route.len(), index), (route, value))).collect::<BTreeMap<_, _>>();
+        Ok(ranked.into_values().collect())
+    }
+
+    fn transaction<'a>(&self, route: &DexRoute, pools: &[(Pubkey, P::Pool)], input: &'a SwapToken, output: &'a SwapToken, authority: Pubkey, slippage_bps: u32) -> Result<DexTransaction<'a>, SwapperError> {
+        let swap = PoolSwap {
+            authority,
+            input,
+            intermediate: route.intermediate(&input.mint, &output.mint)?,
+            output,
+            amount: route.swap_value,
+            minimum_out: route.minimum_output(slippage_bps),
+        };
+        Ok(DexTransaction {
+            swap_instruction: self.protocol.swap_instruction(pools, &swap)?,
+            swap,
+            referral: Pubkey::from_base58(&default_referral_fees().solana.address)?,
+            fee: route.fee,
+            intermediate_token_account: P::INTERMEDIATE_TOKEN_ACCOUNT,
+        })
     }
 
     async fn fetch_accounts(&self, addresses: Vec<Pubkey>) -> Result<Accounts, SwapperError> {
@@ -266,17 +288,30 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         let swap_value = referral_fee.swap_value(fee_side, value);
         let pool_input = swap_value.saturating_sub(input_mint.transfer_fee(clock.epoch, swap_value));
         let timestamp = u64::try_from(clock.unix_timestamp).unwrap_or_default();
-        let (hops, pool_output) = self.quote_best_route(routes, pool_input, accounts, timestamp).await?;
-        let output_value = pool_output.saturating_sub(output_mint.transfer_fee(clock.epoch, pool_output));
-        let route = DexRoute {
-            hops,
-            swap_value,
-            output_value,
-            fee: referral_fee.transfer(fee_side, value, output_value),
-        };
-        if route.received_value() == 0 {
-            return Err(SwapperError::NoQuoteAvailable);
-        }
+        let authority = Pubkey::from_base58(&request.wallet_address).map_err(|_| SwapperError::transaction_error(INVALID_ADDRESS))?;
+        let route = self
+            .ranked_routes(routes, pool_input, accounts, timestamp)
+            .await?
+            .into_iter()
+            .map(|(pools, pool_output)| {
+                let output_value = pool_output.saturating_sub(output_mint.transfer_fee(clock.epoch, pool_output));
+                let route = DexRoute {
+                    hops: pools.iter().map(|(hop, _)| *hop).collect(),
+                    swap_value,
+                    output_value,
+                    fee: referral_fee.transfer(fee_side, value, output_value),
+                };
+                (pools.into_iter().map(|(hop, pool)| (hop.pool, pool)).collect::<Vec<_>>(), route)
+            })
+            .find(|(pools, route)| {
+                route.received_value() > 0
+                    && self
+                        .transaction(route, pools, &input, &output, authority, request.options.slippage.bps)
+                        .and_then(|transaction| transaction.encode(SIZE_CHECK_BLOCKHASH))
+                        .is_ok()
+            })
+            .map(|(_, route)| route)
+            .ok_or(SwapperError::NoQuoteAvailable)?;
 
         Quote::from_route(request, &self.provider, BigUint::from(route.received_value()), &route, None)
     }
@@ -285,7 +320,6 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         let route: DexRoute = quote.route_data()?;
         let input = SwapToken::from_asset(&quote.request.from_asset)?;
         let output = SwapToken::from_asset(&quote.request.to_asset)?;
-        let intermediate = route.intermediate(&input.mint, &output.mint)?;
         let known_pools = route
             .hops
             .iter()
@@ -296,20 +330,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         }
         let authority = Pubkey::from_base58(&quote.request.wallet_address).map_err(|_| SwapperError::transaction_error(INVALID_ADDRESS))?;
         let (pools, blockhash) = self.fetch_pools_and_blockhash(route.hops.iter().map(|hop| hop.pool).collect()).await?;
-        let swap = PoolSwap {
-            authority,
-            input: &input,
-            intermediate,
-            output: &output,
-            amount: route.swap_value,
-            minimum_out: route.minimum_output(quote.data.slippage_bps),
-        };
-        let transaction = DexTransaction {
-            swap_instruction: self.protocol.swap_instruction(&pools, &swap)?,
-            swap,
-            referral: Pubkey::from_base58(&default_referral_fees().solana.address)?,
-            fee: route.fee,
-        };
+        let transaction = self.transaction(&route, &pools, &input, &output, authority, quote.data.slippage_bps)?;
 
         Ok(SwapperQuoteData::new_contract(
             P::PROGRAM_ID.to_base58(),

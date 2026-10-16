@@ -1,11 +1,10 @@
-use borsh::BorshDeserialize;
 use gem_client::testkit::MockClient;
 use gem_encoding::{decode_base64, encode_base64};
 use gem_jsonrpc::{client::JsonRpcClient, testkit::mock_jsonrpc_client, types::JsonRpcResponse};
 use gem_solana::{
     Pubkey, USDT_TOKEN_MINT,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_program},
-    models::{AccountData, Clock, ValueResult},
+    models::{AccountData, ValueResult},
 };
 use serde_json::{Value, json};
 use std::{
@@ -17,6 +16,7 @@ use std::{
 };
 
 use super::{tick_array::TickArray, whirlpool::Whirlpool};
+use crate::solana_dex::testkit::{mock_account_snapshot, mock_rpc_snapshot};
 
 pub(super) const TEST_WHIRLPOOL: &str = "HJPjoWUrhoZzkNfRpHuieeFk9WcZWjwy6PBjZ81ngndJ";
 pub(super) const TEST_AQUA_MINT: &str = "AQVcP67EpMyu4cBZZjqMu91cVsWy1aX98JmcZm1FyY9";
@@ -93,22 +93,6 @@ pub(super) fn mock_aqua_whirlpool() -> (Pubkey, Whirlpool) {
 }
 
 pub(super) fn mock_adaptive_snapshot() -> (Pubkey, HashMap<Pubkey, Option<Vec<u8>>>, u64) {
-    let snapshot = mock_rpc_snapshot(include_str!("../../testdata/orca/adaptive_snapshot.json"));
-    let accounts = snapshot
-        .iter()
-        .map(|(address, account)| (Pubkey::from_base58(address).unwrap(), account["data"][0].as_str().map(|data| decode_base64(data).unwrap())))
-        .collect::<HashMap<_, _>>();
-    let clock = Clock::try_from_slice(accounts[&sysvar_clock()].as_ref().unwrap()).unwrap();
-    (Pubkey::from_base58(&snapshot[0].0).unwrap(), accounts, u64::try_from(clock.unix_timestamp).unwrap())
-}
-
-fn mock_rpc_snapshot(snapshot: &str) -> Vec<(String, Value)> {
-    let snapshot: Value = serde_json::from_str(snapshot).unwrap();
-    snapshot["addresses"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|address| address.as_str().unwrap().to_string())
-        .zip(snapshot["result"]["value"].as_array().unwrap().iter().cloned())
-        .collect()
+    let (addresses, accounts, timestamp) = mock_account_snapshot(include_str!("../../testdata/orca/adaptive_snapshot.json"));
+    (addresses[0], accounts, timestamp)
 }

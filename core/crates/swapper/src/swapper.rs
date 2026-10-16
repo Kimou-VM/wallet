@@ -1,8 +1,8 @@
 use crate::ranking::rank_quotes;
 use crate::{
     AssetList, FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapQuoteError, SwapQuotes, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperProviderMode, SwapperQuoteData,
-    across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, fees::max_quote_value_with_fee_reserve, hyperion, hyperliquid, jupiter, mayan, near_intents, okx, orca, panora, relay,
-    solana_dex, squid, stonfi, swaps_xyz, thorchain, uniswap,
+    across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, fees::max_quote_value_with_fee_reserve, hyperion, hyperliquid, jupiter, mayan, near_intents, okx, orca, panora,
+    raydium_clmm, relay, solana_dex, squid, stonfi, swaps_xyz, thorchain, uniswap,
 };
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
@@ -72,6 +72,7 @@ impl GemSwapper {
             thorchain::ThorChain::new_mayachain(rpc_provider.clone()).map(Self::boxed),
             jupiter::Jupiter::new(rpc_provider.clone()).map(Self::boxed),
             solana_dex::SolanaDex::new(orca::Orca, rpc_provider.clone()).map(Self::boxed),
+            solana_dex::SolanaDex::new(raydium_clmm::RaydiumClmm, rpc_provider.clone()).map(Self::boxed),
             Some(Box::new(okx::OkxProvider::new(rpc_provider.clone()))),
             Some(Box::new(across::Across::new(rpc_provider.clone()))),
             Some(Box::new(hyperliquid::Hyperliquid::new(rpc_provider.clone()))),

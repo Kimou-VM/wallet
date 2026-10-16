@@ -19,6 +19,7 @@ pub(crate) struct DexTransaction<'a> {
     pub referral: Pubkey,
     pub fee: ReferralTransfer,
     pub swap_instruction: Instruction,
+    pub intermediate_token_account: bool,
 }
 
 impl DexTransaction<'_> {
@@ -27,15 +28,28 @@ impl DexTransaction<'_> {
     }
 
     fn instructions(&self) -> Result<Vec<Instruction>, SwapperError> {
-        let PoolSwap { authority, input, output, amount, .. } = &self.swap;
+        let PoolSwap {
+            authority,
+            input,
+            intermediate,
+            output,
+            amount,
+            ..
+        } = &self.swap;
+        let intermediate = (*intermediate).filter(|_| self.intermediate_token_account);
         let input_fee = self.fee_instructions(FeeSide::Input, input)?;
         let wrap = if input.is_native {
             wrapped_sol::wrap_instructions(authority, *amount).map_err(SwapperError::transaction_error)?
         } else {
             vec![]
         };
-        let output_account = create_associated_token_account_idempotent(authority, authority, &output.mint, &output.token_program).map_err(SwapperError::transaction_error)?;
-        let unwrap = if input.is_native || output.is_native {
+        let token_accounts = intermediate
+            .into_iter()
+            .chain([*output])
+            .map(|token| create_associated_token_account_idempotent(authority, authority, &token.mint, &token.token_program).map_err(SwapperError::transaction_error))
+            .collect::<Result<Vec<_>, _>>()?;
+        let unwraps_intermediate = intermediate.is_some_and(|token| token.mint == wrapped_sol::wrapped_sol_mint());
+        let unwrap = if input.is_native || output.is_native || unwraps_intermediate {
             vec![wrapped_sol::unwrap_instruction(authority).map_err(SwapperError::transaction_error)?]
         } else {
             vec![]
@@ -45,7 +59,8 @@ impl DexTransaction<'_> {
             vec![set_compute_unit_price(0), set_compute_unit_limit(DEFAULT_SWAP_GAS_LIMIT)],
             input_fee,
             wrap,
-            vec![output_account, self.swap_instruction.clone()],
+            token_accounts,
+            vec![self.swap_instruction.clone()],
             unwrap,
             output_fee,
         ]
@@ -127,6 +142,38 @@ mod tests {
             }),
             [budget.as_slice(), &[associated_token_program(), swap, token_program()]].concat()
         );
+    }
+
+    #[test]
+    fn test_intermediate_token_account() {
+        let usdc = SwapToken::mock();
+        let output = SwapToken {
+            mint: Pubkey::new([7; 32]),
+            ..SwapToken::mock()
+        };
+        let native = SwapToken {
+            mint: wrapped_sol_mint(),
+            ..SwapToken::mock()
+        };
+        let routed = |intermediate_token_account| {
+            let transaction = DexTransaction::mock(&usdc, &output);
+            DexTransaction {
+                swap: PoolSwap {
+                    intermediate: Some(&native),
+                    ..transaction.swap
+                },
+                intermediate_token_account,
+                ..transaction
+            }
+        };
+        let budget = [compute_budget_program(), compute_budget_program()];
+        let swap = Pubkey::new([9; 32]);
+
+        assert_eq!(
+            program_ids(&routed(true)),
+            [budget.as_slice(), &[associated_token_program(), associated_token_program(), swap, token_program(), token_program()]].concat()
+        );
+        assert_eq!(program_ids(&routed(false)), [budget.as_slice(), &[associated_token_program(), swap, token_program()]].concat());
     }
 
     #[test]

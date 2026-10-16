@@ -733,6 +733,7 @@ public extension SwapProvider {
         case .swapsXyz: Images.SwapProviders.swapsXyz
         case .bridgers: Images.SwapProviders.bridgers
         case .hyperion: Images.SwapProviders.hyperion
+        case .raydiumClmm: Images.SwapProviders.raydium
         }
     }
 }

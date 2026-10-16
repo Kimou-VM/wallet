@@ -7,8 +7,12 @@ pub(crate) const MIN_TICK_INDEX: i32 = -443_636;
 pub(crate) const MAX_TICK_INDEX: i32 = 443_636;
 pub(crate) const MIN_SQRT_PRICE: u128 = 4_295_048_016;
 pub(crate) const MAX_SQRT_PRICE: u128 = 79_226_673_515_401_279_992_447_579_055;
-const FEE_RATE_DENOMINATOR: u128 = 1_000_000;
-const Q64_RESOLUTION: usize = 64;
+pub(crate) const FEE_RATE_DENOMINATOR: u32 = 1_000_000;
+pub(crate) const MAX_FEE_RATE: u32 = 100_000;
+pub(crate) const VOLATILITY_SCALE: u32 = 10_000;
+const REDUCTION_FACTOR_DENOMINATOR: u64 = 10_000;
+const FEE_CONTROL_DENOMINATOR: u128 = 100_000;
+pub(crate) const Q64_RESOLUTION: usize = 64;
 const Q64_FRACTION_MASK: u128 = u64::MAX as u128;
 const Q96_RESOLUTION: usize = 96;
 const Q96_TO_Q64_SHIFT: u32 = 32;
@@ -101,11 +105,10 @@ impl SwapFee for StaticFee {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-struct SwapStep {
-    amount_in: u64,
-    amount_out: u64,
-    next_sqrt_price: u128,
-    fee_amount: u64,
+pub(crate) struct SwapStep {
+    pub consumed: u64,
+    pub amount_out: u64,
+    pub next_sqrt_price: u128,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -153,10 +156,14 @@ pub(crate) fn sqrt_price_from_tick_index(tick: i32) -> u128 {
 }
 
 pub(crate) fn tick_index_from_sqrt_price(sqrt_price: u128) -> i32 {
+    tick_at_sqrt_price(sqrt_price, LOG2_PRECISION_BITS, sqrt_price_from_tick_index)
+}
+
+pub(crate) fn tick_at_sqrt_price(sqrt_price: u128, precision_bits: i32, sqrt_price_at_tick: impl Fn(i32) -> u128) -> i32 {
     let msb = 127u32.saturating_sub(sqrt_price.leading_zeros());
     let log2_integer_x32 = (i128::from(msb) - 64) << 32;
     let normalized = if msb >= 64 { sqrt_price >> (msb - 63) } else { sqrt_price << (63 - msb) };
-    let (_, log2_fraction_x64) = (0..LOG2_PRECISION_BITS).fold((normalized, 0i128), |(ratio, fraction), bit| {
+    let (_, log2_fraction_x64) = (0..precision_bits).fold((normalized, 0i128), |(ratio, fraction), bit| {
         let squared = ratio * ratio;
         let above_two = squared >> 127;
         (squared >> (63 + above_two), fraction + (1i128 << (63 - bit)) * i128::from(above_two == 1))
@@ -164,7 +171,7 @@ pub(crate) fn tick_index_from_sqrt_price(sqrt_price: u128) -> i32 {
     let log_b_x64 = (log2_integer_x32 + (log2_fraction_x64 >> 32)) * LOG_B_2_X32;
     let tick_low = i32::try_from((log_b_x64 - LOG_B_ERROR_MARGIN_LOWER_X64) >> 64).unwrap_or_default();
     let tick_high = i32::try_from((log_b_x64 + LOG_B_ERROR_MARGIN_UPPER_X64) >> 64).unwrap_or_default();
-    if tick_low == tick_high || sqrt_price_from_tick_index(tick_high) > sqrt_price { tick_low } else { tick_high }
+    if tick_low == tick_high || sqrt_price_at_tick(tick_high) > sqrt_price { tick_low } else { tick_high }
 }
 
 impl SwapState {
@@ -177,12 +184,8 @@ impl SwapState {
     fn swap_to_target<F: SwapFee>(self, fee: F, tick: &ClmmTick, tick_sqrt_price: u128, target: u128, a_to_b: bool) -> Result<(Self, F), SwapperError> {
         let fee = fee.accumulate();
         let (bounded_target, skipped) = fee.bounded_target(target, self.liquidity);
-        let step = swap_step(self.remaining, fee.rate(), self.liquidity, self.sqrt_price, bounded_target, a_to_b)?;
-        let remaining = self
-            .remaining
-            .checked_sub(step.amount_in)
-            .and_then(|remaining| remaining.checked_sub(step.fee_amount))
-            .ok_or_else(|| overflow("remaining amount"))?;
+        let step = swap_step(self.remaining, fee.rate(), self.liquidity, self.sqrt_price, bounded_target, a_to_b, true)?;
+        let remaining = self.remaining.checked_sub(step.consumed).ok_or_else(|| overflow("remaining amount"))?;
         let amount_out = self.amount_out.checked_add(step.amount_out).ok_or_else(|| overflow("output amount"))?;
         let liquidity = if step.next_sqrt_price == tick_sqrt_price {
             cross_tick(self.liquidity, tick.liquidity_net, a_to_b)?
@@ -203,8 +206,8 @@ impl SwapState {
     }
 }
 
-fn swap_step(remaining: u64, fee_rate: u32, liquidity: u128, sqrt_price: u128, target: u128, a_to_b: bool) -> Result<SwapStep, SwapperError> {
-    let fee_complement = FEE_RATE_DENOMINATOR.checked_sub(u128::from(fee_rate)).filter(|complement| *complement > 0).ok_or_else(|| overflow("fee rate"))?;
+pub(crate) fn swap_step(remaining: u64, fee_rate: u32, liquidity: u128, sqrt_price: u128, target: u128, a_to_b: bool, fee_on_input: bool) -> Result<SwapStep, SwapperError> {
+    let fee_complement = u128::from(FEE_RATE_DENOMINATOR.checked_sub(fee_rate).filter(|complement| *complement > 0).ok_or_else(|| overflow("fee rate"))?);
     let input_delta = |next_sqrt_price: u128| {
         if a_to_b {
             amount_delta_a(sqrt_price, next_sqrt_price, liquidity, true)
@@ -213,7 +216,11 @@ fn swap_step(remaining: u64, fee_rate: u32, liquidity: u128, sqrt_price: u128, t
         }
     };
     let target_input = input_delta(target)?;
-    let available = u64::try_from(u128::from(remaining) * fee_complement / FEE_RATE_DENOMINATOR).unwrap_or_default();
+    let available = if fee_on_input {
+        u64::try_from(u128::from(remaining) * fee_complement / u128::from(FEE_RATE_DENOMINATOR)).unwrap_or_default()
+    } else {
+        remaining
+    };
     let next_sqrt_price = match (target_input <= U256::from(available), a_to_b) {
         (true, _) => target,
         (false, true) => next_sqrt_price_from_a(sqrt_price, liquidity, available)?,
@@ -226,17 +233,44 @@ fn swap_step(remaining: u64, fee_rate: u32, liquidity: u128, sqrt_price: u128, t
         amount_delta_a(sqrt_price, next_sqrt_price, liquidity, false)?
     };
     let amount_in = to_amount(if reaches_target { target_input } else { input_delta(next_sqrt_price)? })?;
-    let fee_amount = if reaches_target {
-        u64::try_from((u128::from(amount_in) * u128::from(fee_rate)).div_ceil(fee_complement)).unwrap_or_default()
-    } else {
-        remaining.checked_sub(amount_in).ok_or_else(|| overflow("fee amount"))?
-    };
+    let amount_out = to_amount(output_delta)?;
+    if fee_on_input {
+        let fee_amount = if reaches_target {
+            fee_amount(amount_in, fee_rate, FEE_RATE_DENOMINATOR - fee_rate)
+        } else {
+            remaining.checked_sub(amount_in).ok_or_else(|| overflow("fee amount"))?
+        };
+        return Ok(SwapStep {
+            consumed: amount_in.checked_add(fee_amount).ok_or_else(|| overflow("input amount"))?,
+            amount_out,
+            next_sqrt_price,
+        });
+    }
+    let fee_amount = fee_amount(amount_out, fee_rate, FEE_RATE_DENOMINATOR);
     Ok(SwapStep {
-        amount_in,
-        amount_out: to_amount(output_delta)?,
+        consumed: if reaches_target { amount_in } else { remaining },
+        amount_out: amount_out - fee_amount,
         next_sqrt_price,
-        fee_amount,
     })
+}
+
+pub(crate) fn fee_amount(amount: u64, fee_rate: u32, denominator: u32) -> u64 {
+    u64::try_from((u128::from(amount) * u128::from(fee_rate)).div_ceil(u128::from(denominator))).unwrap_or_default()
+}
+
+pub(crate) fn volatility_fee_rate(control: u32, volatility_accumulator: u32, group_size: u16) -> u32 {
+    let crossed = u128::from(volatility_accumulator) * u128::from(group_size);
+    let denominator = FEE_CONTROL_DENOMINATOR * u128::from(VOLATILITY_SCALE) * u128::from(VOLATILITY_SCALE);
+    u32::try_from((u128::from(control) * crossed * crossed).div_ceil(denominator)).unwrap_or(MAX_FEE_RATE).min(MAX_FEE_RATE)
+}
+
+pub(crate) fn accumulated_volatility(reference: u32, reference_index: i32, index: i32, maximum: u32) -> u32 {
+    let accumulated = u64::from(reference) + u64::from(reference_index.abs_diff(index)) * u64::from(VOLATILITY_SCALE);
+    u32::try_from(accumulated.min(u64::from(maximum))).unwrap_or_default()
+}
+
+pub(crate) fn decayed_volatility(volatility_accumulator: u32, reduction_factor: u16) -> u32 {
+    u32::try_from(u64::from(volatility_accumulator) * u64::from(reduction_factor) / REDUCTION_FACTOR_DENOMINATOR).unwrap_or_default()
 }
 
 fn amount_delta_a(sqrt_price_0: u128, sqrt_price_1: u128, liquidity: u128, round_up: bool) -> Result<U256, SwapperError> {
@@ -266,7 +300,7 @@ fn next_sqrt_price_from_b(sqrt_price: u128, liquidity: u128, amount: u64) -> Res
     sqrt_price.checked_add(delta).ok_or_else(|| overflow("sqrt price"))
 }
 
-fn cross_tick(liquidity: u128, liquidity_net: i128, a_to_b: bool) -> Result<u128, SwapperError> {
+pub(crate) fn cross_tick(liquidity: u128, liquidity_net: i128, a_to_b: bool) -> Result<u128, SwapperError> {
     let adds_liquidity = (liquidity_net >= 0) != a_to_b;
     let updated = if adds_liquidity {
         liquidity.checked_add(liquidity_net.unsigned_abs())
@@ -287,7 +321,7 @@ fn shift_left_q64(value: U256) -> Result<U256, SwapperError> {
     Ok(value << Q64_RESOLUTION)
 }
 
-fn divide(numerator: U256, denominator: U256, round_up: bool) -> U256 {
+pub(crate) fn divide(numerator: U256, denominator: U256, round_up: bool) -> U256 {
     let (quotient, remainder) = numerator.div_rem(denominator);
     if round_up && remainder > U256::ZERO { quotient + U256::from(1) } else { quotient }
 }
@@ -296,7 +330,7 @@ fn to_amount(value: U256) -> Result<u64, SwapperError> {
     u64::try_from(value).map_err(|_| overflow("token amount"))
 }
 
-fn overflow(value: &str) -> SwapperError {
+pub(crate) fn overflow(value: &str) -> SwapperError {
     SwapperError::compute_quote_error(format!("{value} overflow"))
 }
 
@@ -323,53 +357,18 @@ mod tests {
 
     #[test]
     fn test_swap_step() {
-        let step = |remaining, liquidity, sqrt_price, target, a_to_b| swap_step(remaining, TWO_PERCENT, liquidity, q64(sqrt_price), q64(target), a_to_b).unwrap();
+        let step = |remaining, liquidity, sqrt_price, target, a_to_b, fee_on_input| swap_step(remaining, TWO_PERCENT, liquidity, q64(sqrt_price), q64(target), a_to_b, fee_on_input).unwrap();
+        let swap_step = |consumed, amount_out, next_sqrt_price| SwapStep { consumed, amount_out, next_sqrt_price };
 
-        assert_eq!(
-            step(100, 1296, 9, 4, true),
-            SwapStep {
-                amount_in: 98,
-                amount_out: 4723,
-                next_sqrt_price: 98_789_174_874_080_904_523,
-                fee_amount: 2
-            }
-        );
-        assert_eq!(
-            step(1000, 1296, 9, 4, true),
-            SwapStep {
-                amount_in: 180,
-                amount_out: 6480,
-                next_sqrt_price: q64(4),
-                fee_amount: 4
-            }
-        );
-        assert_eq!(
-            step(2000, 1296, 9, 16, false),
-            SwapStep {
-                amount_in: 1960,
-                amount_out: 20,
-                next_sqrt_price: 193_918_550_355_107_200_012,
-                fee_amount: 40
-            }
-        );
-        assert_eq!(
-            step(20000, 1296, 9, 16, false),
-            SwapStep {
-                amount_in: 9072,
-                amount_out: 63,
-                next_sqrt_price: q64(16),
-                fee_amount: 186
-            }
-        );
-        assert_eq!(
-            step(100, 0, 9, 4, true),
-            SwapStep {
-                amount_in: 0,
-                amount_out: 0,
-                next_sqrt_price: q64(4),
-                fee_amount: 0
-            }
-        );
+        assert_eq!(step(100, 1296, 9, 4, true, true), swap_step(100, 4723, 98_789_174_874_080_904_523));
+        assert_eq!(step(1000, 1296, 9, 4, true, true), swap_step(184, 6480, q64(4)));
+        assert_eq!(step(2000, 1296, 9, 16, false, true), swap_step(2000, 20, 193_918_550_355_107_200_012));
+        assert_eq!(step(20000, 1296, 9, 16, false, true), swap_step(9258, 63, q64(16)));
+        assert_eq!(step(100, 0, 9, 4, true, true), swap_step(0, 0, q64(4)));
+        assert_eq!(step(100, 1296, 9, 4, true, false), swap_step(100, 4684, 97_979_427_539_047_454_485));
+        assert_eq!(step(1000, 1296, 9, 4, true, false), swap_step(180, 6350, q64(4)));
+        assert_eq!(step(2000, 1296, 9, 16, false, false), swap_step(2000, 20, 194_487_894_307_999_470_124));
+        assert_eq!(step(20000, 1296, 9, 16, false, false), swap_step(9072, 61, q64(16)));
     }
 
     #[test]

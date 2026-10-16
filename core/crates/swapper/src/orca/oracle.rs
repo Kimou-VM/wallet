@@ -3,15 +3,11 @@ use gem_solana::{Pubkey, anchor::account_body};
 
 use crate::{
     SwapperError,
-    clmm::{MAX_TICK_INDEX, MIN_TICK_INDEX, SwapFee, sqrt_price_from_tick_index, tick_index_from_sqrt_price},
+    clmm::{MAX_FEE_RATE, MAX_TICK_INDEX, MIN_TICK_INDEX, SwapFee, VOLATILITY_SCALE, accumulated_volatility, decayed_volatility, sqrt_price_from_tick_index, tick_index_from_sqrt_price, volatility_fee_rate},
 };
 
 const ORACLE: &str = "Oracle";
-const VOLATILITY_ACCUMULATOR_SCALE_FACTOR: u32 = 10_000;
-const REDUCTION_FACTOR_DENOMINATOR: u64 = 10_000;
-const ADAPTIVE_FEE_CONTROL_FACTOR_DENOMINATOR: u128 = 100_000;
 const MAX_REFERENCE_AGE: u64 = 3_600;
-const FEE_RATE_HARD_LIMIT: u32 = 100_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, BorshDeserialize)]
 struct AdaptiveFeeConstants {
@@ -71,7 +67,7 @@ impl Oracle {
         let group_size = i32::from(self.constants.tick_group_size);
         let tick_group_index = tick_current_index.div_euclid(group_size);
         let variables = self.variables.referenced(tick_group_index, timestamp, &self.constants)?;
-        let core_range = self.constants.max_volatility_accumulator.saturating_sub(variables.volatility_reference).div_ceil(VOLATILITY_ACCUMULATOR_SCALE_FACTOR);
+        let core_range = self.constants.max_volatility_accumulator.saturating_sub(variables.volatility_reference).div_ceil(VOLATILITY_SCALE);
         let core_range = i32::try_from(core_range).map_err(SwapperError::compute_quote_error)?;
         let lower_index = variables.tick_group_index_reference - core_range;
         let upper_index = variables.tick_group_index_reference + core_range;
@@ -106,29 +102,20 @@ impl AdaptiveFeeVariables {
             return Ok(self);
         }
         Ok(Self {
-            volatility_reference: u32::try_from(u64::from(self.volatility_accumulator) * u64::from(constants.reduction_factor) / REDUCTION_FACTOR_DENOMINATOR).unwrap_or_default(),
+            volatility_reference: decayed_volatility(self.volatility_accumulator, constants.reduction_factor),
             ..reset
         })
     }
 
     fn accumulated(self, tick_group_index: i32, constants: &AdaptiveFeeConstants) -> Self {
-        let index_delta = u64::from(self.tick_group_index_reference.abs_diff(tick_group_index));
-        let volatility_accumulator = u64::from(self.volatility_reference) + index_delta * u64::from(VOLATILITY_ACCUMULATOR_SCALE_FACTOR);
         Self {
-            volatility_accumulator: u32::try_from(volatility_accumulator.min(u64::from(constants.max_volatility_accumulator))).unwrap_or_default(),
+            volatility_accumulator: accumulated_volatility(self.volatility_reference, self.tick_group_index_reference, tick_group_index, constants.max_volatility_accumulator),
             ..self
         }
     }
 }
 
 impl AdaptiveFee {
-    fn adaptive_fee_rate(&self) -> u32 {
-        let crossed = u128::from(self.variables.volatility_accumulator) * u128::from(self.constants.tick_group_size);
-        let denominator = ADAPTIVE_FEE_CONTROL_FACTOR_DENOMINATOR * u128::from(VOLATILITY_ACCUMULATOR_SCALE_FACTOR) * u128::from(VOLATILITY_ACCUMULATOR_SCALE_FACTOR);
-        let fee_rate = (u128::from(self.constants.adaptive_fee_control_factor) * crossed * crossed).div_ceil(denominator);
-        u32::try_from(fee_rate).unwrap_or(FEE_RATE_HARD_LIMIT).min(FEE_RATE_HARD_LIMIT)
-    }
-
     fn direction(&self) -> i32 {
         if self.a_to_b { -1 } else { 1 }
     }
@@ -143,7 +130,8 @@ impl SwapFee for AdaptiveFee {
     }
 
     fn rate(&self) -> u32 {
-        (u32::from(self.static_fee_rate) + self.adaptive_fee_rate()).min(FEE_RATE_HARD_LIMIT)
+        let adaptive_fee_rate = volatility_fee_rate(self.constants.adaptive_fee_control_factor, self.variables.volatility_accumulator, self.constants.tick_group_size);
+        (u32::from(self.static_fee_rate) + adaptive_fee_rate).min(MAX_FEE_RATE)
     }
 
     fn bounded_target(&self, target: u128, liquidity: u128) -> (u128, bool) {

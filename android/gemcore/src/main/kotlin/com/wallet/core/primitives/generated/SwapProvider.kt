@@ -55,5 +55,7 @@ enum class SwapProvider(val string: String) {
 	Bridgers("bridgers"),
 	@SerialName("hyperion")
 	Hyperion("hyperion"),
+	@SerialName("raydium_clmm")
+	RaydiumClmm("raydium_clmm"),
 }
 
