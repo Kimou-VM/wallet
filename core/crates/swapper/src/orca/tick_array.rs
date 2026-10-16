@@ -1,5 +1,5 @@
 use borsh::BorshDeserialize;
-use gem_solana::{Pubkey, anchor::account_body, find_program_address, instructions::program_ids::orca_whirlpool_program};
+use gem_solana::{Pubkey, anchor::AnchorAccount, find_program_address, instructions::program_ids::orca_whirlpool_program};
 
 use super::whirlpool::{TICK_ARRAY_SIZE, Whirlpool};
 use crate::{
@@ -8,8 +8,6 @@ use crate::{
 };
 
 const TICK_GROWTHS_LEN: usize = 96;
-const FIXED_TICK_ARRAY: &str = "TickArray";
-const DYNAMIC_TICK_ARRAY: &str = "DynamicTickArray";
 
 #[derive(BorshDeserialize)]
 struct FixedTick {
@@ -45,6 +43,41 @@ struct DynamicTickArray {
     ticks: [DynamicTick; TICK_ARRAY_SIZE as usize],
 }
 
+impl AnchorAccount for FixedTickArray {
+    const NAME: &'static str = "TickArray";
+}
+
+impl AnchorAccount for DynamicTickArray {
+    const NAME: &'static str = "DynamicTickArray";
+}
+
+impl From<FixedTickArray> for TickArray {
+    fn from(array: FixedTickArray) -> Self {
+        Self {
+            start_tick_index: array.start_tick_index,
+            whirlpool: array.whirlpool,
+            liquidity_nets: array.ticks.iter().map(|tick| tick.initialized.then_some(tick.liquidity_net)).collect(),
+        }
+    }
+}
+
+impl From<DynamicTickArray> for TickArray {
+    fn from(array: DynamicTickArray) -> Self {
+        Self {
+            start_tick_index: array.start_tick_index,
+            whirlpool: array.whirlpool,
+            liquidity_nets: array
+                .ticks
+                .iter()
+                .map(|tick| match tick {
+                    DynamicTick::Uninitialized => None,
+                    DynamicTick::Initialized(data) => Some(data.liquidity_net),
+                })
+                .collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct TickArray {
     pub start_tick_index: i32,
@@ -62,28 +95,7 @@ impl TickArray {
     }
 
     pub fn decode(data: &[u8]) -> Result<Self, SwapperError> {
-        if let Ok(body) = account_body(data, FIXED_TICK_ARRAY) {
-            let array = FixedTickArray::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)?;
-            return Ok(Self {
-                start_tick_index: array.start_tick_index,
-                whirlpool: array.whirlpool,
-                liquidity_nets: array.ticks.iter().map(|tick| tick.initialized.then_some(tick.liquidity_net)).collect(),
-            });
-        }
-        let body = account_body(data, DYNAMIC_TICK_ARRAY)?;
-        let array = DynamicTickArray::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)?;
-        Ok(Self {
-            start_tick_index: array.start_tick_index,
-            whirlpool: array.whirlpool,
-            liquidity_nets: array
-                .ticks
-                .iter()
-                .map(|tick| match tick {
-                    DynamicTick::Uninitialized => None,
-                    DynamicTick::Initialized(data) => Some(data.liquidity_net),
-                })
-                .collect(),
-        })
+        Ok(FixedTickArray::decode(data).map(Self::from).or_else(|_| DynamicTickArray::decode(data).map(Self::from))?)
     }
 
     fn initialized_ticks(&self, tick_spacing: u16, a_to_b: bool) -> Vec<ClmmTick> {
@@ -97,7 +109,7 @@ impl TickArray {
     }
 }
 
-pub(super) fn swap_ticks(address: &Pubkey, whirlpool: &Whirlpool, a_to_b: bool, accounts: &[Option<Vec<u8>>]) -> Result<(Vec<ClmmTick>, i32), SwapperError> {
+pub(super) fn swap_ticks(address: &Pubkey, whirlpool: &Whirlpool, a_to_b: bool, accounts: &[Option<Vec<u8>>]) -> Result<Vec<ClmmTick>, SwapperError> {
     let starts = whirlpool.swap_start_tick_indexes(a_to_b);
     let last_start = *starts.last().ok_or(SwapperError::NoQuoteAvailable)?;
     let arrays = starts
@@ -113,13 +125,14 @@ pub(super) fn swap_ticks(address: &Pubkey, whirlpool: &Whirlpool, a_to_b: bool, 
         })
         .collect::<Result<Vec<_>, SwapperError>>()?;
     let current = whirlpool.tick_current_index;
-    let ticks = arrays
+    let range_end = if a_to_b { last_start.max(MIN_TICK_INDEX) } else { (last_start + whirlpool.ticks_in_array() - 1).min(MAX_TICK_INDEX) };
+    let boundary = ClmmTick { index: range_end, liquidity_net: 0 };
+    Ok(arrays
         .iter()
         .flat_map(|array| array.initialized_ticks(whirlpool.tick_spacing, a_to_b))
         .filter(|tick| if a_to_b { tick.index <= current } else { tick.index > current })
-        .collect();
-    let range_end = if a_to_b { last_start.max(MIN_TICK_INDEX) } else { (last_start + whirlpool.ticks_in_array() - 1).min(MAX_TICK_INDEX) };
-    Ok((ticks, range_end))
+        .chain([boundary])
+        .collect())
 }
 
 #[cfg(test)]

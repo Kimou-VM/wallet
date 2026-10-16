@@ -1,10 +1,9 @@
 use borsh::BorshDeserialize;
-use gem_solana::{Pubkey, anchor::account_body, find_program_address, instructions::program_ids::raydium_clmm_program};
+use gem_solana::{Pubkey, anchor::AnchorAccount, find_program_address, instructions::program_ids::raydium_clmm_program};
 
-use crate::SwapperError;
+use super::tick_math::{MAX_SQRT_PRICE, MIN_SQRT_PRICE};
+use crate::{SwapperError, clmm::ClmmSwap, solana_dex::DexPool};
 
-const POOL_STATE: &str = "PoolState";
-const AMM_CONFIG: &str = "AmmConfig";
 const AMM_CONFIG_INDEXES: [u16; 10] = [
     4, 1, 19, 10, 5, 3, 8, 15, 17, 14, // 2, 6, 7, 9, 11, 12, 13, 16, 18
 ];
@@ -78,17 +77,25 @@ pub(crate) struct PoolState {
     dynamic_fee_info: [u8; DYNAMIC_FEE_INFO_LEN],
 }
 
-impl AmmConfig {
-    pub fn decode(data: &[u8]) -> Result<Self, SwapperError> {
-        Self::deserialize(&mut account_body(data, AMM_CONFIG)?).map_err(SwapperError::compute_quote_error)
+impl AnchorAccount for AmmConfig {
+    const NAME: &'static str = "AmmConfig";
+}
+
+impl AnchorAccount for PoolState {
+    const NAME: &'static str = "PoolState";
+}
+
+impl DexPool for PoolState {
+    fn mints(&self) -> (Pubkey, Pubkey) {
+        (self.token_mint_0, self.token_mint_1)
+    }
+
+    fn token_vaults(&self) -> (Pubkey, Pubkey) {
+        (self.token_vault_0, self.token_vault_1)
     }
 }
 
 impl PoolState {
-    pub fn decode(data: &[u8]) -> Result<Self, SwapperError> {
-        Self::deserialize(&mut account_body(data, POOL_STATE)?).map_err(SwapperError::compute_quote_error)
-    }
-
     pub fn addresses(mint_a: &Pubkey, mint_b: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         let (mint_0, mint_1) = if mint_a < mint_b { (mint_a, mint_b) } else { (mint_b, mint_a) };
         AMM_CONFIG_INDEXES
@@ -100,28 +107,17 @@ impl PoolState {
             .collect()
     }
 
-    pub fn zero_for_one(&self, input_mint: &Pubkey) -> Result<bool, SwapperError> {
-        match (*input_mint == self.token_mint_0, *input_mint == self.token_mint_1) {
-            (true, _) => Ok(true),
-            (false, true) => Ok(false),
-            (false, false) => Err(SwapperError::InvalidRoute),
+    pub fn clmm_swap(&self, zero_for_one: bool) -> ClmmSwap {
+        ClmmSwap {
+            sqrt_price: self.sqrt_price,
+            liquidity: self.liquidity,
+            a_to_b: zero_for_one,
+            fee_on_input: self.is_fee_on_input(zero_for_one),
+            sqrt_price_limit: if zero_for_one { MIN_SQRT_PRICE + 1 } else { MAX_SQRT_PRICE - 1 },
         }
     }
 
-    pub fn swap_direction(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<bool, SwapperError> {
-        let zero_for_one = self.zero_for_one(input_mint)?;
-        let other_mint = if zero_for_one { self.token_mint_1 } else { self.token_mint_0 };
-        if other_mint != *output_mint {
-            return Err(SwapperError::InvalidRoute);
-        }
-        Ok(zero_for_one)
-    }
-
-    pub fn vaults(&self, zero_for_one: bool) -> (Pubkey, Pubkey) {
-        if zero_for_one { (self.token_vault_0, self.token_vault_1) } else { (self.token_vault_1, self.token_vault_0) }
-    }
-
-    pub fn is_fee_on_input(&self, zero_for_one: bool) -> bool {
+    fn is_fee_on_input(&self, zero_for_one: bool) -> bool {
         match self.fee_on {
             1 => zero_for_one,
             2 => !zero_for_one,

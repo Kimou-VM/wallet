@@ -1,10 +1,8 @@
 use borsh::BorshDeserialize;
-use gem_solana::{Pubkey, anchor::account_body, find_program_address, instructions::program_ids::raydium_clmm_program};
+use gem_solana::{Pubkey, anchor::AnchorAccount, find_program_address, instructions::program_ids::raydium_clmm_program};
 
 use super::pool::{PoolState, SwapTickArrays, TICK_ARRAY_SIZE};
 use crate::SwapperError;
-
-const TICK_ARRAY_STATE: &str = "TickArrayState";
 
 #[derive(BorshDeserialize)]
 struct TickState {
@@ -23,6 +21,10 @@ struct TickArrayState {
     pool_id: Pubkey,
     start_tick_index: i32,
     ticks: [TickState; TICK_ARRAY_SIZE as usize],
+}
+
+impl AnchorAccount for TickArrayState {
+    const NAME: &'static str = "TickArrayState";
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -62,7 +64,7 @@ pub(super) fn swap_ticks(address: &Pubkey, pool: &PoolState, zero_for_one: bool,
         .iter()
         .zip(present)
         .map(|(start, data)| {
-            let array = TickArrayState::deserialize(&mut account_body(data, TICK_ARRAY_STATE)?).map_err(SwapperError::compute_quote_error)?;
+            let array = TickArrayState::decode(data)?;
             if array.start_tick_index != *start || array.pool_id != *address {
                 return Err(SwapperError::compute_quote_error("Unexpected tick array"));
             }

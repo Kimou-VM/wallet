@@ -164,8 +164,13 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             amount: route.swap_value,
             minimum_out: route.minimum_output(slippage_bps),
         };
+        let swap_instruction = match (pools, swap.intermediate) {
+            ([(address, pool)], None) => self.protocol.swap_instruction(address, pool, &swap),
+            ([first, second], Some(intermediate)) => self.protocol.two_hop_swap_instruction(first, second, &swap, intermediate),
+            _ => Err(SwapperError::InvalidRoute),
+        }?;
         Ok(DexTransaction {
-            swap_instruction: self.protocol.swap_instruction(pools, &swap)?,
+            swap_instruction,
             swap,
             referral: Pubkey::from_base58(&default_referral_fees().solana.address)?,
             fee: route.fee,

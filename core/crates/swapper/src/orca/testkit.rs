@@ -3,6 +3,7 @@ use gem_encoding::{decode_base64, encode_base64};
 use gem_jsonrpc::{client::JsonRpcClient, testkit::mock_jsonrpc_client, types::JsonRpcResponse};
 use gem_solana::{
     Pubkey, USDT_TOKEN_MINT,
+    anchor::AnchorAccount,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_program},
     models::{AccountData, ValueResult},
 };

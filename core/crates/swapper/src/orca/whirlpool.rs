@@ -1,10 +1,11 @@
 use borsh::BorshDeserialize;
-use gem_solana::{Pubkey, anchor::account_body, find_program_address, instructions::program_ids::orca_whirlpool_program};
+use gem_solana::{Pubkey, anchor::AnchorAccount, find_program_address, instructions::program_ids::orca_whirlpool_program};
 use hex_lit::hex;
 
 use crate::{
     SwapperError,
-    clmm::{ClmmPool, MAX_TICK_INDEX, MIN_TICK_INDEX},
+    clmm::{ClmmSwap, MAX_SQRT_PRICE, MAX_TICK_INDEX, MIN_SQRT_PRICE, MIN_TICK_INDEX},
+    solana_dex::DexPool,
 };
 
 const WHIRLPOOLS_CONFIG: Pubkey = Pubkey::new(hex!("13e441f83913ca68b0634fb025fdeaa88737e84110d1255e357b3377ddee1ccd"));
@@ -12,7 +13,6 @@ const FEE_TIER_INDEXES: [u16; 10] = [
     1, 4, 8, 16, 64, 96, 128, // 2, 256, 32896
     1025, 1026, 1030, // 1027, 1028, 1029, 1031, 1032, 1033, 1034, 1035, 1036, 2049, 2050, 2051
 ];
-const WHIRLPOOL: &str = "Whirlpool";
 pub(super) const TICK_ARRAY_SIZE: i32 = 88;
 
 #[derive(Debug, Clone, PartialEq, BorshDeserialize)]
@@ -33,12 +33,21 @@ pub(crate) struct Whirlpool {
     pub token_vault_b: Pubkey,
 }
 
-impl Whirlpool {
-    pub fn decode(data: &[u8]) -> Result<Self, SwapperError> {
-        let body = account_body(data, WHIRLPOOL)?;
-        Self::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)
+impl AnchorAccount for Whirlpool {
+    const NAME: &'static str = "Whirlpool";
+}
+
+impl DexPool for Whirlpool {
+    fn mints(&self) -> (Pubkey, Pubkey) {
+        (self.token_mint_a, self.token_mint_b)
     }
 
+    fn token_vaults(&self) -> (Pubkey, Pubkey) {
+        (self.token_vault_a, self.token_vault_b)
+    }
+}
+
+impl Whirlpool {
     pub fn addresses(mint_0: &Pubkey, mint_1: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         let (mint_a, mint_b) = if mint_0 < mint_1 { (mint_0, mint_1) } else { (mint_1, mint_0) };
         FEE_TIER_INDEXES
@@ -54,35 +63,17 @@ impl Whirlpool {
         Ok(find_program_address(&orca_whirlpool_program(), &[b"oracle".as_slice(), address.as_bytes()])?.0)
     }
 
-    pub fn is_a_to_b(&self, input_mint: &Pubkey) -> Result<bool, SwapperError> {
-        match (*input_mint == self.token_mint_a, *input_mint == self.token_mint_b) {
-            (true, _) => Ok(true),
-            (false, true) => Ok(false),
-            (false, false) => Err(SwapperError::InvalidRoute),
-        }
-    }
-
-    pub fn swap_direction(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<bool, SwapperError> {
-        let a_to_b = self.is_a_to_b(input_mint)?;
-        let other_mint = if a_to_b { self.token_mint_b } else { self.token_mint_a };
-        if other_mint != *output_mint {
-            return Err(SwapperError::InvalidRoute);
-        }
-        Ok(a_to_b)
-    }
-
-    pub fn vaults(&self, a_to_b: bool) -> (Pubkey, Pubkey) {
-        if a_to_b { (self.token_vault_a, self.token_vault_b) } else { (self.token_vault_b, self.token_vault_a) }
-    }
-
     pub fn ticks_in_array(&self) -> i32 {
         TICK_ARRAY_SIZE * i32::from(self.tick_spacing)
     }
 
-    pub fn clmm_pool(&self) -> ClmmPool {
-        ClmmPool {
+    pub fn clmm_swap(&self, a_to_b: bool) -> ClmmSwap {
+        ClmmSwap {
             sqrt_price: self.sqrt_price,
             liquidity: self.liquidity,
+            a_to_b,
+            fee_on_input: true,
+            sqrt_price_limit: if a_to_b { MIN_SQRT_PRICE } else { MAX_SQRT_PRICE },
         }
     }
 

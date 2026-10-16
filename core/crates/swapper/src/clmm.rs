@@ -1,5 +1,4 @@
 use alloy_primitives::U256;
-use std::iter::once;
 
 use crate::SwapperError;
 
@@ -65,15 +64,24 @@ const NEGATIVE_TICK_FACTORS: [u128; 18] = [
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct ClmmPool {
+pub(crate) struct ClmmSwap {
     pub sqrt_price: u128,
     pub liquidity: u128,
+    pub a_to_b: bool,
+    pub fee_on_input: bool,
+    pub sqrt_price_limit: u128,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct ClmmTick {
     pub index: i32,
     pub liquidity_net: i128,
+}
+
+pub(crate) trait SwapTick {
+    fn index(&self) -> i32;
+    fn sqrt_price(&self) -> u128;
+    fn cross(&self, state: SwapState, swap: &ClmmSwap, fee_rate: u32) -> Result<SwapState, SwapperError>;
 }
 
 pub(crate) trait SwapFee: Copy {
@@ -112,30 +120,46 @@ pub(crate) struct SwapStep {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct SwapState {
-    remaining: u64,
-    amount_out: u64,
-    sqrt_price: u128,
-    liquidity: u128,
+pub(crate) struct SwapState {
+    pub remaining: u64,
+    pub amount_out: u64,
+    pub sqrt_price: u128,
+    pub liquidity: u128,
 }
 
-pub(crate) fn quote_exact_in<F: SwapFee>(pool: &ClmmPool, fee: F, a_to_b: bool, amount_in: u64, ticks: &[ClmmTick], range_end: i32) -> Result<u64, SwapperError> {
-    if !(MIN_SQRT_PRICE..=MAX_SQRT_PRICE).contains(&pool.sqrt_price) {
+impl SwapTick for ClmmTick {
+    fn index(&self) -> i32 {
+        self.index
+    }
+
+    fn sqrt_price(&self) -> u128 {
+        sqrt_price_from_tick_index(self.index)
+    }
+
+    fn cross(&self, state: SwapState, swap: &ClmmSwap, _fee_rate: u32) -> Result<SwapState, SwapperError> {
+        Ok(SwapState {
+            liquidity: cross_tick(state.liquidity, self.liquidity_net, swap.a_to_b)?,
+            ..state
+        })
+    }
+}
+
+pub(crate) fn quote_exact_in<F: SwapFee, T: SwapTick>(swap: &ClmmSwap, fee: F, amount_in: u64, ticks: &[T]) -> Result<u64, SwapperError> {
+    let beyond_limit = if swap.a_to_b { swap.sqrt_price < swap.sqrt_price_limit } else { swap.sqrt_price > swap.sqrt_price_limit };
+    if beyond_limit {
         return Err(SwapperError::compute_quote_error("invalid pool state"));
     }
-    let sqrt_price_limit = if a_to_b { MIN_SQRT_PRICE } else { MAX_SQRT_PRICE };
     let initial = SwapState {
         remaining: amount_in,
         amount_out: 0,
-        sqrt_price: pool.sqrt_price,
-        liquidity: pool.liquidity,
+        sqrt_price: swap.sqrt_price,
+        liquidity: swap.liquidity,
     };
-    let boundary = ClmmTick { index: range_end, liquidity_net: 0 };
-    let (state, _) = ticks.iter().chain(once(&boundary)).try_fold((initial, fee), |(state, fee), tick| {
-        if state.remaining == 0 || state.sqrt_price == sqrt_price_limit {
+    let (state, _) = ticks.iter().try_fold((initial, fee), |(state, fee), tick| {
+        if state.remaining == 0 || state.sqrt_price == swap.sqrt_price_limit {
             Ok((state, fee))
         } else {
-            state.advance_to_tick(fee, tick, a_to_b, sqrt_price_limit)
+            state.advance_to_tick(swap, fee, tick)
         }
     })?;
     if state.remaining > 0 {
@@ -175,34 +199,33 @@ pub(crate) fn tick_at_sqrt_price(sqrt_price: u128, precision_bits: i32, sqrt_pri
 }
 
 impl SwapState {
-    fn advance_to_tick<F: SwapFee>(self, fee: F, tick: &ClmmTick, a_to_b: bool, sqrt_price_limit: u128) -> Result<(Self, F), SwapperError> {
-        let tick_sqrt_price = sqrt_price_from_tick_index(tick.index);
-        let target = if a_to_b { tick_sqrt_price.max(sqrt_price_limit) } else { tick_sqrt_price.min(sqrt_price_limit) };
-        self.swap_to_target(fee, tick, tick_sqrt_price, target, a_to_b)
+    pub fn apply(self, consumed: u64, amount_out: u64, sqrt_price: u128) -> Result<Self, SwapperError> {
+        Ok(Self {
+            remaining: self.remaining.checked_sub(consumed).ok_or_else(|| overflow("remaining amount"))?,
+            amount_out: self.amount_out.checked_add(amount_out).ok_or_else(|| overflow("output amount"))?,
+            sqrt_price,
+            ..self
+        })
     }
 
-    fn swap_to_target<F: SwapFee>(self, fee: F, tick: &ClmmTick, tick_sqrt_price: u128, target: u128, a_to_b: bool) -> Result<(Self, F), SwapperError> {
+    fn advance_to_tick<F: SwapFee, T: SwapTick>(self, swap: &ClmmSwap, fee: F, tick: &T) -> Result<(Self, F), SwapperError> {
+        let tick_sqrt_price = tick.sqrt_price();
+        let target = if swap.a_to_b { tick_sqrt_price.max(swap.sqrt_price_limit) } else { tick_sqrt_price.min(swap.sqrt_price_limit) };
+        self.swap_to_target(swap, fee, tick, tick_sqrt_price, target)
+    }
+
+    fn swap_to_target<F: SwapFee, T: SwapTick>(self, swap: &ClmmSwap, fee: F, tick: &T, tick_sqrt_price: u128, target: u128) -> Result<(Self, F), SwapperError> {
         let fee = fee.accumulate();
+        let fee_rate = fee.rate();
         let (bounded_target, skipped) = fee.bounded_target(target, self.liquidity);
-        let step = swap_step(self.remaining, fee.rate(), self.liquidity, self.sqrt_price, bounded_target, a_to_b, true)?;
-        let remaining = self.remaining.checked_sub(step.consumed).ok_or_else(|| overflow("remaining amount"))?;
-        let amount_out = self.amount_out.checked_add(step.amount_out).ok_or_else(|| overflow("output amount"))?;
-        let liquidity = if step.next_sqrt_price == tick_sqrt_price {
-            cross_tick(self.liquidity, tick.liquidity_net, a_to_b)?
-        } else {
-            self.liquidity
-        };
-        let state = Self {
-            remaining,
-            amount_out,
-            sqrt_price: step.next_sqrt_price,
-            liquidity,
-        };
-        let fee = fee.advance(skipped, state.sqrt_price, tick_sqrt_price, tick.index);
+        let step = swap_step(self.remaining, fee_rate, self.liquidity, self.sqrt_price, bounded_target, swap.a_to_b, swap.fee_on_input)?;
+        let swapped = self.apply(step.consumed, step.amount_out, step.next_sqrt_price)?;
+        let state = if step.next_sqrt_price == tick_sqrt_price { tick.cross(swapped, swap, fee_rate)? } else { swapped };
+        let fee = fee.advance(skipped, state.sqrt_price, tick_sqrt_price, tick.index());
         if state.remaining == 0 || state.sqrt_price == target {
             return Ok((state, fee));
         }
-        state.swap_to_target(fee, tick, tick_sqrt_price, target, a_to_b)
+        state.swap_to_target(swap, fee, tick, tick_sqrt_price, target)
     }
 }
 
@@ -373,19 +396,23 @@ mod tests {
 
     #[test]
     fn test_quote_exact_in() {
-        let pool = ClmmPool {
+        let swap = ClmmSwap {
             sqrt_price: sqrt_price_from_tick_index(0),
             liquidity: 1_000_000_000,
+            a_to_b: true,
+            fee_on_input: true,
+            sqrt_price_limit: MIN_SQRT_PRICE,
         };
         let fee = StaticFee(3_000);
-        let crossing = [ClmmTick { index: -64, liquidity_net: 400_000_000 }];
+        let boundary = ClmmTick { index: -128, liquidity_net: 0 };
+        let crossing = [ClmmTick { index: -64, liquidity_net: 400_000_000 }, boundary];
 
-        assert_eq!(quote_exact_in(&pool, fee, true, 1_000, &crossing, -128), Ok(996));
-        assert_eq!(quote_exact_in(&pool, fee, true, 5_000_000, &crossing, -128), Ok(4_958_188));
-        assert_eq!(quote_exact_in(&pool, fee, true, 5_000_000, &[], -128), Ok(4_960_273));
-        assert_eq!(quote_exact_in(&pool, fee, true, 50_000_000, &crossing, -128), Err(SwapperError::NoQuoteAvailable));
-        assert_eq!(quote_exact_in(&ClmmPool { sqrt_price: 0, ..pool }, fee, true, 1_000, &[], -128), Err(SwapperError::compute_quote_error("invalid pool state")));
-        assert_eq!(quote_exact_in(&pool, StaticFee(1_000_000), true, 1_000, &crossing, -128), Err(SwapperError::compute_quote_error("fee rate overflow")));
+        assert_eq!(quote_exact_in(&swap, fee, 1_000, &crossing), Ok(996));
+        assert_eq!(quote_exact_in(&swap, fee, 5_000_000, &crossing), Ok(4_958_188));
+        assert_eq!(quote_exact_in(&swap, fee, 5_000_000, &[boundary]), Ok(4_960_273));
+        assert_eq!(quote_exact_in(&swap, fee, 50_000_000, &crossing), Err(SwapperError::NoQuoteAvailable));
+        assert_eq!(quote_exact_in(&ClmmSwap { sqrt_price: 0, ..swap }, fee, 1_000, &[boundary]), Err(SwapperError::compute_quote_error("invalid pool state")));
+        assert_eq!(quote_exact_in(&swap, StaticFee(1_000_000), 1_000, &crossing), Err(SwapperError::compute_quote_error("fee rate overflow")));
     }
 
     #[test]

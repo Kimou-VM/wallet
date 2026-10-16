@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use sha2::{Digest, Sha256};
 
 use crate::{Result, SolanaError};
@@ -19,7 +20,15 @@ pub fn global_discriminator(name: &str) -> [u8; 8] {
     namespaced_discriminator("global", name)
 }
 
-pub fn account_body<'a>(data: &'a [u8], name: &str) -> Result<&'a [u8]> {
+pub trait AnchorAccount: BorshDeserialize {
+    const NAME: &'static str;
+
+    fn decode(data: &[u8]) -> Result<Self> {
+        Self::deserialize(&mut account_body(data, Self::NAME)?).map_err(|error| SolanaError::invalid_input(format!("Invalid {} account: {error}", Self::NAME)))
+    }
+}
+
+fn account_body<'a>(data: &'a [u8], name: &str) -> Result<&'a [u8]> {
     data.split_at_checked(DISCRIMINATOR_LEN)
         .filter(|(discriminator, _)| *discriminator == namespaced_discriminator("account", name))
         .map(|(_, body)| body)
@@ -35,6 +44,21 @@ mod tests {
     #[test]
     fn test_global_discriminator() {
         assert_eq!(global_discriminator("init_order"), hex!("204c290c27a284db"));
+    }
+
+    #[derive(Debug, PartialEq, BorshDeserialize)]
+    struct Whirlpool {
+        value: u16,
+    }
+
+    impl AnchorAccount for Whirlpool {
+        const NAME: &'static str = "Whirlpool";
+    }
+
+    #[test]
+    fn test_decode() {
+        assert_eq!(Whirlpool::decode(&hex!("3f95d10ce18063090102")), Ok(Whirlpool { value: 0x0201 }));
+        assert_eq!(Whirlpool::decode(&hex!("3f95d10ce180630901")), Err(SolanaError::invalid_input("Invalid Whirlpool account: Unexpected length of input")));
     }
 
     #[test]

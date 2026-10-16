@@ -9,7 +9,7 @@ use std::iter::repeat;
 use super::{tick_array::TickArray, whirlpool::Whirlpool};
 use crate::{
     SwapperError,
-    solana_dex::{PoolSwap, SwapToken},
+    solana_dex::{DexPool, PoolSwap, SwapToken},
 };
 
 const SWAP_V2: &str = "swap_v2";

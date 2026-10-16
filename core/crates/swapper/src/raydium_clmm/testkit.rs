@@ -1,4 +1,4 @@
-use gem_solana::Pubkey;
+use gem_solana::{Pubkey, anchor::AnchorAccount};
 use std::collections::HashMap;
 
 use super::pool::PoolState;

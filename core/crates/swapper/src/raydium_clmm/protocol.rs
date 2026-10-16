@@ -1,16 +1,15 @@
-use gem_solana::{Instruction, Pubkey, instructions::program_ids::raydium_clmm_program};
+use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::raydium_clmm_program};
 
 use super::{
     dynamic_fee::DynamicFee,
     pool::{AmmConfig, PoolState},
-    quote::{PoolQuote, quote_exact_in},
     swap::{swap_router_base_in_instruction, swap_v2_instruction},
     tick_array::{TickArray, swap_ticks},
 };
 use crate::{
     SwapperError, SwapperProvider,
-    clmm::StaticFee,
-    solana_dex::{DexProtocol, PoolSwap},
+    clmm::{StaticFee, quote_exact_in},
+    solana_dex::{DexPool, DexProtocol, PoolSwap, SwapToken},
 };
 
 pub(crate) struct RaydiumClmm;
@@ -27,7 +26,7 @@ impl DexProtocol for RaydiumClmm {
     }
 
     fn decode_pool(&self, data: &[u8]) -> Result<PoolState, SwapperError> {
-        PoolState::decode(data)
+        Ok(PoolState::decode(data)?)
     }
 
     fn liquidity(&self, pool: &PoolState) -> u128 {
@@ -35,7 +34,7 @@ impl DexProtocol for RaydiumClmm {
     }
 
     fn quote_accounts(&self, address: &Pubkey, pool: &PoolState, input_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
-        let tick_arrays = TickArray::addresses(address, pool.swap_tick_arrays(pool.zero_for_one(input_mint)?)?.starts())?;
+        let tick_arrays = TickArray::addresses(address, pool.swap_tick_arrays(pool.is_a_to_b(input_mint)?)?.starts())?;
         Ok([vec![pool.amm_config], tick_arrays].concat())
     }
 
@@ -43,28 +42,23 @@ impl DexProtocol for RaydiumClmm {
         if !pool.is_tradable(timestamp) {
             return Err(SwapperError::NoQuoteAvailable);
         }
-        let zero_for_one = pool.zero_for_one(input_mint)?;
+        let zero_for_one = pool.is_a_to_b(input_mint)?;
         let (config, tick_arrays) = accounts.split_first().ok_or(SwapperError::NoQuoteAvailable)?;
         let config = AmmConfig::decode(config.as_ref().ok_or(SwapperError::NoQuoteAvailable)?)?;
         let ticks = swap_ticks(address, pool, zero_for_one, tick_arrays)?;
-        let quote = PoolQuote {
-            sqrt_price: pool.sqrt_price,
-            liquidity: pool.liquidity,
-            zero_for_one,
-            fee_on_input: pool.is_fee_on_input(zero_for_one),
-        };
+        let swap = pool.clmm_swap(zero_for_one);
         match pool.dynamic_fee()? {
-            Some(info) => quote_exact_in(&quote, DynamicFee::new(info, config.trade_fee_rate, pool.tick_spacing, pool.tick_current, zero_for_one, timestamp), amount_in, &ticks),
-            None => quote_exact_in(&quote, StaticFee(config.trade_fee_rate), amount_in, &ticks),
+            Some(info) => quote_exact_in(&swap, DynamicFee::new(info, config.trade_fee_rate, pool.tick_spacing, pool.tick_current, zero_for_one, timestamp), amount_in, &ticks),
+            None => quote_exact_in(&swap, StaticFee(config.trade_fee_rate), amount_in, &ticks),
         }
     }
 
-    fn swap_instruction(&self, pools: &[(Pubkey, PoolState)], swap: &PoolSwap) -> Result<Instruction, SwapperError> {
-        match (pools, swap.intermediate) {
-            ([(address, pool)], None) => swap_v2_instruction(address, pool, swap),
-            ([first, second], Some(intermediate)) => swap_router_base_in_instruction(first, second, swap, intermediate),
-            _ => Err(SwapperError::InvalidRoute),
-        }
+    fn swap_instruction(&self, address: &Pubkey, pool: &PoolState, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
+        swap_v2_instruction(address, pool, swap)
+    }
+
+    fn two_hop_swap_instruction(&self, first: &(Pubkey, PoolState), second: &(Pubkey, PoolState), swap: &PoolSwap, intermediate: &SwapToken) -> Result<Instruction, SwapperError> {
+        swap_router_base_in_instruction(first, second, swap, intermediate)
     }
 }
 

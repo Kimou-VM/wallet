@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     SwapperError,
-    solana_dex::{PoolSwap, SwapToken},
+    solana_dex::{DexPool, PoolSwap, SwapToken},
 };
 
 const SWAP_V2: &str = "swap_v2";

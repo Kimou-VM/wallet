@@ -1,12 +1,11 @@
 use borsh::BorshDeserialize;
-use gem_solana::{Pubkey, anchor::account_body};
+use gem_solana::{Pubkey, anchor::AnchorAccount};
 
 use crate::{
     SwapperError,
     clmm::{MAX_FEE_RATE, MAX_TICK_INDEX, MIN_TICK_INDEX, SwapFee, VOLATILITY_SCALE, accumulated_volatility, decayed_volatility, sqrt_price_from_tick_index, tick_index_from_sqrt_price, volatility_fee_rate},
 };
 
-const ORACLE: &str = "Oracle";
 const MAX_REFERENCE_AGE: u64 = 3_600;
 
 #[derive(Debug, Clone, Copy, PartialEq, BorshDeserialize)]
@@ -50,10 +49,13 @@ pub(super) struct AdaptiveFee {
     upper_bound: Option<(i32, u128)>,
 }
 
+impl AnchorAccount for Oracle {
+    const NAME: &'static str = "Oracle";
+}
+
 impl Oracle {
-    pub fn decode(data: &[u8], whirlpool: &Pubkey) -> Result<Self, SwapperError> {
-        let body = account_body(data, ORACLE)?;
-        let oracle = Self::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)?;
+    pub fn decode_for_whirlpool(data: &[u8], whirlpool: &Pubkey) -> Result<Self, SwapperError> {
+        let oracle = Self::decode(data)?;
         if oracle.whirlpool != *whirlpool {
             return Err(SwapperError::compute_quote_error("Unexpected oracle"));
         }

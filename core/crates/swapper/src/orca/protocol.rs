@@ -1,4 +1,4 @@
-use gem_solana::{Instruction, Pubkey, instructions::program_ids::orca_whirlpool_program};
+use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::orca_whirlpool_program};
 
 use super::{
     oracle::Oracle,
@@ -9,7 +9,7 @@ use super::{
 use crate::{
     SwapperError, SwapperProvider,
     clmm::{StaticFee, quote_exact_in},
-    solana_dex::{DexProtocol, PoolSwap},
+    solana_dex::{DexPool, DexProtocol, PoolSwap, SwapToken},
 };
 
 pub(crate) struct Orca;
@@ -26,7 +26,7 @@ impl DexProtocol for Orca {
     }
 
     fn decode_pool(&self, data: &[u8]) -> Result<Whirlpool, SwapperError> {
-        Whirlpool::decode(data)
+        Ok(Whirlpool::decode(data)?)
     }
 
     fn liquidity(&self, pool: &Whirlpool) -> u128 {
@@ -41,22 +41,23 @@ impl DexProtocol for Orca {
     fn quote(&self, address: &Pubkey, pool: &Whirlpool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError> {
         let a_to_b = pool.is_a_to_b(input_mint)?;
         let (oracle, tick_arrays) = accounts.split_last().ok_or(SwapperError::NoQuoteAvailable)?;
-        let (ticks, range_end) = swap_ticks(address, pool, a_to_b, tick_arrays)?;
+        let ticks = swap_ticks(address, pool, a_to_b, tick_arrays)?;
+        let swap = pool.clmm_swap(a_to_b);
         match oracle {
             Some(data) => {
-                let fee = Oracle::decode(data, address)?.adaptive_fee(pool.fee_rate, pool.tick_current_index, a_to_b, timestamp)?;
-                quote_exact_in(&pool.clmm_pool(), fee, a_to_b, amount_in, &ticks, range_end)
+                let fee = Oracle::decode_for_whirlpool(data, address)?.adaptive_fee(pool.fee_rate, pool.tick_current_index, a_to_b, timestamp)?;
+                quote_exact_in(&swap, fee, amount_in, &ticks)
             }
-            None => quote_exact_in(&pool.clmm_pool(), StaticFee(u32::from(pool.fee_rate)), a_to_b, amount_in, &ticks, range_end),
+            None => quote_exact_in(&swap, StaticFee(u32::from(pool.fee_rate)), amount_in, &ticks),
         }
     }
 
-    fn swap_instruction(&self, pools: &[(Pubkey, Whirlpool)], swap: &PoolSwap) -> Result<Instruction, SwapperError> {
-        match (pools, swap.intermediate) {
-            ([(address, pool)], None) => swap_v2_instruction(address, pool, swap),
-            ([first, second], Some(intermediate)) => two_hop_swap_v2_instruction(first, second, swap, intermediate),
-            _ => Err(SwapperError::InvalidRoute),
-        }
+    fn swap_instruction(&self, address: &Pubkey, pool: &Whirlpool, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
+        swap_v2_instruction(address, pool, swap)
+    }
+
+    fn two_hop_swap_instruction(&self, first: &(Pubkey, Whirlpool), second: &(Pubkey, Whirlpool), swap: &PoolSwap, intermediate: &SwapToken) -> Result<Instruction, SwapperError> {
+        two_hop_swap_v2_instruction(first, second, swap, intermediate)
     }
 }
 
