@@ -218,8 +218,7 @@ impl Swapper for HyperCoreSpot {
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
-        let route = quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
-        let order: PlaceOrder = serde_json::from_str(&route.route_data).map_err(|_| SwapperError::InvalidRoute)?;
+        let order: PlaceOrder = quote.route_data()?;
         let order_json = serde_json::to_string(&order).map_err(SwapperError::transaction_error)?;
 
         Ok(SwapperQuoteData::new_contract(String::new(), quote.from_value.clone(), order_json, None, None))

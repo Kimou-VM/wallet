@@ -3,10 +3,12 @@ use primitives::{ChainSigner, SignerError, SignerInput, TransactionInputType, Tr
 use serde_json::{Value, from_str};
 use std::str::from_utf8;
 
-use super::abi::{PANORA_ROUTER_ENTRY_PARAMS, PANORA_ROUTER_FUNCTION, PANORA_ROUTER_MODULE};
+use super::abi::{HYPERION_PARTNER_SWAP_PARAMS, PANORA_ROUTER_ENTRY_PARAMS, PANORA_ROUTER_FUNCTION, PANORA_ROUTER_MODULE};
 use super::{EntryFunction, EntryFunctionPayload, build_raw_transaction, build_submit_transaction_bcs, expiration_timestamp_secs, sign_message as sign_aptos_message, sign_raw_transaction};
 use crate::AccountAddress;
-use crate::{APTOS_TRANSFER_FUNCTION, DELEGATION_POOL_ADD_STAKE_FUNCTION, DELEGATION_POOL_UNLOCK_FUNCTION, DELEGATION_POOL_WITHDRAW_FUNCTION, ENTRY_FUNCTION_PAYLOAD_TYPE, FUNGIBLE_TRANSFER_FUNCTION, OBJECT_CORE_TYPE};
+use crate::{
+    APTOS_TRANSFER_FUNCTION, DELEGATION_POOL_ADD_STAKE_FUNCTION, DELEGATION_POOL_UNLOCK_FUNCTION, DELEGATION_POOL_WITHDRAW_FUNCTION, ENTRY_FUNCTION_PAYLOAD_TYPE, FUNGIBLE_TRANSFER_FUNCTION, HYPERION_PARTNER_SWAP_FUNCTION, OBJECT_CORE_TYPE,
+};
 
 const APTOS_CHAIN_ID: u8 = 1;
 
@@ -99,6 +101,7 @@ impl AptosChainSigner {
 fn get_payload_abi(payload: &EntryFunctionPayload) -> Option<&'static [&'static str]> {
     match payload.function.as_str() {
         DELEGATION_POOL_ADD_STAKE_FUNCTION | DELEGATION_POOL_UNLOCK_FUNCTION | DELEGATION_POOL_WITHDRAW_FUNCTION => Some(&STAKE_ENTRY_PARAMS),
+        HYPERION_PARTNER_SWAP_FUNCTION => Some(&HYPERION_PARTNER_SWAP_PARAMS),
         _ => None,
     }
 }
@@ -194,6 +197,33 @@ mod tests {
         );
 
         assert_eq!(input.fee.gas_limit().unwrap(), 42);
+    }
+
+    #[test]
+    fn test_prepare_payload_hyperion_partner_swap() {
+        let payload: EntryFunctionPayload = from_str(&format!(
+            r#"{{"type":"entry_function_payload","function":"{HYPERION_PARTNER_SWAP_FUNCTION}","type_arguments":[],"arguments":[["0x925660b8618394809f89f8002e2926600c775221f43bf1919782b297a79400d8"],"0xa","0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b","100000000","800000","gemwallet","500000","0xc09d385527743bb03ed7847bb9180b5ff2263d38d5a93f1c9b3068f8505f6488"]}}"#
+        ))
+        .unwrap();
+        let (payload, abi) = prepare_payload(payload).unwrap();
+        let entry_function = payload.to_entry_function(abi).unwrap();
+
+        assert_eq!(entry_function.module.address, AccountAddress::from_hex("0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c").unwrap());
+        assert_eq!(entry_function.module.name, "partnership");
+        assert_eq!(entry_function.function, "partner_swap");
+        assert_eq!(
+            entry_function.args.iter().map(hex::encode).collect::<Vec<_>>(),
+            vec![
+                "01925660b8618394809f89f8002e2926600c775221f43bf1919782b297a79400d8",
+                "000000000000000000000000000000000000000000000000000000000000000a",
+                "bae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b",
+                "00e1f50500000000",
+                "00350c0000000000",
+                "0967656d77616c6c6574",
+                "20a1070000000000",
+                "c09d385527743bb03ed7847bb9180b5ff2263d38d5a93f1c9b3068f8505f6488",
+            ]
+        );
     }
 
     #[test]

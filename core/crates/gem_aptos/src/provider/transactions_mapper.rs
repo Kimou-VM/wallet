@@ -1,5 +1,8 @@
-use crate::models::{DelegationPoolAddStakeData, DelegationPoolUnlockStakeData, Event, Transaction, TransactionResponse};
-use crate::{APTOS_NATIVE_COIN, DELEGATION_POOL_ADD_STAKE_EVENT, DELEGATION_POOL_UNLOCK_STAKE_EVENT, FUNGIBLE_ASSET_DEPOSIT_EVENT, FUNGIBLE_ASSET_WITHDRAW_EVENT, FUNGIBLE_TRANSFER_FUNCTION, STAKE_DEPOSIT_EVENT};
+use crate::models::{DelegationPoolAddStakeData, DelegationPoolUnlockStakeData, Event, Transaction, TransactionResponse, fungible_store_change};
+use crate::{
+    APTOS_NATIVE_COIN, APTOS_NATIVE_METADATA_ADDRESS, AccountAddress, DELEGATION_POOL_ADD_STAKE_EVENT, DELEGATION_POOL_UNLOCK_STAKE_EVENT, FUNGIBLE_ASSET_DEPOSIT_EVENT, FUNGIBLE_ASSET_WITHDRAW_EVENT, FUNGIBLE_TRANSFER_FUNCTION,
+    HYPERION_CONTRACT, STAKE_DEPOSIT_EVENT,
+};
 use chain_primitives::{BalanceDiff, SwapMapper};
 use chrono::DateTime;
 use num_bigint::{BigInt, BigUint};
@@ -10,7 +13,6 @@ const PANORA_SWAP_EVENT: &str = "panora_swap";
 const PANORA_SWAP_EVENT_ADDRESS: &str = "0x1c3206329806286fd2223647c9f9b130e66baeb6d7224a18c1f642ffe48f3b4c";
 const PANORA_SWAP_SUMMARY_EVENT: &str = "PanoraSwapSummaryEvent";
 const PANORA_FEE_INTEGRATOR_EVENT: &str = "FeeEventIntegrator";
-const APTOS_NATIVE_METADATA_ADDRESS: &str = "0xa";
 
 #[derive(serde::Deserialize)]
 struct PanoraSwapSummaryEventData {
@@ -92,9 +94,44 @@ fn called_contract(transaction: &Transaction) -> Option<String> {
     transaction.payload.as_ref()?.function.as_deref()?.split("::").next().filter(|address| !address.is_empty()).map(str::to_string)
 }
 
+fn map_hyperion_swap(events: &[Event], chain: Chain, sender: &str) -> Option<(Vec<BalanceDiff>, Option<TransactionSwapReferralFee>)> {
+    let pool_swaps = events.iter().filter_map(Event::hyperion_pool_swap).collect::<Vec<_>>();
+    let token_in = pool_swaps.first()?.from_token.inner.clone();
+    let token_out = pool_swaps.last()?.to_token.inner.clone();
+    let owner = AccountAddress::from_hex(sender).ok()?;
+    let input_store = owner.primary_store(&AccountAddress::from_hex(&token_in).ok()?);
+    let output_store = owner.primary_store(&AccountAddress::from_hex(&token_out).ok()?);
+
+    let referral_address = AccountAddress::from_hex(APTOS_REFERRAL_ADDRESS).ok()?;
+    let referral_fee = events
+        .iter()
+        .filter_map(Event::hyperion_third_party_swap)
+        .find(|data| owner != referral_address && AccountAddress::from_hex(&data.third_party_receiver).ok().as_ref() == Some(&referral_address))
+        .map(|data| TransactionSwapReferralFee {
+            asset_id: map_token_address_to_asset_id(chain, &data.token_in.inner),
+            value: data.third_party_fee,
+        });
+
+    let balance_diffs = vec![
+        BalanceDiff {
+            asset_id: map_token_address_to_asset_id(chain, &token_in),
+            diff: fungible_store_change(events, &input_store),
+        },
+        BalanceDiff {
+            asset_id: map_token_address_to_asset_id(chain, &token_out),
+            diff: fungible_store_change(events, &output_store),
+        },
+    ];
+    Some((balance_diffs, referral_fee))
+}
+
 fn map_swap_transaction(transaction: Transaction, events: Vec<Event>, chain: Chain) -> Option<PrimitivesTransaction> {
     let meta = extract_meta(&transaction)?;
     let contract = called_contract(&transaction);
+    if contract.as_deref() == Some(HYPERION_CONTRACT) {
+        let (balance_diffs, referral_fee) = map_hyperion_swap(&events, chain, &meta.sender)?;
+        return build_swap_transaction(meta, contract, chain, &balance_diffs, Some(SwapProvider::Hyperion), referral_fee);
+    }
     let referral_fee = map_referral_fee(&events, chain, &meta.sender);
 
     if let Some(summary) = events
@@ -117,15 +154,7 @@ fn map_swap_transaction(transaction: Transaction, events: Vec<Event>, chain: Cha
             },
         ];
 
-        let swap = SwapMapper::map_swap(&balance_diffs, &BigUint::from(0u8), &chain.as_asset_id(), Some(SwapProvider::Panora))?.with_referral_fee(referral_fee);
-        let asset_id = swap.from_asset.clone();
-        let metadata = serde_json::to_value(&swap).ok();
-        let to = meta.sender.clone();
-
-        return Some(PrimitivesTransaction {
-            contract,
-            ..build_transaction(meta, asset_id, chain.as_asset_id(), to, swap.from_value, TransactionType::Swap, metadata)
-        });
+        return build_swap_transaction(meta, contract, chain, &balance_diffs, Some(SwapProvider::Panora), referral_fee);
     }
 
     let withdraw_event = events.iter().find(|event| event.event_type == FUNGIBLE_ASSET_WITHDRAW_EVENT)?;
@@ -161,7 +190,11 @@ fn map_swap_transaction(transaction: Transaction, events: Vec<Event>, chain: Cha
         .find(|event| event.event_type.contains(PANORA_SWAP_EVENT))
         .and_then(|event| if event.event_type.contains(PANORA_SWAP_EVENT_ADDRESS) { Some(SwapProvider::Panora) } else { None });
 
-    let swap = SwapMapper::map_swap(&balance_diffs, &BigUint::from(0u8), &chain.as_asset_id(), provider)?.with_referral_fee(referral_fee);
+    build_swap_transaction(meta, contract, chain, &balance_diffs, provider, referral_fee)
+}
+
+fn build_swap_transaction(meta: TransactionMeta, contract: Option<String>, chain: Chain, balance_diffs: &[BalanceDiff], provider: Option<SwapProvider>, referral_fee: Option<TransactionSwapReferralFee>) -> Option<PrimitivesTransaction> {
+    let swap = SwapMapper::map_swap(balance_diffs, &BigUint::from(0u8), &chain.as_asset_id(), provider)?.with_referral_fee(referral_fee);
     let asset_id = swap.from_asset.clone();
     let metadata = serde_json::to_value(&swap).ok();
     let to = meta.sender.clone();
@@ -349,6 +382,33 @@ mod tests {
                 asset_id: Chain::Aptos.as_asset_id(),
                 value: BigUint::from(1249510u64),
             })
+        );
+    }
+
+    #[test]
+    fn test_map_transaction_swap_hyperion_referral_fee() {
+        let transaction: Transaction = serde_json::from_str(include_str!("../../testdata/transaction_swap_hyperion_referral_fee.json")).unwrap();
+
+        let mapped = map_transaction(transaction).unwrap();
+        let metadata: primitives::TransactionSwapMetadata = serde_json::from_value(mapped.metadata.clone().unwrap()).unwrap();
+
+        assert_eq!(mapped.transaction_type, TransactionType::Swap);
+        assert_eq!(mapped.contract.as_deref(), Some(HYPERION_CONTRACT));
+        assert_eq!(mapped.asset_id, Chain::Aptos.as_asset_id());
+        assert_eq!(mapped.value, BigUint::from(100_000_000u64));
+        assert_eq!(
+            metadata,
+            primitives::TransactionSwapMetadata {
+                from_asset: Chain::Aptos.as_asset_id(),
+                from_value: BigUint::from(100_000_000u64),
+                to_asset: AssetId::from_token(Chain::Aptos, APTOS_USDT_TOKEN_ID),
+                to_value: BigUint::from(835_326u64),
+                provider: Some(SwapProvider::Hyperion.id().to_string()),
+                referral_fee: Some(TransactionSwapReferralFee {
+                    asset_id: Chain::Aptos.as_asset_id(),
+                    value: BigUint::from(500_000u64),
+                }),
+            }
         );
     }
 

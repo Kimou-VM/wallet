@@ -26,4 +26,5 @@ public enum SwapProvider: String, Codable, Equatable, Hashable, Sendable {
 	case mayachain
 	case swapsXyz = "swaps_xyz"
 	case bridgers
+	case hyperion
 }

@@ -732,6 +732,7 @@ public extension SwapProvider {
         case .squid: Images.SwapProviders.squid
         case .swapsXyz: Images.SwapProviders.swapsXyz
         case .bridgers: Images.SwapProviders.bridgers
+        case .hyperion: Images.SwapProviders.hyperion
         }
     }
 }

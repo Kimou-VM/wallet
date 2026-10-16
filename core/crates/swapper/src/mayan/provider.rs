@@ -157,8 +157,7 @@ where
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
-        let route = quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
-        let route: MayanQuote = serde_json::from_str(&route.route_data).map_err(|_| SwapperError::InvalidRoute)?;
+        let route: MayanQuote = quote.route_data()?;
         match (quote.request.from_asset.chain().chain_type(), &route) {
             (ChainType::Ethereum, MayanQuote::Swift(route)) => swift::evm::build_quote_data(&self.price_client, quote, route, self.rpc_provider.clone()).await,
             (ChainType::Ethereum, MayanQuote::Mctp(route)) => mctp::evm::build_quote_data(&self.price_client, quote, route, self.rpc_provider.clone()).await,

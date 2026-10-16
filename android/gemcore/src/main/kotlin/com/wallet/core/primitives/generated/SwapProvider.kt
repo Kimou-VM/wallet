@@ -53,5 +53,7 @@ enum class SwapProvider(val string: String) {
 	SwapsXyz("swaps_xyz"),
 	@SerialName("bridgers")
 	Bridgers("bridgers"),
+	@SerialName("hyperion")
+	Hyperion("hyperion"),
 }
 

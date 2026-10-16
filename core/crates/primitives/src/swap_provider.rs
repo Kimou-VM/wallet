@@ -32,6 +32,7 @@ pub enum SwapProvider {
     Mayachain,
     SwapsXyz,
     Bridgers,
+    Hyperion,
 }
 
 impl SwapProvider {
@@ -46,7 +47,7 @@ impl SwapProvider {
     pub fn is_cross_chain(&self) -> bool {
         match self {
             Self::Thorchain | Self::Mayachain | Self::Across | Self::Mayan | Self::Chainflip | Self::NearIntents | Self::Relay | Self::Hyperliquid | Self::Squid | Self::SwapsXyz | Self::Bridgers => true,
-            Self::UniswapV3 | Self::UniswapV4 | Self::PancakeswapV3 | Self::Panora | Self::Jupiter | Self::Okx | Self::Oku | Self::Wagmi | Self::CetusClmm | Self::StonfiV2 | Self::Aerodrome | Self::Orca => false,
+            Self::UniswapV3 | Self::UniswapV4 | Self::PancakeswapV3 | Self::Panora | Self::Jupiter | Self::Okx | Self::Oku | Self::Wagmi | Self::CetusClmm | Self::StonfiV2 | Self::Aerodrome | Self::Orca | Self::Hyperion => false,
         }
     }
 
@@ -78,6 +79,7 @@ impl SwapProvider {
             Self::Squid => "Squid",
             Self::SwapsXyz => "Swaps.xyz",
             Self::Bridgers => "Bridgers",
+            Self::Hyperion => "Hyperion",
         }
     }
 
@@ -105,7 +107,8 @@ impl SwapProvider {
             | Self::Orca
             | Self::Squid
             | Self::SwapsXyz
-            | Self::Bridgers => self.name(),
+            | Self::Bridgers
+            | Self::Hyperion => self.name(),
         }
     }
 }

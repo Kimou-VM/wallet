@@ -8,7 +8,6 @@ use gem_solana::{
     models::{AccountData, Clock, ValueResult, blockhash::SolanaBlockhashResult},
 };
 use num_bigint::BigUint;
-use num_traits::ToPrimitive;
 use primitives::Chain;
 use serde_json::Value;
 use std::{
@@ -24,7 +23,7 @@ use super::{
     transaction::DexTransaction,
 };
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData,
     client_factory::create_client_with_chain,
     error::INVALID_ADDRESS,
     fees::{FeeSide, default_referral_fees},
@@ -229,10 +228,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let input = SwapToken::from_asset(&request.from_asset)?;
         let output = SwapToken::from_asset(&request.to_asset)?;
-        let value = request.value.to_u64().ok_or_else(|| SwapperError::compute_quote_error("swap amount is too large"))?;
-        if value == 0 {
-            return Err(SwapperError::InputAmountError { min_amount: Some("1".into()) });
-        }
+        let value = request.value_u64()?;
         let referral_fee = default_referral_fees().solana;
         let referral = Pubkey::from_base58(&referral_fee.address)?;
         let preferred_side = preferred_fee_side(&input.mint, &output.mint);
@@ -282,27 +278,11 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
             return Err(SwapperError::NoQuoteAvailable);
         }
 
-        Ok(Quote {
-            from_value: request.value.clone(),
-            min_from_value: None,
-            to_value: BigUint::from(route.received_value()),
-            data: ProviderData {
-                provider: self.provider.clone(),
-                routes: vec![Route {
-                    input: request.from_asset.asset_id(),
-                    output: request.to_asset.asset_id(),
-                    route_data: serde_json::to_string(&route)?,
-                }],
-                slippage_bps: request.options.slippage.bps,
-            },
-            request: request.clone(),
-            eta_in_seconds: None,
-        })
+        Quote::from_route(request, &self.provider, BigUint::from(route.received_value()), &route, None)
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
-        let route_data = quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
-        let route: DexRoute = serde_json::from_str(&route_data.route_data).map_err(|_| SwapperError::InvalidRoute)?;
+        let route: DexRoute = quote.route_data()?;
         let input = SwapToken::from_asset(&quote.request.from_asset)?;
         let output = SwapToken::from_asset(&quote.request.to_asset)?;
         let intermediate = route.intermediate(&input.mint, &output.mint)?;

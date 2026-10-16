@@ -198,8 +198,7 @@ where
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
-        let route = quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
-        let response: ActionResponse = serde_json::from_str(&route.route_data).map_err(|_| SwapperError::InvalidRoute)?;
+        let response: ActionResponse = quote.route_data()?;
         let source = SwapsXyzChain::from_chain(quote.request.from_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
         let destination = SwapsXyzChain::from_chain(quote.request.to_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
         Self::validate_response(&response, &quote.request, source, destination)?;

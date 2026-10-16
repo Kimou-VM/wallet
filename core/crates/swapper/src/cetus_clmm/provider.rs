@@ -4,11 +4,10 @@ use super::{
     model::{PoolRoute, fee_side},
     tx_builder,
 };
-use crate::{FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData};
+use crate::{FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData};
 use async_trait::async_trait;
 use gem_sui::coin_type_matches;
 use num_bigint::BigUint;
-use num_traits::ToPrimitive;
 use primitives::{AssetId, Chain};
 
 #[async_trait]
@@ -35,13 +34,9 @@ impl Swapper for CetusClmm {
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
-        let from_value = request.value.clone();
         let from_asset = request.from_asset.asset_id();
         let to_asset = request.to_asset.asset_id();
-        let amount = from_value.to_u64().ok_or_else(|| SwapperError::ComputeQuoteError("swap amount is too large".to_string()))?;
-        if amount == 0 {
-            return Err(SwapperError::InputAmountError { min_amount: Some("1".into()) });
-        }
+        let amount = request.value_u64()?;
 
         let from_coin_type = CetusClmm::coin_type(&from_asset);
         let to_coin_type = CetusClmm::coin_type(&to_asset);
@@ -50,7 +45,6 @@ impl Swapper for CetusClmm {
         let referral_fee = CetusClmm::referral_fee();
         let swap_amount = referral_fee.swap_value(fee_side, amount);
 
-        let slippage_bps = request.options.slippage.bps;
         let hops = self.find_route_hops(&from_coin_type, &to_coin_type, swap_amount).await?;
         let gross_amount_out = hops.last().map(|h| h.amount_out).unwrap_or_default();
         let route = PoolRoute {
@@ -58,27 +52,11 @@ impl Swapper for CetusClmm {
             fee: referral_fee.transfer(fee_side, amount, gross_amount_out),
         };
 
-        Ok(Quote {
-            from_value,
-            min_from_value: None,
-            to_value: BigUint::from(route.net_amount_out()),
-            data: ProviderData {
-                provider: self.provider().clone(),
-                routes: vec![Route {
-                    input: from_asset,
-                    output: to_asset,
-                    route_data: serde_json::to_string(&route)?,
-                }],
-                slippage_bps,
-            },
-            request: request.clone(),
-            eta_in_seconds: Some(0),
-        })
+        Quote::from_route(request, self.provider(), BigUint::from(route.net_amount_out()), &route, Some(0))
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
-        let route_entry = quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
-        let route: PoolRoute = serde_json::from_str(&route_entry.route_data).map_err(|_| SwapperError::InvalidRoute)?;
+        let route: PoolRoute = quote.route_data()?;
 
         let request_from = CetusClmm::coin_type(&quote.request.from_asset.asset_id());
         let request_to = CetusClmm::coin_type(&quote.request.to_asset.asset_id());

@@ -10,6 +10,10 @@ use super::values::MoveValue;
 
 const OPTION_MODULE: &str = "option";
 const OPTION_STRUCT: &str = "Option";
+const STRING_MODULE: &str = "string";
+const STRING_STRUCT: &str = "String";
+const OBJECT_MODULE: &str = "object";
+const OBJECT_STRUCT: &str = "Object";
 const MAX_TYPE_TAG_DEPTH: usize = 64;
 
 #[derive(Deserialize)]
@@ -217,7 +221,7 @@ fn parse_move_value(value: &Value, arg_type: &TypeTag) -> Result<MoveValue, Sign
 }
 
 fn parse_struct(value: &Value, tag: &StructTag) -> Result<MoveValue, SignerError> {
-    if is_option_struct(tag) {
+    if is_framework_struct(tag, OPTION_MODULE, OPTION_STRUCT) {
         let inner = tag.type_args.first().ok_or_else(|| SignerError::InvalidInput("Option type missing inner type".to_string()))?;
         if value.is_null() {
             return Ok(MoveValue::Vector(Vec::new()));
@@ -225,12 +229,19 @@ fn parse_struct(value: &Value, tag: &StructTag) -> Result<MoveValue, SignerError
         let inner_value = parse_move_value(value, inner)?;
         return Ok(MoveValue::Vector(vec![inner_value]));
     }
+    if is_framework_struct(tag, STRING_MODULE, STRING_STRUCT) {
+        let text = value.as_str().ok_or_else(|| SignerError::InvalidInput("Invalid Aptos string argument".to_string()))?;
+        return Ok(MoveValue::Vector(text.bytes().map(MoveValue::U8).collect()));
+    }
+    if is_framework_struct(tag, OBJECT_MODULE, OBJECT_STRUCT) {
+        return Ok(MoveValue::Address(parse_address(value)?));
+    }
 
     Err(SignerError::InvalidInput("Unsupported Aptos struct argument".to_string()))
 }
 
-fn is_option_struct(tag: &StructTag) -> bool {
-    tag.address == AccountAddress::one() && tag.module == OPTION_MODULE && tag.name == OPTION_STRUCT
+fn is_framework_struct(tag: &StructTag, module: &str, name: &str) -> bool {
+    tag.address == AccountAddress::one() && tag.module == module && tag.name == name
 }
 
 fn parse_vector(value: &Value, inner: &TypeTag) -> Result<MoveValue, SignerError> {
@@ -360,6 +371,20 @@ mod tests {
             }
             _ => panic!("Expected vector"),
         }
+    }
+
+    #[test]
+    fn test_encode_argument_framework_structs() {
+        let string = parse_type_tag("0x1::string::String").unwrap();
+        let object = parse_type_tag("0x1::object::Object<0x1::fungible_asset::Metadata>").unwrap();
+
+        assert_eq!(encode_argument(&Value::from("gemwallet"), &string).unwrap(), [&[9u8][..], b"gemwallet"].concat());
+        assert_eq!(encode_argument(&Value::from("0xa"), &object).unwrap(), encode_argument(&Value::from("0xa"), &TypeTag::Address).unwrap());
+        assert_eq!(encode_argument(&Value::from(1), &string).unwrap_err().to_string(), "Invalid input: Invalid Aptos string argument");
+        assert_eq!(
+            encode_argument(&Value::from("0xa"), &parse_type_tag("0x2::object::Object<0x1::fungible_asset::Metadata>").unwrap()).unwrap_err().to_string(),
+            "Invalid input: Unsupported Aptos struct argument"
+        );
     }
 
     #[test]

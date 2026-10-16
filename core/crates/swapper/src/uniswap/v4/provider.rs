@@ -207,8 +207,7 @@ impl Swapper for UniswapV4 {
         let from_asset = request.from_asset.asset_id();
         let (evm_chain, input, output, amount_in) = Self::routed_request(request)?;
         let deployment = get_uniswap_deployment_by_chain(&from_asset.chain).ok_or(SwapperError::NotSupportedChain)?;
-        let route = quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
-        let route_data: RouteData = serde_json::from_str(&route.route_data).map_err(|_| SwapperError::InvalidRoute)?;
+        let route_data: RouteData = quote.route_data()?;
         let to_amount = u128::from_str(&route_data.min_amount_out).map_err(SwapperError::from)?;
 
         let client = create_client(self.rpc_provider.clone(), from_asset.chain)?;

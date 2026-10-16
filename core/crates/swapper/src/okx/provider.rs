@@ -87,8 +87,7 @@ where
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
         let request = &quote.request;
-        let route = quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
-        let route_data: QuoteData = serde_json::from_str(&route.route_data).map_err(|_| SwapperError::InvalidRoute)?;
+        let route_data: QuoteData = quote.route_data()?;
         let params = build_swap_params(request, &route_data)?;
 
         let response: OkxApiResponse<SwapDataResult> = self.client.post(PROXY_SWAP_PATH, &params).await.map_err(SwapperError::from)?;

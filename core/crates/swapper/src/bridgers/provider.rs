@@ -130,7 +130,7 @@ impl Swapper for Bridgers {
         let request = &quote.request;
         let network = Network::from_chain(request.from_asset.chain())?;
         let to_code = get_token_code(&request.to_asset.asset_id())?;
-        let route: RouteData = serde_json::from_str(&quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?.route_data).map_err(|_| SwapperError::InvalidRoute)?;
+        let route: RouteData = quote.route_data()?;
         let swap = SwapRequest {
             quote: BridgersQuoteRequest::new(request, quote.from_value.clone())?,
             from_address: request.wallet_address.clone(),

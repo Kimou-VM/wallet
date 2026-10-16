@@ -1,7 +1,7 @@
 use crate::ranking::rank_quotes;
 use crate::{
     AssetList, FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapQuoteError, SwapQuotes, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperProviderMode, SwapperQuoteData,
-    across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, fees::max_quote_value_with_fee_reserve, hyperliquid, jupiter, mayan, near_intents, okx, orca, panora, relay,
+    across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, fees::max_quote_value_with_fee_reserve, hyperion, hyperliquid, jupiter, mayan, near_intents, okx, orca, panora, relay,
     solana_dex, squid, stonfi, swaps_xyz, thorchain, uniswap,
 };
 use num_bigint::BigInt;
@@ -79,7 +79,8 @@ impl GemSwapper {
             Some(uniswap::default::boxed_wagmi(rpc_provider.clone())),
             stonfi::Stonfi::new(rpc_provider.clone()).map(Self::boxed),
             Some(Box::new(mayan::Mayan::new(rpc_provider.clone()))),
-            Some(Box::new(panora::Panora::new(rpc_provider.clone()))),
+            Some(Box::new(panora::Panora::default())),
+            hyperion::Hyperion::new(rpc_provider.clone()).map(Self::boxed),
             near_intents::NearIntents::new(rpc_provider.clone()).map(Self::boxed),
             Some(Box::new(chainflip::ChainflipProvider::new(rpc_provider.clone()))),
             cetus_clmm::CetusClmm::new(rpc_provider.clone()).map(Self::boxed),
@@ -118,10 +119,6 @@ impl GemSwapper {
             });
         }
         AssetList { chains, asset_ids }
-    }
-
-    pub fn get_providers(&self) -> Vec<ProviderType> {
-        self.swappers.iter().map(|x| x.provider().clone()).collect()
     }
 
     fn is_native_mirror_pair(from_asset: &AssetId, to_asset: &AssetId) -> bool {

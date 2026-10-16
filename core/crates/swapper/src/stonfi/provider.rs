@@ -8,6 +8,7 @@ use super::{
 use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
     fees::{ReferralFee, default_referral_fees, reserved_transaction_fees, subtract_bps},
+    models::nonzero_swap_value,
     route_cache::DiscoveryCache,
     route_path::RoutePath,
 };
@@ -129,9 +130,7 @@ where
         let from_token = token_address(from_asset);
         let to_token = token_address(to_asset);
         let amount = BigUint::from_str(from_value)?;
-        if amount == BigUint::from(0u8) {
-            return Err(SwapperError::InputAmountError { min_amount: Some("1".into()) });
-        }
+        nonzero_swap_value(&amount)?;
 
         match self.quote_best_candidate(self.known_candidates(&from_token, &to_token, require_v2), &[], &from_token, &to_token, &amount, slippage_bps).await {
             Ok((_, simulation)) => return Ok(simulation),

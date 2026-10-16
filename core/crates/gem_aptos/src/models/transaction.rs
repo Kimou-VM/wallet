@@ -1,5 +1,10 @@
-use crate::{FEE_PAYER_SIGNATURE_TYPE, FUNGIBLE_ASSET_DEPOSIT_EVENT, FUNGIBLE_ASSET_WITHDRAW_EVENT, NO_ACCOUNT_SIGNATURE_TYPE, SIMULATION_FEE_PAYER_ADDRESS, STAKE_DEPOSIT_EVENT, STAKE_WITHDRAW_EVENT};
-use num_bigint::BigUint;
+use std::error::Error;
+
+use crate::{
+    AccountAddress, FEE_PAYER_SIGNATURE_TYPE, FUNGIBLE_ASSET_DEPOSIT_EVENT, FUNGIBLE_ASSET_WITHDRAW_EVENT, HYPERION_POOL_SWAP_EVENTS, HYPERION_THIRD_PARTY_SWAP_EVENT, NO_ACCOUNT_SIGNATURE_TYPE, SIMULATION_FEE_PAYER_ADDRESS,
+    STAKE_DEPOSIT_EVENT, STAKE_WITHDRAW_EVENT,
+};
+use num_bigint::{BigInt, BigUint};
 use serde::{Deserialize, Serialize};
 use serde_serializers::{deserialize_biguint_from_str, deserialize_option_biguint_from_str, deserialize_option_u64_from_str, deserialize_u64_from_str};
 
@@ -22,6 +27,15 @@ pub struct Transaction {
     pub timestamp: u64,
 }
 
+impl Transaction {
+    pub fn simulated_gas(&self) -> Result<u64, Box<dyn Error + Send + Sync>> {
+        if !self.success {
+            return Err(self.vm_status.clone().unwrap_or_else(|| "Aptos simulation failed".to_string()).into());
+        }
+        self.gas_used.ok_or_else(|| "No gas used in simulation".into())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Event {
     pub guid: Guid,
@@ -34,6 +48,29 @@ pub struct Event {
 pub struct AmountData {
     #[serde(default, deserialize_with = "deserialize_option_biguint_from_str")]
     pub amount: Option<BigUint>,
+    pub store: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjectData {
+    pub inner: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HyperionPoolSwapData {
+    pub from_token: ObjectData,
+    pub to_token: ObjectData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HyperionThirdPartySwapData {
+    #[serde(deserialize_with = "deserialize_biguint_from_str")]
+    pub amount_in: BigUint,
+    pub token_in: ObjectData,
+    pub token_out: ObjectData,
+    #[serde(deserialize_with = "deserialize_biguint_from_str")]
+    pub third_party_fee: BigUint,
+    pub third_party_receiver: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,6 +100,39 @@ impl Event {
             _ => None,
         }
     }
+
+    pub fn hyperion_third_party_swap(&self) -> Option<HyperionThirdPartySwapData> {
+        if self.event_type != HYPERION_THIRD_PARTY_SWAP_EVENT {
+            return None;
+        }
+        serde_json::from_value(self.data.clone()?).ok()
+    }
+
+    pub fn hyperion_pool_swap(&self) -> Option<HyperionPoolSwapData> {
+        if !HYPERION_POOL_SWAP_EVENTS.contains(&self.event_type.as_str()) {
+            return None;
+        }
+        serde_json::from_value(self.data.clone()?).ok()
+    }
+
+    fn store_change(&self, store: &AccountAddress) -> Option<BigInt> {
+        let data = match self.event_type.as_str() {
+            FUNGIBLE_ASSET_DEPOSIT_EVENT | FUNGIBLE_ASSET_WITHDRAW_EVENT => serde_json::from_value::<AmountData>(self.data.clone()?).ok()?,
+            _ => return None,
+        };
+        if AccountAddress::from_hex(data.store.as_deref()?).ok()? != *store {
+            return None;
+        }
+        let amount = BigInt::from(data.amount?);
+        match self.event_type.as_str() {
+            FUNGIBLE_ASSET_WITHDRAW_EVENT => Some(-amount),
+            _ => Some(amount),
+        }
+    }
+}
+
+pub fn fungible_store_change(events: &[Event], store: &AccountAddress) -> BigInt {
+    events.iter().filter_map(|event| event.store_change(store)).sum()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

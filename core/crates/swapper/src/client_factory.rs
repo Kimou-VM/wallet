@@ -1,3 +1,4 @@
+use gem_aptos::AptosClient;
 use gem_evm::rpc::EthereumClient;
 use gem_jsonrpc::alien::{self, RpcClient, RpcProvider};
 use gem_jsonrpc::client::JsonRpcClient;
@@ -19,6 +20,11 @@ pub fn create_client_with_chain(provider: Arc<dyn RpcProvider>, chain: Chain) ->
 pub fn create_sui_client(provider: Arc<dyn RpcProvider>) -> Result<SuiClient, SwapperError> {
     let endpoint = provider.get_endpoint(Chain::Sui).map_err(|_| SwapperError::NotSupportedChain)?;
     Ok(SuiClient::new_with_transport(endpoint, Arc::new(AlienGrpcTransport::new(provider))))
+}
+
+pub fn create_aptos_client(provider: Arc<dyn RpcProvider>) -> Result<AptosClient<RpcClient>, SwapperError> {
+    let endpoint = provider.get_endpoint(Chain::Aptos).map_err(|_| SwapperError::NotSupportedChain)?;
+    Ok(AptosClient::new(RpcClient::new(endpoint, provider)))
 }
 
 pub fn create_eth_client(provider: Arc<dyn RpcProvider>, chain: Chain) -> Result<EthereumClient<RpcClient>, SwapperError> {

@@ -1,13 +1,14 @@
 use super::permit2_data::Permit2Data;
 use crate::{SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperSlippage, config::DEFAULT_SLIPPAGE_BPS};
 use num_bigint::BigUint;
+use num_traits::ToPrimitive;
 pub use primitives::swap::Permit2ApprovalData;
 pub use primitives::swap::{SwapResult, SwapResultRequest};
 use primitives::{
     AssetId, Chain,
     swap::{ApprovalData, SlippageMode, SwapProviderMode},
 };
-use serde::Serialize;
+use serde::{Serialize, de::DeserializeOwned};
 use serde_serializers::serialize_display;
 use serde_serializers::{serialize_biguint, serialize_option_biguint};
 use std::fmt::Debug;
@@ -47,6 +48,7 @@ impl ProviderType {
             | SwapperProvider::StonfiV2
             | SwapperProvider::Aerodrome
             | SwapperProvider::Orca
+            | SwapperProvider::Hyperion
             | SwapperProvider::Okx => SwapProviderMode::OnChain,
             SwapperProvider::Mayan | SwapperProvider::Mayachain | SwapperProvider::Squid | SwapperProvider::SwapsXyz | SwapperProvider::Bridgers => SwapProviderMode::CrossChain,
             SwapperProvider::Chainflip => SwapProviderMode::OmniChain(vec![Chain::Tron]),
@@ -72,6 +74,7 @@ impl ProviderType {
             | SwapperProvider::StonfiV2
             | SwapperProvider::Aerodrome
             | SwapperProvider::Orca
+            | SwapperProvider::Hyperion
             | SwapperProvider::Mayachain
             | SwapperProvider::Chainflip
             | SwapperProvider::Thorchain
@@ -94,6 +97,12 @@ pub struct QuoteRequest {
     pub value: BigUint,
     #[serde(skip_serializing)]
     pub options: Options,
+}
+
+impl QuoteRequest {
+    pub fn value_u64(&self) -> Result<u64, SwapperError> {
+        swap_value_u64(&self.value)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -128,6 +137,47 @@ pub struct Quote {
     pub data: ProviderData,
     pub request: QuoteRequest,
     pub eta_in_seconds: Option<u32>,
+}
+
+impl Quote {
+    pub fn from_value_u64(&self) -> Result<u64, SwapperError> {
+        swap_value_u64(&self.from_value)
+    }
+
+    pub fn from_route(request: &QuoteRequest, provider: &ProviderType, to_value: BigUint, route: &impl Serialize, eta_in_seconds: Option<u32>) -> Result<Self, SwapperError> {
+        Ok(Self {
+            from_value: request.value.clone(),
+            min_from_value: None,
+            to_value,
+            data: ProviderData {
+                provider: provider.clone(),
+                routes: vec![Route {
+                    input: request.from_asset.asset_id(),
+                    output: request.to_asset.asset_id(),
+                    route_data: serde_json::to_string(route)?,
+                }],
+                slippage_bps: request.options.slippage.bps,
+            },
+            request: request.clone(),
+            eta_in_seconds,
+        })
+    }
+
+    pub fn route_data<T: DeserializeOwned>(&self) -> Result<T, SwapperError> {
+        let route = self.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
+        serde_json::from_str(&route.route_data).map_err(|_| SwapperError::InvalidRoute)
+    }
+}
+
+pub(crate) fn nonzero_swap_value(value: &BigUint) -> Result<&BigUint, SwapperError> {
+    match value == &BigUint::ZERO {
+        true => Err(SwapperError::InputAmountError { min_amount: Some("1".into()) }),
+        false => Ok(value),
+    }
+}
+
+fn swap_value_u64(value: &BigUint) -> Result<u64, SwapperError> {
+    nonzero_swap_value(value)?.to_u64().ok_or_else(|| SwapperError::ComputeQuoteError("swap amount is too large".into()))
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -236,5 +286,63 @@ pub struct AssetList {
 impl AssetList {
     pub fn contains(&self, asset_id: &AssetId) -> bool {
         self.chains.contains(&asset_id.chain) || self.asset_ids.contains(asset_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_value_u64() {
+        let request = QuoteRequest::mock(Chain::Aptos, None);
+
+        assert_eq!(
+            QuoteRequest {
+                value: BigUint::from(u64::MAX),
+                ..request.clone()
+            }
+            .value_u64(),
+            Ok(u64::MAX)
+        );
+        assert_eq!(QuoteRequest { value: BigUint::ZERO, ..request.clone() }.value_u64(), Err(SwapperError::InputAmountError { min_amount: Some("1".into()) }));
+        assert_eq!(
+            QuoteRequest {
+                value: BigUint::from(u64::MAX) + 1u8,
+                ..request
+            }
+            .value_u64(),
+            Err(SwapperError::ComputeQuoteError("swap amount is too large".into()))
+        );
+    }
+
+    #[test]
+    fn test_route_data() {
+        let quote = Quote::mock(Chain::Aptos, None);
+        let route = Route::mock(AssetId::from_chain(Chain::Aptos), AssetId::from_chain(Chain::Aptos));
+
+        assert_eq!(
+            Quote {
+                data: ProviderData {
+                    routes: vec![route.clone()],
+                    ..quote.data.clone()
+                },
+                ..quote.clone()
+            }
+            .route_data::<serde_json::Value>(),
+            Ok(serde_json::from_str(&route.route_data).unwrap())
+        );
+        assert_eq!(quote.route_data::<serde_json::Value>(), Err(SwapperError::InvalidRoute));
+        assert_eq!(
+            Quote {
+                data: ProviderData {
+                    routes: vec![Route { route_data: "{".into(), ..route }],
+                    ..quote.data.clone()
+                },
+                ..quote
+            }
+            .route_data::<serde_json::Value>(),
+            Err(SwapperError::InvalidRoute)
+        );
     }
 }

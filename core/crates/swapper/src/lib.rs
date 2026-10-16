@@ -19,6 +19,7 @@ pub mod chainflip;
 pub mod client_factory;
 pub mod config;
 pub mod error;
+pub mod hyperion;
 pub mod hyperliquid;
 pub mod jupiter;
 pub mod mayan;

@@ -685,6 +685,7 @@ pub enum SwapProvider {
     Mayachain,
     SwapsXyz,
     Bridgers,
+    Hyperion,
 }
 
 #[uniffi::remote(Enum)]

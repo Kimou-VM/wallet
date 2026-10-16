@@ -133,6 +133,10 @@ impl<C: Client> AptosClient<C> {
     }
 
     pub async fn simulate_transaction(&self, sender: &str, sequence: u64, payload: TransactionPayload, gas_price: &str) -> Result<u64, Box<dyn Error + Send + Sync>> {
+        self.get_simulated_transaction(sender, sequence, payload, gas_price).await?.simulated_gas()
+    }
+
+    pub async fn get_simulated_transaction(&self, sender: &str, sequence: u64, payload: TransactionPayload, gas_price: &str) -> Result<Transaction, Box<dyn Error + Send + Sync>> {
         let expiration = unix_timestamp() + 1_000_000;
         let query = SimulateTransactionQuery {
             estimate_max_gas_amount: false,
@@ -150,9 +154,7 @@ impl<C: Client> AptosClient<C> {
         };
 
         let response: Vec<Transaction> = self.client.post(AptosTarget::SimulateTransaction { query }, &simulation).await?;
-        let transaction = response.into_iter().next().ok_or("No simulation result")?;
-
-        simulated_gas(transaction)
+        Ok(response.into_iter().next().ok_or("No simulation result")?)
     }
 
     pub async fn get_validator_set(&self) -> Result<ValidatorSet, Box<dyn Error + Send + Sync>> {
@@ -204,13 +206,6 @@ mod chain_trait_impls {
 
     #[async_trait]
     impl<C: Client> ChainPerpetual for AptosClient<C> {}
-}
-
-fn simulated_gas(transaction: Transaction) -> Result<u64, Box<dyn Error + Send + Sync>> {
-    if !transaction.success {
-        return Err(transaction.vm_status.unwrap_or_else(|| "Aptos simulation failed".to_string()).into());
-    }
-    transaction.gas_used.ok_or_else(|| "No gas used in simulation".into())
 }
 
 #[cfg(test)]

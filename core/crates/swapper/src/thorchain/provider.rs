@@ -199,8 +199,7 @@ where
 
         let memo = to_asset.swap_memo(&memo_asset_name, quote.request.destination_address.clone(), QUOTE_MINIMUM, QUOTE_INTERVAL, QUOTE_QUANTITY, fee.address, fee.bps);
 
-        let route = quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
-        let route_data: RouteData = serde_json::from_str(&route.route_data).map_err(|_| SwapperError::InvalidRoute)?;
+        let route_data: RouteData = quote.route_data()?;
         let value = quote.from_value.clone();
 
         let approval: Option<ApprovalData> = {

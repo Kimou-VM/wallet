@@ -20,7 +20,6 @@ use gem_sui::{
     tx_builder::{ObjectResolver, PrefetchedTransactionData, TransactionBuilderInput, balance_value, balance_zero, build_input_coin, destroy_zero_balance, finish_transaction, from_balance, into_balance, move_call},
 };
 use num_bigint::BigUint;
-use num_traits::ToPrimitive;
 use primitives::Address as AddressTrait;
 use std::{collections::HashMap, fmt::Display};
 use sui_transaction_builder::{Argument, ObjectInput, TransactionBuilder};
@@ -44,7 +43,7 @@ impl BuildInput<'_> {
 
 pub(super) async fn build_quote_data(client: &SuiClient, quote: &Quote, route: &PoolRoute, referral_fee: &ReferralFee, published_at: &str) -> Result<SwapperQuoteData, SwapperError> {
     let sender = quote.request.wallet_address.as_str();
-    let amount = quote.from_value.to_u64().ok_or_else(|| SwapperError::ComputeQuoteError("swap amount is too large".to_string()))?;
+    let amount = quote.from_value_u64()?;
     let mut pinned = HashMap::from([(CETUS_GLOBAL_CONFIG.to_string(), CETUS_SHARED_INIT_VERSION), (CETUS_PARTNER.to_string(), CETUS_PARTNER_INIT_VERSION)]);
     let mut object_ids = vec![CETUS_GLOBAL_CONFIG.to_string(), CETUS_PARTNER.to_string()];
     for hop in &route.hops {

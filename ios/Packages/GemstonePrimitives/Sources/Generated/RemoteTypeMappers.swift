@@ -1104,6 +1104,7 @@ public extension Gemstone.SwapProvider {
         case .mayachain: .mayachain
         case .swapsXyz: .swapsXyz
         case .bridgers: .bridgers
+        case .hyperion: .hyperion
         }
     }
 }
@@ -1134,6 +1135,7 @@ public extension Primitives.SwapProvider {
         case .mayachain: .mayachain
         case .swapsXyz: .swapsXyz
         case .bridgers: .bridgers
+        case .hyperion: .hyperion
         }
     }
 }

@@ -1,9 +1,9 @@
 use num_bigint::BigUint;
 use serde_json::Value;
 
-use crate::AccountAddress;
-use crate::models::{Account, DelegationPoolStake, RawTransaction};
+use crate::models::{Account, DelegationPoolStake, Event, Guid, RawTransaction, Transaction};
 use crate::signer::{EntryFunctionPayload, build_raw_transaction};
+use crate::{AccountAddress, FUNGIBLE_ASSET_WITHDRAW_EVENT};
 
 impl Account {
     pub fn mock() -> Self {
@@ -34,6 +34,25 @@ impl DelegationPoolStake {
             active: BigUint::from(active),
             inactive: BigUint::from(inactive),
             pending_inactive: BigUint::from(pending_inactive),
+        }
+    }
+}
+
+impl Event {
+    pub fn mock_withdraw(store: &AccountAddress, amount: u64) -> Self {
+        Self {
+            guid: Guid { account_address: "0x0".to_string() },
+            data: Some(serde_json::json!({ "amount": amount.to_string(), "store": store.to_string() })),
+            event_type: FUNGIBLE_ASSET_WITHDRAW_EVENT.to_string(),
+        }
+    }
+}
+
+impl Transaction {
+    pub fn with_event(&self, event: Event) -> Self {
+        Self {
+            events: Some([self.events.clone().unwrap_or_default(), vec![event]].concat()),
+            ..self.clone()
         }
     }
 }
