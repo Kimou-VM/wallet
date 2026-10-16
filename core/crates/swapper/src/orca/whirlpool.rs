@@ -9,7 +9,10 @@ use crate::{
 
 pub(super) const WHIRLPOOL_PROGRAM: Pubkey = Pubkey::new(hex!("0e03685f8e909053e458121c66f5a76aedc7706aa11c82f8aa952a8f2b7879a9"));
 const WHIRLPOOLS_CONFIG: Pubkey = Pubkey::new(hex!("13e441f83913ca68b0634fb025fdeaa88737e84110d1255e357b3377ddee1ccd"));
-const TICK_SPACINGS: [u16; 10] = [1, 2, 4, 8, 16, 64, 96, 128, 256, 32896];
+const FEE_TIER_INDEXES: [u16; 10] = [
+    1, 4, 8, 16, 64, 96, 128, // 2, 256, 32896
+    1025, 1026, 1030, // 1027, 1028, 1029, 1031, 1032, 1033, 1034, 1035, 1036, 2049, 2050, 2051
+];
 const WHIRLPOOL: &str = "Whirlpool";
 pub(super) const TICK_ARRAY_SIZE: i32 = 88;
 
@@ -17,8 +20,8 @@ pub(super) const TICK_ARRAY_SIZE: i32 = 88;
 pub(crate) struct Whirlpool {
     _whirlpools_config_and_bump: [u8; 33],
     pub tick_spacing: u16,
-    fee_tier_index: u16,
-    fee_rate: u16,
+    _fee_tier_index: u16,
+    pub fee_rate: u16,
     _protocol_fee_rate: u16,
     liquidity: u128,
     sqrt_price: u128,
@@ -34,19 +37,15 @@ pub(crate) struct Whirlpool {
 impl Whirlpool {
     pub fn decode(data: &[u8]) -> Result<Self, SwapperError> {
         let body = anchor_account_body(data, WHIRLPOOL)?;
-        let whirlpool = Self::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)?;
-        if whirlpool.fee_tier_index != whirlpool.tick_spacing {
-            return Err(SwapperError::compute_quote_error("Adaptive fee whirlpools are not supported"));
-        }
-        Ok(whirlpool)
+        Self::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)
     }
 
     pub fn addresses(mint_0: &Pubkey, mint_1: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         let (mint_a, mint_b) = if mint_0 < mint_1 { (mint_0, mint_1) } else { (mint_1, mint_0) };
-        TICK_SPACINGS
+        FEE_TIER_INDEXES
             .iter()
-            .map(|tick_spacing| {
-                let seeds = [b"whirlpool".as_slice(), WHIRLPOOLS_CONFIG.as_bytes(), mint_a.as_bytes(), mint_b.as_bytes(), &tick_spacing.to_le_bytes()];
+            .map(|fee_tier_index| {
+                let seeds = [b"whirlpool".as_slice(), WHIRLPOOLS_CONFIG.as_bytes(), mint_a.as_bytes(), mint_b.as_bytes(), &fee_tier_index.to_le_bytes()];
                 Ok(find_program_address(&WHIRLPOOL_PROGRAM, &seeds)?.0)
             })
             .collect()
@@ -72,7 +71,6 @@ impl Whirlpool {
         ClmmPool {
             sqrt_price: self.sqrt_price,
             liquidity: self.liquidity,
-            fee_rate: u32::from(self.fee_rate),
         }
     }
 
@@ -126,7 +124,7 @@ mod tests {
 
         assert_eq!(WHIRLPOOL_PROGRAM.to_base58(), SOLANA_ORCA_WHIRLPOOL_PROGRAM_ID);
         assert_eq!(addresses, Whirlpool::addresses(&sol, &usdc).unwrap());
-        assert_eq!(addresses[5].to_base58(), TEST_WHIRLPOOL);
+        assert_eq!(addresses[4].to_base58(), TEST_WHIRLPOOL);
     }
 
     #[test]

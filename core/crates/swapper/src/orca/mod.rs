@@ -1,3 +1,4 @@
+mod oracle;
 mod protocol;
 mod swap_v2;
 #[cfg(test)]

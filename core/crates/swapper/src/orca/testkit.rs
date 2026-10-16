@@ -3,6 +3,7 @@ use gem_encoding::decode_base64;
 use gem_jsonrpc::{client::JsonRpcClient, types::JsonRpcResponse};
 use gem_solana::{
     Pubkey,
+    instructions::program_ids::{sysvar_clock, sysvar_program},
     models::{AccountData, ValueResult},
 };
 use serde_json::{Value, json};
@@ -14,9 +15,13 @@ use std::{
     },
 };
 
+use borsh::BorshDeserialize;
+use gem_solana::models::Clock;
+
 use super::{tick_array::TickArray, whirlpool::Whirlpool};
 
 pub(super) const TEST_WHIRLPOOL: &str = "HJPjoWUrhoZzkNfRpHuieeFk9WcZWjwy6PBjZ81ngndJ";
+const TEST_CLOCK: &str = "+ZJIGwAAAAB7mtFqAAAAACMEAAAAAAAAJAQAAAAAAAD0b9JqAAAAAA==";
 
 fn mock_snapshot_accounts() -> Vec<Vec<u8>> {
     let response: JsonRpcResponse<ValueResult<Vec<Option<AccountData>>>> = serde_json::from_str(include_str!("../../testdata/orca/snapshot.json")).unwrap();
@@ -56,6 +61,7 @@ pub(super) fn mock_rpc_client(requests: Arc<AtomicUsize>) -> JsonRpcClient<MockC
 fn mock_snapshot_rpc_accounts() -> HashMap<String, Value> {
     let response: Value = serde_json::from_str(include_str!("../../testdata/orca/snapshot.json")).unwrap();
     let whirlpool = Pubkey::from_base58(TEST_WHIRLPOOL).unwrap();
+    let clock = json!({ "data": [TEST_CLOCK, "base64"], "owner": sysvar_program().to_base58() });
     response["result"]["value"]
         .as_array()
         .unwrap()
@@ -70,6 +76,7 @@ fn mock_snapshot_rpc_accounts() -> HashMap<String, Value> {
             };
             (address.to_base58(), account.clone())
         })
+        .chain([(sysvar_clock().to_base58(), clock)])
         .collect()
 }
 
@@ -83,4 +90,18 @@ fn mock_rpc_response(call: &Value, accounts: &HashMap<String, Value>) -> Value {
         method => panic!("unexpected method {method}"),
     };
     json!({ "jsonrpc": "2.0", "id": call["id"], "result": result })
+}
+
+pub(super) fn mock_adaptive_snapshot() -> (Pubkey, HashMap<Pubkey, Option<Vec<u8>>>, u64) {
+    let snapshot: Value = serde_json::from_str(include_str!("../../testdata/orca/adaptive_snapshot.json")).unwrap();
+    let accounts = snapshot["addresses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(snapshot["result"]["value"].as_array().unwrap())
+        .map(|(address, account)| (Pubkey::from_base58(address.as_str().unwrap()).unwrap(), account["data"][0].as_str().map(|data| decode_base64(data).unwrap())))
+        .collect::<HashMap<_, _>>();
+    let clock = Clock::try_from_slice(accounts[&sysvar_clock()].as_ref().unwrap()).unwrap();
+    let address = Pubkey::from_base58(snapshot["addresses"][0].as_str().unwrap()).unwrap();
+    (address, accounts, u64::try_from(clock.unix_timestamp).unwrap())
 }
