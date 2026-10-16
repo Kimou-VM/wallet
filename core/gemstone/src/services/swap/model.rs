@@ -172,14 +172,12 @@ pub struct GemSwapButtonInput {
     pub value: GemBigInt,
     pub available_balance: GemBigInt,
     pub quote_error: Option<SwapperError>,
-    pub transfer_error: Option<SwapperError>,
 }
 
 #[derive(Debug, Clone, PartialEq, uniffi::Enum)]
 pub enum GemSwapButtonAction {
     Swap,
     RetryQuote,
-    RetryTransfer,
     UseMinimumAmount { value: GemBigInt },
     InsufficientBalance,
 }

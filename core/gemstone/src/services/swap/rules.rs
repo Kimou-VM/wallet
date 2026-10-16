@@ -282,9 +282,6 @@ impl GemSwapButtonInput {
             }
             return GemSwapButtonAction::UseMinimumAmount { value: minimum };
         }
-        if is_retryable(self.transfer_error.as_ref()) {
-            return GemSwapButtonAction::RetryTransfer;
-        }
         if is_retryable(self.quote_error.as_ref()) {
             return GemSwapButtonAction::RetryQuote;
         }
@@ -771,26 +768,15 @@ mod tests {
             };
             assert_eq!(input.action(), action);
         }
-        for (error, action) in [
-            (SwapperError::TransactionError("nonce".to_string()), GemSwapButtonAction::RetryTransfer),
-            (SwapperError::NotSupportedChain, GemSwapButtonAction::Swap),
-        ] {
-            let input = GemSwapButtonInput {
-                transfer_error: Some(error),
-                ..GemSwapButtonInput::mock(100, 100)
-            };
-            assert_eq!(input.action(), action);
-        }
     }
 
     #[test]
-    fn test_button_action_prefers_the_minimum_amount_then_the_transfer_retry() {
+    fn test_button_action_prefers_the_minimum_amount_then_the_quote_retry() {
         let input = GemSwapButtonInput {
             quote_error: Some(SwapperError::NoQuoteAvailable),
-            transfer_error: Some(SwapperError::NoQuoteAvailable),
             ..GemSwapButtonInput::mock(101, 100)
         };
-        assert_eq!(input.action(), GemSwapButtonAction::RetryTransfer);
+        assert_eq!(input.action(), GemSwapButtonAction::RetryQuote);
 
         let with_minimum = GemSwapButtonInput {
             quote_error: Some(SwapperError::InputAmountError { min_amount: Some("50".to_string()) }),

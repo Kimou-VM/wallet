@@ -304,8 +304,6 @@ class SwapViewModel @Inject constructor(
                 }
             }
 
-            GemSwapButtonAction.RetryTransfer -> swap(onConfirm, onError)
-
             GemSwapButtonAction.RetryQuote -> refresh()
 
             is GemSwapButtonAction.UseMinimumAmount -> setMinimumAmount()

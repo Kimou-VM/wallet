@@ -525,8 +525,8 @@ class SwapViewModelTest {
         val viewModel = createViewModel(swapSavedState())
         advanceUntilIdle()
         seedReadyQuote(viewModel)
-        viewModel.swap(onConfirm = {}, onError = {})
-        awaitCondition { viewModel.viewState.value.buttonAction == GemSwapButtonAction.RetryTransfer }
+        viewModel.swap(onConfirm = {}, onError = {}).join()
+        runCurrent()
         failQuote(viewModel, SwapperException.ComputeQuoteException("offline"))
         stubBuildConfirmInput()
         viewModel.onPrimaryAction(onConfirm = { viewModel.setRefreshEnabled(false) }, onError = {}, onShowPriceImpactWarning = {})
@@ -571,7 +571,7 @@ class SwapViewModelTest {
     }
 
     @Test
-    fun `transfer data error keeps quote visible and routes retry through transfer state`() = runTest(testDispatcher) {
+    fun `transfer data error keeps quote visible and Swap prepares the transfer again`() = runTest(testDispatcher) {
         val wallet = mockWallet(accounts = listOf(mockAccount(chain = solAsset.id.chain)))
         every { getSession() } returns MutableStateFlow(
             mockSession(wallet = wallet),
@@ -592,7 +592,7 @@ class SwapViewModelTest {
         assertEquals(GemInfoTopic.NoQuote.infoSheet(), alerts.single().info()?.infoSheet())
         assertFalse(viewModel.viewState.value.quotesState is GemSwapQuotesState.Failed)
         assertEquals(2.5, viewModel.viewState.value.details?.provider?.amount?.value)
-        assertEquals(GemSwapButtonAction.RetryTransfer, viewModel.viewState.value.buttonAction)
+        assertEquals(GemSwapButtonAction.Swap, viewModel.viewState.value.buttonAction)
 
         viewModel.onPrimaryAction(onConfirm = {}, onError = { alerts += it }, onShowPriceImpactWarning = {})
         advanceUntilIdle()
@@ -603,7 +603,7 @@ class SwapViewModelTest {
     }
 
     @Test
-    fun `an unexpected transfer error releases loading and offers transfer retry`() = runTest(testDispatcher) {
+    fun `an unexpected transfer error releases loading and keeps the Swap button`() = runTest(testDispatcher) {
         val wallet = mockWallet(accounts = listOf(mockAccount(chain = solAsset.id.chain)))
         every { getSession() } returns MutableStateFlow(mockSession(wallet = wallet))
         coEvery { swapQuoteService.transferData(any()) } throws IllegalStateException("unexpected transfer failure")
@@ -619,7 +619,7 @@ class SwapViewModelTest {
 
         val state = viewModel.viewState.value
         assertFalse(state.isTransferLoading)
-        assertEquals(GemSwapButtonAction.RetryTransfer, state.buttonAction)
+        assertEquals(GemSwapButtonAction.Swap, state.buttonAction)
         assertEquals(ButtonState.Enabled, state.buttonState.buttonState())
         assertEquals(quote, state.quote)
         assertNotNull(alert)
@@ -628,7 +628,7 @@ class SwapViewModelTest {
     }
 
     @Test
-    fun `a transfer failure Core cannot retry leaves the button tappable and retries the transfer`() = runTest(testDispatcher) {
+    fun `a transfer failure leaves the Swap button tappable and swaps again`() = runTest(testDispatcher) {
         val wallet = mockWallet(accounts = listOf(mockAccount(chain = solAsset.id.chain)))
         every { getSession() } returns MutableStateFlow(
             mockSession(wallet = wallet),
@@ -677,8 +677,8 @@ class SwapViewModelTest {
         advanceUntilIdle()
 
         seedReadyQuote(viewModel)
-        viewModel.swap(onConfirm = {}, onError = {})
-        awaitCondition { viewModel.viewState.value.buttonAction == GemSwapButtonAction.RetryTransfer }
+        viewModel.swap(onConfirm = {}, onError = {}).join()
+        runCurrent()
 
         viewModel.setProvider(SwapProvider.UNISWAP_V3)
         advanceUntilIdle()
@@ -687,8 +687,8 @@ class SwapViewModelTest {
         assertEquals(GemSwapButtonAction.Swap, viewModel.viewState.value.buttonAction)
         assertFalse(viewModel.viewState.value.quotesState is GemSwapQuotesState.Failed)
 
-        viewModel.swap(onConfirm = {}, onError = {})
-        awaitCondition { viewModel.viewState.value.buttonAction == GemSwapButtonAction.RetryTransfer }
+        viewModel.swap(onConfirm = {}, onError = {}).join()
+        runCurrent()
 
         viewModel.payValue.setTextAndPlaceCursorAtEnd("2")
         Snapshot.sendApplyNotifications()

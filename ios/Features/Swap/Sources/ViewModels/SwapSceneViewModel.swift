@@ -395,7 +395,6 @@ extension SwapSceneViewModel {
                 session = session.onRefreshRequested(request: input.request)
             }
             setLoadTrigger(isImmediate: true)
-        case .retryTransfer: await swap()
         case .insufficientBalance: break
         case .useMinimumAmount: setMinimumAmount()
         case .swap:

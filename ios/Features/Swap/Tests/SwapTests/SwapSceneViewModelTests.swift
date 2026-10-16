@@ -309,12 +309,12 @@ struct SwapSceneViewModelTests {
         await model.onSelectSwapConfirmation()
 
         #expect(model.viewState.isTransferLoading == false)
-        #expect(model.viewState.buttonAction == .retryTransfer)
+        #expect(model.viewState.buttonAction == .swap)
         #expect(model.quoteError == nil)
         #expect(model.quoteDataErrorAlert?.message == Localized.Errors.Swap.noQuoteAvailable)
         model.quoteDataErrorAlert = nil
         #expect(model.quoteDataErrorAlert == nil)
-        #expect(model.viewState.buttonAction == .retryTransfer)
+        #expect(model.viewState.buttonAction == .swap)
     }
 
     @Test

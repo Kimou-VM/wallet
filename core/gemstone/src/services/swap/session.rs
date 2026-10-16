@@ -119,7 +119,6 @@ impl GemSwapSession {
             value: self.input.as_ref().map(|input| GemBigInt::from(input.request.value.clone())).unwrap_or_default(),
             available_balance,
             quote_error: self.quote_error(),
-            transfer_error: self.transfer_error(),
         }
         .action()
     }
@@ -474,7 +473,7 @@ impl GemSwapSession {
             GemSwapButtonAction::InsufficientBalance => GemButtonState::Disabled,
             _ if self.is_quote_loading() || self.is_transfer_loading() => GemButtonState::Loading,
             GemSwapButtonAction::Swap if self.current_quote().is_none() => GemButtonState::Disabled,
-            GemSwapButtonAction::Swap | GemSwapButtonAction::RetryQuote | GemSwapButtonAction::RetryTransfer | GemSwapButtonAction::UseMinimumAmount { .. } => GemButtonState::Enabled,
+            GemSwapButtonAction::Swap | GemSwapButtonAction::RetryQuote | GemSwapButtonAction::UseMinimumAmount { .. } => GemButtonState::Enabled,
         }
     }
 
@@ -528,13 +527,6 @@ impl GemSwapSession {
     fn current_quote(&self) -> Option<&SwapperQuote> {
         self.quotes.as_ref()?;
         self.selected_quote.as_ref()
-    }
-
-    pub(crate) fn transfer_error(&self) -> Option<SwapperError> {
-        match &self.transfer_phase {
-            GemSwapTransferPhase::Failed { error, .. } => Some(error.clone()),
-            GemSwapTransferPhase::Idle | GemSwapTransferPhase::Loading { .. } => None,
-        }
     }
 
     fn accepts_quotes(&self) -> bool {
@@ -814,7 +806,6 @@ mod tests {
         let transfer = started.transfer_phase.clone();
 
         let failed = started.on_transfer_failed(transfer.clone(), SwapperError::TransactionError("boom".into()));
-        assert_eq!(failed.transfer_error(), Some(SwapperError::TransactionError("boom".into())));
         let failed_view = view(&failed, 1000);
         assert_eq!(failed_view.quotes_state, GemSwapQuotesState::Quotes, "a quote-data failure does not become an inline quote error");
         assert_eq!(
@@ -864,8 +855,8 @@ mod tests {
         let started = session.start_transfer().unwrap();
         assert_eq!(started.button_state(GemSwapButtonAction::Swap), GemButtonState::Loading);
         let failed = started.on_transfer_failed(started.transfer_phase.clone(), SwapperError::TransactionError("boom".into()));
-        assert_eq!(failed.button_action(GemBigInt::from(200)), GemSwapButtonAction::RetryTransfer);
-        assert_eq!(failed.button_state(GemSwapButtonAction::RetryTransfer), GemButtonState::Enabled);
+        assert_eq!(failed.button_action(GemBigInt::from(200)), GemSwapButtonAction::Swap, "a failed transfer keeps the Swap button, so pressing it swaps again");
+        assert_eq!(failed.button_state(GemSwapButtonAction::Swap), GemButtonState::Enabled);
     }
 
     #[test]

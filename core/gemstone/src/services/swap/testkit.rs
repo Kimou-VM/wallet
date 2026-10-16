@@ -85,7 +85,6 @@ impl GemSwapButtonInput {
             value: BigInt::from(value),
             available_balance: BigInt::from(available_balance),
             quote_error: None,
-            transfer_error: None,
         }
     }
 }

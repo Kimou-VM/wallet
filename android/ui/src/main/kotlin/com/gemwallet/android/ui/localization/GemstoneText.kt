@@ -1529,9 +1529,7 @@ fun GemSwapButtonAction.stringRes(): Int = when (this) {
 
     is GemSwapButtonAction.UseMinimumAmount -> R.string.swap_use_minimum_amount
 
-    GemSwapButtonAction.RetryQuote,
-    GemSwapButtonAction.RetryTransfer,
-    -> R.string.common_try_again
+    GemSwapButtonAction.RetryQuote -> R.string.common_try_again
 
     GemSwapButtonAction.Swap -> R.string.wallet_swap
 }

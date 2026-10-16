@@ -1462,7 +1462,7 @@ public extension GemDelegationAction {
 public extension GemSwapButtonAction {
     func title(symbol: String) -> String {
         switch self {
-        case .retryQuote, .retryTransfer: Localized.Common.tryAgain
+        case .retryQuote: Localized.Common.tryAgain
         case .insufficientBalance: Localized.Transfer.insufficientBalance(symbol)
         case .useMinimumAmount: Localized.Swap.useMinimumAmount
         case .swap: Localized.Wallet.swap
