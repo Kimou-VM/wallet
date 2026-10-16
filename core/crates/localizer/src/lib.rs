@@ -1,7 +1,7 @@
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use i18n_embed::{
-    DefaultLocalizer, LanguageLoader, Localizer, RustEmbedNotifyAssets,
+    DefaultLocalizer, LanguageLoader, Localizer,
     fluent::{FluentLanguageLoader, fluent_language_loader},
 };
 use rust_embed::RustEmbed;
@@ -10,7 +10,7 @@ use rust_embed::RustEmbed;
 #[folder = "i18n/"]
 pub struct LocalizationsEmbed;
 
-pub static LOCALIZATIONS: LazyLock<RustEmbedNotifyAssets<LocalizationsEmbed>> = LazyLock::new(|| RustEmbedNotifyAssets::new(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("i18n/")));
+pub static LOCALIZATIONS: LocalizationsEmbed = LocalizationsEmbed;
 
 macro_rules! fl {
     ($loader:expr, $message_id:literal) => {{
@@ -55,11 +55,11 @@ impl LanguageLocalizer {
     pub fn new() -> Self {
         let loader = Arc::new(fluent_language_loader!());
 
-        loader.load_fallback_language(&*LOCALIZATIONS).expect("Error while loading fallback language");
+        loader.load_fallback_language(&LOCALIZATIONS).expect("Error while loading fallback language");
 
         let loader_ref: &'static FluentLanguageLoader = unsafe { &*(Arc::as_ptr(&loader) as *const _) };
 
-        let localizer = DefaultLocalizer::new(loader_ref, &*LOCALIZATIONS);
+        let localizer = DefaultLocalizer::new(loader_ref, &LOCALIZATIONS);
 
         Self { loader, localizer }
     }

@@ -136,3 +136,24 @@ async fn flush_device_stream_events(observer: &StreamObserver, device_stream: &D
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Error as IoError;
+
+    use axum::Error as AxumError;
+    use tokio_tungstenite::tungstenite::error::ProtocolError;
+
+    use super::{WsError, is_disconnect_error};
+
+    #[test]
+    fn test_is_disconnect_error() {
+        for error in [WsError::ConnectionClosed, WsError::AlreadyClosed, WsError::Protocol(ProtocolError::ResetWithoutClosingHandshake)] {
+            assert!(is_disconnect_error(&AxumError::new(error)));
+        }
+
+        assert!(is_disconnect_error(&AxumError::new(AxumError::new(WsError::ConnectionClosed))));
+        assert!(!is_disconnect_error(&AxumError::new(WsError::Io(IoError::other("read failed")))));
+        assert!(!is_disconnect_error(&AxumError::new(IoError::other("unrelated failure"))));
+    }
+}
