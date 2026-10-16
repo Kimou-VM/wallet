@@ -1,10 +1,17 @@
 use std::str::FromStr;
 
 use num_bigint::BigUint;
-use primitives::{TransactionSwapMetadata, swap::SwapStatus};
+use primitives::{
+    AssetId, TransactionSwapMetadata, TransactionSwapReferralFee,
+    swap::{HUNDRED_PERCENT_IN_BPS, SwapStatus},
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{SwapperProvider, bridgers::asset::get_asset_id};
+use crate::{
+    SwapperProvider,
+    bridgers::asset::get_asset_id,
+    fees::{DEFAULT_REFERRER, DEFAULT_SWAP_FEE_BPS},
+};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,17 +43,32 @@ pub struct Record {
     pub to_token_address: String,
     pub from_amount: String,
     pub to_amount: String,
+    pub source: Option<String>,
 }
 
 impl Record {
     pub fn swap_metadata(&self) -> Option<TransactionSwapMetadata> {
-        Some(TransactionSwapMetadata::new(
-            get_asset_id(&self.from_chain, &self.from_token_address)?,
-            BigUint::from_str(&self.from_amount).ok()?,
-            get_asset_id(&self.to_chain, &self.to_token_address)?,
-            BigUint::from_str(&self.to_amount).ok()?,
-            SwapperProvider::Bridgers,
-        ))
+        let from_asset = get_asset_id(&self.from_chain, &self.from_token_address)?;
+        let from_value = BigUint::from_str(&self.from_amount).ok()?;
+        let referral_fee = self.referral_fee(&from_asset, &from_value);
+        Some(
+            TransactionSwapMetadata::new(
+                from_asset,
+                from_value,
+                get_asset_id(&self.to_chain, &self.to_token_address)?,
+                BigUint::from_str(&self.to_amount).ok()?,
+                SwapperProvider::Bridgers,
+            )
+            .with_referral_fee(referral_fee),
+        )
+    }
+
+    fn referral_fee(&self, from_asset: &AssetId, from_value: &BigUint) -> Option<TransactionSwapReferralFee> {
+        let is_charged = self.status == RecordStatus::ReceiveComplete && self.source.as_deref() == Some(DEFAULT_REFERRER);
+        is_charged.then(|| TransactionSwapReferralFee {
+            asset_id: from_asset.clone(),
+            value: from_value * DEFAULT_SWAP_FEE_BPS / HUNDRED_PERCENT_IN_BPS,
+        })
     }
 }
 
@@ -98,8 +120,21 @@ mod tests {
                 to_asset: AssetId::from_chain(Chain::OpBNB),
                 to_value: BigUint::from(25_126_000_000_000_000u64),
                 provider: Some("bridgers".to_string()),
-                referral_fee: None,
+                referral_fee: Some(TransactionSwapReferralFee {
+                    asset_id: ARBITRUM_USDC_ASSET_ID.clone(),
+                    value: BigUint::from(100_000u64),
+                }),
             })
+        );
+        assert_eq!(
+            Record {
+                status: RecordStatus::RefundComplete,
+                ..arbitrum_to_opbnb.clone()
+            }
+            .swap_metadata()
+            .and_then(|metadata| metadata.referral_fee),
+            None,
+            "a refunded swap earns no fee"
         );
         assert_eq!(opbnb_to_ton.swap_metadata(), None);
         assert_eq!(
