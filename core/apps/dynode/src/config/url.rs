@@ -14,6 +14,21 @@ pub struct Override {
     pub rpc_method: Option<String>,
     pub path: Option<String>,
     pub url: String,
+    #[serde(default = "default_fallback")]
+    pub fallback: bool,
+}
+
+fn default_fallback() -> bool {
+    true
+}
+
+impl Override {
+    pub fn url_for(&self, active_url: &Url) -> Url {
+        Url {
+            url: self.url.clone(),
+            headers: active_url.headers.clone(),
+        }
+    }
 }
 
 impl Url {
@@ -38,5 +53,14 @@ mod tests {
         assert_eq!(Url::mock("  https://example.com  ").host(), "example.com");
         assert_eq!(Url::mock("wss://node.example.com:443/ws").host(), "node.example.com");
         assert_eq!(Url::mock("https://fallback.example.com:8080/path").host(), "fallback.example.com");
+    }
+
+    #[test]
+    fn override_fallback_defaults_to_true() {
+        let override_config: Override = serde_json::from_value(serde_json::json!({ "rpc_method": "getTransaction", "url": "https://example.com" })).unwrap();
+        assert!(override_config.fallback);
+
+        let override_config: Override = serde_json::from_value(serde_json::json!({ "url": "https://example.com", "fallback": false })).unwrap();
+        assert!(!override_config.fallback);
     }
 }

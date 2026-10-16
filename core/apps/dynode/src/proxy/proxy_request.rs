@@ -65,6 +65,13 @@ impl ProxyRequest {
         &self.request_type
     }
 
+    pub(crate) fn rpc_method(&self) -> Option<&str> {
+        match self.request_type() {
+            RequestType::JsonRpc(JsonRpcRequest::Single(call)) => Some(call.method.as_str()),
+            RequestType::JsonRpc(JsonRpcRequest::Batch(_)) | RequestType::Regular { .. } => None,
+        }
+    }
+
     pub(crate) fn is_broadcast(&self, providers: &BroadcastProviders) -> bool {
         let request = match self.request_type() {
             RequestType::JsonRpc(JsonRpcRequest::Single(call)) => ChainRequest::new(ChainRequestProtocol::JsonRpc, &call.method, &self.path, &self.body),

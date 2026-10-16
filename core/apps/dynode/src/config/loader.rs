@@ -200,6 +200,7 @@ mod tests {
                 rpc_method: Some("eth_chainId".to_string()),
                 path: None,
                 url: "https://${HOST}/override".to_string(),
+                fallback: true,
             }]),
             ..ChainConfig::mock(Chain::Ethereum)
         };

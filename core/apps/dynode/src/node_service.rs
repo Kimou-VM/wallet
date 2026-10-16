@@ -14,6 +14,7 @@ use serde_json::Value;
 use tokio::sync::RwLock;
 
 use self::error::NodeServiceError;
+use self::upstream::Upstream;
 use crate::BoxError;
 use crate::cache::RequestCache;
 use crate::config::{ChainConfig, ChainTypesConfig, ErrorMatcherConfig, HeadersConfig, MonitoringConfig, REJECTED_ROUTE, RetryConfig, Url};
@@ -23,11 +24,11 @@ use crate::metrics::Metrics;
 use crate::monitoring::NodeMonitor;
 use crate::proxy::constants::JSON_CONTENT_TYPE;
 use crate::proxy::proxy_request::ProxyRequest;
-use crate::proxy::request_url::RequestUrl;
 use crate::proxy::{CacheStatus, ProxyRequestService, ProxyResponse};
 use crate::webhook::DynodeBroadcastWebhookClient;
 
 mod error;
+mod upstream;
 
 pub struct NodeService {
     pub(crate) chains: HashMap<Chain, ChainConfig>,
@@ -110,8 +111,9 @@ impl NodeService {
         let Some(urls) = self.request_urls(chain_config, request).await else {
             return self.node_not_found_response(request);
         };
-        if urls.len() == 1 {
-            let url = RequestUrl::for_request(request, &urls[0], chain_config)?;
+        let upstreams = Upstream::plan(request, chain_config, &urls, &self.retry_config);
+        if let ([upstream], [active_url]) = (upstreams.as_slice(), urls.as_slice()) {
+            let url = upstream.request_url(request, active_url)?;
             return self.proxy.forward_request(request, &url, route, broadcast_host).await;
         }
 
@@ -120,10 +122,10 @@ impl NodeService {
         let mut last_error_data: Option<Value> = None;
         let mut original_host = String::new();
         let mut failed_host = String::new();
-        let max_attempts = if retry_enabled { self.retry_config.effective_max_attempts(urls.len()) } else { 1 };
+        let max_attempts = upstreams.len();
 
-        for (index, url) in urls.iter().take(max_attempts).enumerate() {
-            let upstream_url = RequestUrl::for_request(request, url, chain_config);
+        for (index, upstream) in upstreams.into_iter().enumerate() {
+            let upstream_url = upstream.request_url(request, &urls[0]);
             let remote_host = upstream_url.as_ref().ok().and_then(|url| url.url.host_str()).unwrap_or("unknown").to_string();
             if index == 0 {
                 original_host.clone_from(&remote_host);
@@ -148,7 +150,7 @@ impl NodeService {
                 Ok(response) => {
                     let retry_error = self.matches_response_error_signal(request, &response, &self.retry_config.errors);
                     if !response.is_from_cache() {
-                        self.report_active_node_outcome(index, request.chain, url, retry_error);
+                        self.report_active_node_outcome(upstream, request.chain, retry_error);
                     }
                     if !retry_error {
                         return Ok(response);
@@ -167,7 +169,7 @@ impl NodeService {
                     last_error_data = upstream_data;
                 }
                 Err(error) => {
-                    self.report_active_node_outcome(index, request.chain, url, true);
+                    self.report_active_node_outcome(upstream, request.chain, true);
                     if !retry_enabled {
                         return Err(error);
                     }
@@ -213,8 +215,8 @@ impl NodeService {
         self.log_and_create_error_response(request, None, NodeServiceError::UpstreamsFailed, last_error_data)
     }
 
-    fn report_active_node_outcome(&self, attempt_index: usize, chain: Chain, url: &Url, failed: bool) {
-        if attempt_index == 0 {
+    fn report_active_node_outcome(&self, upstream: Upstream, chain: Chain, failed: bool) {
+        if let Some(url) = upstream.active_node() {
             self.node_monitor.report(chain, url, failed);
         }
     }
@@ -396,10 +398,10 @@ mod tests {
         for (urls, override_url, expected) in [
             (vec![], None, None),
             (vec!["http://127.0.0.1:9/secret-key"], None, Some("127.0.0.1")),
-            (vec!["http://127.0.0.1:9"], Some("http://localhost:9/secret-key"), Some("localhost")),
+            (vec!["http://127.0.0.1:9"], Some("http://localhost:9/secret-key"), Some("127.0.0.1")),
             (vec!["http://127.0.0.1:9/secret-key", "http://localhost:9/other-key"], None, Some("localhost")),
             (vec!["http://127.0.0.1:9/secret-key", "http://localhost:9/other-key", "http://localhost:9/third-key"], None, Some("localhost")),
-            (vec!["http://127.0.0.1:9/secret-key", "http://127.0.0.1:9/other-key"], Some("http://localhost:9/override-key"), Some("localhost")),
+            (vec!["http://127.0.0.1:9/secret-key", "http://127.0.0.1:9/other-key"], Some("http://localhost:9/override-key"), Some("127.0.0.1")),
         ] {
             let config = ChainConfig {
                 urls: urls.into_iter().map(Url::mock).collect(),
@@ -408,6 +410,7 @@ mod tests {
                         rpc_method: Some("eth_sendRawTransaction".to_string()),
                         path: None,
                         url: url.to_string(),
+                        fallback: true,
                     }]
                 }),
                 ..ChainConfig::mock(Chain::Ethereum)
@@ -420,6 +423,33 @@ mod tests {
             let mut remote_host = None;
             let _ = service.proxy_request_to_node(&request, Some(RPC_ROUTE), &mut remote_host).await;
             assert_eq!(remote_host.as_deref(), expected);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_failed_override_falls_back_to_nodes() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let node = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, axum::Router::new().fallback(|| async { r#"{"jsonrpc":"2.0","result":null,"id":1}"# })).await });
+        let config = |fallback| ChainConfig {
+            urls: vec![Url::mock(&node)],
+            overrides: Some(vec![Override {
+                rpc_method: Some("getTransaction".to_string()),
+                path: None,
+                url: "http://127.0.0.1:9".to_string(),
+                fallback,
+            }]),
+            ..ChainConfig::mock(Chain::Solana)
+        };
+        let request = ProxyRequest::mock_jsonrpc(Chain::Solana, "getTransaction");
+
+        for (fallback, retry_config, falls_back) in [(true, RetryConfig::mock(), true), (false, RetryConfig::mock(), false), (true, RetryConfig::default(), false)] {
+            let service = NodeService {
+                retry_config,
+                ..NodeService::mock(config(fallback))
+            };
+            let result = service.proxy_request_to_node(&request, Some(RPC_ROUTE), &mut None).await;
+            assert_eq!(result.is_ok_and(|response| response.status == StatusCode::OK.as_u16()), falls_back);
         }
     }
 
