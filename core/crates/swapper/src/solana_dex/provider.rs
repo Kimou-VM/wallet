@@ -77,11 +77,11 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         Ok(lookups.into_iter().filter(|(_, lookups)| lookups.iter().all(|lookup| !lookup.addresses.is_empty())).collect())
     }
 
-    fn requested_accounts(&self, paths: &[&PathLookup<P::Pool>], pair: Pair) -> Vec<Pubkey> {
+    fn requested_accounts(&self, paths: &[&PathLookup<P::Pool>], pair: Pair) -> (Vec<Pubkey>, Vec<Pubkey>) {
         let lookups = paths.iter().flat_map(|(_, lookups)| lookups).collect::<Vec<_>>();
         let known = lookups.iter().map(|lookup| (lookup.pair, lookup.known.clone())).collect();
         let predicted = self.predicted_quote_accounts(&self.routes(paths.iter().map(|(path, _)| path), pair, &known));
-        lookups.iter().flat_map(|lookup| lookup.addresses.clone()).chain(predicted).collect()
+        (lookups.iter().flat_map(|lookup| lookup.addresses.clone()).collect(), predicted)
     }
 
     fn pool_lookup(&self, pair: Pair) -> Result<PoolLookup<P::Pool>, SwapperError> {
@@ -246,10 +246,18 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
             return Err(SwapperError::NoQuoteAvailable);
         }
         let (direct, intermediary): (Vec<_>, Vec<_>) = paths.iter().partition(|(path, _)| *path == RoutePath::Direct);
-        let direct_accounts = [self.requested_accounts(&direct, pair), referral_accounts, vec![input.mint, output.mint, sysvar_clock()]].concat();
-        let intermediary_accounts = self.requested_accounts(&intermediary, pair);
-        let (direct, intermediary) = futures::try_join!(self.fetch_accounts(direct_accounts), self.fetch_accounts(intermediary_accounts))?;
-        let accounts = direct.into_iter().chain(intermediary).collect::<Accounts>();
+        let groups = [direct, intermediary].map(|paths| self.requested_accounts(&paths, pair));
+        let calls = if groups.iter().all(|(_, predicted)| predicted.is_empty()) {
+            vec![groups.into_iter().flat_map(|(pools, _)| pools).collect::<Vec<_>>()]
+        } else {
+            groups.into_iter().map(|(pools, predicted)| [pools, predicted].concat()).filter(|accounts| !accounts.is_empty()).collect()
+        };
+        let extras = [referral_accounts, vec![input.mint, output.mint, sysvar_clock()]].concat();
+        let calls = calls.into_iter().enumerate().map(|(index, accounts)| match index {
+            0 => [accounts, extras.clone()].concat(),
+            _ => accounts,
+        });
+        let accounts = futures::future::try_join_all(calls.map(|accounts| self.fetch_accounts(accounts))).await?.into_iter().flatten().collect::<Accounts>();
         let pools = paths.iter().flat_map(|(_, lookups)| lookups).map(|lookup| (lookup.pair, self.record_pools(lookup, &accounts))).collect();
         let routes = self.routes(paths.iter().map(|(path, _)| path), pair, &pools);
         let clock = chain_clock(&accounts)?;

@@ -172,12 +172,12 @@ mod tests {
             ..request.clone()
         };
         assert_eq!(orca.get_quote(&unsupported).await, Err(SwapperError::NoQuoteAvailable));
-        assert_eq!(requests.load(Ordering::SeqCst), 5);
+        assert_eq!(requests.load(Ordering::SeqCst), 4);
         assert_eq!(orca.get_quote(&unsupported).await, Err(SwapperError::NoQuoteAvailable));
-        assert_eq!(requests.load(Ordering::SeqCst), 5);
+        assert_eq!(requests.load(Ordering::SeqCst), 4);
 
         let quote_data = orca.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
-        assert_eq!(requests.load(Ordering::SeqCst), 6);
+        assert_eq!(requests.load(Ordering::SeqCst), 5);
         assert_eq!(quote_data.to, orca_whirlpool_program().to_base58());
 
         let route_data = quote.data.routes[0].route_data.replace(TEST_WHIRLPOOL, &Pubkey::new([1; 32]).to_base58());
@@ -189,7 +189,7 @@ mod tests {
             ..quote
         };
         assert_eq!(orca.get_quote_data(&tampered, FetchQuoteData::None).await, Err(SwapperError::InvalidRoute));
-        assert_eq!(requests.load(Ordering::SeqCst), 6);
+        assert_eq!(requests.load(Ordering::SeqCst), 5);
     }
 
     #[tokio::test]
@@ -240,15 +240,15 @@ mod tests {
 
         let quote = orca.get_quote(&request).await.unwrap();
         let route: serde_json::Value = serde_json::from_str(&quote.data.routes[0].route_data).unwrap();
-        assert_eq!(requests.load(Ordering::SeqCst), 3);
+        assert_eq!(requests.load(Ordering::SeqCst), 2);
         assert_eq!(quote.to_value, BigUint::from(8_366_332_123_054u64));
         assert_eq!([&route["hops"][0]["pool"], &route["hops"][1]["pool"]], [TEST_WHIRLPOOL, TEST_AQUA_WHIRLPOOL]);
 
         assert_eq!(orca.get_quote(&request).await.unwrap(), quote);
-        assert_eq!(requests.load(Ordering::SeqCst), 5);
+        assert_eq!(requests.load(Ordering::SeqCst), 3);
 
         let quote_data = orca.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
-        assert_eq!(requests.load(Ordering::SeqCst), 6);
+        assert_eq!(requests.load(Ordering::SeqCst), 4);
         assert_eq!(quote_data.to, orca_whirlpool_program().to_base58());
     }
 
