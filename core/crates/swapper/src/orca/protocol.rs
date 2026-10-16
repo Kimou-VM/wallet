@@ -10,7 +10,6 @@ use crate::{
     solana_dex::{DexProtocol, PoolSwap, quote_exact_in},
 };
 
-#[derive(Debug, Default)]
 pub(crate) struct Orca;
 
 impl DexProtocol for Orca {
