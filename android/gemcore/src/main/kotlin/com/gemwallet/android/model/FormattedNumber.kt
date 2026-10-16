@@ -33,7 +33,7 @@ private val GemFormattedNumber.numberRounding: RoundingMode
 private fun GemFormattedNumber.body(locale: Locale): String = when (val display = display) {
     is GemNumberDisplay.Number -> when (unit) {
         is GemNumberUnit.Percent -> percentText(BigDecimal.valueOf(value), display.precision, showsSign, numberRounding, locale)
-        else -> appendSymbol(numberText(decimalValue, display.precision, locale))
+        is GemNumberUnit.Currency, is GemNumberUnit.Symbol, GemNumberUnit.Plain, GemNumberUnit.Multiplier -> appendSymbol(numberText(decimalValue, display.precision, locale))
     }
 
     is GemNumberDisplay.Abbreviated -> appendSymbol(abbreviatedText(BigDecimal.valueOf(value), locale))
@@ -55,9 +55,6 @@ private val GemFormattedNumber.signText: String
 
 private val GemFormattedNumber.currencyCode: String?
     get() = (unit as? GemNumberUnit.Currency)?.code
-
-private val GemFormattedNumber.symbol: String?
-    get() = (unit as? GemNumberUnit.Symbol)?.symbol
 
 private fun percentText(value: BigDecimal, precision: GemPrecision, showsSign: Boolean, rounding: RoundingMode, locale: Locale): String {
     val formatter = (percentFormats.getOrPut(locale) { NumberFormat.getPercentInstance(locale) as DecimalFormat }.clone() as DecimalFormat).apply {

@@ -98,7 +98,7 @@ fun InfoBottomSheet(item: InfoSheetEntity?, onClose: () -> Unit) {
                             onClose()
                             when (action) {
                                 is GemInfoAction.LearnMore -> uriHandler.open(context, action.url)
-                                else -> onAction?.invoke(action)
+                                is GemInfoAction.Buy, is GemInfoAction.Acquire, GemInfoAction.Continue -> onAction?.invoke(action)
                             }
                         },
                     )

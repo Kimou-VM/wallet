@@ -37,5 +37,5 @@ class NativeProvider(private val httpClient: OkHttpClient = OkHttpClient()) : Al
 
 private fun AlienTarget.requestBody(): RequestBody? = body?.toRequestBody() ?: when (method) {
     AlienHttpMethod.POST, AlienHttpMethod.PUT, AlienHttpMethod.PATCH -> ByteArray(0).toRequestBody()
-    else -> null
+    AlienHttpMethod.GET, AlienHttpMethod.DELETE, AlienHttpMethod.HEAD, AlienHttpMethod.OPTIONS -> null
 }

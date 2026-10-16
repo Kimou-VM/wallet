@@ -77,7 +77,9 @@ fun NftHeaderActions(header: GemHeaderActions, actions: List<GemCollectibleMenuR
                     }
                 }
 
-                else -> AmountHeadAction(
+                is GemHeaderButtonAction.Send, is GemHeaderButtonAction.Receive, is GemHeaderButtonAction.Buy, is GemHeaderButtonAction.Swap,
+                GemHeaderButtonAction.Deposit, is GemHeaderButtonAction.Withdraw, GemHeaderButtonAction.SendCollectible,
+                -> AmountHeadAction(
                     modifier = Modifier.weight(1f),
                     title = title,
                     imageVector = AppIcons.Send,
