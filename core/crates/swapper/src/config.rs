@@ -33,19 +33,14 @@ pub struct Config {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum QuotePreference {
-    Provider { provider: SwapperProvider, tolerance_bps: u32 },
+    Providers { providers: Vec<SwapperProvider>, tolerance_bps: u32 },
     DustFreeMaxAmount { tolerance_bps: u32 },
 }
 
 pub fn quote_preferences() -> Vec<QuotePreference> {
     vec![
-        // Across settles in seconds through a direct on-chain SpokePool deposit, so it wins when its quote is within 10 bps of the best.
-        QuotePreference::Provider {
-            provider: SwapperProvider::Across,
-            tolerance_bps: 10,
-        },
-        QuotePreference::Provider {
-            provider: SwapperProvider::Orca,
+        QuotePreference::Providers {
+            providers: vec![SwapperProvider::Across, SwapperProvider::Orca, SwapperProvider::Thorchain],
             tolerance_bps: 10,
         },
         QuotePreference::DustFreeMaxAmount { tolerance_bps: 25 },

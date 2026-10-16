@@ -11,7 +11,7 @@ pub(crate) fn rank_quotes(request: &QuoteRequest, mut quotes: Vec<Quote>, prefer
     };
     for preference in preferences {
         match preference {
-            QuotePreference::Provider { provider, tolerance_bps } => prefer(&mut quotes, &best, *tolerance_bps, |quote| quote.data.provider.id == *provider),
+            QuotePreference::Providers { providers, tolerance_bps } => prefer(&mut quotes, &best, *tolerance_bps, |quote| providers.contains(&quote.data.provider.id)),
             QuotePreference::DustFreeMaxAmount { tolerance_bps } => {
                 if request.options.use_max_amount && request.from_asset.is_native() {
                     prefer(&mut quotes, &best, *tolerance_bps, |quote| leaves_no_dust(quote, amount_mode(quote)));

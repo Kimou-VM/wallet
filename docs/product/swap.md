@@ -60,6 +60,16 @@ flowchart LR
 | the provider says it can take any amount but builds a contract call | it is treated as needing the exact amount | otherwise the full balance would be quoted and the fee would not fit |
 | a provider that leaves nothing behind quotes within `0.25%` of the best quote | that provider is chosen | a slightly smaller amount received beats a reserve stuck in the wallet |
 
+## Choosing a quote
+
+The quote that gives the most wins. A provider that runs on-chain, with no third-party service between the wallet and the trade, wins instead when its quote is within `0.1%` of the best. When more than one of them is that close, the one that gives the most wins. For a 100% swap, a provider that leaves nothing behind within `0.25%` still comes before all of them.
+
+| Provider | Runs on-chain because |
+|---|---|
+| Across | the deposit goes straight to its SpokePool contract on the paying network and settles in seconds |
+| Orca | the quote is read from the Whirlpool accounts and the swap goes straight to the pool |
+| THORChain | the quote comes from THORChain's own node and the deposit goes straight to its vault |
+
 ## Expected results
 
 | When | Expected | Why |
@@ -76,8 +86,6 @@ flowchart LR
 | The amount, an asset or the slippage changes | You Receive clears | |
 | An answer arrives for an amount or pair the user has already changed | it is thrown away | |
 | The price impact is a loss of more than `1%` | Details shows the Price Impact | |
-| Across quotes within `0.1%` of the best quote | Across is chosen; for a 100% swap, a provider that leaves nothing behind within `0.25%` still comes first | Across settles in seconds through a direct deposit on the paying network |
-| Orca quotes within `0.1%` of the best quote | Orca is chosen; for a 100% swap, a provider that leaves nothing behind within `0.25%` still comes first | |
 | The user picks another provider | the choice survives refreshes | |
 | A chosen Slippage is `3%` or more | a warning | |
 | Slippage is Auto, including Solana's `3%` | no warning | |
