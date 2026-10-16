@@ -17,10 +17,9 @@ dependencies {
     implementation(libs.camera.camera2)
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.view)
-    implementation(libs.compose.permissions)
 
     implementation(libs.ktx.core)
-    implementation(libs.lifecycle.runtime)
+    implementation(libs.lifecycle.runtime.compose)
 
     testImplementation(libs.junit)
 }

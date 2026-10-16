@@ -8,7 +8,6 @@ import android.content.res.Configuration
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.core.app.takeScreenshot
 import androidx.test.core.graphics.writeToTestStorage
-import androidx.test.espresso.matcher.ViewMatchers.assertThat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
@@ -23,8 +22,7 @@ import com.wallet.core.primitives.AssetId
 import com.wallet.core.primitives.Chain
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import org.hamcrest.Matchers.notNullValue
-import org.hamcrest.core.IsNull
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,7 +47,7 @@ class ScreenshotsCapture {
 
         // Wait for launcher
         val launcherPackage: String = device.launcherPackageName
-        assertThat(launcherPackage, IsNull.notNullValue())
+        assertNotNull(launcherPackage)
         device.wait(Until.hasObject(By.pkg(launcherPackage).depth(0)), LAUNCH_TIMEOUT)
 
         val context = ApplicationProvider.getApplicationContext<App>()
@@ -60,7 +58,7 @@ class ScreenshotsCapture {
 
     @Test
     fun takeScreenShots() {
-        assertThat(device, notNullValue())
+        assertNotNull(device)
 //        val locales = arrayOf(
 //            Pair("en", ""),
 //            Pair("ar", ""),
@@ -149,6 +147,7 @@ class ScreenshotsCapture {
         context.startActivity(intent)
         val activity = monitor.waitForActivityWithTimeout(2000)
         val baseContext = activity.baseContext
+
         @Suppress("DEPRECATION")
         val locale = Locale(language, country)
         Locale.setDefault(locale)
