@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
-    JUPITER_PROGRAM_ID, MAX_COMPUTE_UNIT_LIMIT, SolanaAccountEncoding, SolanaRpc, TOKEN_PROGRAM, USDC_TOKEN_MINT, USDS_TOKEN_MINT, USDT_TOKEN_MINT, WSOL_TOKEN_ADDRESS, get_pubkey_by_str, get_token_program_by_id,
+    JUPITER_PROGRAM_ID, MAX_COMPUTE_UNIT_LIMIT, SolanaAccountEncoding, SolanaRpc, SolanaTokenProgramIdExt, TOKEN_PROGRAM, USDC_TOKEN_MINT, USDS_TOKEN_MINT, USDT_TOKEN_MINT, WSOL_TOKEN_ADDRESS, get_pubkey_by_str,
     models::{AccountData, ValueResult},
     token_account::get_token_account,
 };
@@ -49,7 +49,7 @@ where
 
     async fn get_token_program(&self, asset: &SwapperQuoteAsset) -> Result<String, SwapperError> {
         if let Some(program) = SolanaTokenProgramId::from_asset_type(&asset.asset_type) {
-            return Ok(get_token_program_by_id(program).to_string());
+            return Ok(program.program_id().to_base58());
         }
 
         let request = SolanaRpc::GetAccountInfo(Self::asset_mint(&asset.id)?, SolanaAccountEncoding::Base64);

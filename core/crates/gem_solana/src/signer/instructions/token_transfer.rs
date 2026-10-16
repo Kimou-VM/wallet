@@ -1,7 +1,7 @@
 use primitives::{Asset, SignerError, SignerInput, SolanaTokenProgramId};
 
 use crate::{
-    Instruction, Pubkey, get_token_program_by_id,
+    Instruction, Pubkey, SolanaTokenProgramIdExt,
     instructions::{
         associated_token::{create_associated_token_account_idempotent, get_associated_token_address_with_program_id},
         memo::memo,
@@ -54,7 +54,7 @@ fn token_program_id(input: &SignerInput) -> Result<Pubkey, SignerError> {
     {
         return Err(SignerError::invalid_input("Solana token program metadata does not match asset type"));
     }
-    Pubkey::from_base58(get_token_program_by_id(asset_program)).map_err(SignerError::from_display)
+    Ok(asset_program.program_id())
 }
 
 fn token_decimals(asset: &Asset) -> Result<u8, SignerError> {

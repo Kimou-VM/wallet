@@ -1,7 +1,7 @@
 use gem_solana::{
-    Pubkey,
+    Pubkey, SolanaTokenProgramIdExt,
     associated_token::get_associated_token_address_with_program_id,
-    instructions::program_ids::{token_2022_program, token_program},
+    instructions::program_ids::token_program,
     models::{Mint, MintExtension},
     wrapped_sol::wrapped_sol_mint,
 };
@@ -31,14 +31,9 @@ impl SwapToken {
                 is_native: true,
             });
         };
-        let token_program = match SolanaTokenProgramId::from_asset_type(&asset.asset_type) {
-            Some(SolanaTokenProgramId::Token) => token_program(),
-            Some(SolanaTokenProgramId::Token2022) => token_2022_program(),
-            None => return Err(SwapperError::NotSupportedAsset),
-        };
         Ok(Self {
             mint: Pubkey::from_base58(&token_id).map_err(|_| SwapperError::NotSupportedAsset)?,
-            token_program,
+            token_program: SolanaTokenProgramId::from_asset_type(&asset.asset_type).ok_or(SwapperError::NotSupportedAsset)?.program_id(),
             decimals: u8::try_from(asset.decimals).map_err(|_| SwapperError::NotSupportedAsset)?,
             is_native: false,
         })
@@ -78,7 +73,7 @@ fn restricts_swap(extension: &MintExtension) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gem_solana::USDC_TOKEN_MINT;
+    use gem_solana::{USDC_TOKEN_MINT, instructions::program_ids::token_2022_program};
     use primitives::{AssetId, AssetType, Chain};
 
     #[test]

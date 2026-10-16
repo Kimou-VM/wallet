@@ -76,12 +76,19 @@ pub const SYSTEM_PROGRAMS: &[&str] = &[
 ];
 pub const COMMITMENT_CONFIRMED: &str = "confirmed";
 
+use instructions::program_ids::{token_2022_program, token_program};
 use primitives::{AssetId, SolanaTokenProgramId};
 
-pub fn get_token_program_by_id(id: SolanaTokenProgramId) -> &'static str {
-    match id {
-        SolanaTokenProgramId::Token => TOKEN_PROGRAM,
-        SolanaTokenProgramId::Token2022 => TOKEN_PROGRAM_2022,
+pub trait SolanaTokenProgramIdExt {
+    fn program_id(&self) -> Pubkey;
+}
+
+impl SolanaTokenProgramIdExt for SolanaTokenProgramId {
+    fn program_id(&self) -> Pubkey {
+        match self {
+            Self::Token => token_program(),
+            Self::Token2022 => token_2022_program(),
+        }
     }
 }
 

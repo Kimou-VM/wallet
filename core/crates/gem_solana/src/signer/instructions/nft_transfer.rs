@@ -2,7 +2,7 @@ use primitives::{NFTAsset, SignerError, SignerInput, SolanaNftStandard, SolanaTo
 
 use super::token_transfer::spl_transfer_checked;
 use crate::{
-    AccountMeta, Instruction, METAPLEX_CORE_PROGRAM, METAPLEX_PROGRAM, Pubkey, SYSTEM_PROGRAM_ID, SYSVAR_INSTRUCTIONS_ID, get_token_program_by_id,
+    AccountMeta, Instruction, METAPLEX_CORE_PROGRAM, METAPLEX_PROGRAM, Pubkey, SYSTEM_PROGRAM_ID, SYSVAR_INSTRUCTIONS_ID, SolanaTokenProgramIdExt,
     instructions::{
         associated_token::get_associated_token_address_with_program_id,
         memo::memo,
@@ -34,14 +34,14 @@ fn spl_program(token_program: Option<&SolanaTokenProgramId>) -> Result<&SolanaTo
 }
 
 fn spl_nft_transfer(input: &SignerInput, sender: Pubkey, nft_asset: &NFTAsset, token_program: &SolanaTokenProgramId) -> Result<Vec<Instruction>, SignerError> {
-    let token_program_id = Pubkey::from_base58(get_token_program_by_id(token_program.clone())).map_err(SignerError::from_display)?;
+    let token_program_id = token_program.program_id();
     let mint = Pubkey::from_base58(&nft_asset.token_id).map_err(SignerError::from_display)?;
     spl_transfer_checked(input, sender, mint, 1, 0, token_program_id)
 }
 
 fn metaplex_token_metadata_transfer(input: &SignerInput, sender: Pubkey, nft_asset: &NFTAsset, spl_token_program: &SolanaTokenProgramId, rule_set: Option<&str>) -> Result<Vec<Instruction>, SignerError> {
     let mpl_program = Pubkey::from_base58(METAPLEX_PROGRAM).map_err(SignerError::from_display)?;
-    let token_program = Pubkey::from_base58(get_token_program_by_id(spl_token_program.clone())).map_err(SignerError::from_display)?;
+    let token_program = spl_token_program.program_id();
     let ata_program = Pubkey::from_base58(SOLANA_ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID).map_err(SignerError::from_display)?;
     let sysvar_instructions = Pubkey::from_base58(SYSVAR_INSTRUCTIONS_ID).map_err(SignerError::from_display)?;
     let mint = Pubkey::from_base58(&nft_asset.token_id).map_err(SignerError::from_display)?;
