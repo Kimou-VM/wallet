@@ -1,10 +1,11 @@
 use borsh::BorshSerialize;
-use gem_solana::{AccountMeta, Instruction, Pubkey, anchor::global_discriminator, instructions::program_ids::memo_program};
-
-use super::{
-    tick_array::TickArray,
-    whirlpool::{WHIRLPOOL_PROGRAM, Whirlpool},
+use gem_solana::{
+    AccountMeta, Instruction, Pubkey,
+    anchor::global_discriminator,
+    instructions::program_ids::{memo_program, orca_whirlpool_program},
 };
+
+use super::{tick_array::TickArray, whirlpool::Whirlpool};
 use crate::{SwapperError, solana_dex::PoolSwap};
 
 const SWAP_V2: &str = "swap_v2";
@@ -28,8 +29,8 @@ struct SwapV2Args {
 }
 
 pub(super) fn swap_v2_instruction(address: &Pubkey, whirlpool: &Whirlpool, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
-    let a_to_b = swap.input.mint == whirlpool.token_mint_a;
-    let (token_a, token_b) = if a_to_b { (&swap.input, &swap.output) } else { (&swap.output, &swap.input) };
+    let a_to_b = whirlpool.is_a_to_b(&swap.input.mint)?;
+    let (token_a, token_b) = if a_to_b { (swap.input, swap.output) } else { (swap.output, swap.input) };
     if token_a.mint != whirlpool.token_mint_a || token_b.mint != whirlpool.token_mint_b {
         return Err(SwapperError::InvalidRoute);
     }
@@ -57,9 +58,9 @@ pub(super) fn swap_v2_instruction(address: &Pubkey, whirlpool: &Whirlpool, swap:
         AccountMeta::new_writable(*address),
         AccountMeta::new_readonly(whirlpool.token_mint_a),
         AccountMeta::new_readonly(whirlpool.token_mint_b),
-        AccountMeta::new_writable(token_a.token_account),
+        AccountMeta::new_writable(token_a.account(&swap.authority)?),
         AccountMeta::new_writable(whirlpool.token_vault_a),
-        AccountMeta::new_writable(token_b.token_account),
+        AccountMeta::new_writable(token_b.account(&swap.authority)?),
         AccountMeta::new_writable(whirlpool.token_vault_b),
     ]
     .into_iter()
@@ -69,7 +70,7 @@ pub(super) fn swap_v2_instruction(address: &Pubkey, whirlpool: &Whirlpool, swap:
     .collect();
 
     Ok(Instruction {
-        program_id: WHIRLPOOL_PROGRAM,
+        program_id: orca_whirlpool_program(),
         accounts,
         data: [global_discriminator(SWAP_V2).to_vec(), borsh::to_vec(&args).map_err(SwapperError::transaction_error)?].concat(),
     })
@@ -78,7 +79,7 @@ pub(super) fn swap_v2_instruction(address: &Pubkey, whirlpool: &Whirlpool, swap:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{orca::testkit::TEST_WHIRLPOOL, solana_dex::SwapAccount};
+    use crate::{orca::testkit::TEST_WHIRLPOOL, solana_dex::SwapToken};
     use gem_solana::instructions::program_ids::token_program;
     use hex_lit::hex;
 
@@ -106,24 +107,25 @@ mod tests {
     fn test_swap_v2_instruction() {
         let whirlpool = Whirlpool::mock();
         let address = Pubkey::from_base58(TEST_WHIRLPOOL).unwrap();
+        let input = SwapToken {
+            mint: whirlpool.token_mint_b,
+            ..SwapToken::mock()
+        };
+        let output = SwapToken {
+            mint: whirlpool.token_mint_a,
+            ..SwapToken::mock()
+        };
         let swap = PoolSwap {
             authority: Pubkey::new([9; 32]),
-            input: SwapAccount {
-                mint: whirlpool.token_mint_b,
-                ..SwapAccount::mock()
-            },
-            output: SwapAccount {
-                mint: whirlpool.token_mint_a,
-                token_account: Pubkey::new([2; 32]),
-                ..SwapAccount::mock()
-            },
+            input: &input,
+            output: &output,
             amount: 100,
             minimum_out: 90,
         };
         let instruction = swap_v2_instruction(&address, &whirlpool, &swap).unwrap();
         let tick_arrays = TickArray::addresses(&address, &[-22_528, -16_896, -11_264, -28_160, -5_632]).unwrap();
 
-        assert_eq!(instruction.program_id, WHIRLPOOL_PROGRAM);
+        assert_eq!(instruction.program_id, orca_whirlpool_program());
         assert_eq!(
             instruction.accounts,
             [
@@ -135,9 +137,9 @@ mod tests {
                     AccountMeta::new_writable(address),
                     AccountMeta::new_readonly(whirlpool.token_mint_a),
                     AccountMeta::new_readonly(whirlpool.token_mint_b),
-                    AccountMeta::new_writable(Pubkey::new([2; 32])),
+                    AccountMeta::new_writable(output.account(&swap.authority).unwrap()),
                     AccountMeta::new_writable(whirlpool.token_vault_a),
-                    AccountMeta::new_writable(Pubkey::new([1; 32])),
+                    AccountMeta::new_writable(input.account(&swap.authority).unwrap()),
                     AccountMeta::new_writable(whirlpool.token_vault_b),
                 ],
                 tick_arrays[..3].iter().copied().map(AccountMeta::new_writable).collect(),
@@ -146,6 +148,6 @@ mod tests {
             ]
             .concat()
         );
-        assert_eq!(swap_v2_instruction(&address, &whirlpool, &PoolSwap { output: SwapAccount::mock(), ..swap }), Err(SwapperError::InvalidRoute));
+        assert_eq!(swap_v2_instruction(&address, &whirlpool, &PoolSwap { output: &input, ..swap }), Err(SwapperError::InvalidRoute));
     }
 }

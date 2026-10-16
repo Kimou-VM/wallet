@@ -1,4 +1,5 @@
 use super::DEFAULT_SWAP_FEE_BPS;
+use gem_solana::{USDC_TOKEN_MINT, USDS_TOKEN_MINT, USDT_TOKEN_MINT, WSOL_TOKEN_ADDRESS};
 use primitives::{
     Chain, ChainType,
     swap::{
@@ -7,6 +8,8 @@ use primitives::{
     },
 };
 use serde::{Deserialize, Serialize};
+
+pub const SOLANA_FEE_MINTS: [&str; 4] = [WSOL_TOKEN_ADDRESS, USDC_TOKEN_MINT, USDT_TOKEN_MINT, USDS_TOKEN_MINT];
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct ReferralFees {
@@ -35,19 +38,60 @@ pub enum FeeSide {
     Output,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ReferralTransfer {
+    pub side: FeeSide,
+    pub value: u64,
+}
+
 impl FeeSide {
-    pub fn by_priority<T>(priority: &[T], is_input: impl Fn(&T) -> bool, is_output: impl Fn(&T) -> bool) -> Option<Self> {
-        priority.iter().find_map(|preferred| match (is_input(preferred), is_output(preferred)) {
+    pub fn from_available(input: bool, output: bool) -> Option<Self> {
+        match (input, output) {
             (true, _) => Some(Self::Input),
             (false, true) => Some(Self::Output),
             (false, false) => None,
-        })
+        }
+    }
+
+    pub fn by_priority<T>(priority: &[T], is_input: impl Fn(&T) -> bool, is_output: impl Fn(&T) -> bool) -> Option<Self> {
+        priority.iter().find_map(|preferred| Self::from_available(is_input(preferred), is_output(preferred)))
     }
 }
 
 impl ReferralFee {
-    pub fn fee_value(&self, value: u64) -> u64 {
+    fn fee_value(&self, value: u64) -> u64 {
         u64::try_from(u128::from(value) * u128::from(self.bps) / u128::from(HUNDRED_PERCENT_IN_BPS)).unwrap_or_default()
+    }
+
+    pub fn swap_value(&self, side: FeeSide, value: u64) -> u64 {
+        match side {
+            FeeSide::Input => value.saturating_sub(self.fee_value(value)),
+            FeeSide::Output => value,
+        }
+    }
+
+    pub fn transfer(&self, side: FeeSide, value: u64, output_value: u64) -> ReferralTransfer {
+        let fee_base = match side {
+            FeeSide::Input => value,
+            FeeSide::Output => output_value,
+        };
+        ReferralTransfer { side, value: self.fee_value(fee_base) }
+    }
+}
+
+impl ReferralTransfer {
+    pub fn input_value(&self, swap_value: u64) -> u64 {
+        match self.side {
+            FeeSide::Input => swap_value.saturating_add(self.value),
+            FeeSide::Output => swap_value,
+        }
+    }
+
+    pub fn received_value(&self, output_value: u64) -> u64 {
+        match self.side {
+            FeeSide::Input => output_value,
+            FeeSide::Output => output_value.saturating_sub(self.value),
+        }
     }
 }
 
@@ -153,5 +197,21 @@ mod tests {
         assert_eq!(fee.fee_value(199), 0);
         assert_eq!(fee.fee_value(u64::MAX), u64::MAX / 200);
         assert_eq!(ReferralFee { bps: 0, ..fee }.fee_value(1_000_000), 0);
+    }
+
+    #[test]
+    fn test_transfer() {
+        let fee = ReferralFee { address: String::new(), bps: 50 };
+        let input = fee.transfer(FeeSide::Input, 1_000_000, 2_000_000);
+        let output = fee.transfer(FeeSide::Output, 1_000_000, 2_000_000);
+
+        assert_eq!(fee.swap_value(FeeSide::Input, 1_000_000), 995_000);
+        assert_eq!(fee.swap_value(FeeSide::Output, 1_000_000), 1_000_000);
+        assert_eq!(input, ReferralTransfer { side: FeeSide::Input, value: 5_000 });
+        assert_eq!(output, ReferralTransfer { side: FeeSide::Output, value: 10_000 });
+        assert_eq!(input.input_value(995_000), 1_000_000);
+        assert_eq!(output.input_value(1_000_000), 1_000_000);
+        assert_eq!(input.received_value(2_000_000), 2_000_000);
+        assert_eq!(output.received_value(2_000_000), 1_990_000);
     }
 }

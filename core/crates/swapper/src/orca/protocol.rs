@@ -1,14 +1,15 @@
-use gem_solana::{Instruction, Pubkey};
+use gem_solana::{Instruction, Pubkey, instructions::program_ids::orca_whirlpool_program};
 
 use super::{
     oracle::Oracle,
     swap_v2::swap_v2_instruction,
     tick_array::{TickArray, swap_ticks},
-    whirlpool::{WHIRLPOOL_PROGRAM, Whirlpool},
+    whirlpool::Whirlpool,
 };
 use crate::{
     SwapperError, SwapperProvider,
-    solana_dex::{DexProtocol, PoolSwap, StaticFee, quote_exact_in},
+    clmm::{StaticFee, quote_exact_in},
+    solana_dex::{DexProtocol, PoolSwap},
 };
 
 pub(crate) struct Orca;
@@ -17,7 +18,7 @@ impl DexProtocol for Orca {
     type Pool = Whirlpool;
 
     const PROVIDER: SwapperProvider = SwapperProvider::Orca;
-    const PROGRAM_ID: Pubkey = WHIRLPOOL_PROGRAM;
+    const PROGRAM_ID: Pubkey = orca_whirlpool_program();
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         Whirlpool::addresses(input_mint, output_mint)
@@ -162,7 +163,7 @@ mod tests {
 
         let quote_data = orca.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
         assert_eq!(requests.load(Ordering::SeqCst), 5);
-        assert_eq!(quote_data.to, WHIRLPOOL_PROGRAM.to_base58());
+        assert_eq!(quote_data.to, orca_whirlpool_program().to_base58());
 
         let route_data = quote.data.routes[0].route_data.replace(TEST_WHIRLPOOL, &Pubkey::new([1; 32]).to_base58());
         let tampered = Quote {

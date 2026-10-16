@@ -1,12 +1,12 @@
 use alloy_primitives::U256;
-use std::iter::{once, successors};
+use std::iter::once;
 
 use crate::SwapperError;
 
 pub(crate) const MIN_TICK_INDEX: i32 = -443_636;
 pub(crate) const MAX_TICK_INDEX: i32 = 443_636;
-const MIN_SQRT_PRICE: u128 = 4_295_048_016;
-const MAX_SQRT_PRICE: u128 = 79_226_673_515_401_279_992_447_579_055;
+pub(crate) const MIN_SQRT_PRICE: u128 = 4_295_048_016;
+pub(crate) const MAX_SQRT_PRICE: u128 = 79_226_673_515_401_279_992_447_579_055;
 const FEE_RATE_DENOMINATOR: u128 = 1_000_000;
 const Q64_RESOLUTION: usize = 64;
 const Q64_FRACTION_MASK: u128 = u64::MAX as u128;
@@ -171,14 +171,10 @@ impl SwapState {
     fn advance_to_tick<F: SwapFee>(self, fee: F, tick: &ClmmTick, a_to_b: bool, sqrt_price_limit: u128) -> Result<(Self, F), SwapperError> {
         let tick_sqrt_price = sqrt_price_from_tick_index(tick.index);
         let target = if a_to_b { tick_sqrt_price.max(sqrt_price_limit) } else { tick_sqrt_price.min(sqrt_price_limit) };
-        let steps = successors(Some(Ok((self, fee, false))), |step: &Result<(Self, F, bool), SwapperError>| match step {
-            Ok((state, fee, false)) => Some(state.step(*fee, tick, tick_sqrt_price, target, a_to_b)),
-            _ => None,
-        });
-        steps.last().unwrap_or(Ok((self, fee, true))).map(|(state, fee, _)| (state, fee))
+        self.swap_to_target(fee, tick, tick_sqrt_price, target, a_to_b)
     }
 
-    fn step<F: SwapFee>(self, fee: F, tick: &ClmmTick, tick_sqrt_price: u128, target: u128, a_to_b: bool) -> Result<(Self, F, bool), SwapperError> {
+    fn swap_to_target<F: SwapFee>(self, fee: F, tick: &ClmmTick, tick_sqrt_price: u128, target: u128, a_to_b: bool) -> Result<(Self, F), SwapperError> {
         let fee = fee.accumulate();
         let (bounded_target, skipped) = fee.bounded_target(target, self.liquidity);
         let step = swap_step(self.remaining, fee.rate(), self.liquidity, self.sqrt_price, bounded_target, a_to_b)?;
@@ -199,8 +195,11 @@ impl SwapState {
             sqrt_price: step.next_sqrt_price,
             liquidity,
         };
-        let finished = state.remaining == 0 || state.sqrt_price == target;
-        Ok((state, fee.advance(skipped, state.sqrt_price, tick_sqrt_price, tick.index), finished))
+        let fee = fee.advance(skipped, state.sqrt_price, tick_sqrt_price, tick.index);
+        if state.remaining == 0 || state.sqrt_price == target {
+            return Ok((state, fee));
+        }
+        state.swap_to_target(fee, tick, tick_sqrt_price, target, a_to_b)
     }
 }
 

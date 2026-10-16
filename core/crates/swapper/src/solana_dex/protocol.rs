@@ -1,25 +1,19 @@
 use gem_solana::{Instruction, Pubkey};
 
+use super::token::SwapToken;
 use crate::{SwapperError, SwapperProvider};
 
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct SwapAccount {
-    pub mint: Pubkey,
-    pub token_program: Pubkey,
-    pub token_account: Pubkey,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct PoolSwap {
+#[derive(Debug)]
+pub(crate) struct PoolSwap<'a> {
     pub authority: Pubkey,
-    pub input: SwapAccount,
-    pub output: SwapAccount,
+    pub input: &'a SwapToken,
+    pub output: &'a SwapToken,
     pub amount: u64,
     pub minimum_out: u64,
 }
 
 pub(crate) trait DexProtocol: Send + Sync {
-    type Pool: Clone + Send + Sync;
+    type Pool: Clone + PartialEq + Send + Sync;
 
     const PROVIDER: SwapperProvider;
     const PROGRAM_ID: Pubkey;

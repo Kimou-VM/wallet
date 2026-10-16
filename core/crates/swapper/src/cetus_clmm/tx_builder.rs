@@ -1,12 +1,13 @@
 use super::{
     constants::{
         CETUS_CLMM_PUBLISHED_AT, CETUS_GLOBAL_CONFIG, CETUS_PARTNER, CETUS_PARTNER_INIT_VERSION, CETUS_POOLS_REGISTRY, CETUS_SHARED_INIT_VERSION, FUNCTION_CALCULATE_SWAP_RESULT, FUNCTION_CALCULATED_SWAP_RESULT_AMOUNT_OUT,
-        FUNCTION_FLASH_SWAP_WITH_PARTNER, FUNCTION_NEW_POOL_KEY, FUNCTION_POOL_ID, FUNCTION_POOL_SIMPLE_INFO, FUNCTION_REPAY_FLASH_SWAP_WITH_PARTNER, MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64, MODULE_FACTORY, MODULE_POOL,
+        FUNCTION_FLASH_SWAP_WITH_PARTNER, FUNCTION_NEW_POOL_KEY, FUNCTION_POOL_ID, FUNCTION_POOL_SIMPLE_INFO, FUNCTION_REPAY_FLASH_SWAP_WITH_PARTNER, MODULE_FACTORY, MODULE_POOL,
     },
     model::{Hop, PoolRoute},
 };
 use crate::{
     Quote, SwapperError, SwapperQuoteData,
+    clmm::{MAX_SQRT_PRICE, MIN_SQRT_PRICE},
     fees::{FeeSide, ReferralFee, subtract_bps},
 };
 use gem_sui::{
@@ -152,12 +153,12 @@ fn build_transaction(resolver: &ObjectResolver, quote: &Quote, route: &PoolRoute
     let mut txb = TransactionBuilder::new();
     let published_at = SuiAddress::from_str(published_at).map(Address::from)?;
     let input_coin = build_input_coin(&mut txb, route.input_coin_type(), input.amount, input.from_coins).map_err(error)?;
-    let (swap_coin, swap_amount) = match route.fee_side {
+    let (swap_coin, swap_amount) = match route.fee.side {
         FeeSide::Input => {
-            let after_fee = pay_referral_fee(&mut txb, input_coin, route.fee_amount, referral_fee)?;
+            let after_fee = pay_referral_fee(&mut txb, input_coin, route.fee.value, referral_fee)?;
             let swap_amount = input
                 .amount
-                .checked_sub(route.fee_amount)
+                .checked_sub(route.fee.value)
                 .ok_or_else(|| SwapperError::ComputeQuoteError("Cetus CLMM referral fee exceeds input amount".into()))?;
             (after_fee, swap_amount)
         }
@@ -237,12 +238,12 @@ fn build_transaction(resolver: &ObjectResolver, quote: &Quote, route: &PoolRoute
     let sender = SuiAddress::from_str(&quote.request.wallet_address).map(Address::from)?;
     let output_coin = from_balance(&mut txb, route.output_coin_type(), current_balance).map_err(error)?;
 
-    let pay_output_fee = match route.fee_side {
-        FeeSide::Output => route.fee_amount > 0,
+    let pay_output_fee = match route.fee.side {
+        FeeSide::Output => route.fee.value > 0,
         FeeSide::Input => false,
     };
     if pay_output_fee {
-        let fee_amount_arg = txb.pure(&route.fee_amount);
+        let fee_amount_arg = txb.pure(&route.fee.value);
         let fee_coin = txb
             .split_coins(output_coin, vec![fee_amount_arg])
             .pop()
@@ -275,15 +276,15 @@ fn build_transaction(resolver: &ObjectResolver, quote: &Quote, route: &PoolRoute
 
 fn sqrt_price_limit_with_slippage(hop: &Hop, slippage_bps: u32) -> u128 {
     if hop.after_sqrt_price == 0 {
-        return if hop.a2b { MIN_SQRT_PRICE_X64 } else { MAX_SQRT_PRICE_X64 };
+        return if hop.a2b { MIN_SQRT_PRICE } else { MAX_SQRT_PRICE };
     }
     let bps = u128::from(slippage_bps);
     if hop.a2b {
         let limit = hop.after_sqrt_price.saturating_mul(10_000u128.saturating_sub(bps)) / 10_000;
-        limit.max(MIN_SQRT_PRICE_X64)
+        limit.max(MIN_SQRT_PRICE)
     } else {
         let limit = hop.after_sqrt_price.saturating_mul(10_000u128.saturating_add(bps)).saturating_add(9_999) / 10_000;
-        limit.min(MAX_SQRT_PRICE_X64)
+        limit.min(MAX_SQRT_PRICE)
     }
 }
 
@@ -331,8 +332,8 @@ mod tests {
 
     #[test]
     fn test_sqrt_price_limit_with_slippage() {
-        assert_eq!(sqrt_price_limit_with_slippage(&Hop::mock(), 50), MIN_SQRT_PRICE_X64);
-        assert_eq!(sqrt_price_limit_with_slippage(&Hop { a2b: false, ..Hop::mock() }, 50), MAX_SQRT_PRICE_X64);
+        assert_eq!(sqrt_price_limit_with_slippage(&Hop::mock(), 50), MIN_SQRT_PRICE);
+        assert_eq!(sqrt_price_limit_with_slippage(&Hop { a2b: false, ..Hop::mock() }, 50), MAX_SQRT_PRICE);
 
         let after = 100_000_000_000_000u128;
         let a2b_limit = sqrt_price_limit_with_slippage(&Hop { after_sqrt_price: after, ..Hop::mock() }, 50);
@@ -348,6 +349,6 @@ mod tests {
             50,
         );
         assert!(b2a_limit > after);
-        assert!(b2a_limit <= MAX_SQRT_PRICE_X64);
+        assert!(b2a_limit <= MAX_SQRT_PRICE);
     }
 }

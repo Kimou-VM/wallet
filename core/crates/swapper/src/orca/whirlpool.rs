@@ -1,13 +1,12 @@
 use borsh::BorshDeserialize;
-use gem_solana::{Pubkey, anchor::account_body, find_program_address};
+use gem_solana::{Pubkey, anchor::account_body, find_program_address, instructions::program_ids::orca_whirlpool_program};
 use hex_lit::hex;
 
 use crate::{
     SwapperError,
-    solana_dex::{ClmmPool, MAX_TICK_INDEX, MIN_TICK_INDEX},
+    clmm::{ClmmPool, MAX_TICK_INDEX, MIN_TICK_INDEX},
 };
 
-pub(super) const WHIRLPOOL_PROGRAM: Pubkey = Pubkey::new(hex!("0e03685f8e909053e458121c66f5a76aedc7706aa11c82f8aa952a8f2b7879a9"));
 const WHIRLPOOLS_CONFIG: Pubkey = Pubkey::new(hex!("13e441f83913ca68b0634fb025fdeaa88737e84110d1255e357b3377ddee1ccd"));
 const FEE_TIER_INDEXES: [u16; 10] = [
     1, 4, 8, 16, 64, 96, 128, // 2, 256, 32896
@@ -36,7 +35,7 @@ pub(crate) struct Whirlpool {
 
 impl Whirlpool {
     pub fn decode(data: &[u8]) -> Result<Self, SwapperError> {
-        let body = anchor_account_body(data, WHIRLPOOL)?;
+        let body = account_body(data, WHIRLPOOL)?;
         Self::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)
     }
 
@@ -46,13 +45,13 @@ impl Whirlpool {
             .iter()
             .map(|fee_tier_index| {
                 let seeds = [b"whirlpool".as_slice(), WHIRLPOOLS_CONFIG.as_bytes(), mint_a.as_bytes(), mint_b.as_bytes(), &fee_tier_index.to_le_bytes()];
-                Ok(find_program_address(&WHIRLPOOL_PROGRAM, &seeds)?.0)
+                Ok(find_program_address(&orca_whirlpool_program(), &seeds)?.0)
             })
             .collect()
     }
 
     pub fn oracle_address(address: &Pubkey) -> Result<Pubkey, SwapperError> {
-        Ok(find_program_address(&WHIRLPOOL_PROGRAM, &[b"oracle".as_slice(), address.as_bytes()])?.0)
+        Ok(find_program_address(&orca_whirlpool_program(), &[b"oracle".as_slice(), address.as_bytes()])?.0)
     }
 
     pub fn is_a_to_b(&self, input_mint: &Pubkey) -> Result<bool, SwapperError> {
@@ -104,15 +103,10 @@ impl Whirlpool {
     }
 }
 
-pub(super) fn anchor_account_body<'a>(data: &'a [u8], name: &str) -> Result<&'a [u8], SwapperError> {
-    account_body(data, name).ok_or_else(|| SwapperError::compute_quote_error(format!("Invalid {name} account")))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use gem_solana::{USDC_TOKEN_MINT, WSOL_TOKEN_ADDRESS};
-    use primitives::contract_constants::SOLANA_ORCA_WHIRLPOOL_PROGRAM_ID;
 
     use crate::orca::testkit::TEST_WHIRLPOOL;
 
@@ -122,7 +116,6 @@ mod tests {
         let usdc = Pubkey::from_base58(USDC_TOKEN_MINT).unwrap();
         let addresses = Whirlpool::addresses(&usdc, &sol).unwrap();
 
-        assert_eq!(WHIRLPOOL_PROGRAM.to_base58(), SOLANA_ORCA_WHIRLPOOL_PROGRAM_ID);
         assert_eq!(addresses, Whirlpool::addresses(&sol, &usdc).unwrap());
         assert_eq!(addresses[4].to_base58(), TEST_WHIRLPOOL);
     }

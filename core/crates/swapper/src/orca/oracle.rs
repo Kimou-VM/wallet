@@ -1,10 +1,9 @@
 use borsh::BorshDeserialize;
-use gem_solana::Pubkey;
+use gem_solana::{Pubkey, anchor::account_body};
 
-use super::whirlpool::anchor_account_body;
 use crate::{
     SwapperError,
-    solana_dex::{MAX_TICK_INDEX, MIN_TICK_INDEX, SwapFee, sqrt_price_from_tick_index, tick_index_from_sqrt_price},
+    clmm::{MAX_TICK_INDEX, MIN_TICK_INDEX, SwapFee, sqrt_price_from_tick_index, tick_index_from_sqrt_price},
 };
 
 const ORACLE: &str = "Oracle";
@@ -57,7 +56,7 @@ pub(super) struct AdaptiveFee {
 
 impl Oracle {
     pub fn decode(data: &[u8], whirlpool: &Pubkey) -> Result<Self, SwapperError> {
-        let body = anchor_account_body(data, ORACLE)?;
+        let body = account_body(data, ORACLE)?;
         let oracle = Self::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)?;
         if oracle.whirlpool != *whirlpool {
             return Err(SwapperError::compute_quote_error("Unexpected oracle"));

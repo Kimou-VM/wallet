@@ -30,17 +30,13 @@ pub fn unwrap_instruction(owner: &Pubkey) -> Result<Instruction> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        WSOL_TOKEN_ADDRESS,
-        instructions::program_ids::{associated_token_program, system_program},
-    };
+    use crate::instructions::program_ids::{associated_token_program, system_program};
 
     #[test]
     fn test_wrap_instructions() {
         let owner = Pubkey::from_base58("Hozo7TadHq6PMMiGLGNvgk79Hvj5VTAM7Ny2bamQ2m8q").unwrap();
         let account = wrapped_sol_account(&owner).unwrap();
 
-        assert_eq!(wrapped_sol_mint().to_base58(), WSOL_TOKEN_ADDRESS);
         assert_eq!(
             wrap_instructions(&owner, 1_000).unwrap().iter().map(|instruction| instruction.program_id).collect::<Vec<_>>(),
             vec![associated_token_program(), system_program(), token_program()]

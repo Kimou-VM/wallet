@@ -1,4 +1,6 @@
 use borsh::BorshDeserialize;
+use primitives::swap::HUNDRED_PERCENT_IN_BPS;
+use std::iter::once;
 
 use crate::{Pubkey, SolanaError, error::Result};
 
@@ -9,7 +11,6 @@ const MINT_ACCOUNT_TYPE: u8 = 1;
 const TLV_HEADER_LEN: usize = 4;
 const TRANSFER_FEES_OFFSET: usize = 72;
 const FROZEN_ACCOUNT_STATE: u8 = 2;
-const ONE_IN_BASIS_POINTS: u128 = 10_000;
 
 const UNINITIALIZED: u16 = 0;
 const TRANSFER_FEE_CONFIG: u16 = 1;
@@ -17,6 +18,12 @@ const DEFAULT_ACCOUNT_STATE: u16 = 6;
 const NON_TRANSFERABLE: u16 = 9;
 const TRANSFER_HOOK: u16 = 14;
 const PAUSABLE: u16 = 26;
+
+#[derive(BorshDeserialize)]
+struct ExtensionHeader {
+    extension_type: u16,
+    length: u16,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, BorshDeserialize)]
 pub struct TransferFee {
@@ -66,30 +73,37 @@ impl Mint {
             })
             .unwrap_or_default()
     }
+
+    pub fn has_transfer_restrictions(&self) -> bool {
+        self.extensions.iter().any(|extension| match extension {
+            MintExtension::TransferHook { program_id } => program_id.is_some(),
+            MintExtension::NonTransferable => true,
+            MintExtension::DefaultAccountState { frozen } => *frozen,
+            MintExtension::Pausable { paused } => *paused,
+            MintExtension::TransferFee(_) | MintExtension::Other(_) => false,
+        })
+    }
 }
 
 impl TransferFeeConfig {
     fn fee(&self, epoch: u64, amount: u64) -> u64 {
         let fee = if epoch >= self.newer.epoch { self.newer } else { self.older };
-        if fee.basis_points == 0 || amount == 0 {
-            return 0;
-        }
-        let raw_fee = (u128::from(amount) * u128::from(fee.basis_points)).div_ceil(ONE_IN_BASIS_POINTS);
+        let raw_fee = (u128::from(amount) * u128::from(fee.basis_points)).div_ceil(u128::from(HUNDRED_PERCENT_IN_BPS));
         u64::try_from(raw_fee).unwrap_or(u64::MAX).min(fee.maximum_fee)
     }
 }
 
 fn decode_extensions(tlv: &[u8]) -> Result<Vec<MintExtension>> {
+    let invalid = || SolanaError::invalid_input("Invalid mint extension");
     let Some((header, rest)) = tlv.split_at_checked(TLV_HEADER_LEN) else {
         return Ok(vec![]);
     };
-    let extension_type = u16::from_le_bytes([header[0], header[1]]);
-    let length = usize::from(u16::from_le_bytes([header[2], header[3]]));
-    if extension_type == UNINITIALIZED {
+    let header = ExtensionHeader::try_from_slice(header).map_err(|_| invalid())?;
+    if header.extension_type == UNINITIALIZED {
         return Ok(vec![]);
     }
-    let (value, rest) = rest.split_at_checked(length).ok_or_else(|| SolanaError::invalid_input("Invalid mint extension"))?;
-    Ok([vec![decode_extension(extension_type, value)?], decode_extensions(rest)?].concat())
+    let (value, rest) = rest.split_at_checked(usize::from(header.length)).ok_or_else(invalid)?;
+    Ok(once(decode_extension(header.extension_type, value)?).chain(decode_extensions(rest)?).collect())
 }
 
 fn decode_extension(extension_type: u16, value: &[u8]) -> Result<MintExtension> {
@@ -174,5 +188,17 @@ mod tests {
         assert_eq!(schedule.transfer_fee(1_050, 1_000_000), 10_000);
         assert_eq!(capped.fee(1, 1_000_000), 5);
         assert_eq!(decode(include_str!("../../testdata/mint_usdc.base64")).transfer_fee(1_059, 1_000_000), 0);
+    }
+
+    #[test]
+    fn test_has_transfer_restrictions() {
+        let restricted = |extension: MintExtension| Mint { extensions: vec![extension] }.has_transfer_restrictions();
+
+        assert!(!decode(include_str!("../../testdata/mint_xstock.base64")).has_transfer_restrictions());
+        assert!(!decode(include_str!("../../testdata/mint_transfer_fee_schedule.base64")).has_transfer_restrictions());
+        assert!(restricted(MintExtension::TransferHook { program_id: Some(Pubkey::new([1; 32])) }));
+        assert!(restricted(MintExtension::NonTransferable));
+        assert!(restricted(MintExtension::DefaultAccountState { frozen: true }));
+        assert!(restricted(MintExtension::Pausable { paused: true }));
     }
 }

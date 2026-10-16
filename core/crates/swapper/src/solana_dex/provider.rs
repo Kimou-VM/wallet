@@ -1,13 +1,11 @@
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use gem_client::Client;
-use gem_encoding::decode_base64;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
     DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaRpc, SolanaRpcConfig,
     instructions::program_ids::{sysvar_clock, sysvar_program},
     models::{AccountData, Clock, ValueResult, blockhash::SolanaBlockhashResult},
-    try_decode_blockhash,
 };
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
@@ -21,7 +19,7 @@ use std::{
 
 use super::{
     protocol::{DexProtocol, PoolSwap},
-    route::{DexRoute, ReferralTransfer, preferred_fee_side},
+    route::{DexRoute, preferred_fee_side},
     token::{SwapToken, decode_mint},
     transaction::DexTransaction,
 };
@@ -30,7 +28,7 @@ use crate::{
     client_factory::create_client_with_chain,
     error::INVALID_ADDRESS,
     fees::{FeeSide, default_referral_fees},
-    route_cache::Cache,
+    route_cache::DiscoveryCache,
 };
 
 type AccountsResult = ValueResult<Vec<Option<AccountData>>>;
@@ -40,7 +38,7 @@ pub(crate) struct SolanaDex<P: DexProtocol, C: Client + Clone = RpcClient> {
     provider: ProviderType,
     protocol: P,
     client: JsonRpcClient<C>,
-    pools: Cache<(Pubkey, Pubkey), Vec<(Pubkey, P::Pool)>>,
+    pools: DiscoveryCache<(Pubkey, P::Pool), Pubkey, Pubkey>,
 }
 
 impl<P: DexProtocol> SolanaDex<P> {
@@ -55,7 +53,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             provider: ProviderType::new(P::PROVIDER),
             protocol,
             client,
-            pools: Cache::default(),
+            pools: DiscoveryCache::default(),
         }
     }
 
@@ -63,11 +61,8 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         pools.iter().filter_map(|(address, pool)| self.protocol.quote_accounts(address, pool, input_mint).ok()).flatten().collect()
     }
 
-    fn decode_pools(&self, addresses: &[Pubkey], accounts: &Accounts) -> Vec<(Pubkey, P::Pool)> {
-        addresses
-            .iter()
-            .filter_map(|address| Some((*address, self.protocol.decode_pool(&Self::program_data(accounts, address).ok()??).ok()?)))
-            .collect()
+    fn decode_pool(&self, accounts: &Accounts, address: &Pubkey) -> Option<(Pubkey, P::Pool)> {
+        Some((*address, self.protocol.decode_pool(&Self::program_data(accounts, address).ok()??).ok()?))
     }
 
     async fn quote_best_pool(&self, pools: &[(Pubkey, P::Pool)], input_mint: &Pubkey, amount_in: u64, accounts: Accounts, timestamp: u64) -> Result<(Pubkey, u64), SwapperError> {
@@ -97,14 +92,13 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         Ok(addresses.into_iter().zip(response.value).collect())
     }
 
-    async fn fetch_pool_and_blockhash(&self, address: Pubkey) -> Result<(P::Pool, [u8; 32]), SwapperError> {
+    async fn fetch_pool_and_blockhash(&self, address: Pubkey) -> Result<(P::Pool, String), SwapperError> {
         let requests = vec![accounts_request(&[address]), SolanaRpc::GetLatestBlockhash(SolanaRpcConfig::Confirmed)];
         let [accounts, blockhash]: [Value; 2] = self.client.requests(requests).await?.take_all()?.try_into().map_err(|_| SwapperError::transaction_error("Unexpected Solana batch response"))?;
         let accounts: Accounts = [address].into_iter().zip(serde_json::from_value::<AccountsResult>(accounts)?.value).collect();
         let data = Self::program_data(&accounts, &address)?.ok_or(SwapperError::InvalidRoute)?;
         let blockhash: SolanaBlockhashResult = serde_json::from_value(blockhash)?;
-        let blockhash = try_decode_blockhash(&blockhash.value.blockhash).ok_or_else(|| SwapperError::transaction_error("Invalid Solana blockhash"))?;
-        Ok((self.protocol.decode_pool(&data)?, blockhash))
+        Ok((self.protocol.decode_pool(&data)?, blockhash.value.blockhash))
     }
 
     fn program_data(accounts: &Accounts, address: &Pubkey) -> Result<Option<Vec<u8>>, SwapperError> {
@@ -123,20 +117,12 @@ fn owned_account<'a>(accounts: &'a Accounts, address: &Pubkey, owner: &Pubkey) -
 }
 
 fn owned_data(accounts: &Accounts, address: &Pubkey, owner: &Pubkey) -> Result<Option<Vec<u8>>, SwapperError> {
-    let Some(account) = owned_account(accounts, address, owner) else {
-        return Ok(None);
-    };
-    let data = account.data.first().ok_or_else(|| SwapperError::compute_quote_error("Missing Solana account data"))?;
-    decode_base64(data).map(Some).map_err(SwapperError::compute_quote_error)
+    Ok(owned_account(accounts, address, owner).map(AccountData::decoded_data).transpose()?)
 }
 
 fn chain_clock(accounts: &Accounts) -> Result<Clock, SwapperError> {
     let data = owned_data(accounts, &sysvar_clock(), &sysvar_program())?.ok_or_else(|| SwapperError::compute_quote_error("Missing Solana clock"))?;
     Clock::try_from_slice(&data).map_err(SwapperError::compute_quote_error)
-}
-
-fn pool_key(mint_0: &Pubkey, mint_1: &Pubkey) -> (Pubkey, Pubkey) {
-    if mint_0 <= mint_1 { (*mint_0, *mint_1) } else { (*mint_1, *mint_0) }
 }
 
 fn accounts_request(addresses: &[Pubkey]) -> SolanaRpc {
@@ -145,11 +131,7 @@ fn accounts_request(addresses: &[Pubkey]) -> SolanaRpc {
 
 fn referral_fee_side(accounts: &Accounts, referral: &Pubkey, input: &SwapToken, output: &SwapToken) -> Result<FeeSide, SwapperError> {
     let exists = |token: &SwapToken| Ok::<_, SwapperError>(owned_account(accounts, &token.account(referral)?, &token.token_program).is_some());
-    match (exists(input)?, exists(output)?) {
-        (true, _) => Ok(FeeSide::Input),
-        (false, true) => Ok(FeeSide::Output),
-        (false, false) => Err(SwapperError::compute_quote_error("Referral fee account is unavailable")),
-    }
+    FeeSide::from_available(exists(input)?, exists(output)?).ok_or_else(|| SwapperError::compute_quote_error("Referral fee account is unavailable"))
 }
 
 #[async_trait]
@@ -180,43 +162,37 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
             Some(_) => vec![],
             None => vec![input.account(&referral)?, output.account(&referral)?],
         };
-        let known_pools = self.pools.get(&pool_key(&input.mint, &output.mint));
-        let pool_addresses = match &known_pools {
-            Some(pools) if pools.is_empty() => return Err(SwapperError::NoQuoteAvailable),
-            Some(pools) => pools.iter().map(|(address, _)| *address).collect(),
-            None => self.protocol.pool_addresses(&input.mint, &output.mint)?,
-        };
-        let predicted = self.predicted_quote_accounts(&known_pools.unwrap_or_default(), &input.mint);
+        let probes = self.protocol.pool_addresses(&input.mint, &output.mint)?;
+        let known_pools = self.pools.candidates_for_probes(input.mint, output.mint, &probes);
+        let missing_pools = self.pools.missing_probes(input.mint, output.mint, &probes);
+        if known_pools.is_empty() && missing_pools.is_empty() {
+            return Err(SwapperError::NoQuoteAvailable);
+        }
+        let pool_addresses = known_pools.iter().map(|(address, _)| *address).chain(missing_pools).collect::<Vec<_>>();
+        let predicted = self.predicted_quote_accounts(&known_pools, &input.mint);
         let accounts = self.fetch_accounts([pool_addresses.as_slice(), &predicted, &referral_accounts, &[input.mint, output.mint, sysvar_clock()]].concat()).await?;
+        let discovered = pool_addresses.iter().map(|address| (*address, self.decode_pool(&accounts, address))).collect::<Vec<_>>();
+        let pools = discovered.iter().filter_map(|(_, pool)| pool.clone()).collect::<Vec<_>>();
+        self.pools.record_discovery(input.mint, output.mint, discovered);
         let clock = chain_clock(&accounts)?;
-        let timestamp = u64::try_from(clock.unix_timestamp).map_err(SwapperError::compute_quote_error)?;
         let mint = |token: &SwapToken| decode_mint(owned_data(&accounts, &token.mint, &token.token_program)?);
         let (input_mint, output_mint) = (mint(&input)?, mint(&output)?);
         let fee_side = match preferred_side {
             Some(side) => side,
             None => referral_fee_side(&accounts, &referral, &input, &output)?,
         };
-        let pools = self.decode_pools(&pool_addresses, &accounts);
-        self.pools.put(pool_key(&input.mint, &output.mint), pools.clone());
-        let input_fee = match fee_side {
-            FeeSide::Input => referral_fee.fee_value(value),
-            FeeSide::Output => 0,
-        };
-        let swap_value = value - input_fee;
+        let swap_value = referral_fee.swap_value(fee_side, value);
         let pool_input = swap_value.saturating_sub(input_mint.transfer_fee(clock.epoch, swap_value));
+        let timestamp = u64::try_from(clock.unix_timestamp).unwrap_or_default();
         let (pool, pool_output) = self.quote_best_pool(&pools, &input.mint, pool_input, accounts, timestamp).await?;
         let output_value = pool_output.saturating_sub(output_mint.transfer_fee(clock.epoch, pool_output));
-        let fee_value = match fee_side {
-            FeeSide::Input => input_fee,
-            FeeSide::Output => referral_fee.fee_value(output_value),
-        };
         let route = DexRoute {
             pool,
             input_mint: input.mint,
             output_mint: output.mint,
             swap_value,
             output_value,
-            fee: ReferralTransfer { side: fee_side, value: fee_value },
+            fee: referral_fee.transfer(fee_side, value, output_value),
         };
         if route.received_value() == 0 {
             return Err(SwapperError::NoQuoteAvailable);
@@ -253,25 +229,22 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         let (pool, blockhash) = self.fetch_pool_and_blockhash(route.pool).await?;
         let swap = PoolSwap {
             authority,
-            input: input.swap_account(&authority)?,
-            output: output.swap_account(&authority)?,
+            input: &input,
+            output: &output,
             amount: route.swap_value,
             minimum_out: route.minimum_output(quote.data.slippage_bps),
         };
         let transaction = DexTransaction {
-            authority,
-            input: &input,
-            output: &output,
+            swap_instruction: self.protocol.swap_instruction(&route.pool, &pool, &swap)?,
+            swap,
             referral: Pubkey::from_base58(&default_referral_fees().solana.address)?,
             fee: route.fee,
-            swap_value: route.swap_value,
-            swap_instruction: self.protocol.swap_instruction(&route.pool, &pool, &swap)?,
         };
 
         Ok(SwapperQuoteData::new_contract(
             P::PROGRAM_ID.to_base58(),
             BigUint::ZERO,
-            transaction.encode(blockhash)?,
+            transaction.encode(&blockhash)?,
             None,
             Some(DEFAULT_SWAP_GAS_LIMIT.to_string()),
         ))

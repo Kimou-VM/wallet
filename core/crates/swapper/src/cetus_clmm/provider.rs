@@ -4,7 +4,7 @@ use super::{
     model::{PoolRoute, fee_side},
     tx_builder,
 };
-use crate::{FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData, fees::FeeSide};
+use crate::{FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData};
 use async_trait::async_trait;
 use gem_sui::coin_type_matches;
 use num_bigint::BigUint;
@@ -48,20 +48,15 @@ impl Swapper for CetusClmm {
         let fee_side = fee_side(&from_coin_type, &to_coin_type);
 
         let referral_fee = CetusClmm::referral_fee();
-        let input_fee_amount = referral_fee.fee_value(amount);
-        let swap_amount = match fee_side {
-            FeeSide::Input => amount.checked_sub(input_fee_amount).ok_or_else(|| SwapperError::ComputeQuoteError("Cetus CLMM referral fee exceeds input amount".into()))?,
-            FeeSide::Output => amount,
-        };
+        let swap_amount = referral_fee.swap_value(fee_side, amount);
 
         let slippage_bps = request.options.slippage.bps;
         let hops = self.find_route_hops(&from_coin_type, &to_coin_type, swap_amount).await?;
         let gross_amount_out = hops.last().map(|h| h.amount_out).unwrap_or_default();
-        let fee_amount = match fee_side {
-            FeeSide::Input => input_fee_amount,
-            FeeSide::Output => referral_fee.fee_value(gross_amount_out),
+        let route = PoolRoute {
+            hops,
+            fee: referral_fee.transfer(fee_side, amount, gross_amount_out),
         };
-        let route = PoolRoute { hops, fee_amount, fee_side };
 
         Ok(Quote {
             from_value,
@@ -115,8 +110,8 @@ mod swap_integration_tests {
             route.hops.len(),
             route.gross_amount_out(),
             route.net_amount_out(),
-            route.fee_side,
-            route.fee_amount
+            route.fee.side,
+            route.fee.value
         );
         for (index, hop) in route.hops.iter().enumerate() {
             println!("{label} hop {}: amount_in={}, amount_out={}, a2b={}, pool_id={}", index + 1, hop.amount_in, hop.amount_out, hop.a2b, hop.pool_id);

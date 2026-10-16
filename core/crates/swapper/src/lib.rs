@@ -1,6 +1,7 @@
 mod alien;
 mod approval;
 mod chainlink;
+mod clmm;
 pub mod cross_chain;
 mod eth_address;
 mod fee_token;

@@ -1,5 +1,7 @@
 use sha2::{Digest, Sha256};
 
+use crate::{Result, SolanaError};
+
 const DISCRIMINATOR_LEN: usize = 8;
 
 fn namespaced_discriminator(namespace: &str, name: &str) -> [u8; 8] {
@@ -17,9 +19,11 @@ pub fn global_discriminator(name: &str) -> [u8; 8] {
     namespaced_discriminator("global", name)
 }
 
-pub fn account_body<'a>(data: &'a [u8], name: &str) -> Option<&'a [u8]> {
-    let (discriminator, body) = data.split_at_checked(DISCRIMINATOR_LEN)?;
-    (discriminator == namespaced_discriminator("account", name)).then_some(body)
+pub fn account_body<'a>(data: &'a [u8], name: &str) -> Result<&'a [u8]> {
+    data.split_at_checked(DISCRIMINATOR_LEN)
+        .filter(|(discriminator, _)| *discriminator == namespaced_discriminator("account", name))
+        .map(|(_, body)| body)
+        .ok_or_else(|| SolanaError::invalid_input(format!("Invalid {name} account")))
 }
 
 #[cfg(test)]
@@ -35,8 +39,8 @@ mod tests {
 
     #[test]
     fn test_account_body() {
-        assert_eq!(account_body(&hex!("3f95d10ce18063090102"), "Whirlpool"), Some([1, 2].as_slice()));
-        assert_eq!(account_body(&hex!("3f95d10ce18063090102"), "TickArray"), None);
-        assert_eq!(account_body(&hex!("3f95d10c"), "Whirlpool"), None);
+        assert_eq!(account_body(&hex!("3f95d10ce18063090102"), "Whirlpool"), Ok([1, 2].as_slice()));
+        assert_eq!(account_body(&hex!("3f95d10ce18063090102"), "TickArray"), Err(SolanaError::invalid_input("Invalid TickArray account")));
+        assert_eq!(account_body(&hex!("3f95d10c"), "Whirlpool"), Err(SolanaError::invalid_input("Invalid Whirlpool account")));
     }
 }

@@ -3,7 +3,7 @@ use num_bigint::BigUint;
 use primitives::{AssetId, Chain, OptionStringExt, SolanaInstruction, TransactionType};
 
 use crate::{
-    AccountMeta, AddressLookupTableAccount, CompiledInstruction, Instruction, Pubkey, TransactionBuilder, VersionedTransaction,
+    AccountMeta, AddressLookupTableAccount, CompiledInstruction, Instruction, MAX_TRANSACTION_SIZE, Pubkey, TransactionBuilder, VersionedTransaction,
     instructions::{
         associated_token::is_create_account_data,
         program_ids::{SOLANA_ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, SOLANA_COMPUTE_BUDGET_PROGRAM_ID, SOLANA_MEMO_PROGRAM_ID, SOLANA_SYSTEM_PROGRAM_ID, SOLANA_TOKEN_2022_PROGRAM_ID, SOLANA_TOKEN_PROGRAM_ID, system_program},
@@ -192,6 +192,9 @@ pub fn encode_v0_transaction(payer: Pubkey, recent_blockhash: &str, instructions
     let recent_blockhash = try_decode_blockhash(recent_blockhash).ok_or_else(|| "Invalid Solana blockhash".to_string())?;
     let transaction = TransactionBuilder::build_v0_transaction(payer, recent_blockhash, instructions, lookup_tables).map_err(|err| format!("Solana transaction error: {err}"))?;
     let bytes = transaction.serialize().map_err(|err| format!("Solana transaction error: {err}"))?;
+    if bytes.len() > MAX_TRANSACTION_SIZE {
+        return Err(format!("Solana transaction size {} exceeds maximum of {MAX_TRANSACTION_SIZE} bytes", bytes.len()));
+    }
     Ok(encode_base64(&bytes))
 }
 

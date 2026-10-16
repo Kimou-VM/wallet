@@ -9,7 +9,6 @@ use crate::{
 };
 #[cfg(feature = "rpc")]
 use gem_client::Client;
-use gem_encoding::decode_base64;
 #[cfg(feature = "rpc")]
 use gem_jsonrpc::{client::JsonRpcClient, types::JsonRpcError};
 use primitives::Chain;
@@ -81,8 +80,7 @@ impl<C: Client + Clone> SolanaClient<C> {
             .enumerate()
             .filter_map(|(index, account)| account.map(|account| (index, account)))
             .map(|(index, account)| {
-                let data = account.data.first().ok_or_else(|| -> Box<dyn Error + Send + Sync> { "Missing Solana account data".into() })?;
-                let bytes = decode_base64(data)?;
+                let bytes = account.decoded_data()?;
                 let address = Pubkey::from_str(&addresses[index])?;
                 AddressLookupTableAccount::from_account_data(address, &bytes).map_err(|error| -> Box<dyn Error + Send + Sync> { format!("Invalid Solana address lookup table: {error}").into() })
             })

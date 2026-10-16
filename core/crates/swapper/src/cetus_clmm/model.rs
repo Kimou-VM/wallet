@@ -2,7 +2,7 @@ use gem_sui::{SUI_COIN_TYPE_FULL, coin_type_matches};
 use primitives::asset_constants::SUI_USDC_TOKEN_ID;
 use serde::{Deserialize, Serialize};
 
-use crate::fees::FeeSide;
+use crate::fees::{FeeSide, ReferralTransfer};
 
 pub(super) const INTERMEDIATE_COIN_TYPES: &[&str] = &[SUI_COIN_TYPE_FULL, SUI_USDC_TOKEN_ID];
 
@@ -41,8 +41,7 @@ impl Hop {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(super) struct PoolRoute {
     pub hops: Vec<Hop>,
-    pub fee_amount: u64,
-    pub fee_side: FeeSide,
+    pub fee: ReferralTransfer,
 }
 
 impl PoolRoute {
@@ -59,10 +58,7 @@ impl PoolRoute {
     }
 
     pub fn net_amount_out(&self) -> u64 {
-        match self.fee_side {
-            FeeSide::Input => self.gross_amount_out(),
-            FeeSide::Output => self.gross_amount_out().saturating_sub(self.fee_amount),
-        }
+        self.fee.received_value(self.gross_amount_out())
     }
 }
 
@@ -119,8 +115,7 @@ mod tests {
         };
         let route = PoolRoute {
             hops: vec![hop.clone()],
-            fee_amount: 5_000,
-            fee_side: FeeSide::Input,
+            fee: ReferralTransfer { side: FeeSide::Input, value: 5_000 },
         };
         assert_eq!(route.input_coin_type(), SUI_FULL);
         assert_eq!(route.output_coin_type(), USDC);
@@ -129,8 +124,7 @@ mod tests {
 
         let route_output_fee = PoolRoute {
             hops: vec![hop],
-            fee_amount: 5_000,
-            fee_side: FeeSide::Output,
+            fee: ReferralTransfer { side: FeeSide::Output, value: 5_000 },
         };
         assert_eq!(route_output_fee.net_amount_out(), 795_000);
     }

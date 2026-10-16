@@ -22,9 +22,6 @@ pub(super) const FUNCTION_NEW_POOL_KEY: &str = "new_pool_key";
 pub(super) const FUNCTION_POOL_SIMPLE_INFO: &str = "pool_simple_info";
 pub(super) const FUNCTION_POOL_ID: &str = "pool_id";
 
-pub(super) const MIN_SQRT_PRICE_X64: u128 = 4_295_048_016;
-pub(super) const MAX_SQRT_PRICE_X64: u128 = 79_226_673_515_401_279_992_447_579_055;
-
 pub(super) const CETUS_PRIMARY_TICK_SPACINGS: &[u32] = &[60, 200];
 pub(super) const CETUS_ALL_TICK_SPACINGS: &[u32] = &[60, 200, 10, 2, 40];
 

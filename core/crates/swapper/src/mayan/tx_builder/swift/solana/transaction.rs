@@ -3,11 +3,12 @@ use std::fmt::Debug;
 use gem_client::Client;
 use gem_evm::EVM_ZERO_ADDRESS;
 use gem_solana::{
-    Instruction, Pubkey, SolanaAddress, WSOL_TOKEN_ADDRESS,
+    Instruction, Pubkey, SolanaAddress,
     associated_token::{create_associated_token_account_idempotent_with_address, get_associated_token_address_with_program_id},
     compute_budget, find_program_address,
     instructions::program_ids,
     system, token,
+    wrapped_sol::wrapped_sol_mint,
 };
 use primitives::Chain;
 use rand::RngExt;
@@ -64,7 +65,7 @@ impl SwiftBuildContext {
         let token_program = swift_token_program(route);
         let swift_input_contract = route_swift_input_contract(route)?.to_string();
         let swift_input_mint = if swift_input_contract == EVM_ZERO_ADDRESS {
-            SolanaAddress::parse(WSOL_TOKEN_ADDRESS).map_err(solana_error)?.into()
+            wrapped_sol_mint()
         } else {
             SolanaAddress::parse(&swift_input_contract).map_err(solana_error)?.into()
         };

@@ -1,10 +1,11 @@
+use borsh::BorshDeserialize;
 use gem_client::testkit::MockClient;
 use gem_encoding::{decode_base64, encode_base64};
-use gem_jsonrpc::{client::JsonRpcClient, types::JsonRpcResponse};
+use gem_jsonrpc::{client::JsonRpcClient, testkit::mock_jsonrpc_client, types::JsonRpcResponse};
 use gem_solana::{
     Pubkey, USDT_TOKEN_MINT,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_program},
-    models::{AccountData, ValueResult},
+    models::{AccountData, Clock, ValueResult},
 };
 use serde_json::{Value, json};
 use std::{
@@ -14,9 +15,6 @@ use std::{
         atomic::{AtomicUsize, Ordering},
     },
 };
-
-use borsh::BorshDeserialize;
-use gem_solana::models::Clock;
 
 use super::{tick_array::TickArray, whirlpool::Whirlpool};
 
@@ -48,14 +46,15 @@ impl Whirlpool {
 }
 
 pub(super) fn mock_rpc_client(accounts: HashMap<String, Value>, requests: Arc<AtomicUsize>) -> JsonRpcClient<MockClient> {
-    JsonRpcClient::new(MockClient::new().with_post(move |_, body| {
-        requests.fetch_add(1, Ordering::SeqCst);
-        let response = match serde_json::from_slice::<Value>(body).unwrap() {
-            Value::Array(calls) => Value::Array(calls.iter().map(|call| mock_rpc_response(call, &accounts)).collect()),
-            call => mock_rpc_response(&call, &accounts),
-        };
-        Ok(serde_json::to_vec(&response).unwrap())
-    }))
+    mock_jsonrpc_client(move |method, params| match method {
+        "getMultipleAccounts" => {
+            requests.fetch_add(1, Ordering::SeqCst);
+            let addresses = params[0].as_array().unwrap();
+            Ok(json!({ "context": { "slot": 1 }, "value": addresses.iter().map(|address| accounts.get(address.as_str().unwrap()).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() }))
+        }
+        "getLatestBlockhash" => Ok(json!({ "context": { "slot": 1 }, "value": { "blockhash": "11111111111111111111111111111111", "lastValidBlockHeight": 1 } })),
+        method => panic!("unexpected method {method}"),
+    })
 }
 
 pub(super) fn mock_snapshot_rpc_accounts() -> HashMap<String, Value> {
@@ -81,18 +80,6 @@ pub(super) fn mock_snapshot_rpc_accounts() -> HashMap<String, Value> {
         .chain([(sysvar_clock().to_base58(), clock)])
         .chain(mints)
         .collect()
-}
-
-fn mock_rpc_response(call: &Value, accounts: &HashMap<String, Value>) -> Value {
-    let result = match call["method"].as_str().unwrap() {
-        "getMultipleAccounts" => json!({
-            "context": { "slot": 1 },
-            "value": call["params"][0].as_array().unwrap().iter().map(|address| accounts.get(address.as_str().unwrap()).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>(),
-        }),
-        "getLatestBlockhash" => json!({ "context": { "slot": 1 }, "value": { "blockhash": "11111111111111111111111111111111", "lastValidBlockHeight": 1 } }),
-        method => panic!("unexpected method {method}"),
-    };
-    json!({ "jsonrpc": "2.0", "id": call["id"], "result": result })
 }
 
 pub(super) fn mock_token_2022_rpc_accounts() -> HashMap<String, Value> {

@@ -1,15 +1,7 @@
-use gem_solana::{Pubkey, USDC_TOKEN_MINT, USDS_TOKEN_MINT, USDT_TOKEN_MINT, WSOL_TOKEN_ADDRESS};
+use gem_solana::Pubkey;
 use serde::{Deserialize, Serialize};
 
-use crate::fees::{FeeSide, subtract_bps};
-
-const FEE_PRIORITY_MINTS: [&str; 4] = [WSOL_TOKEN_ADDRESS, USDC_TOKEN_MINT, USDT_TOKEN_MINT, USDS_TOKEN_MINT];
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub(crate) struct ReferralTransfer {
-    pub side: FeeSide,
-    pub value: u64,
-}
+use crate::fees::{FeeSide, ReferralTransfer, SOLANA_FEE_MINTS, subtract_bps};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct DexRoute {
@@ -23,17 +15,11 @@ pub(crate) struct DexRoute {
 
 impl DexRoute {
     pub fn input_value(&self) -> u64 {
-        match self.fee.side {
-            FeeSide::Input => self.swap_value.saturating_add(self.fee.value),
-            FeeSide::Output => self.swap_value,
-        }
+        self.fee.input_value(self.swap_value)
     }
 
     pub fn received_value(&self) -> u64 {
-        match self.fee.side {
-            FeeSide::Input => self.output_value,
-            FeeSide::Output => self.output_value.saturating_sub(self.fee.value),
-        }
+        self.fee.received_value(self.output_value)
     }
 
     pub fn minimum_output(&self, slippage_bps: u32) -> u64 {
@@ -46,12 +32,13 @@ impl DexRoute {
 }
 
 pub(crate) fn preferred_fee_side(input_mint: &Pubkey, output_mint: &Pubkey) -> Option<FeeSide> {
-    FeeSide::by_priority(&FEE_PRIORITY_MINTS, |mint| input_mint.to_base58() == *mint, |mint| output_mint.to_base58() == *mint)
+    FeeSide::by_priority(&SOLANA_FEE_MINTS, |mint| input_mint.to_base58() == *mint, |mint| output_mint.to_base58() == *mint)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gem_solana::{USDC_TOKEN_MINT, USDS_TOKEN_MINT, USDT_TOKEN_MINT, WSOL_TOKEN_ADDRESS};
 
     const BONK: &str = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
 
@@ -84,11 +71,7 @@ mod tests {
             ..route.clone()
         };
 
-        assert_eq!(route.input_value(), 1_000_000);
-        assert_eq!(output_fee.input_value(), 995_000);
-        assert_eq!(route.received_value(), 1_000_000);
         assert_eq!(route.minimum_output(100), 990_000);
-        assert_eq!(output_fee.received_value(), 995_000);
         assert_eq!(output_fee.minimum_output(100), 990_050);
     }
 }

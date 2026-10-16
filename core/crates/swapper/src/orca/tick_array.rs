@@ -1,10 +1,10 @@
 use borsh::BorshDeserialize;
-use gem_solana::{Pubkey, find_program_address};
+use gem_solana::{Pubkey, anchor::account_body, find_program_address, instructions::program_ids::orca_whirlpool_program};
 
-use super::whirlpool::{TICK_ARRAY_SIZE, WHIRLPOOL_PROGRAM, Whirlpool, anchor_account_body};
+use super::whirlpool::{TICK_ARRAY_SIZE, Whirlpool};
 use crate::{
     SwapperError,
-    solana_dex::{ClmmTick, MAX_TICK_INDEX, MIN_TICK_INDEX},
+    clmm::{ClmmTick, MAX_TICK_INDEX, MIN_TICK_INDEX},
 };
 
 const TICK_GROWTHS_LEN: usize = 96;
@@ -54,7 +54,7 @@ pub(super) struct TickArray {
 
 impl TickArray {
     pub fn address(whirlpool: &Pubkey, start_tick_index: i32) -> Result<Pubkey, SwapperError> {
-        Ok(find_program_address(&WHIRLPOOL_PROGRAM, &[b"tick_array".as_slice(), whirlpool.as_bytes(), start_tick_index.to_string().as_bytes()])?.0)
+        Ok(find_program_address(&orca_whirlpool_program(), &[b"tick_array".as_slice(), whirlpool.as_bytes(), start_tick_index.to_string().as_bytes()])?.0)
     }
 
     pub fn addresses(whirlpool: &Pubkey, start_tick_indexes: &[i32]) -> Result<Vec<Pubkey>, SwapperError> {
@@ -62,7 +62,7 @@ impl TickArray {
     }
 
     pub fn decode(data: &[u8]) -> Result<Self, SwapperError> {
-        if let Ok(body) = anchor_account_body(data, FIXED_TICK_ARRAY) {
+        if let Ok(body) = account_body(data, FIXED_TICK_ARRAY) {
             let array = FixedTickArray::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)?;
             return Ok(Self {
                 start_tick_index: array.start_tick_index,
@@ -70,7 +70,7 @@ impl TickArray {
                 liquidity_nets: array.ticks.iter().map(|tick| tick.initialized.then_some(tick.liquidity_net)).collect(),
             });
         }
-        let body = anchor_account_body(data, DYNAMIC_TICK_ARRAY)?;
+        let body = account_body(data, DYNAMIC_TICK_ARRAY)?;
         let array = DynamicTickArray::deserialize(&mut &body[..]).map_err(SwapperError::compute_quote_error)?;
         Ok(Self {
             start_tick_index: array.start_tick_index,
@@ -149,6 +149,6 @@ mod tests {
         );
         assert_eq!(fixed.start_tick_index, -22_528);
         assert_eq!(fixed.whirlpool.to_base58(), TEST_WHIRLPOOL);
-        assert_eq!(TickArray::decode(&[0; 16]), Err(SwapperError::compute_quote_error("Invalid DynamicTickArray account")));
+        assert_eq!(TickArray::decode(&[0; 16]), Err(SwapperError::from(gem_solana::SolanaError::invalid_input("Invalid DynamicTickArray account"))));
     }
 }

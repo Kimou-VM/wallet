@@ -1,51 +1,46 @@
-use gem_encoding::encode_base64;
 use gem_solana::{
-    DEFAULT_SWAP_GAS_LIMIT, Instruction, MAX_TRANSACTION_SIZE, Pubkey, TransactionBuilder,
+    DEFAULT_SWAP_GAS_LIMIT, Instruction, Pubkey,
     associated_token::create_associated_token_account_idempotent,
     compute_budget::{set_compute_unit_limit, set_compute_unit_price},
-    system,
+    encode_v0_transaction, system,
     token::transfer_checked_with_program_id,
     wrapped_sol,
 };
 
-use super::{route::ReferralTransfer, token::SwapToken};
-use crate::{SwapperError, fees::FeeSide};
+use super::{protocol::PoolSwap, token::SwapToken};
+use crate::{
+    SwapperError,
+    fees::{FeeSide, ReferralTransfer},
+};
 
 #[derive(Debug)]
 pub(crate) struct DexTransaction<'a> {
-    pub authority: Pubkey,
-    pub input: &'a SwapToken,
-    pub output: &'a SwapToken,
+    pub swap: PoolSwap<'a>,
     pub referral: Pubkey,
     pub fee: ReferralTransfer,
-    pub swap_value: u64,
     pub swap_instruction: Instruction,
 }
 
 impl DexTransaction<'_> {
-    pub fn encode(&self, blockhash: [u8; 32]) -> Result<String, SwapperError> {
-        let transaction = TransactionBuilder::build_v0_transaction(self.authority, blockhash, &self.instructions()?, &[]).map_err(SwapperError::transaction_error)?;
-        let bytes = transaction.serialize().map_err(SwapperError::transaction_error)?;
-        if bytes.len() > MAX_TRANSACTION_SIZE {
-            return Err(SwapperError::transaction_error(format!("Solana swap transaction size {} exceeds maximum of {MAX_TRANSACTION_SIZE} bytes", bytes.len())));
-        }
-        Ok(encode_base64(&bytes))
+    pub fn encode(&self, blockhash: &str) -> Result<String, SwapperError> {
+        encode_v0_transaction(self.swap.authority, blockhash, &self.instructions()?, &[]).map_err(SwapperError::transaction_error)
     }
 
     fn instructions(&self) -> Result<Vec<Instruction>, SwapperError> {
-        let input_fee = self.fee_instructions(FeeSide::Input, self.input)?;
-        let wrap = if self.input.is_native {
-            wrapped_sol::wrap_instructions(&self.authority, self.swap_value).map_err(SwapperError::transaction_error)?
+        let PoolSwap { authority, input, output, amount, .. } = &self.swap;
+        let input_fee = self.fee_instructions(FeeSide::Input, input)?;
+        let wrap = if input.is_native {
+            wrapped_sol::wrap_instructions(authority, *amount).map_err(SwapperError::transaction_error)?
         } else {
             vec![]
         };
-        let output_account = create_associated_token_account_idempotent(&self.authority, &self.authority, &self.output.mint, &self.output.token_program).map_err(SwapperError::transaction_error)?;
-        let unwrap = if self.input.is_native || self.output.is_native {
-            vec![wrapped_sol::unwrap_instruction(&self.authority).map_err(SwapperError::transaction_error)?]
+        let output_account = create_associated_token_account_idempotent(authority, authority, &output.mint, &output.token_program).map_err(SwapperError::transaction_error)?;
+        let unwrap = if input.is_native || output.is_native {
+            vec![wrapped_sol::unwrap_instruction(authority).map_err(SwapperError::transaction_error)?]
         } else {
             vec![]
         };
-        let output_fee = self.fee_instructions(FeeSide::Output, self.output)?;
+        let output_fee = self.fee_instructions(FeeSide::Output, output)?;
         Ok([
             vec![set_compute_unit_price(0), set_compute_unit_limit(DEFAULT_SWAP_GAS_LIMIT)],
             input_fee,
@@ -61,14 +56,15 @@ impl DexTransaction<'_> {
         if self.fee.side != side || self.fee.value == 0 {
             return Ok(vec![]);
         }
+        let authority = &self.swap.authority;
         if token.is_native {
-            return Ok(vec![system::transfer(&self.authority, &self.referral, self.fee.value)]);
+            return Ok(vec![system::transfer(authority, &self.referral, self.fee.value)]);
         }
         Ok(vec![transfer_checked_with_program_id(
-            &token.account(&self.authority)?,
+            &token.account(authority)?,
             &token.mint,
             &token.account(&self.referral)?,
-            &self.authority,
+            authority,
             self.fee.value,
             token.decimals,
             &token.token_program,
@@ -83,8 +79,11 @@ mod tests {
     use gem_solana::{
         decode_transaction,
         instructions::program_ids::{associated_token_program, compute_budget_program, system_program, token_program},
+        wrapped_sol::wrapped_sol_mint,
     };
     use primitives::swap::SOLANA_REFERRAL_ADDRESS;
+
+    const TEST_BLOCKHASH: &str = "BZcyEKqjBNG5bEY6i5ev6PfPTgDSB9LwovJE1hJfJoHF";
 
     fn program_ids(transaction: &DexTransaction) -> Vec<Pubkey> {
         transaction.instructions().unwrap().iter().map(|instruction| instruction.program_id).collect()
@@ -92,7 +91,12 @@ mod tests {
 
     #[test]
     fn test_instructions() {
-        let (native, usdc) = (SwapToken::mock_native(), SwapToken::mock());
+        let native = SwapToken {
+            mint: wrapped_sol_mint(),
+            is_native: true,
+            ..SwapToken::mock()
+        };
+        let usdc = SwapToken::mock();
         let budget = [compute_budget_program(), compute_budget_program()];
         let swap = Pubkey::new([9; 32]);
         let input_fee = DexTransaction {
@@ -127,8 +131,8 @@ mod tests {
 
     #[test]
     fn test_encode() {
-        let (native, usdc) = (SwapToken::mock_native(), SwapToken::mock());
-        let decoded = decode_transaction(&DexTransaction::mock(&native, &usdc).encode([7; 32]).unwrap()).unwrap();
+        let usdc = SwapToken::mock();
+        let decoded = decode_transaction(&DexTransaction::mock(&usdc, &usdc).encode(TEST_BLOCKHASH).unwrap()).unwrap();
 
         assert_eq!(decoded.num_required_signatures(), 1);
         assert_eq!(decoded.get_compute_unit_limit(), Some(DEFAULT_SWAP_GAS_LIMIT));

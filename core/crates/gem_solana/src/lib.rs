@@ -103,7 +103,7 @@ pub fn get_token_program_id_by_address(address: &str) -> Option<SolanaTokenProgr
 pub fn get_pubkey_by_asset(asset_id: &AssetId) -> Option<Pubkey> {
     match &asset_id.token_id {
         Some(token_id) => Pubkey::from_base58(token_id).ok(),
-        None => Pubkey::from_base58(WSOL_TOKEN_ADDRESS).ok(),
+        None => Some(wrapped_sol::wrapped_sol_mint()),
     }
 }
 

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
-    JUPITER_PROGRAM_ID, MAX_COMPUTE_UNIT_LIMIT, SolanaAccountEncoding, SolanaRpc, SolanaTokenProgramIdExt, TOKEN_PROGRAM, USDC_TOKEN_MINT, USDS_TOKEN_MINT, USDT_TOKEN_MINT, WSOL_TOKEN_ADDRESS, get_pubkey_by_str,
+    JUPITER_PROGRAM_ID, MAX_COMPUTE_UNIT_LIMIT, SolanaAccountEncoding, SolanaRpc, SolanaTokenProgramIdExt, TOKEN_PROGRAM, get_pubkey_by_str,
     models::{AccountData, ValueResult},
     token_account::get_token_account,
 };
@@ -11,12 +11,12 @@ use primitives::{AssetId, Chain, SolanaTokenProgramId};
 
 use super::{client::JupiterClient, model::BuildRequest};
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData, error::INVALID_ADDRESS, fees::default_referral_fees,
+    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
+    error::INVALID_ADDRESS,
+    fees::{SOLANA_FEE_MINTS, default_referral_fees},
 };
 
 const MAX_ACCOUNTS: u8 = 64;
-const PREFERRED_FEE_MINTS: [&str; 4] = [USDC_TOKEN_MINT, USDT_TOKEN_MINT, USDS_TOKEN_MINT, WSOL_TOKEN_ADDRESS];
-
 #[derive(Debug)]
 pub struct Jupiter<C, R>
 where
@@ -60,9 +60,9 @@ where
 
     async fn get_referral_account(&self, from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset, referral_address: &str) -> Result<String, SwapperError> {
         let output_mint = Self::asset_mint(&to_asset.id)?;
-        let fee_asset = if PREFERRED_FEE_MINTS.contains(&output_mint.as_str()) { to_asset } else { from_asset };
+        let fee_asset = if SOLANA_FEE_MINTS.contains(&output_mint.as_str()) { to_asset } else { from_asset };
         let fee_mint = Self::asset_mint(&fee_asset.id)?;
-        let is_preferred_fee_mint = PREFERRED_FEE_MINTS.contains(&fee_mint.as_str());
+        let is_preferred_fee_mint = SOLANA_FEE_MINTS.contains(&fee_mint.as_str());
         let token_program = if is_preferred_fee_mint { TOKEN_PROGRAM.to_string() } else { self.get_token_program(fee_asset).await? };
         let fee_account = get_token_account(referral_address, &fee_mint, &token_program)?;
         if is_preferred_fee_mint {
@@ -149,7 +149,7 @@ mod swap_integration_tests {
     use super::*;
     use crate::{FetchQuoteData, SwapperQuoteAsset, alien::reqwest_provider::NativeProvider, models::Options};
     use gem_encoding::decode_base64;
-    use gem_solana::MAX_TRANSACTION_SIZE;
+    use gem_solana::{MAX_TRANSACTION_SIZE, USDC_TOKEN_MINT, WSOL_TOKEN_ADDRESS};
     use primitives::AssetId;
     use std::sync::Arc;
 
