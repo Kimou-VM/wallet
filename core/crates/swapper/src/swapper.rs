@@ -300,62 +300,34 @@ mod tests {
             Box::new(thorchain::ThorChain::new_mayachain(provider.clone()).unwrap()),
             Box::new(jupiter::Jupiter::new(provider).unwrap()),
         ];
+        let filter = |from_chain, to_chain| {
+            swappers
+                .iter()
+                .filter(|x| GemSwapper::filter_by_provider_mode(&x.provider().mode, from_chain, to_chain))
+                .filter(|x| GemSwapper::filter_by_supported_chains(x.supported_chains(), from_chain, to_chain))
+                .collect::<Vec<_>>()
+        };
 
-        let from_chain = Chain::Ethereum;
-        let to_chain = Chain::Optimism;
-
-        let filtered = swappers
-            .iter()
-            .filter(|x| GemSwapper::filter_by_provider_mode(&x.provider().mode, from_chain, to_chain))
-            .filter(|x| GemSwapper::filter_by_supported_chains(x.supported_chains(), from_chain, to_chain))
-            .collect::<Vec<_>>();
+        let filtered = filter(Chain::Ethereum, Chain::Optimism);
 
         assert_eq!(filtered.len(), 0);
 
-        let from_chain = Chain::SmartChain;
-        let to_chain = Chain::SmartChain;
-
-        let filtered = swappers
-            .iter()
-            .filter(|x| GemSwapper::filter_by_provider_mode(&x.provider().mode, from_chain, to_chain))
-            .filter(|x| GemSwapper::filter_by_supported_chains(x.supported_chains(), from_chain, to_chain))
-            .collect::<Vec<_>>();
+        let filtered = filter(Chain::SmartChain, Chain::SmartChain);
 
         assert_eq!(filtered.len(), 2);
         assert_eq!(filtered.iter().map(|x| x.provider().id).collect::<BTreeSet<_>>(), BTreeSet::from([SwapperProvider::UniswapV3, SwapperProvider::PancakeswapV3]));
 
-        let from_chain = Chain::Solana;
-        let to_chain = Chain::Solana;
-
-        let filtered = swappers
-            .iter()
-            .filter(|x| GemSwapper::filter_by_provider_mode(&x.provider().mode, from_chain, to_chain))
-            .filter(|x| GemSwapper::filter_by_supported_chains(x.supported_chains(), from_chain, to_chain))
-            .collect::<Vec<_>>();
+        let filtered = filter(Chain::Solana, Chain::Solana);
 
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].provider().id, SwapperProvider::Jupiter);
 
-        let from_chain = Chain::SmartChain;
-        let to_chain = Chain::Bitcoin;
-
-        let filtered = swappers
-            .iter()
-            .filter(|x| GemSwapper::filter_by_provider_mode(&x.provider().mode, from_chain, to_chain))
-            .filter(|x| GemSwapper::filter_by_supported_chains(x.supported_chains(), from_chain, to_chain))
-            .collect::<Vec<_>>();
+        let filtered = filter(Chain::SmartChain, Chain::Bitcoin);
 
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].provider().id, SwapperProvider::Thorchain);
 
-        let from_chain = Chain::Ethereum;
-        let to_chain = Chain::Mayachain;
-
-        let filtered = swappers
-            .iter()
-            .filter(|x| GemSwapper::filter_by_provider_mode(&x.provider().mode, from_chain, to_chain))
-            .filter(|x| GemSwapper::filter_by_supported_chains(x.supported_chains(), from_chain, to_chain))
-            .collect::<Vec<_>>();
+        let filtered = filter(Chain::Ethereum, Chain::Mayachain);
 
         assert_eq!(filtered.len(), 0);
     }
