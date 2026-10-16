@@ -1,19 +1,38 @@
 use gem_solana::Pubkey;
 use serde::{Deserialize, Serialize};
 
-use crate::fees::{FeeSide, ReferralTransfer, SOLANA_FEE_MINTS, subtract_bps};
+use super::token::{INTERMEDIATE_TOKENS, SwapToken};
+use crate::{
+    SwapperError,
+    fees::{FeeSide, ReferralTransfer, SOLANA_FEE_MINTS, subtract_bps},
+};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub(crate) struct DexRoute {
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub(crate) struct DexHop {
     pub pool: Pubkey,
     pub input_mint: Pubkey,
     pub output_mint: Pubkey,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub(crate) struct DexRoute {
+    pub hops: Vec<DexHop>,
     pub swap_value: u64,
     pub output_value: u64,
     pub fee: ReferralTransfer,
 }
 
 impl DexRoute {
+    pub fn intermediate(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Option<&'static SwapToken>, SwapperError> {
+        match self.hops.as_slice() {
+            [hop] if hop.input_mint == *input_mint && hop.output_mint == *output_mint => Ok(None),
+            [first, second] if first.input_mint == *input_mint && second.output_mint == *output_mint && first.output_mint == second.input_mint => {
+                INTERMEDIATE_TOKENS.iter().find(|token| token.mint == first.output_mint).map(Some).ok_or(SwapperError::InvalidRoute)
+            }
+            _ => Err(SwapperError::InvalidRoute),
+        }
+    }
+
     pub fn input_value(&self) -> u64 {
         self.fee.input_value(self.swap_value)
     }
@@ -57,11 +76,36 @@ mod tests {
     }
 
     #[test]
+    fn test_intermediate() {
+        let (sol, usdc, bonk) = (mint(WSOL_TOKEN_ADDRESS), mint(USDC_TOKEN_MINT), mint(BONK));
+        let hop = |input_mint, output_mint| DexHop {
+            pool: Pubkey::new([1; 32]),
+            input_mint,
+            output_mint,
+        };
+        let route = |hops| DexRoute {
+            hops,
+            swap_value: 1,
+            output_value: 1,
+            fee: ReferralTransfer { side: FeeSide::Input, value: 0 },
+        };
+
+        assert_eq!(route(vec![hop(bonk, sol)]).intermediate(&bonk, &sol), Ok(None));
+        assert_eq!(route(vec![hop(bonk, usdc), hop(usdc, sol)]).intermediate(&bonk, &sol), Ok(Some(&INTERMEDIATE_TOKENS[1])));
+        assert_eq!(route(vec![hop(bonk, sol)]).intermediate(&sol, &bonk), Err(SwapperError::InvalidRoute));
+        assert_eq!(route(vec![hop(bonk, usdc), hop(sol, usdc)]).intermediate(&bonk, &usdc), Err(SwapperError::InvalidRoute));
+        assert_eq!(route(vec![hop(sol, bonk), hop(bonk, usdc)]).intermediate(&sol, &usdc), Err(SwapperError::InvalidRoute));
+        assert_eq!(route(vec![]).intermediate(&sol, &usdc), Err(SwapperError::InvalidRoute));
+    }
+
+    #[test]
     fn test_minimum_output() {
         let route = DexRoute {
-            pool: Pubkey::new([1; 32]),
-            input_mint: mint(WSOL_TOKEN_ADDRESS),
-            output_mint: mint(USDC_TOKEN_MINT),
+            hops: vec![DexHop {
+                pool: Pubkey::new([1; 32]),
+                input_mint: mint(WSOL_TOKEN_ADDRESS),
+                output_mint: mint(USDC_TOKEN_MINT),
+            }],
             swap_value: 995_000,
             output_value: 1_000_000,
             fee: ReferralTransfer { side: FeeSide::Input, value: 5_000 },

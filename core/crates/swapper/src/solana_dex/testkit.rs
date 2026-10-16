@@ -23,6 +23,7 @@ impl<'a> DexTransaction<'a> {
             swap: PoolSwap {
                 authority: Pubkey::from_base58(TEST_AUTHORITY).unwrap(),
                 input,
+                intermediate: None,
                 output,
                 amount: 995_000,
                 minimum_out: 0,

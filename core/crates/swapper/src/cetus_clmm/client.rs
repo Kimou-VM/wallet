@@ -8,6 +8,7 @@ use crate::{
     client_factory::create_sui_client,
     fees::{ReferralFee, default_referral_fees},
     route_cache::DiscoveryCache,
+    route_path::RoutePath,
 };
 use gem_sui::{EMPTY_ADDRESS, SUI_COIN_TYPE, SuiClient, coin_type_matches, full_coin_type, models::InspectResult, tx_builder::ObjectResolver};
 use primitives::AssetId;
@@ -102,13 +103,9 @@ impl CetusClmm {
             return PhaseResult { acceptable_direct, best_route: None };
         }
 
-        let multi_hop_discoveries = INTERMEDIATE_COIN_TYPES.iter().filter_map(|raw_intermediate| {
-            let intermediate = full_coin_type(raw_intermediate);
-            if coin_type_matches(from, &intermediate) || coin_type_matches(to, &intermediate) {
-                None
-            } else {
-                Some(async move { futures::future::join(self.discover_direct_pools(from, &intermediate, ticks), self.discover_direct_pools(&intermediate, to, ticks)).await })
-            }
+        let multi_hop_discoveries = route_paths(from, to).into_iter().filter_map(|path| match path {
+            RoutePath::Direct => None,
+            RoutePath::Intermediary(intermediate) => Some(async move { futures::future::join(self.discover_direct_pools(from, &intermediate, ticks), self.discover_direct_pools(&intermediate, to, ticks)).await }),
         });
         let multi_hop_candidates = futures::future::join_all(multi_hop_discoveries)
             .await
@@ -322,16 +319,14 @@ impl CetusClmm {
     }
 }
 
+fn route_paths(from: &str, to: &str) -> Vec<RoutePath<String>> {
+    RoutePath::all(&from.to_string(), &to.to_string(), INTERMEDIATE_COIN_TYPES.iter().map(|intermediate| full_coin_type(intermediate)), |left, right| {
+        coin_type_matches(left, right)
+    })
+}
+
 fn discovery_pairs(from: &str, to: &str) -> Vec<(String, String)> {
-    std::iter::once((from.to_string(), to.to_string()))
-        .chain(
-            INTERMEDIATE_COIN_TYPES
-                .iter()
-                .map(|raw_intermediate| full_coin_type(raw_intermediate))
-                .filter(|intermediate| !coin_type_matches(from, intermediate) && !coin_type_matches(to, intermediate))
-                .flat_map(|intermediate| [(from.to_string(), intermediate.clone()), (intermediate, to.to_string())]),
-        )
-        .collect()
+    route_paths(from, to).iter().flat_map(|path| path.pairs(&from.to_string(), &to.to_string())).collect()
 }
 
 fn canonical_pair_order<'a>(a: &'a str, b: &'a str) -> (&'a str, &'a str) {

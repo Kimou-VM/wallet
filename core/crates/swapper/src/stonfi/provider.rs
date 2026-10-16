@@ -9,6 +9,7 @@ use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
     fees::{ReferralFee, default_referral_fees, reserved_transaction_fees, subtract_bps},
     route_cache::DiscoveryCache,
+    route_path::RoutePath,
 };
 use async_trait::async_trait;
 use futures::future::join_all;
@@ -47,14 +48,13 @@ where
         }
     }
 
-    fn intermediary_tokens(from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset) -> Vec<SwapperQuoteAsset> {
-        if from_asset.is_native() || to_asset.is_native() {
-            return Vec::new();
-        }
-        [SwapperQuoteAsset::from(AssetId::from_chain(Chain::Ton)), SwapperQuoteAsset::from(TON_USDT_ASSET_ID.clone())]
-            .into_iter()
-            .filter(|intermediary| intermediary.asset_id() != from_asset.asset_id() && intermediary.asset_id() != to_asset.asset_id())
-            .collect()
+    fn route_paths(from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset) -> Vec<RoutePath<SwapperQuoteAsset>> {
+        let intermediaries = if from_asset.is_native() || to_asset.is_native() {
+            vec![]
+        } else {
+            vec![SwapperQuoteAsset::from(AssetId::from_chain(Chain::Ton)), SwapperQuoteAsset::from(TON_USDT_ASSET_ID.clone())]
+        };
+        RoutePath::all(from_asset, to_asset, intermediaries, |left, right| left.asset_id() == right.asset_id())
     }
 
     async fn quote_path_via_intermediary(&self, intermediary: &SwapperQuoteAsset, from_value: &str, request: &QuoteRequest, allow_discovery: bool) -> Result<QuotePath, SwapperError> {
@@ -102,11 +102,10 @@ where
     }
 
     async fn quote_paths(&self, request: &QuoteRequest, from_value: &str, allow_discovery: bool) -> Vec<Result<QuotePath, SwapperError>> {
-        let paths = std::iter::once(None).chain(Self::intermediary_tokens(&request.from_asset, &request.to_asset).into_iter().map(Some));
-        join_all(paths.map(|intermediary| async move {
-            match intermediary {
-                Some(intermediary) => self.quote_path_via_intermediary(&intermediary, from_value, request, allow_discovery).await,
-                None => self.quote_direct(request, from_value, allow_discovery).await,
+        join_all(Self::route_paths(&request.from_asset, &request.to_asset).into_iter().map(|path| async move {
+            match path {
+                RoutePath::Direct => self.quote_direct(request, from_value, allow_discovery).await,
+                RoutePath::Intermediary(intermediary) => self.quote_path_via_intermediary(&intermediary, from_value, request, allow_discovery).await,
             }
         }))
         .await
@@ -350,17 +349,17 @@ where
         }
         let from_asset = SwapperQuoteAsset::from(from_asset.clone());
         let to_asset = SwapperQuoteAsset::from(to_asset.clone());
-        let from_token = token_address(&from_asset);
-        let to_token = token_address(&to_asset);
-        let intermediary_pairs = Self::intermediary_tokens(&from_asset, &to_asset)
+        let pairs = Self::route_paths(&from_asset, &to_asset)
             .into_iter()
-            .flat_map(|intermediary| {
-                let intermediary = token_address(&intermediary);
-                [(from_token.clone(), intermediary.clone(), true), (intermediary, to_token.clone(), true)]
+            .flat_map(|path| {
+                let require_v2 = match path {
+                    RoutePath::Direct => false,
+                    RoutePath::Intermediary(_) => true,
+                };
+                path.pairs(&from_asset, &to_asset).into_iter().map(move |(from, to)| (token_address(&from), token_address(&to), require_v2))
             })
             .collect::<Vec<_>>();
-        let pairs = std::iter::once((from_token, to_token, false)).chain(intermediary_pairs);
-        join_all(pairs.map(|(from, to, require_v2)| async move { self.preload_pair(&from, &to, require_v2).await })).await;
+        join_all(pairs.iter().map(|(from, to, require_v2)| self.preload_pair(from, to, *require_v2))).await;
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {

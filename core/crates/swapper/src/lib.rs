@@ -30,6 +30,7 @@ pub mod panora;
 pub mod permit2_data;
 pub mod relay;
 mod route_cache;
+mod route_path;
 mod solana_dex;
 pub mod squid;
 pub mod stonfi;

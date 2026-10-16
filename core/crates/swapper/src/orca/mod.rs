@@ -1,6 +1,6 @@
 mod oracle;
 mod protocol;
-mod swap_v2;
+mod swap;
 #[cfg(test)]
 mod testkit;
 mod tick_array;

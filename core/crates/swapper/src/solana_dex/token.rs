@@ -1,4 +1,5 @@
-use gem_solana::{Pubkey, SolanaTokenProgramIdExt, associated_token::get_associated_token_address_with_program_id, get_pubkey_by_asset, instructions::program_ids::token_program, models::Mint};
+use gem_solana::{Pubkey, SolanaTokenProgramIdExt, associated_token::get_associated_token_address_with_program_id, get_pubkey_by_asset, instructions::program_ids::token_program, models::Mint, wrapped_sol::wrapped_sol_mint};
+use hex_lit::hex;
 use primitives::SolanaTokenProgramId;
 
 use crate::{SwapperError, SwapperQuoteAsset};
@@ -10,6 +11,21 @@ pub(crate) struct SwapToken {
     pub decimals: u8,
     pub is_native: bool,
 }
+
+pub(crate) static INTERMEDIATE_TOKENS: [SwapToken; 2] = [
+    SwapToken {
+        mint: wrapped_sol_mint(),
+        token_program: token_program(),
+        decimals: 9,
+        is_native: false,
+    },
+    SwapToken {
+        mint: Pubkey::new(hex!("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")),
+        token_program: token_program(),
+        decimals: 6,
+        is_native: false,
+    },
+];
 
 impl SwapToken {
     pub fn from_asset(asset: &SwapperQuoteAsset) -> Result<Self, SwapperError> {
@@ -39,7 +55,7 @@ pub(crate) fn decode_mint(data: Option<Vec<u8>>) -> Result<Mint, SwapperError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gem_solana::{USDC_TOKEN_MINT, instructions::program_ids::token_2022_program, wrapped_sol::wrapped_sol_mint};
+    use gem_solana::{USDC_TOKEN_MINT, instructions::program_ids::token_2022_program};
     use primitives::{AssetId, AssetType, Chain};
 
     #[test]

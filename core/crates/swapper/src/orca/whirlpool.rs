@@ -22,7 +22,7 @@ pub(crate) struct Whirlpool {
     _fee_tier_index: u16,
     pub fee_rate: u16,
     _protocol_fee_rate: u16,
-    liquidity: u128,
+    pub liquidity: u128,
     sqrt_price: u128,
     pub tick_current_index: i32,
     _protocol_fees_owed: [u8; 16],
@@ -60,6 +60,19 @@ impl Whirlpool {
             (false, true) => Ok(false),
             (false, false) => Err(SwapperError::InvalidRoute),
         }
+    }
+
+    pub fn swap_direction(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<bool, SwapperError> {
+        let a_to_b = self.is_a_to_b(input_mint)?;
+        let other_mint = if a_to_b { self.token_mint_b } else { self.token_mint_a };
+        if other_mint != *output_mint {
+            return Err(SwapperError::InvalidRoute);
+        }
+        Ok(a_to_b)
+    }
+
+    pub fn vaults(&self, a_to_b: bool) -> (Pubkey, Pubkey) {
+        if a_to_b { (self.token_vault_a, self.token_vault_b) } else { (self.token_vault_b, self.token_vault_a) }
     }
 
     pub fn ticks_in_array(&self) -> i32 {

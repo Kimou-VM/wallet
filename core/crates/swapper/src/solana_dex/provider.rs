@@ -19,8 +19,8 @@ use std::{
 
 use super::{
     protocol::{DexProtocol, PoolSwap},
-    route::{DexRoute, preferred_fee_side},
-    token::{SwapToken, decode_mint},
+    route::{DexHop, DexRoute, preferred_fee_side},
+    token::{INTERMEDIATE_TOKENS, SwapToken, decode_mint},
     transaction::DexTransaction,
 };
 use crate::{
@@ -29,10 +29,21 @@ use crate::{
     error::INVALID_ADDRESS,
     fees::{FeeSide, default_referral_fees},
     route_cache::DiscoveryCache,
+    route_path::RoutePath,
 };
 
 type AccountsResult = ValueResult<Vec<Option<AccountData>>>;
 type Accounts = HashMap<Pubkey, Option<AccountData>>;
+type Pair = (Pubkey, Pubkey);
+type PoolRoute<Pool> = Vec<(DexHop, Pool)>;
+
+struct PoolLookup<Pool> {
+    pair: Pair,
+    known: Vec<(Pubkey, Pool)>,
+    addresses: Vec<Pubkey>,
+}
+
+type PathLookup<Pool> = (RoutePath<Pubkey>, Vec<PoolLookup<Pool>>);
 
 pub(crate) struct SolanaDex<P: DexProtocol, C: Client + Clone = RpcClient> {
     provider: ProviderType,
@@ -57,26 +68,87 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         }
     }
 
-    fn predicted_quote_accounts(&self, pools: &[(Pubkey, P::Pool)], input_mint: &Pubkey) -> Vec<Pubkey> {
-        pools.iter().filter_map(|(address, pool)| self.protocol.quote_accounts(address, pool, input_mint).ok()).flatten().collect()
+    fn path_lookups(&self, (input_mint, output_mint): Pair) -> Result<Vec<PathLookup<P::Pool>>, SwapperError> {
+        let paths = RoutePath::all(&input_mint, &output_mint, INTERMEDIATE_TOKENS.iter().map(|token| token.mint), |left, right| left == right);
+        let lookups = paths
+            .into_iter()
+            .map(|path| Ok((path.clone(), path.pairs(&input_mint, &output_mint).into_iter().map(|pair| self.pool_lookup(pair)).collect::<Result<Vec<_>, SwapperError>>()?)))
+            .collect::<Result<Vec<_>, SwapperError>>()?;
+        Ok(lookups.into_iter().filter(|(_, lookups)| lookups.iter().all(|lookup| !lookup.addresses.is_empty())).collect())
+    }
+
+    fn requested_accounts(&self, paths: &[&PathLookup<P::Pool>], pair: Pair) -> Vec<Pubkey> {
+        let lookups = paths.iter().flat_map(|(_, lookups)| lookups).collect::<Vec<_>>();
+        let known = lookups.iter().map(|lookup| (lookup.pair, lookup.known.clone())).collect();
+        let predicted = self.predicted_quote_accounts(&self.routes(paths.iter().map(|(path, _)| path), pair, &known));
+        lookups.iter().flat_map(|lookup| lookup.addresses.clone()).chain(predicted).collect()
+    }
+
+    fn pool_lookup(&self, pair: Pair) -> Result<PoolLookup<P::Pool>, SwapperError> {
+        let (input_mint, output_mint) = pair;
+        let probes = self.protocol.pool_addresses(&input_mint, &output_mint)?;
+        let known = self.pools.candidates_for_probes(input_mint, output_mint, &probes);
+        let addresses = known.iter().map(|(address, _)| *address).chain(self.pools.missing_probes(input_mint, output_mint, &probes)).collect();
+        Ok(PoolLookup { pair, known, addresses })
+    }
+
+    fn record_pools(&self, lookup: &PoolLookup<P::Pool>, accounts: &Accounts) -> Vec<(Pubkey, P::Pool)> {
+        let discovered = lookup.addresses.iter().map(|address| (*address, self.decode_pool(accounts, address))).collect::<Vec<_>>();
+        let pools = discovered.iter().filter_map(|(_, pool)| pool.clone()).collect();
+        self.pools.record_discovery(lookup.pair.0, lookup.pair.1, discovered);
+        pools
     }
 
     fn decode_pool(&self, accounts: &Accounts, address: &Pubkey) -> Option<(Pubkey, P::Pool)> {
         Some((*address, self.protocol.decode_pool(&Self::program_data(accounts, address).ok()??).ok()?))
     }
 
-    async fn quote_best_pool(&self, pools: &[(Pubkey, P::Pool)], input_mint: &Pubkey, amount_in: u64, accounts: Accounts, timestamp: u64) -> Result<(Pubkey, u64), SwapperError> {
-        let pool_accounts = pools.iter().map(|(address, pool)| self.protocol.quote_accounts(address, pool, input_mint)).collect::<Result<Vec<_>, _>>()?;
-        let missing = pool_accounts.iter().flatten().filter(|address| !accounts.contains_key(address)).copied().collect();
-        let accounts = accounts.into_iter().chain(self.fetch_accounts(missing).await?).collect::<Accounts>();
-        pools
-            .iter()
-            .zip(&pool_accounts)
-            .filter_map(|((address, pool), addresses)| {
-                let data = addresses.iter().map(|account| Self::program_data(&accounts, account)).collect::<Result<Vec<_>, _>>().ok()?;
-                Some((*address, self.protocol.quote(address, pool, input_mint, amount_in, &data, timestamp).ok()?))
+    fn routes<'a>(&self, paths: impl IntoIterator<Item = &'a RoutePath<Pubkey>>, (input_mint, output_mint): Pair, pools: &HashMap<Pair, Vec<(Pubkey, P::Pool)>>) -> Vec<PoolRoute<P::Pool>> {
+        let hops = |(input_mint, output_mint): Pair| {
+            pools
+                .get(&(input_mint, output_mint))
+                .into_iter()
+                .flatten()
+                .map(move |(address, pool)| (DexHop { pool: *address, input_mint, output_mint }, pool.clone()))
+        };
+        paths
+            .into_iter()
+            .flat_map(|path| match path {
+                RoutePath::Direct => hops((input_mint, output_mint)).map(|hop| vec![hop]).collect(),
+                RoutePath::Intermediary(_) => path
+                    .pairs(&input_mint, &output_mint)
+                    .into_iter()
+                    .map(|pair| hops(pair).max_by_key(|(_, pool)| self.protocol.liquidity(pool)))
+                    .collect::<Option<Vec<_>>>()
+                    .into_iter()
+                    .collect::<Vec<_>>(),
             })
-            .max_by_key(|(_, output_value)| *output_value)
+            .collect()
+    }
+
+    fn route_quote_accounts(&self, route: &[(DexHop, P::Pool)]) -> Option<Vec<Vec<Pubkey>>> {
+        route.iter().map(|(hop, pool)| self.protocol.quote_accounts(&hop.pool, pool, &hop.input_mint).ok()).collect()
+    }
+
+    fn predicted_quote_accounts(&self, routes: &[PoolRoute<P::Pool>]) -> Vec<Pubkey> {
+        routes.iter().filter_map(|route| self.route_quote_accounts(route)).flatten().flatten().collect()
+    }
+
+    async fn quote_best_route(&self, routes: Vec<PoolRoute<P::Pool>>, amount_in: u64, accounts: Accounts, timestamp: u64) -> Result<(Vec<DexHop>, u64), SwapperError> {
+        let route_accounts = routes.iter().map(|route| self.route_quote_accounts(route)).collect::<Vec<_>>();
+        let missing = route_accounts.iter().flatten().flatten().flatten().filter(|address| !accounts.contains_key(address)).copied().collect();
+        let accounts = accounts.into_iter().chain(self.fetch_accounts(missing).await?).collect::<Accounts>();
+        routes
+            .into_iter()
+            .zip(route_accounts)
+            .filter_map(|(route, hop_accounts)| {
+                let output_value = route.iter().zip(hop_accounts?).try_fold(amount_in, |amount, ((hop, pool), addresses)| {
+                    let data = addresses.iter().map(|account| Self::program_data(&accounts, account)).collect::<Result<Vec<_>, _>>().ok()?;
+                    self.protocol.quote(&hop.pool, pool, &hop.input_mint, amount, &data, timestamp).ok()
+                })?;
+                Some((route.into_iter().map(|(hop, _)| hop).collect::<Vec<_>>(), output_value))
+            })
+            .max_by(|(left, left_value), (right, right_value)| left_value.cmp(right_value).then(right.len().cmp(&left.len())))
             .ok_or(SwapperError::NoQuoteAvailable)
     }
 
@@ -92,13 +164,19 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         Ok(addresses.into_iter().zip(response.value).collect())
     }
 
-    async fn fetch_pool_and_blockhash(&self, address: Pubkey) -> Result<(P::Pool, String), SwapperError> {
-        let requests = vec![accounts_request(&[address]), SolanaRpc::GetLatestBlockhash(SolanaRpcConfig::Confirmed)];
+    async fn fetch_pools_and_blockhash(&self, addresses: Vec<Pubkey>) -> Result<(Vec<(Pubkey, P::Pool)>, String), SwapperError> {
+        let requests = vec![accounts_request(&addresses), SolanaRpc::GetLatestBlockhash(SolanaRpcConfig::Confirmed)];
         let [accounts, blockhash]: [Value; 2] = self.client.requests(requests).await?.take_all()?.try_into().map_err(|_| SwapperError::transaction_error("Unexpected Solana batch response"))?;
-        let accounts: Accounts = [address].into_iter().zip(serde_json::from_value::<AccountsResult>(accounts)?.value).collect();
-        let data = Self::program_data(&accounts, &address)?.ok_or(SwapperError::InvalidRoute)?;
+        let accounts: Accounts = addresses.iter().copied().zip(serde_json::from_value::<AccountsResult>(accounts)?.value).collect();
+        let pools = addresses
+            .into_iter()
+            .map(|address| {
+                let data = Self::program_data(&accounts, &address)?.ok_or(SwapperError::InvalidRoute)?;
+                Ok((address, self.protocol.decode_pool(&data)?))
+            })
+            .collect::<Result<Vec<_>, SwapperError>>()?;
         let blockhash: SolanaBlockhashResult = serde_json::from_value(blockhash)?;
-        Ok((self.protocol.decode_pool(&data)?, blockhash.value.blockhash))
+        Ok((pools, blockhash.value.blockhash))
     }
 
     fn program_data(accounts: &Accounts, address: &Pubkey) -> Result<Option<Vec<u8>>, SwapperError> {
@@ -162,18 +240,18 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
             Some(_) => vec![],
             None => vec![input.account(&referral)?, output.account(&referral)?],
         };
-        let probes = self.protocol.pool_addresses(&input.mint, &output.mint)?;
-        let known_pools = self.pools.candidates_for_probes(input.mint, output.mint, &probes);
-        let missing_pools = self.pools.missing_probes(input.mint, output.mint, &probes);
-        if known_pools.is_empty() && missing_pools.is_empty() {
+        let pair = (input.mint, output.mint);
+        let paths = self.path_lookups(pair)?;
+        if paths.is_empty() {
             return Err(SwapperError::NoQuoteAvailable);
         }
-        let pool_addresses = known_pools.iter().map(|(address, _)| *address).chain(missing_pools).collect::<Vec<_>>();
-        let predicted = self.predicted_quote_accounts(&known_pools, &input.mint);
-        let accounts = self.fetch_accounts([pool_addresses.as_slice(), &predicted, &referral_accounts, &[input.mint, output.mint, sysvar_clock()]].concat()).await?;
-        let discovered = pool_addresses.iter().map(|address| (*address, self.decode_pool(&accounts, address))).collect::<Vec<_>>();
-        let pools = discovered.iter().filter_map(|(_, pool)| pool.clone()).collect::<Vec<_>>();
-        self.pools.record_discovery(input.mint, output.mint, discovered);
+        let (direct, intermediary): (Vec<_>, Vec<_>) = paths.iter().partition(|(path, _)| *path == RoutePath::Direct);
+        let direct_accounts = [self.requested_accounts(&direct, pair), referral_accounts, vec![input.mint, output.mint, sysvar_clock()]].concat();
+        let intermediary_accounts = self.requested_accounts(&intermediary, pair);
+        let (direct, intermediary) = futures::try_join!(self.fetch_accounts(direct_accounts), self.fetch_accounts(intermediary_accounts))?;
+        let accounts = direct.into_iter().chain(intermediary).collect::<Accounts>();
+        let pools = paths.iter().flat_map(|(_, lookups)| lookups).map(|lookup| (lookup.pair, self.record_pools(lookup, &accounts))).collect();
+        let routes = self.routes(paths.iter().map(|(path, _)| path), pair, &pools);
         let clock = chain_clock(&accounts)?;
         let mint = |token: &SwapToken| decode_mint(owned_data(&accounts, &token.mint, &token.token_program)?);
         let (input_mint, output_mint) = (mint(&input)?, mint(&output)?);
@@ -184,12 +262,10 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         let swap_value = referral_fee.swap_value(fee_side, value);
         let pool_input = swap_value.saturating_sub(input_mint.transfer_fee(clock.epoch, swap_value));
         let timestamp = u64::try_from(clock.unix_timestamp).unwrap_or_default();
-        let (pool, pool_output) = self.quote_best_pool(&pools, &input.mint, pool_input, accounts, timestamp).await?;
+        let (hops, pool_output) = self.quote_best_route(routes, pool_input, accounts, timestamp).await?;
         let output_value = pool_output.saturating_sub(output_mint.transfer_fee(clock.epoch, pool_output));
         let route = DexRoute {
-            pool,
-            input_mint: input.mint,
-            output_mint: output.mint,
+            hops,
             swap_value,
             output_value,
             fee: referral_fee.transfer(fee_side, value, output_value),
@@ -221,21 +297,27 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         let route: DexRoute = serde_json::from_str(&route_data.route_data).map_err(|_| SwapperError::InvalidRoute)?;
         let input = SwapToken::from_asset(&quote.request.from_asset)?;
         let output = SwapToken::from_asset(&quote.request.to_asset)?;
-        let known_pool = self.protocol.pool_addresses(&input.mint, &output.mint)?.contains(&route.pool);
-        if !known_pool || route.input_mint != input.mint || route.output_mint != output.mint || BigUint::from(route.input_value()) != quote.from_value {
+        let intermediate = route.intermediate(&input.mint, &output.mint)?;
+        let known_pools = route
+            .hops
+            .iter()
+            .map(|hop| Ok(self.protocol.pool_addresses(&hop.input_mint, &hop.output_mint)?.contains(&hop.pool)))
+            .collect::<Result<Vec<_>, SwapperError>>()?;
+        if known_pools.contains(&false) || BigUint::from(route.input_value()) != quote.from_value {
             return Err(SwapperError::InvalidRoute);
         }
         let authority = Pubkey::from_base58(&quote.request.wallet_address).map_err(|_| SwapperError::transaction_error(INVALID_ADDRESS))?;
-        let (pool, blockhash) = self.fetch_pool_and_blockhash(route.pool).await?;
+        let (pools, blockhash) = self.fetch_pools_and_blockhash(route.hops.iter().map(|hop| hop.pool).collect()).await?;
         let swap = PoolSwap {
             authority,
             input: &input,
+            intermediate,
             output: &output,
             amount: route.swap_value,
             minimum_out: route.minimum_output(quote.data.slippage_bps),
         };
         let transaction = DexTransaction {
-            swap_instruction: self.protocol.swap_instruction(&route.pool, &pool, &swap)?,
+            swap_instruction: self.protocol.swap_instruction(&pools, &swap)?,
             swap,
             referral: Pubkey::from_base58(&default_referral_fees().solana.address)?,
             fee: route.fee,
