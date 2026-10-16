@@ -22,7 +22,7 @@ use std::{
 use super::{
     protocol::{DexProtocol, PoolSwap},
     route::{DexRoute, ReferralTransfer, preferred_fee_side},
-    token::SwapToken,
+    token::{SwapToken, decode_mint},
     transaction::DexTransaction,
 };
 use crate::{
@@ -118,18 +118,21 @@ impl<P: DexProtocol, C: Client + Clone> fmt::Debug for SolanaDex<P, C> {
     }
 }
 
+fn owned_account<'a>(accounts: &'a Accounts, address: &Pubkey, owner: &Pubkey) -> Option<&'a AccountData> {
+    accounts.get(address).and_then(Option::as_ref).filter(|account| account.owner == owner.to_base58())
+}
+
 fn owned_data(accounts: &Accounts, address: &Pubkey, owner: &Pubkey) -> Result<Option<Vec<u8>>, SwapperError> {
-    let Some(account) = accounts.get(address).and_then(Option::as_ref).filter(|account| account.owner == owner.to_base58()) else {
+    let Some(account) = owned_account(accounts, address, owner) else {
         return Ok(None);
     };
     let data = account.data.first().ok_or_else(|| SwapperError::compute_quote_error("Missing Solana account data"))?;
     decode_base64(data).map(Some).map_err(SwapperError::compute_quote_error)
 }
 
-fn chain_timestamp(accounts: &Accounts) -> Result<u64, SwapperError> {
+fn chain_clock(accounts: &Accounts) -> Result<Clock, SwapperError> {
     let data = owned_data(accounts, &sysvar_clock(), &sysvar_program())?.ok_or_else(|| SwapperError::compute_quote_error("Missing Solana clock"))?;
-    let clock = Clock::try_from_slice(&data).map_err(SwapperError::compute_quote_error)?;
-    u64::try_from(clock.unix_timestamp).map_err(SwapperError::compute_quote_error)
+    Clock::try_from_slice(&data).map_err(SwapperError::compute_quote_error)
 }
 
 fn pool_key(mint_0: &Pubkey, mint_1: &Pubkey) -> (Pubkey, Pubkey) {
@@ -141,10 +144,7 @@ fn accounts_request(addresses: &[Pubkey]) -> SolanaRpc {
 }
 
 fn referral_fee_side(accounts: &Accounts, referral: &Pubkey, input: &SwapToken, output: &SwapToken) -> Result<FeeSide, SwapperError> {
-    let exists = |token: &SwapToken| {
-        let address = token.account(referral)?;
-        Ok::<_, SwapperError>(accounts.get(&address).and_then(Option::as_ref).is_some_and(|account| account.owner == token.token_program.to_base58()))
-    };
+    let exists = |token: &SwapToken| Ok::<_, SwapperError>(owned_account(accounts, &token.account(referral)?, &token.token_program).is_some());
     match (exists(input)?, exists(output)?) {
         (true, _) => Ok(FeeSide::Input),
         (false, true) => Ok(FeeSide::Output),
@@ -187,8 +187,11 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
             None => self.protocol.pool_addresses(&input.mint, &output.mint)?,
         };
         let predicted = self.predicted_quote_accounts(&known_pools.unwrap_or_default(), &input.mint);
-        let accounts = self.fetch_accounts([pool_addresses.as_slice(), &predicted, &referral_accounts, &[sysvar_clock()]].concat()).await?;
-        let timestamp = chain_timestamp(&accounts)?;
+        let accounts = self.fetch_accounts([pool_addresses.as_slice(), &predicted, &referral_accounts, &[input.mint, output.mint, sysvar_clock()]].concat()).await?;
+        let clock = chain_clock(&accounts)?;
+        let timestamp = u64::try_from(clock.unix_timestamp).map_err(SwapperError::compute_quote_error)?;
+        let mint = |token: &SwapToken| decode_mint(owned_data(&accounts, &token.mint, &token.token_program)?);
+        let (input_mint, output_mint) = (mint(&input)?, mint(&output)?);
         let fee_side = match preferred_side {
             Some(side) => side,
             None => referral_fee_side(&accounts, &referral, &input, &output)?,
@@ -200,7 +203,9 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
             FeeSide::Output => 0,
         };
         let swap_value = value - input_fee;
-        let (pool, output_value) = self.quote_best_pool(&pools, &input.mint, swap_value, accounts, timestamp).await?;
+        let pool_input = swap_value.saturating_sub(input_mint.transfer_fee(clock.epoch, swap_value));
+        let (pool, pool_output) = self.quote_best_pool(&pools, &input.mint, pool_input, accounts, timestamp).await?;
+        let output_value = pool_output.saturating_sub(output_mint.transfer_fee(clock.epoch, pool_output));
         let fee_value = match fee_side {
             FeeSide::Input => input_fee,
             FeeSide::Output => referral_fee.fee_value(output_value),
@@ -213,6 +218,9 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
             output_value,
             fee: ReferralTransfer { side: fee_side, value: fee_value },
         };
+        if route.received_value() == 0 {
+            return Err(SwapperError::NoQuoteAvailable);
+        }
 
         Ok(Quote {
             from_value: request.value.clone(),

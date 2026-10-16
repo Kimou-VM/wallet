@@ -1,4 +1,10 @@
-use gem_solana::{Pubkey, associated_token::get_associated_token_address_with_program_id, instructions::program_ids::token_program, wrapped_sol::wrapped_sol_mint};
+use gem_solana::{
+    Pubkey,
+    associated_token::get_associated_token_address_with_program_id,
+    instructions::program_ids::{token_2022_program, token_program},
+    models::{Mint, MintExtension},
+    wrapped_sol::wrapped_sol_mint,
+};
 use primitives::SolanaTokenProgramId;
 
 use super::protocol::SwapAccount;
@@ -25,15 +31,17 @@ impl SwapToken {
                 is_native: true,
             });
         };
-        match SolanaTokenProgramId::from_asset_type(&asset.asset_type) {
-            Some(SolanaTokenProgramId::Token) => Ok(Self {
-                mint: Pubkey::from_base58(&token_id).map_err(|_| SwapperError::NotSupportedAsset)?,
-                token_program: token_program(),
-                decimals: u8::try_from(asset.decimals).map_err(|_| SwapperError::NotSupportedAsset)?,
-                is_native: false,
-            }),
-            Some(SolanaTokenProgramId::Token2022) | None => Err(SwapperError::NotSupportedAsset),
-        }
+        let token_program = match SolanaTokenProgramId::from_asset_type(&asset.asset_type) {
+            Some(SolanaTokenProgramId::Token) => token_program(),
+            Some(SolanaTokenProgramId::Token2022) => token_2022_program(),
+            None => return Err(SwapperError::NotSupportedAsset),
+        };
+        Ok(Self {
+            mint: Pubkey::from_base58(&token_id).map_err(|_| SwapperError::NotSupportedAsset)?,
+            token_program,
+            decimals: u8::try_from(asset.decimals).map_err(|_| SwapperError::NotSupportedAsset)?,
+            is_native: false,
+        })
     }
 
     pub fn account(&self, owner: &Pubkey) -> Result<Pubkey, SwapperError> {
@@ -46,6 +54,24 @@ impl SwapToken {
             token_program: self.token_program,
             token_account: self.account(owner)?,
         })
+    }
+}
+
+pub(crate) fn decode_mint(data: Option<Vec<u8>>) -> Result<Mint, SwapperError> {
+    let mint = data.and_then(|data| Mint::decode(&data).ok()).ok_or(SwapperError::NotSupportedAsset)?;
+    if mint.extensions.iter().any(restricts_swap) {
+        return Err(SwapperError::NotSupportedAsset);
+    }
+    Ok(mint)
+}
+
+fn restricts_swap(extension: &MintExtension) -> bool {
+    match extension {
+        MintExtension::TransferHook { program_id } => program_id.is_some(),
+        MintExtension::NonTransferable => true,
+        MintExtension::DefaultAccountState { frozen } => *frozen,
+        MintExtension::Pausable { paused } => *paused,
+        MintExtension::TransferFee(_) | MintExtension::Other(_) => false,
     }
 }
 
@@ -80,6 +106,30 @@ mod tests {
                 is_native: false,
             }
         );
-        assert_eq!(SwapToken::from_asset(&SwapperQuoteAsset { asset_type: AssetType::SPL2022, ..usdc }), Err(SwapperError::NotSupportedAsset));
+        assert_eq!(
+            SwapToken::from_asset(&SwapperQuoteAsset {
+                asset_type: AssetType::SPL2022,
+                ..usdc.clone()
+            })
+            .unwrap()
+            .token_program,
+            token_2022_program()
+        );
+        assert_eq!(SwapToken::from_asset(&SwapperQuoteAsset { asset_type: AssetType::ERC20, ..usdc }), Err(SwapperError::NotSupportedAsset));
+    }
+
+    #[test]
+    fn test_decode_mint() {
+        assert_eq!(decode_mint(Some(vec![0; 82])), Ok(Mint { extensions: vec![] }));
+        assert_eq!(decode_mint(None), Err(SwapperError::NotSupportedAsset));
+        assert_eq!(decode_mint(Some(vec![0; 10])), Err(SwapperError::NotSupportedAsset));
+        assert!(!restricts_swap(&MintExtension::TransferHook { program_id: None }));
+        assert!(restricts_swap(&MintExtension::TransferHook { program_id: Some(Pubkey::new([1; 32])) }));
+        assert!(restricts_swap(&MintExtension::NonTransferable));
+        assert!(!restricts_swap(&MintExtension::DefaultAccountState { frozen: false }));
+        assert!(restricts_swap(&MintExtension::DefaultAccountState { frozen: true }));
+        assert!(!restricts_swap(&MintExtension::Pausable { paused: false }));
+        assert!(restricts_swap(&MintExtension::Pausable { paused: true }));
+        assert!(!restricts_swap(&MintExtension::Other(4)));
     }
 }

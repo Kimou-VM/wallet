@@ -53,10 +53,11 @@ impl DexProtocol for Orca {
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
+    use crate::orca::testkit::TEST_AQUA_MINT;
     use crate::{FetchQuoteData, NativeProvider, QuoteRequest, Swapper, SwapperQuoteAsset, client_factory::create_client_with_chain, models::Options, solana_dex::SolanaDex};
     use gem_solana::{SolanaClient, USDC_TOKEN_MINT};
     use num_bigint::BigUint;
-    use primitives::{AssetId, Chain};
+    use primitives::{AssetId, AssetType, Chain};
     use std::sync::Arc;
 
     const TEST_FUNDED_WALLET: &str = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
@@ -75,7 +76,13 @@ mod swap_integration_tests {
             ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
         };
 
-        for (from_asset, to_asset, value) in [(sol.clone(), usdc.clone(), 1_000_000_000u64), (usdc, sol, 100_000_000)] {
+        let aqua = SwapperQuoteAsset {
+            decimals: 6,
+            asset_type: AssetType::SPL2022,
+            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_AQUA_MINT))
+        };
+
+        for (from_asset, to_asset, value) in [(sol.clone(), usdc.clone(), 1_000_000_000u64), (usdc, sol.clone(), 100_000_000), (sol, aqua, 100_000_000)] {
             let request = QuoteRequest {
                 from_asset,
                 to_asset,
@@ -101,7 +108,7 @@ mod tests {
     use super::*;
     use crate::{
         FetchQuoteData, ProviderData, Quote, QuoteRequest, Route, Swapper, SwapperQuoteAsset,
-        orca::testkit::{TEST_WHIRLPOOL, mock_adaptive_snapshot, mock_rpc_client, mock_tick_array_accounts},
+        orca::testkit::{TEST_AQUA_MINT, TEST_WHIRLPOOL, mock_adaptive_snapshot, mock_rpc_client, mock_snapshot_rpc_accounts, mock_tick_array_accounts, mock_token_2022_rpc_accounts},
         solana_dex::SolanaDex,
         testkit::mock_quote,
     };
@@ -116,7 +123,7 @@ mod tests {
     #[tokio::test]
     async fn test_swap_requests() {
         let requests = Arc::new(AtomicUsize::new(0));
-        let orca = SolanaDex::with_client(Orca, mock_rpc_client(requests.clone()));
+        let orca = SolanaDex::with_client(Orca, mock_rpc_client(mock_snapshot_rpc_accounts(), requests.clone()));
         let request = QuoteRequest {
             wallet_address: TEST_SOLANA_SENDER.to_string(),
             destination_address: TEST_SOLANA_SENDER.to_string(),
@@ -167,6 +174,29 @@ mod tests {
         };
         assert_eq!(orca.get_quote_data(&tampered, FetchQuoteData::None).await, Err(SwapperError::InvalidRoute));
         assert_eq!(requests.load(Ordering::SeqCst), 5);
+    }
+
+    #[tokio::test]
+    async fn test_quote_transfer_fee() {
+        let orca = SolanaDex::with_client(Orca, mock_rpc_client(mock_token_2022_rpc_accounts(), Arc::default()));
+        let sol = SwapperQuoteAsset {
+            decimals: 9,
+            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
+        };
+        let aqua = SwapperQuoteAsset {
+            decimals: 6,
+            asset_type: AssetType::SPL2022,
+            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_AQUA_MINT))
+        };
+        let request = |from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset| QuoteRequest {
+            value: BigUint::from(100_000_000u64),
+            ..mock_quote(from_asset.clone(), to_asset.clone())
+        };
+        let spl_aqua = SwapperQuoteAsset { asset_type: AssetType::SPL, ..aqua.clone() };
+
+        assert_eq!(orca.get_quote(&request(&sol, &aqua)).await.unwrap().to_value, BigUint::from(902_183_486_143u64));
+        assert_eq!(orca.get_quote(&request(&aqua, &sol)).await.unwrap().to_value, BigUint::from(10_309u64));
+        assert_eq!(orca.get_quote(&request(&spl_aqua, &sol)).await, Err(SwapperError::NotSupportedAsset));
     }
 
     #[test]
