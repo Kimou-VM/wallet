@@ -34,23 +34,8 @@ struct VerifyPhraseScene: View {
                         ForEach(model.groups, id: \.self) { section in
                             GridRow(alignment: .center) {
                                 ForEach(section) { row in
-                                    if model.isVerified(index: row) {
-                                        Button {} label: {
-                                            Text(row.word)
-                                        }
-                                        .buttonStyle(.lightGray(paddingHorizontal: .small, paddingVertical: .tiny, glassEffect: .disabled))
-                                        .disabled(true)
-                                        .fixedSize()
-                                        .accessibilityIdentifier("word_option")
-                                    } else {
-                                        Button {
-                                            model.pickWord(index: row)
-                                        } label: {
-                                            Text(row.word)
-                                        }
-                                        .buttonStyle(.blueGrayPressed(paddingHorizontal: .small, paddingVertical: .tiny, glassEffect: .disabled))
-                                        .fixedSize()
-                                        .accessibilityIdentifier("word_option")
+                                    WordChipView(word: row.word, isVerified: model.isVerified(index: row)) {
+                                        model.pickWord(index: row)
                                     }
                                 }
                             }
