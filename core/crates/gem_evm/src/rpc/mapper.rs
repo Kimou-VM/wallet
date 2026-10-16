@@ -255,6 +255,20 @@ mod tests {
     }
 
     #[test]
+    fn test_abstract_native_transfer_ignores_base_token_system_logs() {
+        let transfer = load_json_rpc_result::<Transaction>(include_str!("../../testdata/abstract_native_transfer_transaction.json"));
+        let receipt = load_json_rpc_result::<TransactionReceipt>(include_str!("../../testdata/abstract_native_transfer_receipt.json"));
+
+        let transaction = EthereumMapper::map_transaction(Chain::Abstract, &transfer, &receipt, &BigUint::from(1778047151u64)).unwrap();
+
+        assert_eq!(transaction.transaction_type, TransactionType::Transfer);
+        assert_eq!(transaction.asset_id, AssetId::from_chain(Chain::Abstract));
+        assert_eq!(transaction.to, "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+        assert_eq!(transaction.value, BigUint::from(63_163_099_999_998u64));
+        assert_eq!(transaction.metadata, None);
+    }
+
+    #[test]
     fn test_map_transaction_by_hash() {
         let transaction = serde_json::from_value::<JsonRpcResult<Transaction>>(serde_json::from_str(include_str!("../../testdata/transfer_nft_eip721.json")).unwrap())
             .unwrap()

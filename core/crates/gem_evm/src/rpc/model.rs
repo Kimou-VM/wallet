@@ -1,10 +1,9 @@
-use crate::address::ethereum_address_checksum;
 use alloy_primitives::B256;
 use alloy_sol_types::SolEvent;
 use num_bigint::{BigInt, BigUint};
 use primitives::{
-    Chain, TransactionState,
-    contract_constants::{ARC_SYSTEM_LOG_ADDRESS, EVM_ZERO_BLOCK_HASH},
+    Chain, EVMChain, TransactionState,
+    contract_constants::{ARC_SYSTEM_LOG_ADDRESS, EVM_ZERO_BLOCK_HASH, ZKSYNC_L2_BASE_TOKEN_ADDRESS},
     decode_hex,
 };
 use serde::{Deserialize, Serialize};
@@ -70,18 +69,22 @@ pub struct TransactionReceipt {
 
 impl TransactionReceipt {
     pub fn strip_system_logs(&self, chain: Chain) -> Cow<'_, Self> {
-        if chain != Chain::Arc {
+        let Some(system_address) = Self::system_log_address(chain) else {
             return Cow::Borrowed(self);
-        }
+        };
         Cow::Owned(Self {
-            logs: self
-                .logs
-                .iter()
-                .filter(|log| !ethereum_address_checksum(&log.address).is_ok_and(|address| address == ARC_SYSTEM_LOG_ADDRESS))
-                .cloned()
-                .collect(),
+            logs: self.logs.iter().filter(|log| !log.address.eq_ignore_ascii_case(system_address)).cloned().collect(),
             ..self.clone()
         })
+    }
+
+    // Native balance moves (value, fee, refunds) are emitted as Transfer logs by a system contract on these chains.
+    fn system_log_address(chain: Chain) -> Option<&'static str> {
+        match chain {
+            Chain::Arc => Some(ARC_SYSTEM_LOG_ADDRESS),
+            _ if EVMChain::from_chain(chain).is_some_and(|chain| chain.is_zkstack()) => Some(ZKSYNC_L2_BASE_TOKEN_ADDRESS),
+            _ => None,
+        }
     }
 
     pub fn get_fee(&self) -> BigUint {
