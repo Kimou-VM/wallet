@@ -1,7 +1,7 @@
 # Project Structure
 
 Use when you need to find which crate or app owns a capability, or where a new crate belongs.
-Gem Wallet Core is a Rust-based cryptocurrency wallet backend engine supporting 50+ blockchain networks. It is a Cargo workspace with 60+ crates covering transaction processing, asset management, DeFi integrations, swap operations, and cross-platform mobile support.
+Gem Wallet Core is a Rust-based cryptocurrency wallet backend engine supporting 100+ blockchain networks. It is a Cargo workspace with 60+ crates covering transaction processing, asset management, DeFi integrations, swap operations, and cross-platform mobile support.
 
 ## Directory Tree
 
