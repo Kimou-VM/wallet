@@ -129,7 +129,6 @@ fun ConfirmTransferScreen(
             onOpenAddress(ChainAddress(chain, address))
         }
     }
-    var isShowedBroadcastError by remember(executeErrorText) { mutableStateOf(executeErrorText != null) }
     val isShowBottomSheetInfo by viewModel.isErrorSheetVisible.collectAsStateWithLifecycle()
 
     LaunchedEffect(input, simulationResult) {
@@ -356,17 +355,17 @@ fun ConfirmTransferScreen(
         )
     }
 
-    if (isShowedBroadcastError) {
+    executeErrorText?.let { errorText ->
         AlertDialog(
-            onDismissRequest = { isShowedBroadcastError = false },
+            onDismissRequest = viewModel::dismissExecuteError,
             confirmButton = {
-                Button({ isShowedBroadcastError = false }) { Text(stringResource(R.string.common_done)) }
+                Button(viewModel::dismissExecuteError) { Text(stringResource(R.string.common_done)) }
             },
             title = {
                 Text(stringResource(R.string.errors_transfer_error))
             },
             text = {
-                Text(executeErrorText ?: stringResource(R.string.errors_error_occurred))
+                Text(errorText)
             },
         )
     }

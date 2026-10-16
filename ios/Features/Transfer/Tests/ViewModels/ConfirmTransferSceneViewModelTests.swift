@@ -367,14 +367,15 @@ struct ConfirmTransferSceneViewModelTests {
         await model.load()
 
         model.onSelectConfirm()
-        while model.state.screen.phase == .confirming {
+        while model.state.screen.phase != .ready || model.isPresentingAlertMessage == nil {
             await withCheckedContinuation { changed in
                 withObservationTracking { _ = model.state } onChange: { changed.resume() }
             }
         }
 
-        #expect(model.state.screen.phase == .failed)
         #expect(model.isPresentingAlertMessage != nil)
+        #expect(model.state.fee != nil, "a failed send keeps the loaded fee on screen")
+        #expect(model.state.screen.action() == .execute, "the next Confirm sends again without reloading")
     }
 
     @Test

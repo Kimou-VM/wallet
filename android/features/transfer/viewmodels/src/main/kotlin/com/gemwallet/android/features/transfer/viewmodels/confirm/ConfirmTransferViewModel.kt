@@ -74,7 +74,6 @@ import uniffi.gemstone.GemConfirmPhase
 import uniffi.gemstone.GemConfirmRowContent
 import uniffi.gemstone.GemConfirmScreen
 import uniffi.gemstone.GemConfirmSection
-import uniffi.gemstone.GemConfirmStage
 import uniffi.gemstone.GemConfirmTransferServiceInterface
 import uniffi.gemstone.GemInfoAction
 import uniffi.gemstone.GemKeystoreAuthentication
@@ -275,8 +274,8 @@ class ConfirmTransferViewModel @Inject constructor(
     val balanceChangeRows: StateFlow<List<GemListRow>> = sections.map { sections -> sections.filterIsInstance<GemConfirmSection.BalanceChanges>().firstOrNull()?.rows.orEmpty() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val executeErrorText: StateFlow<String?> = screen.map { it.failure?.takeIf { failure -> failure.stage == GemConfirmStage.EXECUTE }?.error?.broadcastLabel(context) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    private val executeError = MutableStateFlow<String?>(null)
+    val executeErrorText: StateFlow<String?> = executeError.asStateFlow()
 
     val buttonLabel: StateFlow<String> = button.map { it.kind.label(context) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, context.getString(R.string.transfer_confirm))
@@ -306,6 +305,10 @@ class ConfirmTransferViewModel @Inject constructor(
 
     fun action(): GemConfirmAction? = screen.value.action()
 
+    fun dismissExecuteError() {
+        executeError.value = null
+    }
+
     fun send(finishAction: FinishConfirmAction) = viewModelScope.launch {
         when (screen.value.action()) {
             GemConfirmAction.LOAD -> {
@@ -313,7 +316,10 @@ class ConfirmTransferViewModel @Inject constructor(
                 return@launch
             }
 
-            GemConfirmAction.EXECUTE -> screen.update { it.onExecuteStarted() }
+            GemConfirmAction.EXECUTE -> {
+                executeError.value = null
+                screen.update { it.onExecuteStarted() }
+            }
 
             null -> return@launch
         }
@@ -331,7 +337,9 @@ class ConfirmTransferViewModel @Inject constructor(
         } catch (_: GemConfirmException.Cancelled) {
             screen.update { it.onExecuteCancelled() }
         } catch (error: Throwable) {
-            screen.update { it.onExecuteFailed(error.toConfirmError()) }
+            val confirmError = error.toConfirmError()
+            screen.update { it.onExecuteFailed(confirmError) }
+            executeError.value = confirmError.broadcastLabel(context)
         }
     }
 }

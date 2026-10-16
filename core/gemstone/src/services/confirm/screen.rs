@@ -25,8 +25,8 @@ impl GemConfirmScreen {
         self.failure.as_ref().is_some_and(|failure| failure.error.is_account_missing())
     }
 
-    fn is_execute_failure(&self) -> bool {
-        self.failure.as_ref().is_some_and(|failure| failure.stage == GemConfirmStage::Execute)
+    fn has_load_failure(&self) -> bool {
+        self.failure.as_ref().is_some_and(|failure| failure.stage == GemConfirmStage::Load)
     }
 
     fn fee_text(&self, load: &GemConfirmLoad) -> Option<GemFeeText> {
@@ -37,14 +37,6 @@ impl GemConfirmScreen {
             (false, true) => fee.text_with_symbol(&load.fee_asset.symbol),
             (false, false) => fee.text(),
         })
-    }
-
-    fn failed(&self, stage: GemConfirmStage, error: GemConfirmError) -> Self {
-        Self {
-            phase: GemConfirmPhase::Failed,
-            failure: Some(GemConfirmFailure { stage, error }),
-            ..self.clone()
-        }
     }
 }
 
@@ -67,9 +59,8 @@ impl GemConfirmScreen {
         match self.phase {
             GemConfirmPhase::Loading | GemConfirmPhase::Confirming => button(GemConfirmButtonKind::Confirm, GemButtonState::Loading),
             GemConfirmPhase::Failed if self.is_account_missing() => button(GemConfirmButtonKind::AccountMissing, GemButtonState::Disabled),
-            GemConfirmPhase::Failed if self.is_execute_failure() => button(GemConfirmButtonKind::Confirm, GemButtonState::Enabled),
             GemConfirmPhase::Failed => button(GemConfirmButtonKind::Retry, GemButtonState::Enabled),
-            GemConfirmPhase::Ready if !self.has_fee || self.failure.is_some() || self.has_critical_warning => button(GemConfirmButtonKind::Confirm, GemButtonState::Disabled),
+            GemConfirmPhase::Ready if !self.has_fee || self.has_load_failure() || self.has_critical_warning => button(GemConfirmButtonKind::Confirm, GemButtonState::Disabled),
             GemConfirmPhase::Ready => button(GemConfirmButtonKind::Confirm, GemButtonState::Enabled),
         }
     }
@@ -93,7 +84,7 @@ impl GemConfirmScreen {
             GemConfirmPhase::Loading | GemConfirmPhase::Confirming => None,
             GemConfirmPhase::Failed if self.is_account_missing() => None,
             GemConfirmPhase::Failed => Some(GemConfirmAction::Load),
-            GemConfirmPhase::Ready if !self.has_fee || self.failure.is_some() => None,
+            GemConfirmPhase::Ready if !self.has_fee || self.has_load_failure() => None,
             GemConfirmPhase::Ready => Some(GemConfirmAction::Execute),
         }
     }
@@ -128,7 +119,11 @@ impl GemConfirmScreen {
     }
 
     pub fn on_load_failed(&self, error: GemConfirmError) -> GemConfirmScreen {
-        self.failed(GemConfirmStage::Load, error)
+        Self {
+            phase: GemConfirmPhase::Failed,
+            failure: Some(GemConfirmFailure { stage: GemConfirmStage::Load, error }),
+            ..self.clone()
+        }
     }
 
     pub fn on_execute_started(&self) -> GemConfirmScreen {
@@ -148,7 +143,11 @@ impl GemConfirmScreen {
     }
 
     pub fn on_execute_failed(&self, error: GemConfirmError) -> GemConfirmScreen {
-        self.failed(GemConfirmStage::Execute, error)
+        Self {
+            phase: GemConfirmPhase::Ready,
+            failure: Some(GemConfirmFailure { stage: GemConfirmStage::Execute, error }),
+            ..self.clone()
+        }
     }
 }
 
@@ -479,12 +478,12 @@ mod tests {
         assert_eq!(confirming.on_execute_cancelled().phase, GemConfirmPhase::Ready);
 
         let execute_failed = confirming.on_execute_failed(GemConfirmError::Broadcast { hashes: vec![], msg: "rejected".to_string() });
-        assert_eq!(execute_failed.phase, GemConfirmPhase::Failed);
+        assert_eq!(execute_failed.phase, GemConfirmPhase::Ready, "a failed send returns to the loaded screen");
         assert_eq!(execute_failed.failure.as_ref().map(|failure| failure.stage), Some(GemConfirmStage::Execute));
-        assert_eq!(execute_failed.action(), Some(GemConfirmAction::Load));
-        assert_eq!(execute_failed.button().kind, GemConfirmButtonKind::Confirm, "a failed send keeps Confirm; Try Again is for a failed load");
+        assert_eq!(execute_failed.action(), Some(GemConfirmAction::Execute), "Confirm sends again without reloading");
+        assert_eq!(execute_failed.button().kind, GemConfirmButtonKind::Confirm);
         assert_eq!(execute_failed.button().state, GemButtonState::Enabled);
-        assert_eq!(load_failed.button().kind, GemConfirmButtonKind::Retry);
+        assert_eq!(load_failed.button().kind, GemConfirmButtonKind::Retry, "Try Again is for a failed load");
     }
 
     #[test]
@@ -499,7 +498,7 @@ mod tests {
     }
 
     #[test]
-    fn test_retry_reloads_max_transfer_before_confirming() {
+    fn test_a_failed_send_keeps_the_loaded_amount_and_fee() {
         let max_transfer = |fee: u64, value: u64| {
             let mut load = GemConfirmLoad::mock();
             load.metadata.asset_balance.available = 1_000_000u64.into();
@@ -523,24 +522,22 @@ mod tests {
             load.fee = Some(GemConfirmFee::mock(amount));
             load
         };
-        let ready = GemConfirmScreen::initial(None).on_loaded(max_transfer(21_000, 979_000));
+        let load = max_transfer(21_000, 979_000);
+        let ready = GemConfirmScreen::initial(None).on_loaded(load.clone());
         let error = GemConfirmError::Network { msg: "rejected".to_string() };
         let failed = ready.on_execute_started().on_execute_failed(error);
 
-        assert_eq!(failed.action(), Some(GemConfirmAction::Load));
+        assert_eq!(failed.action(), Some(GemConfirmAction::Execute));
         assert_eq!(failed.button().kind, GemConfirmButtonKind::Confirm);
+        assert_eq!(failed.fee_value(Some(load.clone())), ready.fee_value(Some(load)), "the fee stays on screen");
 
-        let loading = failed.on_load_started();
-        assert_eq!(loading.action(), None);
-        assert_eq!(loading.on_load_failed(GemConfirmError::Offline).action(), Some(GemConfirmAction::Load));
-
-        let ready = loading.on_loaded(max_transfer(42_000, 958_000));
-        assert_eq!(ready.button().kind, GemConfirmButtonKind::Confirm);
-        assert_eq!(ready.action(), Some(GemConfirmAction::Execute));
+        let refreshed = failed.on_load_started().on_loaded(max_transfer(42_000, 958_000));
+        assert!(refreshed.failure.is_none());
+        assert_eq!(refreshed.action(), Some(GemConfirmAction::Execute));
     }
 
     #[test]
-    fn test_every_execution_failure_reloads_before_retry() {
+    fn test_every_execution_failure_keeps_confirm_sending() {
         let errors = [
             GemConfirmError::Offline,
             GemConfirmError::Network { msg: "request timed out".to_string() },
@@ -552,7 +549,7 @@ mod tests {
             GemConfirmError::Record { msg: "store unavailable".to_string() },
         ];
         for error in errors {
-            assert_eq!(GemConfirmScreen::initial(None).on_execute_failed(error).action(), Some(GemConfirmAction::Load));
+            assert_eq!(GemConfirmScreen::initial(None).on_execute_failed(error).action(), Some(GemConfirmAction::Execute));
         }
     }
 }
