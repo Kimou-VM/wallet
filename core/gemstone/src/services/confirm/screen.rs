@@ -25,6 +25,10 @@ impl GemConfirmScreen {
         self.failure.as_ref().is_some_and(|failure| failure.error.is_account_missing())
     }
 
+    fn is_execute_failure(&self) -> bool {
+        self.failure.as_ref().is_some_and(|failure| failure.stage == GemConfirmStage::Execute)
+    }
+
     fn fee_text(&self, load: &GemConfirmLoad) -> Option<GemFeeText> {
         let fee = &load.fee.as_ref()?.formatted;
         let includes_network_fee = self.failure.as_ref().is_some_and(|failure| failure.error.includes_network_fee(&load.fee_asset.id));
@@ -63,6 +67,7 @@ impl GemConfirmScreen {
         match self.phase {
             GemConfirmPhase::Loading | GemConfirmPhase::Confirming => button(GemConfirmButtonKind::Confirm, GemButtonState::Loading),
             GemConfirmPhase::Failed if self.is_account_missing() => button(GemConfirmButtonKind::AccountMissing, GemButtonState::Disabled),
+            GemConfirmPhase::Failed if self.is_execute_failure() => button(GemConfirmButtonKind::Confirm, GemButtonState::Enabled),
             GemConfirmPhase::Failed => button(GemConfirmButtonKind::Retry, GemButtonState::Enabled),
             GemConfirmPhase::Ready if !self.has_fee || self.failure.is_some() || self.has_critical_warning => button(GemConfirmButtonKind::Confirm, GemButtonState::Disabled),
             GemConfirmPhase::Ready => button(GemConfirmButtonKind::Confirm, GemButtonState::Enabled),
@@ -477,7 +482,9 @@ mod tests {
         assert_eq!(execute_failed.phase, GemConfirmPhase::Failed);
         assert_eq!(execute_failed.failure.as_ref().map(|failure| failure.stage), Some(GemConfirmStage::Execute));
         assert_eq!(execute_failed.action(), Some(GemConfirmAction::Load));
-        assert_eq!(execute_failed.button().kind, GemConfirmButtonKind::Retry);
+        assert_eq!(execute_failed.button().kind, GemConfirmButtonKind::Confirm, "a failed send keeps Confirm; Try Again is for a failed load");
+        assert_eq!(execute_failed.button().state, GemButtonState::Enabled);
+        assert_eq!(load_failed.button().kind, GemConfirmButtonKind::Retry);
     }
 
     #[test]
@@ -521,7 +528,7 @@ mod tests {
         let failed = ready.on_execute_started().on_execute_failed(error);
 
         assert_eq!(failed.action(), Some(GemConfirmAction::Load));
-        assert_eq!(failed.button().kind, GemConfirmButtonKind::Retry);
+        assert_eq!(failed.button().kind, GemConfirmButtonKind::Confirm);
 
         let loading = failed.on_load_started();
         assert_eq!(loading.action(), None);

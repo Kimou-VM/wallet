@@ -32,6 +32,7 @@ flowchart LR
 | The simulation finds a risk | the risk shows before the user confirms | |
 | The simulation predicts balance changes | every digit of each amount, never rounded | what the user approves is exactly what moves |
 | The network rejects the sent transaction | the network's own reason | it is often the only explanation there is |
+| Sending fails after Confirm | an error alert; the button stays Confirm, and a tap reloads the fee and amounts before the next Confirm sends, as Swap keeps its Swap button | Try Again belongs to a failed load; a send always reloads before it is retried |
 | A Dash payment is sent | Pending until the transaction is mined | the network may lock it with InstantSend, but the provider does not report that lock yet |
 
 Names, the Network Fee, and account requirements follow the shared [Names](../PRODUCT.md#names), [Network Fee](../PRODUCT.md#network-fee), and [Network minimums and activation](../PRODUCT.md#network-minimums-and-activation) sections.
