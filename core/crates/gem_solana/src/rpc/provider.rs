@@ -1,23 +1,19 @@
 use std::{error::Error, ops::Deref};
 
 use async_trait::async_trait;
-use chain_traits::{ChainAccount, ChainPerpetual, ChainProvider, ChainTransaction, ChainTransactions, EmptyTransactionsProvider, TransactionsRequest, TransactionsResult};
+use chain_traits::{ChainAccount, ChainPerpetual, ChainProvider, ChainTransactions, EmptyTransactionsProvider, TransactionsRequest, TransactionsResult};
 use gem_client::Client;
 use primitives::Chain;
 
 use super::SolanaClient;
 
-pub trait SolanaTransactionsIndexer: ChainTransactions + ChainTransaction {}
-
-impl<T: ChainTransactions + ChainTransaction> SolanaTransactionsIndexer for T {}
-
 pub struct SolanaProvider<C: Client + Clone> {
     client: SolanaClient<C>,
-    pub(crate) indexer: Box<dyn SolanaTransactionsIndexer>,
+    indexer: Box<dyn ChainTransactions>,
 }
 
 impl<C: Client + Clone> SolanaProvider<C> {
-    pub fn new(client: SolanaClient<C>, indexer: Box<dyn SolanaTransactionsIndexer>) -> Self {
+    pub fn new(client: SolanaClient<C>, indexer: Box<dyn ChainTransactions>) -> Self {
         Self { client, indexer }
     }
 
