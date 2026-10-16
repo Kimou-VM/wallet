@@ -396,6 +396,27 @@ mod tests {
     }
 
     #[test]
+    fn test_map_raydium_swap_native_output_referral_fee() {
+        let transaction = map_single_transaction(load_json_rpc_result(include_str!("../../testdata/swap_raydium_native_referral_fee.json"))).unwrap();
+
+        assert_eq!(transaction.transaction_type, TransactionType::Swap);
+        assert_eq!(
+            transaction.swap_metadata(),
+            Some(TransactionSwapMetadata {
+                from_asset: AssetId::from_token(Chain::Solana, USDT_TOKEN_MINT),
+                from_value: BigUint::from(1_000_000u32),
+                to_asset: AssetId::from_chain(Chain::Solana),
+                to_value: BigUint::from(9_530_731u32),
+                provider: Some("raydium_clmm".to_string()),
+                referral_fee: Some(TransactionSwapReferralFee {
+                    asset_id: AssetId::from_chain(Chain::Solana),
+                    value: BigUint::from(47_893u32),
+                }),
+            })
+        );
+    }
+
+    #[test]
     fn test_map_orca_swap_native_input_referral_fee() {
         let transaction = map_single_transaction(load_json_rpc_result(include_str!("../../testdata/swap_orca_native_input_referral_fee.json"))).unwrap();
 
