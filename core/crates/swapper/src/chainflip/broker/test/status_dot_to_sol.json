@@ -1,0 +1,44 @@
+{
+  "status": {
+    "state": "completed",
+    "sourceAsset": "dot.hub",
+    "destinationAsset": "sol.sol",
+    "depositChannel": {
+      "brokerCommissionBps": 5,
+      "affiliateBrokers": [
+        {
+          "account": "cFNDSNTJMRwL773EzoCLn3n2kFSvBHMhEoHDKaHdkDWUa6XVD",
+          "commissionBps": 45
+        }
+      ]
+    },
+    "fees": [
+      {
+        "type": "network",
+        "asset": "usdc.eth",
+        "amountNative": "500000"
+      },
+      {
+        "type": "broker",
+        "asset": "usdc.eth",
+        "amountNative": "52863"
+      },
+      {
+        "type": "ingress",
+        "asset": "dot.hub",
+        "amountNative": "197300000"
+      },
+      {
+        "type": "egress",
+        "asset": "sol.sol",
+        "amountNative": "14000"
+      }
+    ],
+    "deposit": {
+      "amountNative": "100000000000"
+    },
+    "swap": {
+      "swappedOutputAmountNative": "102937756"
+    }
+  }
+}
