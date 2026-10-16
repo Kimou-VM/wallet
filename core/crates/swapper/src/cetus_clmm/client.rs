@@ -136,28 +136,13 @@ impl CetusClmm {
             .collect()
     }
 
-    fn discovered_pools(&self, from: &str, to: &str, ticks: &[u32]) -> Vec<DiscoveredPool> {
-        let known = Self::known_pools(from, to);
-        known
-            .iter()
-            .cloned()
-            .chain(
-                self.discovery_cache
-                    .candidates_for_probes(from, to, ticks)
-                    .into_iter()
-                    .filter(|candidate| known.iter().all(|pool| pool.pool_id != candidate.pool_id)),
-            )
-            .collect()
-    }
-
     async fn discover_direct_pools(&self, from: &str, to: &str, ticks: &[u32]) -> Vec<DiscoveredPool> {
         let missing = self.discovery_cache.missing_probes(from, to, ticks);
-        if missing.is_empty() {
-            return self.discovered_pools(from, to, ticks);
+        if !missing.is_empty() {
+            let discoveries = self.query_direct_pools(from, to, &missing).await;
+            self.discovery_cache.record_discovery(from, to, discoveries);
         }
-        let discoveries = self.query_direct_pools(from, to, &missing).await;
-        self.discovery_cache.record_discovery(from, to, discoveries);
-        self.discovered_pools(from, to, ticks)
+        self.discovery_cache.candidates_with(from, to, ticks, Self::known_pools(from, to), |known, cached| known.pool_id == cached.pool_id)
     }
 
     async fn query_direct_pools(&self, from: &str, to: &str, ticks: &[u32]) -> Vec<(u32, Option<DiscoveredPool>)> {
@@ -428,8 +413,8 @@ mod tests {
         assert_eq!(discovery_pairs(blue, other).len(), 5);
     }
 
-    #[test]
-    fn test_known_pools_do_not_suppress_discovery() {
+    #[tokio::test]
+    async fn test_known_pools_do_not_suppress_discovery() {
         let provider = CetusClmm::new(Arc::new(ProviderMock::new(String::new()))).unwrap();
 
         assert!(!provider.route_discovery_complete(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL));
@@ -440,7 +425,7 @@ mod tests {
 
         assert!(provider.route_discovery_complete(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL));
         assert_eq!(
-            provider.discovered_pools(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL, CETUS_ALL_TICK_SPACINGS),
+            provider.discover_direct_pools(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL, CETUS_ALL_TICK_SPACINGS).await,
             CetusClmm::known_pools(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL)
         );
     }

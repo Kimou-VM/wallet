@@ -18,7 +18,7 @@ use gem_client::Client;
 use gem_ton::{address::Address, rpc::client::TonClient};
 use num_bigint::BigUint;
 use primitives::{AssetId, Chain, asset_constants::TON_USDT_ASSET_ID};
-use std::{fmt::Debug, str::FromStr, sync::Arc};
+use std::{cmp::Reverse, fmt::Debug, str::FromStr, sync::Arc};
 
 #[derive(Debug)]
 pub struct Stonfi<C>
@@ -148,10 +148,35 @@ where
             .map(|(_, simulation)| simulation)
     }
 
+    fn missing_probes(&self, from_token: &str, to_token: &str, require_v2: bool) -> Vec<String> {
+        let static_probes = filter_candidates(static_candidates(from_token, to_token), require_v2).into_iter().map(|candidate| candidate.router.address).collect::<Vec<_>>();
+        self.route_cache
+            .missing_probes(from_token, to_token, &eligible_probes(require_v2))
+            .into_iter()
+            .filter(|probe| !static_probes.contains(probe))
+            .collect()
+    }
+
+    fn route_discovery_complete(&self, from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset) -> bool {
+        Self::discovery_pairs(from_asset, to_asset).iter().all(|(from, to, require_v2)| self.missing_probes(from, to, *require_v2).is_empty())
+    }
+
+    fn discovery_pairs(from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset) -> Vec<(String, String, bool)> {
+        Self::route_paths(from_asset, to_asset)
+            .into_iter()
+            .flat_map(|path| {
+                let require_v2 = match path {
+                    RoutePath::Direct => false,
+                    RoutePath::Intermediary(_) => true,
+                };
+                path.pairs(from_asset, to_asset).into_iter().map(move |(from, to)| (token_address(&from), token_address(&to), require_v2))
+            })
+            .collect()
+    }
+
     async fn discover_candidates(&self, from_token: &str, to_token: &str, require_v2: bool) -> Result<Vec<(String, PoolData)>, SwapperError> {
         let probes = eligible_probes(require_v2);
-        let static_probes = filter_candidates(static_candidates(from_token, to_token), require_v2).into_iter().map(|candidate| candidate.router.address).collect::<Vec<_>>();
-        let missing = self.route_cache.missing_probes(from_token, to_token, &probes).into_iter().filter(|probe| !static_probes.contains(probe)).collect::<Vec<_>>();
+        let missing = self.missing_probes(from_token, to_token, require_v2);
         let discoveries = join_all(
             DISCOVERY_ROUTERS
                 .iter()
@@ -190,16 +215,8 @@ where
 
     fn known_candidates(&self, from_token: &str, to_token: &str, require_v2: bool) -> Vec<DiscoveredPool> {
         let static_pools = filter_candidates(static_candidates(from_token, to_token), require_v2);
-        static_pools
-            .iter()
-            .cloned()
-            .chain(
-                self.route_cache
-                    .candidates_for_probes(from_token, to_token, &eligible_probes(require_v2))
-                    .into_iter()
-                    .filter(|candidate| static_pools.iter().all(|pool| pool.pool_address != candidate.pool_address)),
-            )
-            .collect()
+        self.route_cache
+            .candidates_with(from_token, to_token, &eligible_probes(require_v2), static_pools, |known, cached| known.pool_address == cached.pool_address)
     }
 
     async fn discover_candidate(&self, from_token: &str, to_token: &str, router: &RouterInfo) -> Result<(DiscoveredPool, PoolData), SwapperError> {
@@ -226,23 +243,11 @@ where
             self.quote_candidate(candidate, pool_data, from_token, to_token, amount, slippage_bps)
         }))
         .await;
-        let mut best_quote: Option<(DiscoveredPool, SwapSimulation)> = None;
-        for quote in quotes {
-            let quote = match quote {
-                Ok(quote) => quote,
-                Err(error) if is_retryable_get_method_error(&error) => return Err(error),
-                Err(_) => continue,
-            };
-            let quote_amount = BigUint::from_str(&quote.1.ask_units)?;
-            let is_best = match &best_quote {
-                Some((_, best)) => quote_amount > BigUint::from_str(&best.ask_units)?,
-                None => true,
-            };
-            if is_best {
-                best_quote = Some(quote);
-            }
+        if let Some(error) = quotes.iter().filter_map(|quote| quote.as_ref().err()).find(|error| is_retryable_get_method_error(error)) {
+            return Err(error.clone());
         }
-        best_quote.ok_or(SwapperError::NoQuoteAvailable)
+        let ranked = quotes.into_iter().flatten().map(|quote| Ok((BigUint::from_str(&quote.1.ask_units)?, quote))).collect::<Result<Vec<_>, SwapperError>>()?;
+        ranked.into_iter().min_by_key(|(amount, _)| Reverse(amount.clone())).map(|(_, quote)| quote).ok_or(SwapperError::NoQuoteAvailable)
     }
 
     async fn quote_candidate(&self, candidate: DiscoveredPool, pool_data: Option<&PoolData>, from_token: &str, to_token: &str, amount: &BigUint, slippage_bps: u32) -> Result<(DiscoveredPool, SwapSimulation), SwapperError> {
@@ -284,8 +289,9 @@ where
         if let Some(err) = retryable_path_error(paths.iter()) {
             return Err(err);
         }
-        if let Ok(path) = Self::select_best_quote_path(paths) {
-            return Ok(path);
+        let best = Self::select_best_quote_path(paths);
+        if best.is_ok() || self.route_discovery_complete(&request.from_asset, &request.to_asset) {
+            return best;
         }
 
         let paths = self.quote_paths(request, from_value, true).await;
@@ -296,31 +302,11 @@ where
     }
 
     fn select_best_quote_path(paths: impl IntoIterator<Item = Result<QuotePath, SwapperError>>) -> Result<QuotePath, SwapperError> {
-        let mut first_error = None;
-        let mut best = None;
-        for result in paths {
-            match result {
-                Ok(path) => {
-                    let amount = BigUint::from_str(&path.to_value)?;
-                    let is_best = match &best {
-                        Some((best_amount, _)) => amount > *best_amount,
-                        None => true,
-                    };
-                    if is_best {
-                        best = Some((amount, path));
-                    }
-                }
-                Err(error) => {
-                    first_error.get_or_insert(error);
-                }
-            }
-        }
-        match best {
+        let (quoted, failed): (Vec<_>, Vec<_>) = paths.into_iter().partition(Result::is_ok);
+        let ranked = quoted.into_iter().flatten().map(|path| Ok((BigUint::from_str(&path.to_value)?, path))).collect::<Result<Vec<_>, SwapperError>>()?;
+        match ranked.into_iter().min_by_key(|(amount, _)| Reverse(amount.clone())) {
             Some((_, path)) => Ok(path),
-            None => match first_error {
-                Some(error) => Err(error),
-                None => Err(SwapperError::NoQuoteAvailable),
-            },
+            None => Err(failed.into_iter().find_map(Result::err).unwrap_or(SwapperError::NoQuoteAvailable)),
         }
     }
 }
@@ -346,18 +332,7 @@ where
         if from_asset.chain != Chain::Ton || to_asset.chain != Chain::Ton {
             return;
         }
-        let from_asset = SwapperQuoteAsset::from(from_asset.clone());
-        let to_asset = SwapperQuoteAsset::from(to_asset.clone());
-        let pairs = Self::route_paths(&from_asset, &to_asset)
-            .into_iter()
-            .flat_map(|path| {
-                let require_v2 = match path {
-                    RoutePath::Direct => false,
-                    RoutePath::Intermediary(_) => true,
-                };
-                path.pairs(&from_asset, &to_asset).into_iter().map(move |(from, to)| (token_address(&from), token_address(&to), require_v2))
-            })
-            .collect::<Vec<_>>();
+        let pairs = Self::discovery_pairs(&SwapperQuoteAsset::from(from_asset.clone()), &SwapperQuoteAsset::from(to_asset.clone()));
         join_all(pairs.iter().map(|(from, to, require_v2)| self.preload_pair(from, to, *require_v2))).await;
     }
 
@@ -562,6 +537,37 @@ mod tests {
         assert_eq!(calls.iter().filter(|method| method.as_str() == "get_pool_address").count(), DISCOVERY_ROUTERS.len());
         assert_eq!(calls.iter().filter(|method| method.as_str() == "get_pool_data").count(), DISCOVERY_ROUTERS.len());
         assert_eq!(calls.len(), DISCOVERY_ROUTERS.len() * 3);
+    }
+
+    #[tokio::test]
+    async fn test_failed_quote_skips_complete_discovery() {
+        let pool_data_calls = Arc::new(AtomicUsize::new(0));
+        let pool_data_calls_ref = pool_data_calls.clone();
+        let provider = Stonfi::mock(move |method, address| match method {
+            "get_wallet_address" => mock_cell_response(TEST_USDT_WALLET),
+            "get_pool_address" => mock_cell_response(DISCOVERED_POOL),
+            "get_pool_data" => {
+                pool_data_calls_ref.fetch_add(1, Ordering::Relaxed);
+                mock_pool_data_response(true, 1, 1, TEST_USDT_WALLET, TEST_PTON_WALLET, 7)
+            }
+            _ => unreachable!("{method} {address}"),
+        });
+        let ton = AssetId::from_chain(Chain::Ton);
+        let token = AssetId::from_token(Chain::Ton, "unknown-token");
+        let request = QuoteRequest {
+            from_asset: SwapperQuoteAsset::from(ton.clone()),
+            to_asset: SwapperQuoteAsset::from(token.clone()),
+            wallet_address: TEST_TON_SENDER.to_string(),
+            destination_address: TEST_TON_SENDER.to_string(),
+            value: BigUint::from(1_000_000_000u64),
+            options: Options::new_with_slippage(100.into()),
+        };
+
+        provider.preload_routes(&ton, &token).await;
+        pool_data_calls.store(0, Ordering::Relaxed);
+
+        assert_eq!(provider.get_quote(&request).await.unwrap_err(), SwapperError::NoQuoteAvailable);
+        assert_eq!(pool_data_calls.load(Ordering::Relaxed), DISCOVERY_ROUTERS.len());
     }
 
     #[tokio::test]

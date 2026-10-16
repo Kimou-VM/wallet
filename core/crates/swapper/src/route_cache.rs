@@ -69,6 +69,11 @@ where
             .collect()
     }
 
+    pub fn candidates_with(&self, from: impl Into<Key>, to: impl Into<Key>, probes: &[Probe], known: Vec<Candidate>, same: impl Fn(&Candidate, &Candidate) -> bool) -> Vec<Candidate> {
+        let cached = self.candidates_for_probes(from, to, probes).into_iter().filter(|candidate| known.iter().all(|pool| !same(pool, candidate))).collect::<Vec<_>>();
+        [known, cached].concat()
+    }
+
     pub fn missing_probes(&self, from: impl Into<Key>, to: impl Into<Key>, probes: &[Probe]) -> Vec<Probe> {
         let discovery = self.discoveries.get(&Self::pair_key(from, to));
         probes.iter().filter(|probe| discovery.as_ref().is_none_or(|discovery| !discovery.contains_key(*probe))).cloned().collect()
@@ -158,6 +163,7 @@ mod tests {
         assert_eq!(cache.candidates_for_probes("0xa", "0xb", &[2, 10, 60, 200]), vec!["0x1", "0x2"]);
         assert_eq!(cache.candidates_for_probes("0xb", "0xa", &[10]), vec!["0x2"]);
         assert_eq!(cache.missing_probes("0xa", "0xb", &[2, 3, 10, 200]), vec![3]);
+        assert_eq!(cache.candidates_with("0xa", "0xb", &[2, 10], vec!["0x9", "0x1"], |left, right| left == right), vec!["0x9", "0x1", "0x2"]);
 
         cache.record_discovery("0xa", "0xb", [(60, None), (200, Some("0x3"))]);
 
