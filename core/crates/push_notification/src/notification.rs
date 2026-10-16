@@ -75,7 +75,6 @@ pub struct PushNotificationTransaction {
 fn carries_transaction(platform: Platform, app_version: &str) -> bool {
     match platform {
         Platform::IOS => true,
-        // TODO(X176): remove this version check on 2027-01-16, three months after Android 2.114.73 reads only the transaction id.
         Platform::Android => !app_version.parse::<Version>().is_ok_and(|version| version >= Version::new(2, 114, 73)),
     }
 }
