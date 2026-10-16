@@ -9,7 +9,7 @@ use crate::{
 
 pub(super) const WHIRLPOOL_PROGRAM: Pubkey = Pubkey::new(hex!("0e03685f8e909053e458121c66f5a76aedc7706aa11c82f8aa952a8f2b7879a9"));
 const WHIRLPOOLS_CONFIG: Pubkey = Pubkey::new(hex!("13e441f83913ca68b0634fb025fdeaa88737e84110d1255e357b3377ddee1ccd"));
-const TICK_SPACINGS: [u16; 5] = [1, 4, 8, 16, 64];
+const TICK_SPACINGS: [u16; 10] = [1, 2, 4, 8, 16, 64, 96, 128, 256, 32896];
 const WHIRLPOOL: &str = "Whirlpool";
 pub(super) const TICK_ARRAY_SIZE: i32 = 88;
 
@@ -126,7 +126,7 @@ mod tests {
 
         assert_eq!(WHIRLPOOL_PROGRAM.to_base58(), SOLANA_ORCA_WHIRLPOOL_PROGRAM_ID);
         assert_eq!(addresses, Whirlpool::addresses(&sol, &usdc).unwrap());
-        assert_eq!(addresses[4].to_base58(), TEST_WHIRLPOOL);
+        assert_eq!(addresses[5].to_base58(), TEST_WHIRLPOOL);
     }
 
     #[test]
