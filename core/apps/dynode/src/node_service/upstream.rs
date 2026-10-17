@@ -11,7 +11,6 @@ pub(super) enum Upstream<'a> {
 }
 
 impl<'a> Upstream<'a> {
-    /// A matching override goes first; unless it opts out of fallback, the nodes follow as if it was not configured.
     pub(super) fn plan(request: &ProxyRequest, chain_config: &'a ChainConfig, urls: &'a [Url], retry: &RetryConfig) -> Vec<Self> {
         let override_config = chain_config.find_override(request.rpc_method(), Some(&request.path));
         if let Some(override_config) = override_config

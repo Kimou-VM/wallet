@@ -78,7 +78,6 @@ impl TransactionReceipt {
         })
     }
 
-    // Native balance moves (value, fee, refunds) are emitted as Transfer logs by a system contract on these chains.
     fn system_log_address(chain: Chain) -> Option<&'static str> {
         match chain {
             Chain::Arc => Some(ARC_SYSTEM_LOG_ADDRESS),
