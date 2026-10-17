@@ -6,6 +6,8 @@ import SwiftUI
 public struct NetworkFeeSheet: View {
     private let model: NetworkFeeSceneViewModel
 
+    @State private var contentHeight: CGFloat?
+
     public init(model: NetworkFeeSceneViewModel) {
         self.model = model
     }
@@ -13,6 +15,7 @@ public struct NetworkFeeSheet: View {
     public var body: some View {
         NavigationStack {
             NetworkFeeScene(model: model)
+                .onScrollContentHeightChange { contentHeight = $0 }
         }
         .sheetPresentation(presentationDetent)
     }
@@ -21,6 +24,9 @@ public struct NetworkFeeSheet: View {
         if model.showFeeRates || model.showFeeAssets {
             return Set([.medium, .large])
         }
-        return Set([.height(180)])
+        if let contentHeight {
+            return Set([.height(contentHeight)])
+        }
+        return model.feeItems.isEmpty ? Set([.height(180)]) : Set([.medium])
     }
 }
