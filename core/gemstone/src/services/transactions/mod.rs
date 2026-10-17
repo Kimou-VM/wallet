@@ -76,6 +76,10 @@ impl GemTransactionsService {
         chain_rules::wallet_chains_by_rank(&wallet)
     }
 
+    pub async fn load_transaction(&self, wallet_id: WalletId, transaction_id: TransactionId) -> GemLoadState {
+        GemLoadState::of(&self.wallet_transaction(wallet_id, transaction_id).await)
+    }
+
     pub async fn refresh(&self, asset_id: Option<AssetId>) -> GemLoadState {
         GemLoadState::of(&self.sync(asset_id).await)
     }
@@ -99,17 +103,6 @@ impl GemTransactionsService {
         self.names.save_names(response.address_names).await?;
         self.wallet_preferences.set_transactions_timestamp(wallet_id, asset_id, timestamp)?;
         Ok(())
-    }
-
-    pub async fn notification_transaction(&self, wallet_id: WalletId, transaction_id: TransactionId, pushed: Option<Transaction>) -> Result<Transaction, GemServiceError> {
-        match pushed {
-            Some(transaction) => {
-                self.store.add_transactions(wallet_id.clone(), vec![transaction.clone()]).await?;
-                self.transaction_status.track(wallet_id, vec![transaction.clone()]);
-                Ok(transaction)
-            }
-            None => self.wallet_transaction(wallet_id, transaction_id).await,
-        }
     }
 
     async fn wallet_transaction(&self, wallet_id: WalletId, transaction_id: TransactionId) -> Result<Transaction, GemServiceError> {
@@ -138,7 +131,53 @@ impl GemTransactionsService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use primitives::{Chain, TransactionSwapMetadata};
+    use crate::services::asset_discovery::testkit::DiscoveryTestkit;
+    use crate::services::transaction_state::GemPendingTransaction;
+    use crate::testkit::TestAlienProvider;
+    use futures::executor::block_on;
+    use primitives::{Chain, TransactionState, TransactionSwapMetadata};
+
+    fn load_transaction(provider: TestAlienProvider, stored: Option<Transaction>, transaction_id: TransactionId) -> (GemLoadState, DiscoveryTestkit) {
+        let wallet = Wallet::mock();
+        let testkit = DiscoveryTestkit::with_provider(Arc::new(provider), wallet.clone());
+        if let Some(transaction) = stored {
+            testkit.transaction_store.pending.lock().unwrap().push(GemPendingTransaction { wallet_id: wallet.id.clone(), transaction });
+        }
+        let state = block_on(testkit.transactions.load_transaction(wallet.id, transaction_id));
+        (state, testkit)
+    }
+
+    #[test]
+    fn test_loading_a_stored_transaction_asks_no_server() {
+        let stored = Transaction::mock();
+        let (state, testkit) = load_transaction(TestAlienProvider::with_status(500), Some(stored.clone()), stored.id);
+
+        assert_eq!(state, GemLoadState::Data);
+        assert!(!testkit.provider.requested_paths().iter().any(|path| path.contains("/v3/devices/transactions/")));
+    }
+
+    #[test]
+    fn test_loading_a_transaction_the_wallet_lacks_stores_what_the_server_returns() {
+        let fetched = Transaction {
+            state: TransactionState::Pending,
+            ..Transaction::mock()
+        };
+        let path = format!("/v3/devices/transactions/{}", fetched.id);
+        let provider = TestAlienProvider::with_json_by_path(200, &[(path.as_str(), &serde_json::to_string(&fetched).unwrap())]);
+        let (state, testkit) = load_transaction(provider, None, fetched.id.clone());
+
+        assert_eq!(state, GemLoadState::Data);
+        assert_eq!(*testkit.transaction_store.added.lock().unwrap(), vec![(Wallet::mock().id, vec![fetched.clone()])]);
+        assert_eq!(*testkit.transaction_status.tracked.lock().unwrap(), vec![vec![fetched]], "a pending transaction is tracked once it is stored");
+    }
+
+    #[test]
+    fn test_a_transaction_the_server_does_not_return_reports_an_error_and_stores_nothing() {
+        let (state, testkit) = load_transaction(TestAlienProvider::with_status(404), None, Transaction::mock().id);
+
+        let GemLoadState::Error { .. } = state else { panic!("{state:?}") };
+        assert!(testkit.transaction_store.added.lock().unwrap().is_empty());
+    }
 
     #[test]
     fn test_a_swap_leg_the_build_cannot_read_leaves_the_transaction_without_a_pair() {

@@ -158,8 +158,8 @@ extension NavigationRouter {
             presenter.isPresentingSupport.wrappedValue = true
         case let .address(chain, address):
             presenter.isPresentingAddressDetails.wrappedValue = ChainAddress(chain: Chain(core: chain), address: address)
-        case let .transaction(asset, walletId, transaction, isPerpetual):
-            try openTarget(path: transactionPath(asset: asset.toPrimitives(), isPerpetual: isPerpetual, transactionId: transaction.toPrimitives().id), walletId: walletId)
+        case let .transaction(asset, walletId, transactionId, isPerpetual):
+            try openTarget(path: transactionPath(asset: asset.toPrimitives(), isPerpetual: isPerpetual, transactionId: transactionId), walletId: walletId)
         case .none:
             break
         }

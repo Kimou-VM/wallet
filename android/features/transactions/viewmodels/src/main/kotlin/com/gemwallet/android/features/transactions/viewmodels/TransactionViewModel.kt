@@ -19,17 +19,22 @@ import com.wallet.core.primitives.TransactionId
 import com.wallet.core.primitives.WalletId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import uniffi.gemstone.GemLoadState
 import uniffi.gemstone.GemTransactionDetailRow
 import uniffi.gemstone.GemTransactionDetailRows
 import uniffi.gemstone.GemTransactionDetailsServiceInterface
+import uniffi.gemstone.GemTransactionsServiceInterface
 import uniffi.gemstone.transactionDetailSections
 import javax.inject.Inject
 
@@ -38,6 +43,7 @@ class TransactionViewModel @Inject constructor(
     walletQuery: WalletQuery,
     transactionQuery: TransactionQuery,
     private val service: GemTransactionDetailsServiceInterface,
+    private val transactionsService: GemTransactionsServiceInterface,
     savedStateHandle: SavedStateHandle,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
@@ -66,6 +72,20 @@ class TransactionViewModel @Inject constructor(
         }.orEmpty()
     }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private val _loadState = MutableStateFlow<GemLoadState>(GemLoadState.Loading)
+    val loadState: StateFlow<GemLoadState> = _loadState.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun load() {
+        viewModelScope.launch(ioDispatcher) {
+            _loadState.value = GemLoadState.Loading
+            _loadState.value = transactionsService.loadTransaction(walletId.id, transactionId.identifier)
+        }
+    }
 }
 
 fun GemTransactionDetailRows.chain(): Chain = asset.toPrimitives().chain

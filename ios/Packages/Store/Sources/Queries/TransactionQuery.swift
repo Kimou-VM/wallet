@@ -5,22 +5,26 @@ import GRDB
 import Primitives
 
 public struct TransactionQuery: DatabaseQueryable {
-    private let walletId: WalletId
-    private let recordId: UInt64
-
-    public init(walletId: WalletId, recordId: UInt64) {
-        self.walletId = walletId
-        self.recordId = recordId
+    public enum Key: Equatable, Sendable {
+        case record(UInt64)
+        case transaction(TransactionId)
     }
 
-    public func fetch(_ db: Database) throws -> TransactionExtended {
-        let request = TransactionRecord
-            .filter(TransactionRecord.Columns.walletId == walletId.id)
-            .filter(TransactionRecord.Columns.id == recordId)
-        guard let transaction = try TransactionsQuery.extendedTransactions(db, request: request).first else {
-            throw RecordError.recordNotFound(databaseTableName: TransactionRecord.databaseTableName, key: [:])
+    private let walletId: WalletId
+    private let key: Key
+
+    public init(walletId: WalletId, key: Key) {
+        self.walletId = walletId
+        self.key = key
+    }
+
+    public func fetch(_ db: Database) throws -> TransactionExtended? {
+        let wallet = TransactionRecord.filter(TransactionRecord.Columns.walletId == walletId.id)
+        let request = switch key {
+        case let .record(recordId): wallet.filter(TransactionRecord.Columns.id == recordId)
+        case let .transaction(transactionId): wallet.filter(TransactionRecord.Columns.transactionId == transactionId.identifier)
         }
-        return transaction
+        return try TransactionsQuery.extendedTransactions(db, request: request).first
     }
 }
 

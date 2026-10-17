@@ -18,6 +18,8 @@ import com.wallet.core.primitives.TransactionExtended
 import com.wallet.core.primitives.TransactionType
 import com.wallet.core.primitives.WalletId
 import com.wallet.core.primitives.WalletType
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,7 +31,10 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import uniffi.gemstone.GemLoadState
+import uniffi.gemstone.GemServiceException
 import uniffi.gemstone.GemTransactionDetailsServiceInterface
+import uniffi.gemstone.GemTransactionsServiceInterface
 import uniffi.gemstone.BlockExplorerLink as GemBlockExplorerLink
 import uniffi.gemstone.WalletType as GemWalletType
 
@@ -48,6 +53,9 @@ class TransactionViewModelTest {
     private val transactionId = transactionExtended.transaction.id
     private val wallet = mockWallet(id = WalletId("opened"), type = WalletType.View)
     private val service = mockk<GemTransactionDetailsServiceInterface>()
+    private val transactionsService = mockk<GemTransactionsServiceInterface> {
+        coEvery { loadTransaction(any(), any()) } returns GemLoadState.Data
+    }
     private val transactionQuery = mockk<TransactionQuery>()
     private val walletQuery = mockk<WalletQuery> { every { this@mockk(wallet.id) } returns flowOf(wallet) }
     private val model by lazy {
@@ -55,6 +63,7 @@ class TransactionViewModelTest {
             walletQuery,
             transactionQuery,
             service,
+            transactionsService,
             SavedStateHandle(mapOf(RouteArgument.WalletId.key to wallet.id.id, RouteArgument.TransactionId.key to transactionId.identifier)),
             dispatcher,
         )
@@ -63,6 +72,28 @@ class TransactionViewModelTest {
     @After
     fun tearDown() {
         model.viewModelScope.cancel()
+    }
+
+    @Test
+    fun openingTheScreenLoadsItsTransactionFromCore() {
+        every { transactionQuery(wallet.id, transactionId) } returns flowOf(null)
+
+        assertEquals(GemLoadState.Data, model.loadState.value)
+        assertEquals(null, model.data.value)
+        coVerify(exactly = 1) { transactionsService.loadTransaction(wallet.id.id, transactionId.identifier) }
+    }
+
+    @Test
+    fun aFailedLoadKeepsItsErrorUntilTryAgain() {
+        val error = GemServiceException.Api("not found")
+        coEvery { transactionsService.loadTransaction(wallet.id.id, transactionId.identifier) } returnsMany listOf(GemLoadState.Error(error), GemLoadState.Data)
+        every { transactionQuery(wallet.id, transactionId) } returns flowOf(null)
+
+        assertEquals(GemLoadState.Error(error), model.loadState.value)
+
+        model.load()
+
+        assertEquals(GemLoadState.Data, model.loadState.value)
     }
 
     @Test

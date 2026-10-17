@@ -23,6 +23,6 @@ struct TransactionsQueryTests {
         }
 
         #expect(!observedRegion { _ = try TransactionsQuery(walletId: walletId, type: .all).fetch($0) }.isModified(byEventsOfKind: priceUpdate))
-        #expect(observedRegion { _ = try TransactionQuery(walletId: walletId, recordId: 1).fetch($0) }.isModified(byEventsOfKind: priceUpdate))
+        #expect(observedRegion { _ = try TransactionQuery(walletId: walletId, key: .record(1)).fetch($0) }.isModified(byEventsOfKind: priceUpdate))
     }
 }

@@ -73,10 +73,11 @@ pub struct PushNotificationTransaction {
 }
 
 fn carries_transaction(platform: Platform, app_version: &str) -> bool {
-    match platform {
-        Platform::IOS => true,
-        Platform::Android => !app_version.parse::<Version>().is_ok_and(|version| version >= Version::new(2, 114, 73)),
-    }
+    let reads_transaction_id = match platform {
+        Platform::IOS => Version::new(2, 114, 74),
+        Platform::Android => Version::new(2, 114, 73),
+    };
+    !app_version.parse::<Version>().is_ok_and(|version| version >= reads_transaction_id)
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -124,7 +125,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_a_transaction_push_leaves_out_the_transaction_only_for_android_apps_that_read_the_id() {
+    fn test_a_transaction_push_leaves_out_the_transaction_for_apps_that_read_the_id() {
         let transaction = Transaction::mock();
         let payload = |platform: Platform, app_version: &str| {
             serde_json::from_value::<PushNotificationTransaction>(PushNotification::new_transaction(WalletId::Multicoin("0x1".to_string()), &transaction, platform, app_version).data.unwrap()).unwrap()
@@ -132,10 +133,11 @@ mod tests {
 
         assert_eq!(payload(Platform::Android, "2.114.72").transaction, Some(transaction.clone()));
         assert_eq!(payload(Platform::Android, "2.114.73").transaction, None);
-        assert_eq!(payload(Platform::Android, "2.115").transaction, None);
-        assert_eq!(payload(Platform::Android, "unknown").transaction, Some(transaction.clone()), "an unreadable version keeps the payload old apps need");
-        assert_eq!(payload(Platform::IOS, "2.114.73").transaction, Some(transaction.clone()), "only Apple can deliver an iOS push, so it keeps the transaction");
-        assert_eq!(payload(Platform::Android, "2.114.73").transaction_id, transaction.id.to_string());
-        assert_eq!(payload(Platform::Android, "2.114.73").asset_id, transaction.asset_id);
+        assert_eq!(payload(Platform::IOS, "2.114.73").transaction, Some(transaction.clone()));
+        assert_eq!(payload(Platform::IOS, "2.114.74").transaction, None);
+        assert_eq!(payload(Platform::IOS, "2.115").transaction, None);
+        assert_eq!(payload(Platform::IOS, "unknown").transaction, Some(transaction.clone()), "an unreadable version keeps the payload old apps need");
+        assert_eq!(payload(Platform::IOS, "2.114.74").transaction_id, transaction.id.to_string());
+        assert_eq!(payload(Platform::IOS, "2.114.74").asset_id, transaction.asset_id);
     }
 }

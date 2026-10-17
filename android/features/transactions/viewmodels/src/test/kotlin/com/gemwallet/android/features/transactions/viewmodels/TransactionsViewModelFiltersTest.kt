@@ -99,6 +99,7 @@ class TransactionsViewModelFiltersTest {
                 mockk(relaxed = true),
                 mockk(relaxed = true),
                 mockk(relaxed = true),
+                mockk(relaxed = true),
                 SavedStateHandle(mapOf(RouteArgument.WalletId.key to "wallet", RouteArgument.TransactionId.key to "not-an-id")),
                 dispatcher,
             )

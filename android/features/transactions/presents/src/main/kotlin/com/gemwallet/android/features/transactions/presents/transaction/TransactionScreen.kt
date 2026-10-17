@@ -8,17 +8,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gemwallet.android.ext.errorText
 import com.gemwallet.android.features.transactions.viewmodels.TransactionViewModel
 import com.gemwallet.android.features.transactions.viewmodels.chain
+import com.gemwallet.android.ui.components.screen.FatalStateScene
 import com.gemwallet.android.ui.components.screen.LoadingScene
 import com.gemwallet.android.ui.localization.string
+import com.gemwallet.android.ui.localization.text
 import com.gemwallet.android.ui.shareText
+import uniffi.gemstone.GemLoadState
 
 @Composable
 fun TransactionScreen(onAction: (TransactionAction.Navigation) -> Unit, viewModel: TransactionViewModel = hiltViewModel()) {
     val transaction by viewModel.data.collectAsStateWithLifecycle()
     val sections by viewModel.sections.collectAsStateWithLifecycle()
     val headerTarget by viewModel.headerTarget.collectAsStateWithLifecycle()
+    val loadState by viewModel.loadState.collectAsStateWithLifecycle()
     var isShowFeeDetails by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -28,10 +33,19 @@ fun TransactionScreen(onAction: (TransactionAction.Navigation) -> Unit, viewMode
 
     val model = transaction
     if (model == null) {
-        LoadingScene(
-            title = "",
-            onCancel = { onAction(TransactionAction.Close) },
-        )
+        when (val state = loadState) {
+            is GemLoadState.Error -> FatalStateScene(
+                title = "",
+                message = state.error.errorText().text(context),
+                onCancel = { onAction(TransactionAction.Close) },
+                onTryAgain = viewModel::load,
+            )
+
+            GemLoadState.Loading, GemLoadState.Data, GemLoadState.NoData -> LoadingScene(
+                title = "",
+                onCancel = { onAction(TransactionAction.Close) },
+            )
+        }
         return
     }
 

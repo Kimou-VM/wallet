@@ -347,8 +347,10 @@ public final class GemReceiveServiceMock: GemReceiveServiceProtocol, @unchecked 
 public final class GemTransactionsServiceMock: GemTransactionsServiceProtocol, @unchecked Sendable {
     public var filterChainsValue: [Gemstone.Chain] = []
     public var refreshState: GemLoadState = .data
+    public var loadState: GemLoadState = .data
 
     public private(set) var syncedAssetIds: [Gemstone.AssetId?] = []
+    public private(set) var loadedTransactionIds: [Gemstone.TransactionId] = []
 
     public init(filterChains: [Gemstone.Chain] = []) {
         filterChainsValue = filterChains
@@ -361,5 +363,10 @@ public final class GemTransactionsServiceMock: GemTransactionsServiceProtocol, @
     public func refresh(assetId: Gemstone.AssetId?) async -> GemLoadState {
         syncedAssetIds.append(assetId)
         return refreshState
+    }
+
+    public func loadTransaction(walletId _: Gemstone.WalletId, transactionId: Gemstone.TransactionId) async -> GemLoadState {
+        loadedTransactionIds.append(transactionId)
+        return loadState
     }
 }

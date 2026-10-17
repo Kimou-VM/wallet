@@ -4,6 +4,7 @@ import struct Gemstone.GemCopy
 import enum Gemstone.GemListRow
 import struct Gemstone.GemSwapAgain
 import enum Gemstone.GemTransactionDetailRow
+import class Gemstone.GemTransactionDetailsService
 import enum Gemstone.GemTransactionHeaderAction
 import GemstonePrimitives
 import GemstonePrimitivesTestKit
@@ -166,5 +167,56 @@ struct TransactionSceneViewModelTests {
         case .provider: "provider"
         default: "\(row)"
         }
+    }
+}
+
+@MainActor
+struct TransactionSceneViewModelLoadTests {
+    @Test
+    func aStoredTransactionShowsItsDetailsAtOnce() async {
+        let service = GemTransactionsServiceMock()
+        let model = TransactionSceneViewModel.mock(transactionsService: service)
+
+        #expect(model.details != nil)
+
+        await model.load()
+        #expect(model.loadState == .data)
+        #expect(service.loadedTransactionIds == [.mock()])
+    }
+
+    @Test
+    func aTransactionTheWalletLacksShowsNothingUntilItLoads() async {
+        let service = GemTransactionsServiceMock()
+        let model = TransactionSceneViewModel(
+            transactionId: .mock(),
+            transaction: nil,
+            wallet: .mock(),
+            service: GemTransactionDetailsService.mock(),
+            transactionsService: service,
+        )
+
+        #expect(model.details == nil)
+        #expect(model.loadState == .loading)
+        #expect(model.title.isEmpty)
+        #expect(model.explorerLink == nil)
+
+        await model.load()
+        #expect(model.loadState == .data)
+    }
+
+    @Test
+    func aFailedLoadKeepsItsErrorForTryAgain() async {
+        let service = GemTransactionsServiceMock()
+        service.loadState = .error(error: .Api(msg: "not found"))
+        let model = TransactionSceneViewModel(
+            transactionId: .mock(),
+            transaction: nil,
+            wallet: .mock(),
+            service: GemTransactionDetailsService.mock(),
+            transactionsService: service,
+        )
+
+        await model.load()
+        #expect(model.loadState == .error(error: .Api(msg: "not found")))
     }
 }

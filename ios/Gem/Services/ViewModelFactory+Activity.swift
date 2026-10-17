@@ -19,14 +19,13 @@ public extension ViewModelFactory {
         onHeaderAction: @escaping (GemTransactionHeaderAction) -> Void,
         onAddContact: @escaping (AddContactType) -> Void,
         onSelectAddress: @escaping @MainActor @Sendable (ChainAddress) -> Void,
-    ) -> TransactionSceneViewModel? {
-        guard let transaction = try? stores.transactionStore.getTransaction(walletId: wallet.id, transactionId: transactionId) else {
-            return nil
-        }
-        return TransactionSceneViewModel(
-            transaction: transaction,
+    ) -> TransactionSceneViewModel {
+        TransactionSceneViewModel(
+            transactionId: transactionId,
+            transaction: try? stores.transactionStore.getTransaction(walletId: wallet.id, transactionId: transactionId),
             wallet: wallet,
             service: Gemstone.GemTransactionDetailsService(explorer: explorerService, preferences: preferencesService),
+            transactionsService: transactionsService,
             onHeaderAction: onHeaderAction,
             onAddContact: onAddContact,
             onSelectAddress: onSelectAddress,

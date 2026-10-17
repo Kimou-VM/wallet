@@ -4,11 +4,13 @@ import Components
 import Foundation
 import struct Gemstone.GemAddressRow
 import enum Gemstone.GemInfoTopic
+import enum Gemstone.GemLoadState
 import struct Gemstone.GemSwapAgain
 import enum Gemstone.GemTransactionDetailRow
 import struct Gemstone.GemTransactionDetailRows
 import protocol Gemstone.GemTransactionDetailsServiceProtocol
 import enum Gemstone.GemTransactionHeaderAction
+import protocol Gemstone.GemTransactionsServiceProtocol
 import func Gemstone.transactionDetailSections
 import GemstonePrimitives
 import InfoSheet
@@ -23,18 +25,21 @@ public final class TransactionSceneViewModel {
     private let onHeaderAction: ((GemTransactionHeaderAction) -> Void)?
     private let onAddContact: ((AddContactType) -> Void)?
     private let onSelectAddress: (@MainActor @Sendable (ChainAddress) -> Void)?
+    private let walletId: WalletId
+    private let transactionId: TransactionId
+    private let transactionsService: any GemTransactionsServiceProtocol
 
-    public let query: ObservableQuery<MappedQuery<TransactionQuery, TransactionDetails>>
-    var transactionExtended: TransactionExtended {
-        query.value.transaction
-    }
+    public let query: ObservableQuery<MappedQuery<TransactionQuery, TransactionDetails?>>
+    private(set) var loadState: GemLoadState = .loading
 
     var isPresentingTransactionSheet: TransactionSheetType?
 
     public init(
-        transaction: TransactionExtended,
+        transactionId: TransactionId,
+        transaction: TransactionExtended?,
         wallet: Wallet,
         service: any GemTransactionDetailsServiceProtocol,
+        transactionsService: any GemTransactionsServiceProtocol,
         onHeaderAction: ((GemTransactionHeaderAction) -> Void)? = nil,
         onAddContact: ((AddContactType) -> Void)? = nil,
         onSelectAddress: (@MainActor @Sendable (ChainAddress) -> Void)? = nil,
@@ -42,27 +47,40 @@ public final class TransactionSceneViewModel {
         self.onHeaderAction = onHeaderAction
         self.onAddContact = onAddContact
         self.onSelectAddress = onSelectAddress
+        self.transactionId = transactionId
+        self.transactionsService = transactionsService
+        walletId = wallet.id
         let walletType = wallet.type.toGem()
-        let details: @Sendable (TransactionExtended) -> TransactionDetails = { [service] in
-            TransactionDetails(transaction: $0, rows: service.detailRows(transaction: $0.toGem(), walletType: walletType))
+        let details: @Sendable (TransactionExtended?) -> TransactionDetails? = { [service] transaction in
+            transaction.map { TransactionDetails(transaction: $0, rows: service.detailRows(transaction: $0.toGem(), walletType: walletType)) }
         }
+        let key: TransactionQuery.Key = transaction.map { .record($0.recordId) } ?? .transaction(transactionId)
         query = ObservableQuery(
-            MappedQuery(TransactionQuery(walletId: wallet.id, recordId: transaction.recordId), transform: details),
+            MappedQuery(TransactionQuery(walletId: wallet.id, key: key), transform: details),
             initialValue: details(transaction),
         )
     }
 
-    var title: String {
-        rows.title.title
+    var details: TransactionDetails? {
+        query.value
     }
 
-    var explorerLink: String {
-        rows.explorer.link
+    var title: String {
+        rows?.title.title ?? ""
+    }
+
+    var explorerLink: String? {
+        rows?.explorer.link
     }
 
     var onTransactionHeaderTap: TransactionHeaderActionHandler? {
-        guard onHeaderAction != nil, rows.headerAction != nil else { return nil }
+        guard onHeaderAction != nil, rows?.headerAction != nil else { return nil }
         return { [weak self] tap in self?.onHeaderTap(tap) }
+    }
+
+    func load() async {
+        loadState = .loading
+        loadState = await transactionsService.loadTransaction(walletId: walletId, transactionId: transactionId)
     }
 }
 
@@ -70,7 +88,7 @@ public final class TransactionSceneViewModel {
 
 public extension TransactionSceneViewModel {
     var sections: [ListSection<GemTransactionDetailRow>] {
-        transactionDetailSections(rows: rows).map(ListSection.init)
+        rows.map { transactionDetailSections(rows: $0).map(ListSection.init) } ?? []
     }
 }
 
@@ -88,7 +106,7 @@ extension TransactionSceneViewModel {
     }
 
     private func onHeaderTap(_ tap: TransactionHeaderTap) {
-        guard let onHeaderAction, let headerAction = rows.headerAction else { return }
+        guard let onHeaderAction, let headerAction = rows?.headerAction else { return }
         switch tap {
         case .header:
             onHeaderAction(headerAction)
@@ -98,7 +116,8 @@ extension TransactionSceneViewModel {
     }
 
     func onSelectProviderContract(_ address: String) {
-        onSelectAddress?(ChainAddress(chain: transactionExtended.transaction.assetId.chain, address: address))
+        guard let chain = details?.transaction.transaction.assetId.chain else { return }
+        onSelectAddress?(ChainAddress(chain: chain, address: address))
     }
 
     func onSelectSwapAgain(_ swap: GemSwapAgain) {
@@ -121,12 +140,12 @@ extension TransactionSceneViewModel {
 // MARK: - Private
 
 extension TransactionSceneViewModel {
-    private var rows: GemTransactionDetailRows {
-        query.value.rows
+    private var rows: GemTransactionDetailRows? {
+        details?.rows
     }
 
-    var feeDetailsViewModel: NetworkFeeSceneViewModel {
-        NetworkFeeSceneViewModel(screen: rows.feeRow.screen())
+    var feeDetailsViewModel: NetworkFeeSceneViewModel? {
+        rows.map { NetworkFeeSceneViewModel(screen: $0.feeRow.screen()) }
     }
 }
 

@@ -30,6 +30,8 @@ flowchart LR
 | A swap | listed under both the asset paid and the asset received | the user looks for it under either |
 | The wallet switches while details are open, such as a push for another wallet | the details stay on the wallet they were opened for | an open details screen never blanks or swaps |
 | A transaction is deleted while its details are open | the details keep showing it | an open details screen never blanks or swaps |
+| A transaction push is tapped | its details open at once; until the wallet has the transaction, a loader shows while it comes from Gem's server | the wallet shows only what its history or Gem's server holds, never what a push carries |
+| The transaction cannot be loaded | an error with Try Again in place of the details | the user can retry without going back |
 | The user taps an address | its page, with the name the user already sees for it: a contact or own wallet name first, a contact's picture or initials as on Confirm, a token's or validator's logo | the address is recognisable |
 | The address page opens | the full address, copied with a tap, the type and the balances | |
 | The address is flagged | "Suspicious address" under its picture, the same warning as on Confirm, even for a contact | |
@@ -74,9 +76,3 @@ A settled transaction pushes to every device subscribed to the wallet. A failed 
 | Asset activation, perpetual modify | no push | no push |
 
 The second line is the push body; a failed swap, approval, stake action or contract call has none. A failed transfer says Transfer rather than Sent, because nothing was sent.
-
-## Platform differences
-
-| When | iOS | Android | Expected |
-|---|---|---|---|
-| A transaction push is tapped | the transaction the push carries is saved and opens | the transaction opens from the wallet's history, or from Gem's server when the wallet does not have it yet; if neither has it, the asset opens | Intentional: Android trusts only the wallet's history and Gem's server for what a transaction shows; only Apple can deliver an iOS push |

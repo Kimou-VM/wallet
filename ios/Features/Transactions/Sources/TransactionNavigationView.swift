@@ -3,6 +3,7 @@
 import Components
 import Foundation
 import InfoSheet
+import Localization
 import PrimitivesComponents
 import Store
 import Style
@@ -16,25 +17,53 @@ public struct TransactionNavigationView: View {
     }
 
     public var body: some View {
-        TransactionScene(
-            model: model,
-        )
-        .bindQuery(model.query)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: model.onSelectShare) {
-                    Images.System.share
+        content
+            .bindQuery(model.query)
+            .task { await model.load() }
+            .toolbar {
+                if model.explorerLink != nil {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: model.onSelectShare) {
+                            Images.System.share
+                        }
+                    }
                 }
             }
-        }
-        .sheet(item: $model.isPresentingTransactionSheet) { sheetType in
-            switch sheetType {
-            case .share:
-                ShareSheet(activityItems: [model.explorerLink])
-            case .feeDetails:
-                NetworkFeeSheet(model: model.feeDetailsViewModel)
-            case let .info(infoType):
-                InfoSheetScene(sheet: infoType)
+            .sheet(item: $model.isPresentingTransactionSheet) { sheetType in
+                switch sheetType {
+                case .share:
+                    if let explorerLink = model.explorerLink {
+                        ShareSheet(activityItems: [explorerLink])
+                    }
+                case .feeDetails:
+                    if let feeDetailsViewModel = model.feeDetailsViewModel {
+                        NetworkFeeSheet(model: feeDetailsViewModel)
+                    }
+                case let .info(infoType):
+                    InfoSheetScene(sheet: infoType)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if model.details != nil {
+            TransactionScene(model: model)
+        } else {
+            switch model.loadState {
+            case let .error(error):
+                StateEmptyView(
+                    title: Localized.Errors.errorOccurred,
+                    description: error.localizedDescription,
+                    image: nil,
+                ) {
+                    Button(Localized.Common.tryAgain) {
+                        Task { await model.load() }
+                    }
+                    .buttonStyle(.blue())
+                }
+            case .loading, .data, .noData:
+                CenterLoadingView()
             }
         }
     }

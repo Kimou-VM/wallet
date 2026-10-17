@@ -2,6 +2,7 @@
 
 import class Gemstone.GemTransactionDetailsService
 import enum Gemstone.GemTransactionHeaderAction
+import protocol Gemstone.GemTransactionsServiceProtocol
 import GemstonePrimitivesTestKit
 import Primitives
 import PrimitivesTestKit
@@ -22,6 +23,7 @@ public extension TransactionSceneViewModel {
         metadata: AnyCodableValue? = nil,
         confirmationEtaSeconds: UInt32? = nil,
         wallet: Wallet = .mock(),
+        transactionsService: any GemTransactionsServiceProtocol = GemTransactionsServiceMock(),
         onHeaderAction: ((GemTransactionHeaderAction) -> Void)? = nil,
     ) -> TransactionSceneViewModel {
         let swapMetadata = swapToAsset.flatMap {
@@ -36,6 +38,7 @@ public extension TransactionSceneViewModel {
             )
         }
         return TransactionSceneViewModel(
+            transactionId: id,
             transaction: .mock(
                 transaction: .mock(
                     id: id,
@@ -54,6 +57,7 @@ public extension TransactionSceneViewModel {
             ),
             wallet: wallet,
             service: GemTransactionDetailsService.mock(),
+            transactionsService: transactionsService,
             onHeaderAction: onHeaderAction,
         )
     }

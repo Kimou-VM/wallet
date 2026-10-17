@@ -97,7 +97,7 @@ struct WalletNavigationView: View {
             )
         }
         .navigationDestination(for: Scenes.Transaction.self) {
-            if let sceneModel = viewModelFactory.transactionScene(
+            TransactionNavigationView(model: viewModelFactory.transactionScene(
                 transactionId: $0.id,
                 wallet: model.wallet,
                 onHeaderAction: { action in
@@ -116,9 +116,7 @@ struct WalletNavigationView: View {
                 },
                 onAddContact: { model.isPresentingSheet = .addContact($0) },
                 onSelectAddress: { model.isPresentingSheet = .addressDetails($0) },
-            ) {
-                TransactionNavigationView(model: sceneModel)
-            }
+            ))
         }
         .navigationDestination(for: Scenes.Collectible.self) {
             CollectibleScene(
