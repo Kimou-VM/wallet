@@ -27,17 +27,10 @@ public actor GemDeviceServiceMock: GemDeviceServiceProtocol {
 }
 
 public final class GemPreferencesServiceMock: GemPreferencesServiceProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var priceAlertsEnabled: Bool
     private var skippedAppVersion: String?
 
-    public init(priceAlertsEnabled: Bool = false, perpetualEnabled: Bool = false) {
-        self.priceAlertsEnabled = priceAlertsEnabled
+    public init(perpetualEnabled: Bool = false) {
         self.perpetualEnabled = perpetualEnabled
-    }
-
-    public func setPriceAlertsEnabled(enabled: Bool) throws {
-        lock.withLock { priceAlertsEnabled = enabled }
     }
 
     public func setObserver(observer _: any GemPreferencesObserver) {}

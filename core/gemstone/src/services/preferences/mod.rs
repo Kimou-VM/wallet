@@ -162,10 +162,6 @@ impl GemPreferencesService {
     pub fn set_observer(&self, observer: Arc<dyn GemPreferencesObserver>) {
         *self.observer.lock().unwrap() = Some(observer);
     }
-
-    pub fn set_price_alerts_enabled(&self, enabled: bool) -> Result<(), GemServiceError> {
-        self.store.set(PRICE_ALERTS_ENABLED.to_string(), enabled.to_string())
-    }
 }
 
 impl GemPreferencesService {
@@ -253,6 +249,10 @@ impl GemPreferencesService {
     }
     pub fn is_price_alerts_enabled(&self) -> bool {
         self.store.get(PRICE_ALERTS_ENABLED.to_string()).as_deref() == Some("true")
+    }
+
+    pub fn set_price_alerts_enabled(&self, enabled: bool) -> Result<(), GemServiceError> {
+        self.store.set(PRICE_ALERTS_ENABLED.to_string(), enabled.to_string())
     }
 }
 
