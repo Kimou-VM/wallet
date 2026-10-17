@@ -832,10 +832,14 @@ mod swap_integration_tests {
     use primitives::{AssetId, asset_constants::TON_USDT_ASSET_ID, testkit::signer_mock::TEST_TON_SENDER};
     use std::collections::HashMap;
 
+    fn dynode_stonfi() -> Stonfi<RpcClient> {
+        let rpc_provider = NativeProvider::new_with_endpoints(HashMap::from([(Chain::Ton, "https://gemnodes.com/ton".to_string())]));
+        Stonfi::new(Arc::new(rpc_provider)).unwrap()
+    }
+
     #[tokio::test]
     async fn test_stonfi_quote_and_quote_data_ton_to_usdt() -> Result<(), SwapperError> {
-        let rpc_provider = Arc::new(NativeProvider::default());
-        let provider = Stonfi::new(rpc_provider).unwrap();
+        let provider = dynode_stonfi();
         let request = mock_ton(TEST_TON_SENDER.to_string());
 
         let quote = provider.get_quote(&request).await?;
@@ -856,8 +860,7 @@ mod swap_integration_tests {
 
     #[tokio::test]
     async fn test_stonfi_quote_and_quote_data_hmstr_native() -> Result<(), SwapperError> {
-        let rpc_provider = NativeProvider::new_with_endpoints(HashMap::from([(Chain::Ton, "https://gemnodes.com/ton".to_string())]));
-        let provider = Stonfi::new(Arc::new(rpc_provider)).unwrap();
+        let provider = dynode_stonfi();
         let hmstr = SwapperQuoteAsset::from(AssetId::from_token(Chain::Ton, "EQAJ8uWd7EBqsmpSWaRdf_I-8R8-XHwh3gsNKhy-UrdrPcUo"));
         let ton = SwapperQuoteAsset::from(AssetId::from_chain(Chain::Ton));
         for (from_asset, to_asset, value) in [(hmstr.clone(), ton.clone(), 100_000_000_000u64), (ton, hmstr, 10_000_000u64)] {
@@ -885,8 +888,7 @@ mod swap_integration_tests {
 
     #[tokio::test]
     async fn test_stonfi_quote_and_quote_data_not_to_usdt() -> Result<(), SwapperError> {
-        let rpc_provider = Arc::new(NativeProvider::default());
-        let provider = Stonfi::new(rpc_provider).unwrap();
+        let provider = dynode_stonfi();
         let request = QuoteRequest {
             from_asset: SwapperQuoteAsset::from(AssetId::from_token(Chain::Ton, NOT_TOKEN_ID)),
             to_asset: SwapperQuoteAsset::from(TON_USDT_ASSET_ID.clone()),
