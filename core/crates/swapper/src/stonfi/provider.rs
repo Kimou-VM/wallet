@@ -119,7 +119,7 @@ where
             quoted if quoted.iter().all(|(_, quote)| quote.is_err()) && !skipped.is_empty() => self.quote_route_paths(&skipped, request, from_value, allow_discovery).await,
             quoted => quoted,
         };
-        let outcomes = quoted.iter().filter_map(|(path, quote)| Some((path_key(path), BigUint::from_str(&quote.as_ref().ok()?.to_value).ok()?.to_u128()?)));
+        let outcomes = quoted.iter().filter_map(|(path, quote)| Some((path_key(path), quote_outcome(quote.as_ref().map(|path| path.to_value.as_str()))?)));
         self.outpriced_paths.record(&from_key, &to_key, amount_in, outcomes);
         quoted.into_iter().map(|(_, quote)| quote).collect()
     }
@@ -282,11 +282,10 @@ where
         if let Some(error) = quotes.iter().filter_map(|quote| quote.as_ref().err()).find(|error| is_retryable_get_method_error(error)) {
             return Err(error.clone());
         }
-        let outcomes = addresses.into_iter().zip(&quotes).filter_map(|(address, quote)| match quote {
-            Ok((_, simulation)) => Some((address, BigUint::from_str(&simulation.ask_units).ok()?.to_u128()?)),
-            Err(SwapperError::NoQuoteAvailable | SwapperError::InvalidRoute) => Some((address, 0)),
-            Err(_) => None,
-        });
+        let outcomes = addresses
+            .into_iter()
+            .zip(&quotes)
+            .filter_map(|(address, quote)| Some((address, quote_outcome(quote.as_ref().map(|(_, simulation)| simulation.ask_units.as_str()))?)));
         self.outpriced_pools.record(&from_token.to_string(), &to_token.to_string(), amount_key(amount), outcomes);
         let ranked = quotes.into_iter().flatten().map(|quote| Ok((BigUint::from_str(&quote.1.ask_units)?, quote))).collect::<Result<Vec<_>, SwapperError>>()?;
         ranked.into_iter().min_by_key(|(amount, _)| Reverse(amount.clone())).map(|(_, quote)| quote).ok_or(SwapperError::NoQuoteAvailable)
@@ -461,6 +460,14 @@ fn request_keeping_native_attachment(request: &QuoteRequest) -> Result<QuoteRequ
         value: &request.value - &attachment,
         ..request.clone()
     })
+}
+
+fn quote_outcome(quote: Result<&str, &SwapperError>) -> Option<u128> {
+    match quote {
+        Ok(value) => BigUint::from_str(value).ok()?.to_u128(),
+        Err(SwapperError::NoQuoteAvailable | SwapperError::InvalidRoute) => Some(0),
+        Err(_) => None,
+    }
 }
 
 fn amount_key(amount: &BigUint) -> u128 {
