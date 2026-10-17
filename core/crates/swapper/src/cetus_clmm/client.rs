@@ -159,7 +159,8 @@ impl CetusClmm {
         if pool_ids.is_empty() {
             return results.into_iter().map(|(tick, _)| (tick, None)).collect();
         }
-        let Ok(resolver) = ObjectResolver::prefetch(&self.sui_client, pool_ids, &HashMap::new()).await else {
+        let pinned = Self::known_pools(from, to).into_iter().map(|pool| (pool.pool_id, pool.pool_init_version)).collect::<HashMap<_, _>>();
+        let Ok(resolver) = ObjectResolver::prefetch(&self.sui_client, pool_ids, &pinned).await else {
             return results.into_iter().filter_map(|(tick, pool_id)| pool_id.is_none().then_some((tick, None))).collect();
         };
         results

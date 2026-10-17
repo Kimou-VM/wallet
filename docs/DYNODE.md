@@ -41,6 +41,38 @@ curl http://localhost:3000/api/fastnear_transfers/
 
 `/health` reports process health; `/metrics` exposes Prometheus metrics.
 
+## Caching
+
+Dynode keeps responses in memory, one namespace per chain and one per provider route, with the `cache.memory.max` budget split evenly between them. An entry lives until its rule's TTL ends; when a namespace is full, the oldest entries go first. Each Dynode host keeps its own cache, and only successful responses are kept.
+
+A request is cached only when a rule in `chains.yml` matches it. Three kinds of rule exist:
+
+| Rule | Matches | Example |
+|---|---|---|
+| `rpc_method` | a JSON-RPC method | Solana `getEpochInfo` |
+| `path` with `params` | an HTTP path and method, and top-level JSON body fields equal to `params` | TON `/api/v3/runGetMethod` whose `method` is `get_pool_address` |
+| `contracts.methods` | contract calls decoded from the request: an `eth_call` to one of `addresses` with one of the 4-byte `identifiers`, or a Sui transaction whose Move calls are all in `identifiers` on one of `addresses` | Uniswap v3 factory `getPool`, Cetus `factory::pool_simple_info` |
+
+The cache key is the request's own content, never its caller, so every wallet asking the same thing shares one entry:
+
+| Request | Key |
+|---|---|
+| JSON-RPC call | host, path, method and params; the call `id` is left out |
+| Any other request | host, HTTP method, path and the full body |
+
+A JSON-RPC batch is checked call by call: cached calls are answered from memory, only the missing calls go upstream as one batch, and each answer is kept under its own key.
+
+Swaps rely on Dynode only for lookups that never change once a pool exists, so a quote is still priced on live state ([Swap](product/swap.md#on-chain-quotes)):
+
+| Chain | Request | TTL |
+|---|---|---|
+| Ethereum and EVM networks | `eth_call` `getPool` to the Uniswap v3, PancakeSwap, Aerodrome, Oku and Wagmi factories | `1d` |
+| Sui | `SimulateTransaction` calling Cetus `factory::new_pool_key`, `factory::pool_simple_info` or `factory::pool_id` | `1d` |
+| Aptos | `/v1/view` of Hyperion `pool_v3::liquidity_pool_address_safe` or `pool_v3::liquidity_pool_info` | `1d` |
+| TON | `runGetMethod` `get_wallet_address` or `get_pool_address` | `30d` |
+
+The production rules live in the infra repository's Dynode template.
+
 ## Transaction broadcast metrics
 
 `dynode_transaction_broadcasts_total` counts completed recognized broadcast requests once, after Dynode retries. Labels are `chain`, `source`, `group`, `service`, and `outcome` (`success` or `failure`). Success requires a 2xx response with a nonempty transaction identifier decoded by the chain's existing broadcast provider; it measures RPC acceptance, not on-chain confirmation. Failure includes HTTP or proxy errors and rejected, malformed, or unsupported responses without a usable identifier. A failure does not prove the transaction was never submitted.

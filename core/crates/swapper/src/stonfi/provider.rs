@@ -260,6 +260,7 @@ where
             }
         };
         if pool_data.is_locked {
+            self.route_cache.record_unusable(from_token, to_token, [candidate.router.address.clone()]);
             return Err(SwapperError::NoQuoteAvailable);
         }
         if let Some(lp_fee_bps) = candidate.lp_fee_bps
@@ -631,10 +632,15 @@ mod tests {
         let provider = Stonfi::mock(|_, _| mock_pool_data_response(true, 3_809_436_784_065, 1_784_561_670_122_756, TEST_USDT_WALLET, TEST_PTON_WALLET, 7));
         let amount = BigUint::from(1_000_000_000u64);
 
+        let pool = DiscoveredPool::mock("pool-a");
+        let probes = [pool.router.address.clone()];
+
         assert_eq!(
-            provider.quote_candidate(DiscoveredPool::mock("pool-a"), None, TON_PROXY_JETTON_ADDRESS, TON_USDT_TOKEN_ID, &amount, 100).await.unwrap_err(),
+            provider.quote_candidate(pool, None, TON_PROXY_JETTON_ADDRESS, TON_USDT_TOKEN_ID, &amount, 100).await.unwrap_err(),
             SwapperError::NoQuoteAvailable
         );
+        assert!(provider.route_cache.missing_probes(TON_PROXY_JETTON_ADDRESS, TON_USDT_TOKEN_ID, &probes).is_empty());
+        assert!(provider.route_cache.candidates_for_probes(TON_PROXY_JETTON_ADDRESS, TON_USDT_TOKEN_ID, &probes).is_empty());
     }
 
     #[test]

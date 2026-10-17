@@ -33,15 +33,20 @@ impl DexProtocol for RaydiumClmm {
         pool.liquidity
     }
 
+    fn constant_accounts(&self, pool: &PoolState) -> Vec<Pubkey> {
+        vec![pool.amm_config]
+    }
+
+    fn is_tradable(&self, pool: &PoolState, timestamp: u64) -> bool {
+        pool.is_tradable(timestamp)
+    }
+
     fn quote_accounts(&self, address: &Pubkey, pool: &PoolState, input_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         let tick_arrays = TickArray::addresses(address, pool.swap_tick_arrays(pool.is_a_to_b(input_mint)?)?.starts())?;
         Ok([vec![pool.amm_config], tick_arrays].concat())
     }
 
     fn quote(&self, address: &Pubkey, pool: &PoolState, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError> {
-        if !pool.is_tradable(timestamp) {
-            return Err(SwapperError::NoQuoteAvailable);
-        }
         let zero_for_one = pool.is_a_to_b(input_mint)?;
         let (config, tick_arrays) = accounts.split_first().ok_or(SwapperError::NoQuoteAvailable)?;
         let config = AmmConfig::decode(config.as_ref().ok_or(SwapperError::NoQuoteAvailable)?)?;

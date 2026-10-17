@@ -22,6 +22,10 @@ use crate::solana_dex::testkit::{mock_account_snapshot, mock_rpc_snapshot};
 pub(super) const TEST_WHIRLPOOL: &str = "HJPjoWUrhoZzkNfRpHuieeFk9WcZWjwy6PBjZ81ngndJ";
 pub(super) const TEST_AQUA_MINT: &str = "AQVcP67EpMyu4cBZZjqMu91cVsWy1aX98JmcZm1FyY9";
 pub(super) const TEST_AQUA_WHIRLPOOL: &str = "9TT3NbWogWjbQh7b3s1hfcqYF7VJHmg8uNcXDjtPRnh4";
+pub(super) const TEST_PUMP_MINT: &str = "pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn";
+pub(super) const TEST_PUMP_WHIRLPOOL: &str = "BofA2ViUSudPBTUms2KRuG6AHNeMawjNfwqTJDgx5BKW";
+pub(super) const TEST_TOKEN_2022_SNAPSHOT: &str = include_str!("../../testdata/orca/token_2022_snapshot.json");
+pub(super) const TEST_PUMP_SNAPSHOT: &str = include_str!("../../testdata/orca/pump_snapshot.json");
 const TEST_CLOCK: &str = "+ZJIGwAAAAB7mtFqAAAAACMEAAAAAAAAJAQAAAAAAAD0b9JqAAAAAA==";
 
 fn mock_snapshot_accounts() -> Vec<Vec<u8>> {
@@ -84,12 +88,12 @@ pub(super) fn mock_snapshot_rpc_accounts() -> HashMap<String, Value> {
         .collect()
 }
 
-pub(super) fn mock_token_2022_rpc_accounts() -> HashMap<String, Value> {
-    mock_rpc_snapshot(include_str!("../../testdata/orca/token_2022_snapshot.json")).into_iter().collect()
+pub(super) fn mock_rpc_accounts(snapshot: &str) -> HashMap<String, Value> {
+    mock_rpc_snapshot(snapshot).into_iter().collect()
 }
 
 pub(super) fn mock_aqua_whirlpool() -> (Pubkey, Whirlpool) {
-    let data = mock_token_2022_rpc_accounts()[TEST_AQUA_WHIRLPOOL]["data"][0].as_str().map(|data| decode_base64(data).unwrap()).unwrap();
+    let data = mock_rpc_accounts(TEST_TOKEN_2022_SNAPSHOT)[TEST_AQUA_WHIRLPOOL]["data"][0].as_str().map(|data| decode_base64(data).unwrap()).unwrap();
     (Pubkey::from_base58(TEST_AQUA_WHIRLPOOL).unwrap(), Whirlpool::decode(&data).unwrap())
 }
 

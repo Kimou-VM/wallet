@@ -12,7 +12,7 @@ use primitives::Chain;
 use serde_json::Value;
 use std::{
     cmp::Reverse,
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt,
     sync::Arc,
 };
@@ -28,7 +28,7 @@ use crate::{
     client_factory::create_client_with_chain,
     error::INVALID_ADDRESS,
     fees::{FeeSide, default_referral_fees},
-    route_cache::DiscoveryCache,
+    route_cache::{Cache, DiscoveryCache},
     route_path::RoutePath,
 };
 
@@ -52,6 +52,7 @@ pub(crate) struct SolanaDex<P: DexProtocol, C: Client + Clone = RpcClient> {
     protocol: P,
     client: JsonRpcClient<C>,
     pools: DiscoveryCache<(Pubkey, P::Pool), Pubkey, Pubkey>,
+    constant_accounts: Cache<Pubkey, Option<AccountData>>,
 }
 
 impl<P: DexProtocol> SolanaDex<P> {
@@ -67,6 +68,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             protocol,
             client,
             pools: DiscoveryCache::default(),
+            constant_accounts: Cache::default(),
         }
     }
 
@@ -79,11 +81,11 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         Ok(lookups.into_iter().filter(|(_, lookups)| lookups.iter().all(|lookup| !lookup.addresses.is_empty())).collect())
     }
 
-    fn requested_accounts(&self, paths: &[&PathLookup<P::Pool>], pair: Pair) -> (Vec<Pubkey>, Vec<Pubkey>) {
+    fn requested_accounts(&self, paths: &[PathLookup<P::Pool>], pair: Pair) -> Vec<Pubkey> {
         let lookups = paths.iter().flat_map(|(_, lookups)| lookups).collect::<Vec<_>>();
         let known = lookups.iter().map(|lookup| (lookup.pair, lookup.known.clone())).collect();
         let predicted = self.predicted_quote_accounts(&self.routes(paths.iter().map(|(path, _)| path), pair, &known));
-        (lookups.iter().flat_map(|lookup| lookup.addresses.clone()).collect(), predicted)
+        lookups.iter().flat_map(|lookup| lookup.addresses.clone()).chain(predicted).collect()
     }
 
     fn pool_lookup(&self, pair: Pair) -> Result<PoolLookup<P::Pool>, SwapperError> {
@@ -94,11 +96,24 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         Ok(PoolLookup { pair, known, addresses })
     }
 
-    fn record_pools(&self, lookup: &PoolLookup<P::Pool>, accounts: &Accounts) -> Vec<(Pubkey, P::Pool)> {
-        let discovered = lookup.addresses.iter().map(|address| (*address, self.decode_pool(accounts, address))).collect::<Vec<_>>();
-        let pools = discovered.iter().filter_map(|(_, pool)| pool.clone()).collect();
-        self.pools.record_discovery(lookup.pair.0, lookup.pair.1, discovered);
+    fn record_pools(&self, lookup: &PoolLookup<P::Pool>, accounts: &Accounts, timestamp: u64) -> Vec<(Pubkey, P::Pool)> {
+        let (input_mint, output_mint) = lookup.pair;
+        let (usable, unusable): (Vec<_>, Vec<_>) = lookup
+            .addresses
+            .iter()
+            .map(|address| (*address, self.decode_pool(accounts, address)))
+            .partition(|(_, pool)| pool.as_ref().is_none_or(|(_, pool)| self.protocol.is_tradable(pool, timestamp)));
+        let pools = usable.iter().filter_map(|(_, pool)| pool.clone()).collect();
+        self.pools.record_discovery(input_mint, output_mint, usable);
+        self.pools.record_unusable(input_mint, output_mint, unusable.into_iter().map(|(address, _)| address));
         pools
+    }
+
+    fn constant_route_accounts<'a>(&self, pools: impl IntoIterator<Item = &'a P::Pool>) -> HashSet<Pubkey>
+    where
+        P::Pool: 'a,
+    {
+        pools.into_iter().flat_map(|pool| self.protocol.constant_accounts(pool)).collect()
     }
 
     fn decode_pool(&self, accounts: &Accounts, address: &Pubkey) -> Option<(Pubkey, P::Pool)> {
@@ -139,7 +154,8 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
     async fn ranked_routes(&self, routes: Vec<PoolRoute<P::Pool>>, amount_in: u64, accounts: Accounts, timestamp: u64) -> Result<Vec<(PoolRoute<P::Pool>, u64)>, SwapperError> {
         let route_accounts = routes.iter().map(|route| self.route_quote_accounts(route)).collect::<Vec<_>>();
         let missing = route_accounts.iter().flatten().flatten().flatten().filter(|address| !accounts.contains_key(address)).copied().collect();
-        let accounts = accounts.into_iter().chain(self.fetch_accounts(missing).await?).collect::<Accounts>();
+        let constants = self.constant_route_accounts(routes.iter().flatten().map(|(_, pool)| pool));
+        let accounts = accounts.into_iter().chain(self.load_accounts(missing, &constants).await?).collect::<Accounts>();
         let quoted = routes
             .into_iter()
             .zip(route_accounts)
@@ -176,6 +192,16 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             fee: route.fee,
             intermediate_token_account: P::INTERMEDIATE_TOKEN_ACCOUNT,
         })
+    }
+
+    async fn load_accounts(&self, addresses: Vec<Pubkey>, constants: &HashSet<Pubkey>) -> Result<Accounts, SwapperError> {
+        let (cached, missing): (Vec<_>, Vec<_>) = addresses.into_iter().map(|address| (address, self.constant_accounts.get(&address))).partition(|(_, account)| account.is_some());
+        let fetched = self.fetch_accounts(missing.into_iter().map(|(address, _)| address).collect()).await?;
+        fetched
+            .iter()
+            .filter(|(address, _)| constants.contains(address))
+            .for_each(|(address, account)| self.constant_accounts.put(*address, account.clone()));
+        Ok(cached.into_iter().filter_map(|(address, account)| Some((address, account?))).chain(fetched).collect())
     }
 
     async fn fetch_accounts(&self, addresses: Vec<Pubkey>) -> Result<Accounts, SwapperError> {
@@ -268,22 +294,15 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         if paths.is_empty() {
             return Err(SwapperError::NoQuoteAvailable);
         }
-        let (direct, intermediary): (Vec<_>, Vec<_>) = paths.iter().partition(|(path, _)| *path == RoutePath::Direct);
-        let groups = [direct, intermediary].map(|paths| self.requested_accounts(&paths, pair));
-        let calls = if groups.iter().all(|(_, predicted)| predicted.is_empty()) {
-            vec![groups.into_iter().flat_map(|(pools, _)| pools).collect::<Vec<_>>()]
-        } else {
-            groups.into_iter().map(|(pools, predicted)| [pools, predicted].concat()).filter(|accounts| !accounts.is_empty()).collect()
-        };
-        let extras = [referral_accounts, vec![input.mint, output.mint, sysvar_clock()]].concat();
-        let calls = calls.into_iter().enumerate().map(|(index, accounts)| match index {
-            0 => [accounts, extras.clone()].concat(),
-            _ => accounts,
-        });
-        let accounts = futures::future::try_join_all(calls.map(|accounts| self.fetch_accounts(accounts))).await?.into_iter().flatten().collect::<Accounts>();
-        let pools = paths.iter().flat_map(|(_, lookups)| lookups).map(|lookup| (lookup.pair, self.record_pools(lookup, &accounts))).collect();
-        let routes = self.routes(paths.iter().map(|(path, _)| path), pair, &pools);
+        let constant_extras = [referral_accounts, vec![input.mint, output.mint]].concat();
+        let requested = [self.requested_accounts(&paths, pair), constant_extras.clone(), vec![sysvar_clock()]].concat();
+        let known_pools = paths.iter().flat_map(|(_, lookups)| lookups).flat_map(|lookup| &lookup.known).map(|(_, pool)| pool);
+        let constants = constant_extras.iter().copied().chain(self.constant_route_accounts(known_pools)).collect();
+        let accounts = self.load_accounts(requested, &constants).await?;
         let clock = chain_clock(&accounts)?;
+        let timestamp = u64::try_from(clock.unix_timestamp).unwrap_or_default();
+        let pools = paths.iter().flat_map(|(_, lookups)| lookups).map(|lookup| (lookup.pair, self.record_pools(lookup, &accounts, timestamp))).collect();
+        let routes = self.routes(paths.iter().map(|(path, _)| path), pair, &pools);
         let mint = |token: &SwapToken| decode_mint(owned_data(&accounts, &token.mint, &token.token_program)?);
         let (input_mint, output_mint) = (mint(&input)?, mint(&output)?);
         let fee_side = match preferred_side {
@@ -292,7 +311,6 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         };
         let swap_value = referral_fee.swap_value(fee_side, value);
         let pool_input = swap_value.saturating_sub(input_mint.transfer_fee(clock.epoch, swap_value));
-        let timestamp = u64::try_from(clock.unix_timestamp).unwrap_or_default();
         let authority = Pubkey::from_base58(&request.wallet_address).map_err(|_| SwapperError::transaction_error(INVALID_ADDRESS))?;
         let route = self
             .ranked_routes(routes, pool_input, accounts, timestamp)

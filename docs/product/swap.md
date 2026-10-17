@@ -71,6 +71,58 @@ The quote that gives the most wins. A provider that runs on-chain, with no third
 | Raydium | the quote is read from the CLMM pool accounts and the swap goes straight to the pool |
 | THORChain | the quote comes from THORChain's own node and the deposit goes straight to its vault |
 
+## On-chain quotes
+
+Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, Cetus, STON.fi and Hyperion quote straight from the chain. What a pool is never changes once it exists: its address, its tokens, its fee tier. What it holds changes with every trade: its price, liquidity and reserves. The wallet keeps the first and reads the second again for every quote, so a quote is always priced on live state while the lookups that never change are not repeated. Dynode, the node proxy every wallet talks to, keeps the same unchanging lookups for all users ([how Dynode caches](../DYNODE.md#caching)).
+
+```mermaid
+flowchart LR
+    A[Quote asked] --> B{Pool facts known on the device?}
+    B -- yes --> C[Read live pool state only]
+    B -- no --> D[Look the pools up] --> E{Lookup known to Dynode?}
+    E -- yes --> F[Dynode answers at once] --> G[Pool facts kept]
+    E -- no --> H[Node answers, Dynode keeps it] --> G
+    G --> C --> I[Quote priced on live state]
+```
+
+| On the device | Kept for |
+|---|---|
+| A pool exists: its address, tokens and fee tier, and the version Cetus needs to trade with it | `7 days` |
+| No pool exists at a fee tier | `1 day` |
+| A pool cannot trade: no liquidity at its price, or swaps paused or not open yet on Orca and Raydium, or locked on STON.fi | `1 hour`, then it is checked again |
+| On Solana: the token mints, Gem's fee accounts and Raydium's fee configs | `1 day` |
+| Cetus's four main SUI/USDC pools | always; they ship with the app |
+
+| On Dynode | Kept for |
+|---|---|
+| Uniswap v3, PancakeSwap, Aerodrome, Oku and Wagmi pool lookups | `1 day` |
+| Cetus pool lookups | `1 day` |
+| Hyperion pool addresses and pool details | `1 day` |
+| STON.fi pool and jetton wallet addresses | `30 days` |
+| Sui epoch and gas price | `10 minutes` |
+
+Anything not listed is read again for every quote.
+
+On Solana a quote reads every account it needs in one request. Orca and Raydium each look up their `8` most-used fee tiers, which hold about `92%` and `94%` of the liquidity in their 200 largest pools. With 8 tiers, a token-to-token pair needs at most `93` accounts, which fits Solana's `100`-account limit, so a quote never splits into a second request.
+
+### Requests per quote
+
+Measured on 2026-10-17, one pair per provider and the same amount, on the build before and after this caching. Each count is HTTP requests; a single number did not change, and `before → after` shows what did. "A day later" is the same pair quoted again while the app is still open: before this caching, pool facts expired after `1 day` and discovery ran again. Everything the device keeps lives in memory, so after the app restarts the first quote pays the full cost again, and Dynode's lookups make that fast. Size is the repeat quote's response before compression. A swap build of `0` is built without a request; Cetus's was measured with an empty test wallet, so its dry run failed.
+
+| Provider and pair | First quote | Repeat quote | A day later | Swap build | Size |
+|---|---|---|---|---|---|
+| Uniswap v3, ETH to USDC | 2 | 1 | 2 → 1 | 0 | 4 KB |
+| Uniswap v4, ETH to USDC | 2, with 16 → 8 calls | 1 | 2 → 1 | 0 | under 1 KB |
+| Orca, SOL to USDC | 2 | 1 | 2 → 1 | 1 | 318 → 237 KB |
+| Raydium, SOL to USDC | 2 | 1 | 2 → 1 | 1 | 335 → 244 KB |
+| Orca, JUP to USDC | 2 | 2 → 1 | 2 → 1 | 1 | 337 → 230 KB |
+| Raydium, JUP to USDC | 2 | 2 → 1 | 2 → 1 | 1 | 193 → 143 KB |
+| Cetus, SUI to USDC | 7 | 1 | 7 → 1 | 6 | 3 KB |
+| STON.fi, TON to USDT | 10 | 4 | 10 → 4 | 0 | 2 KB |
+| Hyperion, APT to USDC | 19 | 7 | 19 → 7 | 3 | under 1 KB |
+
+A repeat quote took about `110 ms` to `130 ms` on Ethereum, Solana and Sui, most of it the round trip to Dynode. STON.fi and Hyperion ask one pool per request, so their repeat quotes took about `230 ms` and `320 ms`.
+
 ## Expected results
 
 | When | Expected | Why |
@@ -106,7 +158,7 @@ The quote that gives the most wins. A provider that runs on-chain, with no third
 ## Rules
 
 - Regional restrictions follow the shared [Feature availability](../PRODUCT.md#feature-availability) table.
-- A quote is never cached: every eligible provider is asked again for the live amount; cached routes are only hints and every quote uses live chain state.
+- A quote is never cached: every eligible provider is asked again for the live amount, and every quote is priced on live chain state. Only the facts that never change are kept, as [On-chain quotes](#on-chain-quotes) lists.
 - Every eligible provider is awaited, so the slowest one decides how long a quote takes.
 - Swap never signs anything: the confirmation screen holds the only authentication and signs the trade it loaded and showed.
 - The Slippage row reads Auto on both screens until the user picks a value.

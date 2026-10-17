@@ -33,6 +33,10 @@ impl DexProtocol for Orca {
         pool.liquidity
     }
 
+    fn constant_accounts(&self, _pool: &Whirlpool) -> Vec<Pubkey> {
+        vec![]
+    }
+
     fn quote_accounts(&self, address: &Pubkey, pool: &Whirlpool, input_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         let tick_arrays = TickArray::addresses(address, &pool.swap_start_tick_indexes(pool.is_a_to_b(input_mint)?))?;
         Ok([tick_arrays, vec![Whirlpool::oracle_address(address)?]].concat())
@@ -64,7 +68,7 @@ impl DexProtocol for Orca {
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
-    use crate::orca::testkit::TEST_AQUA_MINT;
+    use crate::orca::testkit::TEST_PUMP_MINT;
     use crate::{FetchQuoteData, NativeProvider, QuoteRequest, Swapper, SwapperQuoteAsset, client_factory::create_client_with_chain, models::Options, solana_dex::SolanaDex};
     use gem_solana::{SolanaClient, USDC_TOKEN_MINT};
     use num_bigint::BigUint;
@@ -88,10 +92,10 @@ mod swap_integration_tests {
             ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
         };
 
-        let aqua = SwapperQuoteAsset {
+        let pump = SwapperQuoteAsset {
             decimals: 6,
             asset_type: AssetType::SPL2022,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_AQUA_MINT))
+            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_PUMP_MINT))
         };
 
         let jup = SwapperQuoteAsset {
@@ -99,7 +103,7 @@ mod swap_integration_tests {
             ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_JUP_MINT))
         };
 
-        for (from_asset, to_asset, value) in [(sol.clone(), usdc.clone(), 1_000_000_000u64), (usdc.clone(), sol.clone(), 100_000_000), (sol, aqua, 100_000_000), (usdc, jup, 1_000_000_000)] {
+        for (from_asset, to_asset, value) in [(sol.clone(), usdc.clone(), 1_000_000_000u64), (usdc.clone(), sol.clone(), 100_000_000), (sol, pump, 100_000_000), (usdc, jup, 1_000_000_000)] {
             let request = QuoteRequest {
                 from_asset,
                 to_asset,
@@ -125,10 +129,13 @@ mod tests {
     use super::*;
     use crate::{
         FetchQuoteData, ProviderData, Quote, QuoteRequest, Route, Swapper, SwapperQuoteAsset,
-        orca::testkit::{TEST_AQUA_MINT, TEST_AQUA_WHIRLPOOL, TEST_WHIRLPOOL, mock_adaptive_snapshot, mock_rpc_client, mock_snapshot_rpc_accounts, mock_tick_array_accounts, mock_token_2022_rpc_accounts},
+        orca::testkit::{
+            TEST_AQUA_MINT, TEST_PUMP_MINT, TEST_PUMP_SNAPSHOT, TEST_PUMP_WHIRLPOOL, TEST_TOKEN_2022_SNAPSHOT, TEST_WHIRLPOOL, mock_adaptive_snapshot, mock_rpc_accounts, mock_rpc_client, mock_snapshot_rpc_accounts, mock_tick_array_accounts,
+        },
         solana_dex::SolanaDex,
         testkit::mock_quote,
     };
+    use gem_encoding::{decode_base64, encode_base64};
     use gem_solana::{USDC_TOKEN_MINT, USDT_TOKEN_MINT};
     use num_bigint::BigUint;
     use primitives::{AssetId, AssetType, Chain, testkit::signer_mock::TEST_SOLANA_SENDER};
@@ -195,8 +202,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_untradable_pool_is_not_requested_again() {
+        let requests = Arc::new(AtomicUsize::new(0));
+        let liquidity = Whirlpool::mock().liquidity.to_le_bytes();
+        let accounts = mock_snapshot_rpc_accounts()
+            .into_iter()
+            .map(|(address, account)| match address.as_str() {
+                TEST_WHIRLPOOL => {
+                    let data = decode_base64(account["data"][0].as_str().unwrap()).unwrap();
+                    let offset = data.windows(liquidity.len()).position(|window| window == liquidity).unwrap();
+                    let drained = [&data[..offset], &[0; 16], &data[offset + 16..]].concat();
+                    (address, serde_json::json!({ "data": [encode_base64(&drained), "base64"], "owner": account["owner"] }))
+                }
+                _ => (address, account),
+            })
+            .collect();
+        let orca = SolanaDex::with_client(Orca, mock_rpc_client(accounts, requests.clone()));
+        let request = QuoteRequest {
+            wallet_address: TEST_SOLANA_SENDER.to_string(),
+            destination_address: TEST_SOLANA_SENDER.to_string(),
+            value: BigUint::from(1_000_000_000u64),
+            ..mock_quote(
+                SwapperQuoteAsset {
+                    decimals: 9,
+                    ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
+                },
+                SwapperQuoteAsset {
+                    decimals: 6,
+                    asset_type: AssetType::SPL,
+                    ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
+                },
+            )
+        };
+
+        assert_eq!(orca.get_quote(&request).await, Err(SwapperError::NoQuoteAvailable));
+        assert_eq!(requests.load(Ordering::SeqCst), 1);
+        assert_eq!(orca.get_quote(&request).await, Err(SwapperError::NoQuoteAvailable));
+        assert_eq!(requests.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
     async fn test_quote_transfer_fee() {
-        let orca = SolanaDex::with_client(Orca, mock_rpc_client(mock_token_2022_rpc_accounts(), Arc::default()));
+        let fee_mint = mock_rpc_accounts(TEST_TOKEN_2022_SNAPSHOT)[TEST_AQUA_MINT].clone();
+        let accounts = mock_snapshot_rpc_accounts().into_iter().chain([(USDC_TOKEN_MINT.to_string(), fee_mint)]).collect();
+        let orca = SolanaDex::with_client(Orca, mock_rpc_client(accounts, Arc::default()));
         let sol = SwapperQuoteAsset {
             decimals: 9,
             ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
@@ -204,7 +253,7 @@ mod tests {
         let aqua = SwapperQuoteAsset {
             decimals: 6,
             asset_type: AssetType::SPL2022,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_AQUA_MINT))
+            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
         };
         let request = |from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset| QuoteRequest {
             wallet_address: TEST_SOLANA_SENDER.to_string(),
@@ -214,15 +263,15 @@ mod tests {
         };
         let spl_aqua = SwapperQuoteAsset { asset_type: AssetType::SPL, ..aqua.clone() };
 
-        assert_eq!(orca.get_quote(&request(&sol, &aqua)).await.unwrap().to_value, BigUint::from(902_183_486_143u64));
-        assert_eq!(orca.get_quote(&request(&aqua, &sol)).await.unwrap().to_value, BigUint::from(10_309u64));
+        assert_eq!(orca.get_quote(&request(&sol, &aqua)).await.unwrap().to_value, BigUint::from(10_267_028u64));
+        assert_eq!(orca.get_quote(&request(&aqua, &sol)).await.unwrap().to_value, BigUint::from(919_174_743u64));
         assert_eq!(orca.get_quote(&request(&spl_aqua, &sol)).await, Err(SwapperError::NotSupportedAsset));
     }
 
     #[tokio::test]
     async fn test_two_hop_quote() {
         let requests = Arc::new(AtomicUsize::new(0));
-        let accounts = mock_snapshot_rpc_accounts().into_iter().chain(mock_token_2022_rpc_accounts()).collect();
+        let accounts = mock_snapshot_rpc_accounts().into_iter().chain(mock_rpc_accounts(TEST_PUMP_SNAPSHOT)).collect();
         let orca = SolanaDex::with_client(Orca, mock_rpc_client(accounts, requests.clone()));
         let request = QuoteRequest {
             wallet_address: TEST_SOLANA_SENDER.to_string(),
@@ -237,7 +286,7 @@ mod tests {
                 SwapperQuoteAsset {
                     decimals: 6,
                     asset_type: AssetType::SPL2022,
-                    ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_AQUA_MINT))
+                    ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_PUMP_MINT))
                 },
             )
         };
@@ -245,8 +294,8 @@ mod tests {
         let quote = orca.get_quote(&request).await.unwrap();
         let route: serde_json::Value = serde_json::from_str(&quote.data.routes[0].route_data).unwrap();
         assert_eq!(requests.load(Ordering::SeqCst), 2);
-        assert_eq!(quote.to_value, BigUint::from(8_366_332_123_054u64));
-        assert_eq!([&route["hops"][0]["pool"], &route["hops"][1]["pool"]], [TEST_WHIRLPOOL, TEST_AQUA_WHIRLPOOL]);
+        assert_eq!(quote.to_value, BigUint::from(21_763_608_986u64));
+        assert_eq!([&route["hops"][0]["pool"], &route["hops"][1]["pool"]], [TEST_WHIRLPOOL, TEST_PUMP_WHIRLPOOL]);
 
         assert_eq!(orca.get_quote(&request).await.unwrap(), quote);
         assert_eq!(requests.load(Ordering::SeqCst), 3);

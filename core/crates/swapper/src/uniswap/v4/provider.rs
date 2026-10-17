@@ -84,7 +84,12 @@ impl UniswapV4 {
         let base_pair = base_pair(evm_chain, PROTOCOL).ok_or_else(|| SwapperError::ComputeQuoteError("base pair not found".into()))?;
         let client = create_client(self.rpc_provider.clone(), chain)?;
         let fee_tiers = self.get_tiers();
-        let pairs = candidate_pairs(token_in, token_out, get_intermediaries(&token_in, &token_out, &base_pair));
+        let intermediaries = if Self::is_base_pair(&token_in, &token_out, &evm_chain) {
+            vec![]
+        } else {
+            get_intermediaries(&token_in, &token_out, &base_pair)
+        };
+        let pairs = candidate_pairs(token_in, token_out, intermediaries);
         let pools = self
             .pool_discovery
             .missing_pools(chain, &pairs, &fee_tiers)
