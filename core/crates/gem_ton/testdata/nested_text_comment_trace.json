@@ -1,0 +1,91 @@
+{
+  "traces": [
+    {
+      "is_incomplete": false,
+      "actions": [
+        {
+          "success": true,
+          "type": "ton_transfer",
+          "details": {
+            "source": "0:6FCB203FA5210AE93D474E37515F5DE650246333298155726F8654EFDA379A3B",
+            "destination": "0:EB96D82A004F79ACAB347CA5B13C4ABB4E4B28A2C040A314E50B9341BD73A9A2",
+            "value": "1040000000",
+            "value_extra_currencies": {},
+            "comment": "te6cckEBAQEAEwAAIgAAAABTTS04UjRNRVRYTTNOuRdaBQ==",
+            "encrypted": false
+          }
+        }
+      ],
+      "transactions_order": [
+        "9hUpie6gB2Tmh1awVWS6Ag4p27NZWG/lOZalg0Nzn3M=",
+        "yVuoh5DuFnPQSxPTWXjpjvDSId/MTd1JkX91gLUdcyI="
+      ],
+      "transactions": {
+        "9hUpie6gB2Tmh1awVWS6Ag4p27NZWG/lOZalg0Nzn3M=": {
+          "hash": "9hUpie6gB2Tmh1awVWS6Ag4p27NZWG/lOZalg0Nzn3M=",
+          "now": 1792163607,
+          "total_fees": "507773",
+          "description": {
+            "aborted": false,
+            "compute_ph": {
+              "success": true,
+              "exit_code": 0
+            },
+            "action": {
+              "success": true
+            }
+          },
+          "out_msgs": [
+            {
+              "source": "0:6FCB203FA5210AE93D474E37515F5DE650246333298155726F8654EFDA379A3B",
+              "destination": "0:EB96D82A004F79ACAB347CA5B13C4ABB4E4B28A2C040A314E50B9341BD73A9A2",
+              "value": "1040000000",
+              "opcode": "0x00000000",
+              "message_content": {
+                "hash": "rhpMYyTtWtm0S4mVHDIEYLrqno76mUZPxOCkDyLm7gI=",
+                "body": "te6cckEBAQEANgAAaAAAAAB0ZTZjY2tFQkFRRUFFd0FBSWdBQUFBQlRUUzA0VWpSTlJWUllUVE5PdVJkYUJRPT2VjpRi",
+                "decoded": {
+                  "@type": "text_comment",
+                  "text": {
+                    "@type": "text_comment",
+                    "text": "SM-8R4METXM3N"
+                  }
+                }
+              }
+            }
+          ],
+          "in_msg": {
+            "hash": "2VBD29nua/8ViTSf1oWxFL5BImeCxUvxyWls/NMPXUY=",
+            "source": null,
+            "destination": "0:6FCB203FA5210AE93D474E37515F5DE650246333298155726F8654EFDA379A3B",
+            "value": null,
+            "opcode": "0x7369676e"
+          }
+        },
+        "yVuoh5DuFnPQSxPTWXjpjvDSId/MTd1JkX91gLUdcyI=": {
+          "hash": "yVuoh5DuFnPQSxPTWXjpjvDSId/MTd1JkX91gLUdcyI=",
+          "now": 1792163607,
+          "total_fees": "56477",
+          "description": {
+            "aborted": false,
+            "compute_ph": {
+              "success": true,
+              "exit_code": 0
+            },
+            "action": {
+              "success": true
+            }
+          },
+          "out_msgs": [],
+          "in_msg": {
+            "hash": "Vwn6Owi+kX1MCMOsSjK2ZeXdPFGEEB+0Sgproxuxmpg=",
+            "source": "0:6FCB203FA5210AE93D474E37515F5DE650246333298155726F8654EFDA379A3B",
+            "destination": "0:EB96D82A004F79ACAB347CA5B13C4ABB4E4B28A2C040A314E50B9341BD73A9A2",
+            "value": "1040000000",
+            "opcode": "0x00000000"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -9,8 +9,6 @@ use crate::address::Address;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecodedBody {
-    #[serde(rename = "type")]
-    pub body_type: Option<String>,
     pub comment: Option<String>,
     pub text: Option<String>,
 }
@@ -193,7 +191,14 @@ pub struct OutMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageContent {
-    pub decoded: Option<DecodedBody>,
+    pub decoded: Option<DecodedMessageContent>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DecodedMessageContent {
+    #[serde(rename = "type")]
+    pub body_type: Option<String>,
+    pub comment: Option<String>,
 }
 
 impl MessageContent {
@@ -235,4 +240,18 @@ pub struct ActionPhase {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BroadcastTransaction {
     pub message_hash: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_text_comment_skips_contract_payload() {
+        let content = format!(r#"{{"decoded":{{"type":"wallet_v5_signed_request","text":{}null{}}}}}"#, "[".repeat(148), "]".repeat(148));
+        let content: MessageContent = serde_json::from_str(&content).unwrap();
+
+        assert_eq!(content.text_comment(), None);
+        assert_eq!(content.decoded.unwrap().body_type.as_deref(), Some("wallet_v5_signed_request"));
+    }
 }

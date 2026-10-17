@@ -294,6 +294,20 @@ mod tests {
     const NFT_NEW_OWNER: &str = "UQDSkZZueXRl0lUk4hagLa8KrJzZbmtTE_RPZwTDSIw32WNH";
 
     #[test]
+    fn test_map_trace_transactions_nested_text_comment() {
+        let traces: TraceResponse = serde_json::from_str(include_str!("../../testdata/nested_text_comment_trace.json")).unwrap();
+        let transactions = map_trace_transactions(traces.traces);
+
+        assert_eq!(transactions.len(), 1);
+        let transaction = &transactions[0];
+        assert_eq!(transaction.hash(), "f6152989eea00764e68756b05564ba020e29dbb359586fe53996a58343739f73");
+        assert_eq!(transaction.value, BigUint::from(1_040_000_000u64));
+        assert_eq!(transaction.transaction_type, TransactionType::Transfer);
+        assert_eq!(transaction.state, TransactionState::Confirmed);
+        assert_eq!(transaction.memo, None);
+    }
+
+    #[test]
     fn test_map_trace_transactions_text_comment() {
         let traces: TraceResponse = serde_json::from_str(include_str!("../../testdata/relay_deposit_trace.json")).unwrap();
         let transactions = map_trace_transactions(traces.traces);
