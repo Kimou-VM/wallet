@@ -68,6 +68,7 @@ The quote that gives the most wins. A provider that runs on-chain, with no third
 |---|---|
 | Across | the deposit goes straight to its SpokePool contract on the paying network and settles in seconds |
 | Orca | the quote is read from the Whirlpool accounts and the swap goes straight to the pool |
+| Raydium | the quote is read from the CLMM pool accounts and the swap goes straight to the pool |
 | THORChain | the quote comes from THORChain's own node and the deposit goes straight to its vault |
 
 ## Expected results
