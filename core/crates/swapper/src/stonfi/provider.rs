@@ -7,17 +7,16 @@ use super::{
 };
 use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
-    fees::{ReferralFee, default_referral_fees, reserved_transaction_fees, subtract_bps},
+    fees::{ReferralFee, default_referral_fees, subtract_bps},
     models::nonzero_swap_value,
-    route_cache::{DiscoveryCache, OutpricedCache},
+    route_cache::{DiscoveryCache, OutpricedCache, amount_key, quote_outcome},
     route_path::RoutePath,
 };
 use async_trait::async_trait;
 use futures::future::join_all;
 use gem_client::Client;
-use gem_ton::{address::Address, rpc::client::TonClient};
+use gem_ton::{address::Address, models::TonConnectMessage, rpc::client::TonClient};
 use num_bigint::BigUint;
-use num_traits::ToPrimitive;
 use primitives::{AssetId, Chain, asset_constants::TON_USDT_ASSET_ID};
 use std::{cmp::Reverse, fmt::Debug, str::FromStr, sync::Arc};
 
@@ -119,7 +118,9 @@ where
             quoted if quoted.iter().all(|(_, quote)| quote.is_err()) && !skipped.is_empty() => self.quote_route_paths(&skipped, request, from_value, allow_discovery).await,
             quoted => quoted,
         };
-        let outcomes = quoted.iter().filter_map(|(path, quote)| Some((path_key(path), quote_outcome(quote.as_ref().map(|path| path.to_value.as_str()))?)));
+        let outcomes = quoted
+            .iter()
+            .filter_map(|(path, quote)| Some((path_key(path), quote_outcome(quote.as_ref().map(|path| path.to_value.parse().unwrap_or_default()))?)));
         self.outpriced_paths.record(&from_key, &to_key, amount_in, outcomes);
         quoted.into_iter().map(|(_, quote)| quote).collect()
     }
@@ -285,7 +286,7 @@ where
         let outcomes = addresses
             .into_iter()
             .zip(&quotes)
-            .filter_map(|(address, quote)| Some((address, quote_outcome(quote.as_ref().map(|(_, simulation)| simulation.ask_units.as_str()))?)));
+            .filter_map(|(address, quote)| Some((address, quote_outcome(quote.as_ref().map(|(_, simulation)| simulation.ask_units.parse().unwrap_or_default()))?)));
         self.outpriced_pools.record(&from_token.to_string(), &to_token.to_string(), amount_key(amount), outcomes);
         let ranked = quotes.into_iter().flatten().map(|quote| Ok((BigUint::from_str(&quote.1.ask_units)?, quote))).collect::<Result<Vec<_>, SwapperError>>()?;
         ranked.into_iter().min_by_key(|(amount, _)| Reverse(amount.clone())).map(|(_, quote)| quote).ok_or(SwapperError::NoQuoteAvailable)
@@ -379,7 +380,7 @@ where
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
-        let request = request_keeping_native_attachment(request)?;
+        let request = request.reserve_native_attachment(&tx_builder::native_attachment())?;
         let from_value = request.value.clone();
         let path = self.get_quotes(&request, &from_value.to_string()).await?;
 
@@ -441,37 +442,9 @@ where
             deadline: None,
         })?;
 
-        Ok(SwapperQuoteData::new_contract(tx.to, BigUint::from_str(&tx.value).map_err(SwapperError::compute_quote_error)?, tx.data, None, None))
+        let message = TonConnectMessage::new(Address::parse(&tx.to)?.encode_bounceable(), &BigUint::from_str(&tx.value)?, Some(tx.data));
+        TonConnectMessage::swap_quote_data(&[message]).map_err(SwapperError::compute_quote_error)
     }
-}
-
-fn request_keeping_native_attachment(request: &QuoteRequest) -> Result<QuoteRequest, SwapperError> {
-    if !request.options.use_max_amount || !request.from_asset.is_native() {
-        return Ok(request.clone());
-    }
-    let attachment = tx_builder::native_attachment();
-    if request.value <= attachment {
-        let reserved_fee = reserved_transaction_fees(Chain::Ton).and_then(|fee| BigUint::from_str(fee).ok()).unwrap_or(BigUint::ZERO);
-        return Err(SwapperError::InputAmountError {
-            min_amount: Some((attachment + reserved_fee).to_string()),
-        });
-    }
-    Ok(QuoteRequest {
-        value: &request.value - &attachment,
-        ..request.clone()
-    })
-}
-
-fn quote_outcome(quote: Result<&str, &SwapperError>) -> Option<u128> {
-    match quote {
-        Ok(value) => BigUint::from_str(value).ok()?.to_u128(),
-        Err(SwapperError::NoQuoteAvailable | SwapperError::InvalidRoute) => Some(0),
-        Err(_) => None,
-    }
-}
-
-fn amount_key(amount: &BigUint) -> u128 {
-    amount.to_u128().unwrap_or(u128::MAX)
 }
 
 fn is_retryable_get_method_error(err: &SwapperError) -> bool {
@@ -696,33 +669,6 @@ mod tests {
         assert!(provider.route_cache.candidates_for_probes(TON_PROXY_JETTON_ADDRESS, TON_USDT_TOKEN_ID, &probes).is_empty());
     }
 
-    #[test]
-    fn test_max_native_quote_keeps_the_forward_gas_in_the_wallet() {
-        let mut request = QuoteRequest {
-            from_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Ton)),
-            to_asset: SwapperQuoteAsset::from(AssetId::from_token(Chain::Ton, TON_USDT_TOKEN_ID)),
-            wallet_address: TEST_TON_SENDER.to_string(),
-            destination_address: TEST_TON_SENDER.to_string(),
-            value: BigUint::from(1_195_893_271u64),
-            options: Options {
-                use_max_amount: true,
-                ..Options::new_with_slippage(100.into())
-            },
-        };
-
-        assert_eq!(request_keeping_native_attachment(&request).unwrap().value, BigUint::from(885_893_271u64));
-
-        request.value = BigUint::from(310_000_000u64);
-        assert_eq!(request_keeping_native_attachment(&request).unwrap_err(), SwapperError::InputAmountError { min_amount: Some("330000000".to_string()) });
-
-        request.options.use_max_amount = false;
-        assert_eq!(request_keeping_native_attachment(&request).unwrap().value, BigUint::from(310_000_000u64));
-
-        request.options.use_max_amount = true;
-        request.from_asset = SwapperQuoteAsset::from(AssetId::from_token(Chain::Ton, TON_USDT_TOKEN_ID));
-        assert_eq!(request_keeping_native_attachment(&request).unwrap().value, BigUint::from(310_000_000u64));
-    }
-
     #[tokio::test]
     async fn test_direct_quote_can_select_v1_static_pool() {
         let v1_pool = STATIC_POOLS.iter().find(|pool| pool.pool_address == V1_POOL).unwrap();
@@ -828,13 +774,15 @@ mod tests {
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
-    use crate::{Options, SwapperQuoteAsset, alien::reqwest_provider::NativeProvider, stonfi::testkit::NOT_TOKEN_ID, testkit::mock_ton};
+    use crate::{
+        Options, SwapperQuoteAsset,
+        stonfi::testkit::NOT_TOKEN_ID,
+        testkit::{dynode_provider, mock_ton},
+    };
     use primitives::{AssetId, asset_constants::TON_USDT_ASSET_ID, testkit::signer_mock::TEST_TON_SENDER};
-    use std::collections::HashMap;
 
     fn dynode_stonfi() -> Stonfi<RpcClient> {
-        let rpc_provider = NativeProvider::new_with_endpoints(HashMap::from([(Chain::Ton, "https://gemnodes.com/ton".to_string())]));
-        Stonfi::new(Arc::new(rpc_provider)).unwrap()
+        Stonfi::new(dynode_provider(Chain::Ton)).unwrap()
     }
 
     #[tokio::test]
@@ -852,7 +800,7 @@ mod swap_integration_tests {
         let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
         assert!(!quote_data.to.is_empty());
         assert!(quote_data.value > BigUint::ZERO);
-        assert!(quote_data.data.starts_with("te6cc"));
+        assert_eq!(serde_json::from_str::<Vec<TonConnectMessage>>(&quote_data.data)?.len(), 1);
         println!("STON.fi TON -> USDT quote_data: {quote_data:?}");
 
         Ok(())
@@ -881,7 +829,7 @@ mod swap_integration_tests {
             let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
             assert!(!quote_data.to.is_empty());
             assert!(quote_data.value > BigUint::ZERO);
-            assert!(quote_data.data.starts_with("te6cc"));
+            assert_eq!(serde_json::from_str::<Vec<TonConnectMessage>>(&quote_data.data)?.len(), 1);
         }
         Ok(())
     }
@@ -912,7 +860,7 @@ mod swap_integration_tests {
         let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
         assert!(!quote_data.to.is_empty());
         assert!(quote_data.value > BigUint::ZERO);
-        assert!(quote_data.data.starts_with("te6cc"));
+        assert_eq!(serde_json::from_str::<Vec<TonConnectMessage>>(&quote_data.data)?.len(), 1);
         println!("STON.fi NOT -> USDT quote_data: {quote_data:?}");
 
         Ok(())
