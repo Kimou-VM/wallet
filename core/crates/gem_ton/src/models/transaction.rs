@@ -112,6 +112,7 @@ pub const TRACE_ACTION_JETTON_SWAP: &str = "jetton_swap";
 pub const TRACE_ACTION_JETTON_TRANSFER: &str = "jetton_transfer";
 pub const TRACE_ACTION_NFT_TRANSFER: &str = "nft_transfer";
 pub const TRACE_ACTION_TON_TRANSFER: &str = "ton_transfer";
+pub const STONFI_PAY_VAULT_V2: &str = "stonfi_pay_vault_v2";
 const TRACE_DEX_STONFI: &str = "stonfi";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -225,6 +226,52 @@ pub struct TransactionInMessage {
     #[serde(default, deserialize_with = "deserialize_option_biguint_from_str")]
     pub value: Option<BigUint>,
     pub opcode: Option<String>,
+    #[serde(default)]
+    pub message_content: Option<InMessageContent>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InMessageContent {
+    pub decoded: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct StonfiPayVault {
+    #[serde(rename = "@type")]
+    pub body_type: String,
+    pub owner: TlbAddress,
+    #[serde(rename = "")]
+    pub amounts: StonfiPayVaultAmounts,
+}
+
+impl StonfiPayVault {
+    pub fn amount(&self) -> BigUint {
+        &self.amounts.amount0_out.value + &self.amounts.amount1_out.value
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct StonfiPayVaultAmounts {
+    pub amount0_out: TlbVarUint,
+    pub amount1_out: TlbVarUint,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TlbAddress {
+    pub workchain_id: String,
+    pub address: String,
+}
+
+impl TlbAddress {
+    pub fn raw(&self) -> String {
+        format!("{}:{}", self.workchain_id, self.address)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TlbVarUint {
+    #[serde(deserialize_with = "deserialize_biguint_from_str")]
+    pub value: BigUint,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,8 +1,8 @@
 use crate::address::{Address, hex_to_base64_address};
 use crate::constants::{FAILED_OPERATION_OPCODES, STONFI_PTON_ADDRESSES};
 use crate::models::{
-    BroadcastTransaction, JettonSwapDetails, JettonTransferDetails, NftTransferDetails, OutMessage, TRACE_ACTION_JETTON_SWAP, TRACE_ACTION_JETTON_TRANSFER, TRACE_ACTION_NFT_TRANSFER, TRACE_ACTION_TON_TRANSFER, TonTransferDetails, Trace,
-    TraceAction, TransactionMessage,
+    BroadcastTransaction, JettonSwapDetails, JettonTransferDetails, NftTransferDetails, OutMessage, STONFI_PAY_VAULT_V2, StonfiPayVault, TRACE_ACTION_JETTON_SWAP, TRACE_ACTION_JETTON_TRANSFER, TRACE_ACTION_NFT_TRANSFER,
+    TRACE_ACTION_TON_TRANSFER, TonTransferDetails, Trace, TraceAction, TransactionMessage,
 };
 use chrono::DateTime;
 use gem_encoding::decode_base64;
@@ -75,7 +75,7 @@ fn map_root_trace_transaction(trace: Trace) -> Option<Transaction> {
     let state = if trace.is_incomplete || trace.has_actions() { Some(trace.action_state()) } else { None };
     let root = trace.root_transaction()?;
 
-    let details = jetton_swap_details(&trace.actions, root)
+    let details = jetton_swap_details(&trace, root)
         .or_else(|| nft_transfer_details(&trace.actions))
         .or_else(|| jetton_transfer_details(&trace.actions))
         .or_else(|| simple_transfer_details(root))?;
@@ -144,8 +144,8 @@ fn nft_transfer_details(actions: &[TraceAction]) -> Option<TransferDetails> {
     })
 }
 
-fn jetton_swap_details(actions: &[TraceAction], root: &TransactionMessage) -> Option<TransferDetails> {
-    let (sender, metadata) = jetton_swap_metadata(actions)?;
+fn jetton_swap_details(trace: &Trace, root: &TransactionMessage) -> Option<TransferDetails> {
+    let (sender, metadata) = jetton_swap_metadata(trace)?;
     let asset_id = metadata.from_asset.clone();
     let value = metadata.from_value.clone();
     let metadata_value = serde_json::to_value(metadata).ok()?;
@@ -169,22 +169,35 @@ fn called_contract(root: &TransactionMessage) -> Option<String> {
     }
 }
 
-fn jetton_swap_metadata(actions: &[TraceAction]) -> Option<(String, TransactionSwapMetadata)> {
-    let action = find_action(actions, TRACE_ACTION_JETTON_SWAP)?;
+fn jetton_swap_metadata(trace: &Trace) -> Option<(String, TransactionSwapMetadata)> {
+    let action = find_action(&trace.actions, TRACE_ACTION_JETTON_SWAP)?;
     let swap: JettonSwapDetails = action.details.clone().and_then(|value| serde_json::from_value(value).ok())?;
     let sender = parse_address(&swap.sender)?;
     let (Some(from_asset), Some(to_asset)) = (ton_asset_id(swap.asset_in.as_deref()), ton_asset_id(swap.asset_out.as_deref())) else {
         return None;
     };
-    let metadata = TransactionSwapMetadata::from_provider_id(from_asset, swap.dex_incoming_transfer.amount.clone(), to_asset, swap.dex_outgoing_transfer.amount.clone(), swap.provider()).with_referral_fee(map_referral_fee(actions, &sender));
+    let referral_fee = map_referral_fee(trace, &sender, &to_asset);
+    let metadata = TransactionSwapMetadata::from_provider_id(from_asset, swap.dex_incoming_transfer.amount.clone(), to_asset, swap.dex_outgoing_transfer.amount.clone(), swap.provider()).with_referral_fee(referral_fee);
     Some((sender, metadata))
 }
 
-fn map_referral_fee(actions: &[TraceAction], sender: &str) -> Option<TransactionSwapReferralFee> {
+fn map_referral_fee(trace: &Trace, sender: &str, to_asset: &AssetId) -> Option<TransactionSwapReferralFee> {
     if sender == TON_REFERRAL_ADDRESS {
         return None;
     }
-    actions.iter().find_map(referral_fee_transfer)
+    trace.actions.iter().find_map(referral_fee_transfer).or_else(|| stonfi_vault_referral_fee(trace, to_asset))
+}
+
+fn stonfi_vault_referral_fee(trace: &Trace, asset_id: &AssetId) -> Option<TransactionSwapReferralFee> {
+    trace.transactions.values().find_map(|transaction| {
+        let decoded = transaction.in_msg.as_ref()?.message_content.as_ref()?.decoded.clone()?;
+        let vault: StonfiPayVault = serde_json::from_value(decoded).ok()?;
+        let is_referral = vault.body_type == STONFI_PAY_VAULT_V2 && parse_address(&vault.owner.raw()).as_deref() == Some(TON_REFERRAL_ADDRESS);
+        is_referral.then(|| TransactionSwapReferralFee {
+            asset_id: asset_id.clone(),
+            value: vault.amount(),
+        })
+    })
 }
 
 fn referral_fee_transfer(action: &TraceAction) -> Option<TransactionSwapReferralFee> {
@@ -375,6 +388,24 @@ mod tests {
                 BigUint::from(2436222u64),
                 Some("stonfi_v2".to_string())
             )
+        );
+    }
+
+    #[test]
+    fn test_map_trace_transactions_stonfi_v2_vault_referral_fee() {
+        let traces: TraceResponse = serde_json::from_str(include_str!("../../testdata/jetton_swap_stonfi_v2_referral_trace.json")).unwrap();
+        let usdt = AssetId::from_token(Chain::Ton, "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");
+
+        let transactions = map_trace_transactions(traces.traces);
+        let metadata = serde_json::from_value::<TransactionSwapMetadata>(transactions[0].metadata.clone().unwrap()).unwrap();
+
+        assert_eq!(transactions[0].transaction_type, TransactionType::Swap);
+        assert_eq!(
+            metadata,
+            TransactionSwapMetadata::from_provider_id(usdt, BigUint::from(1_000_000u64), Chain::Ton.as_asset_id(), BigUint::from(735_561_230u64), Some("stonfi_v2".to_string())).with_referral_fee(Some(TransactionSwapReferralFee {
+                asset_id: Chain::Ton.as_asset_id(),
+                value: BigUint::from(3_697_403u64),
+            }))
         );
     }
 

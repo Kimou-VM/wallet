@@ -1,0 +1,499 @@
+{
+ "traces": [
+  {
+   "trace_id": "IVomMOqy0jTKuJ1KYiHRCgKdb7yboK5j582JZybdeyw=",
+   "is_incomplete": false,
+   "actions": [
+    {
+     "trace_id": "IVomMOqy0jTKuJ1KYiHRCgKdb7yboK5j582JZybdeyw=",
+     "action_id": "hlJlW3BnT3ovS22Knhag2DKdotruiLipXRV1AJpC25E=",
+     "start_lt": "110644980000002",
+     "end_lt": "110644980000017",
+     "start_utime": 1792275025,
+     "end_utime": 1792275025,
+     "trace_end_lt": "110644980000017",
+     "trace_end_utime": 1792275025,
+     "trace_mc_seqno_end": 99689297,
+     "transactions": [
+      "PrmqNIa99QERoBZPYdc6tVdX6tAhsetPpkKLTP1ROcc=",
+      "IVomMOqy0jTKuJ1KYiHRCgKdb7yboK5j582JZybdeyw=",
+      "8kTVsVeiffsoJPqMtgPxg7/gHSNqk5HeWXzacXkJods=",
+      "RCKTYiIMAr/idSr7haANqSDW3whF2Ohvv7Fm8OpHPQM=",
+      "48E4hERmvjrh2eDNhNZwlo8dK5Z3kxODnZCTWJ9hKTw=",
+      "KejbdOjtlWkvBDYclAEutCJjEU/+7HGPVHk6RyfT5eY=",
+      "l3fS7CvVhQmOgBkZX73nLp11Q6LE4H8q2r5u5bPEM3Y=",
+      "yTN7fSDBXjDuf1Qbt20UC/NGbAVIkn4u6KtiAPUCpdE=",
+      "32qqQiOSm+4GGiuKx28RPOkOqbfeA/rF+cPIy7IaJmU="
+     ],
+     "success": true,
+     "type": "jetton_swap",
+     "details": {
+      "dex": "stonfi_v2",
+      "sender": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+      "asset_in": "0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE",
+      "asset_out": null,
+      "dex_incoming_transfer": {
+       "asset": "0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE",
+       "source": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+       "destination": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+       "source_jetton_wallet": "0:2E69040C5FC04447E609A572762D67C5EC6555BED5CBB38A34C3D63EC0326E00",
+       "destination_jetton_wallet": "0:922D627D7D8EDBD00E4E23BDB0C54A76EE5E1F46573A1AF4417857FA3E23E91F",
+       "amount": "1000000"
+      },
+      "dex_outgoing_transfer": {
+       "asset": null,
+       "source": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+       "destination": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+       "source_jetton_wallet": null,
+       "destination_jetton_wallet": null,
+       "amount": "735561230"
+      },
+      "peer_swaps": []
+     },
+     "finality": "finalized"
+    }
+   ],
+   "transactions_order": [
+    "IVomMOqy0jTKuJ1KYiHRCgKdb7yboK5j582JZybdeyw=",
+    "l3fS7CvVhQmOgBkZX73nLp11Q6LE4H8q2r5u5bPEM3Y=",
+    "yTN7fSDBXjDuf1Qbt20UC/NGbAVIkn4u6KtiAPUCpdE=",
+    "48E4hERmvjrh2eDNhNZwlo8dK5Z3kxODnZCTWJ9hKTw=",
+    "KejbdOjtlWkvBDYclAEutCJjEU/+7HGPVHk6RyfT5eY=",
+    "32qqQiOSm+4GGiuKx28RPOkOqbfeA/rF+cPIy7IaJmU=",
+    "aHH4NqTh6kZ10q9fhTdXMPyBhEr0iYn5fMi0MG30KaI=",
+    "L85omAnBJNBDmLlo5PnUgceFWSz+PkM/Dlew3ZTnS4o=",
+    "RCKTYiIMAr/idSr7haANqSDW3whF2Ohvv7Fm8OpHPQM=",
+    "Ezmu9vxUh7TMy+5w7ZeVHLB3XZ2mRdcAESPVme1XPiw=",
+    "PrmqNIa99QERoBZPYdc6tVdX6tAhsetPpkKLTP1ROcc=",
+    "8kTVsVeiffsoJPqMtgPxg7/gHSNqk5HeWXzacXkJods="
+   ],
+   "transactions": {
+    "32qqQiOSm+4GGiuKx28RPOkOqbfeA/rF+cPIy7IaJmU=": {
+     "hash": "32qqQiOSm+4GGiuKx28RPOkOqbfeA/rF+cPIy7IaJmU=",
+     "now": 1792275025,
+     "total_fees": "1385555",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "zyIColNjbZ5hqE/6qaa3WEZO8FBM0KJgL04TCUoXeTs=",
+      "source": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+      "destination": "0:8649CAD97B5C5BC96A960EF748EA6CCFF8601C01616FE995EE6893AE4AA7A6C6",
+      "value": "238442397",
+      "opcode": "0x6664de2a"
+     },
+     "out_msgs": [
+      {
+       "hash": "kksf5LPn6FSYh2+7liwFP1kQvOk0+qw01gkw6sPNJfc=",
+       "source": "0:8649CAD97B5C5BC96A960EF748EA6CCFF8601C01616FE995EE6893AE4AA7A6C6",
+       "destination": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+       "value": "31928477",
+       "opcode": "0x63381632"
+      },
+      {
+       "hash": "aR31OiRueGVefYon/XIXQIHCodAJgIovfEbOkvpDvqE=",
+       "source": "0:8649CAD97B5C5BC96A960EF748EA6CCFF8601C01616FE995EE6893AE4AA7A6C6",
+       "destination": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+       "value": "204901517",
+       "opcode": "0x657b54f5"
+      }
+     ]
+    },
+    "48E4hERmvjrh2eDNhNZwlo8dK5Z3kxODnZCTWJ9hKTw=": {
+     "hash": "48E4hERmvjrh2eDNhNZwlo8dK5Z3kxODnZCTWJ9hKTw=",
+     "now": 1792275025,
+     "total_fees": "1315778",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "LznhkQGLaB6NsGTXACtgFwdmcidwuQ2bqLBaRjK4XIY=",
+      "source": "0:922D627D7D8EDBD00E4E23BDB0C54A76EE5E1F46573A1AF4417857FA3E23E91F",
+      "destination": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+      "value": "240000000",
+      "opcode": "0x7362d09c"
+     },
+     "out_msgs": [
+      {
+       "hash": "zyIColNjbZ5hqE/6qaa3WEZO8FBM0KJgL04TCUoXeTs=",
+       "source": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+       "destination": "0:8649CAD97B5C5BC96A960EF748EA6CCFF8601C01616FE995EE6893AE4AA7A6C6",
+       "value": "238442397",
+       "opcode": "0x6664de2a"
+      }
+     ]
+    },
+    "8kTVsVeiffsoJPqMtgPxg7/gHSNqk5HeWXzacXkJods=": {
+     "hash": "8kTVsVeiffsoJPqMtgPxg7/gHSNqk5HeWXzacXkJods=",
+     "now": 1792275025,
+     "total_fees": "66068",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "tcksluwIaJV5ZkmCGElEPtP++P6hMO9GLoI17gmXn2M=",
+      "source": "0:9220C181A6CFEACD11B7B8F62138DF1BB9CC82B6ED2661D2F5FAEE204B3EFB20",
+      "destination": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+      "value": "938881609",
+      "opcode": "0x01f3835d"
+     },
+     "out_msgs": []
+    },
+    "Ezmu9vxUh7TMy+5w7ZeVHLB3XZ2mRdcAESPVme1XPiw=": {
+     "hash": "Ezmu9vxUh7TMy+5w7ZeVHLB3XZ2mRdcAESPVme1XPiw=",
+     "now": 1792275025,
+     "total_fees": "66068",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "t+BlJKKhhlRpzqJlzBa5cvRGoGbPDbS0IfRF3MnFecQ=",
+      "source": "0:7C58EF665C1DF142ECFA23FE3738FFC4E932980EBEC3D98506AB76B1E54A09AD",
+      "destination": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+      "value": "30239202",
+      "opcode": "0xd53276db"
+     },
+     "out_msgs": []
+    },
+    "IVomMOqy0jTKuJ1KYiHRCgKdb7yboK5j582JZybdeyw=": {
+     "hash": "IVomMOqy0jTKuJ1KYiHRCgKdb7yboK5j582JZybdeyw=",
+     "now": 1792275025,
+     "total_fees": "613431",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "jhGfdg2KimAa4Zr3PZRYXCU6uQ1oYculPNCzlr6dwY4=",
+      "source": null,
+      "destination": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+      "value": null,
+      "opcode": "0x1d9ae6cd"
+     },
+     "out_msgs": [
+      {
+       "hash": "x806SfREzZeL0zPZzXNY52CoP1TnFN+04bvpmQ5tzrc=",
+       "source": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+       "destination": "0:2E69040C5FC04447E609A572762D67C5EC6555BED5CBB38A34C3D63EC0326E00",
+       "value": "300000000",
+       "opcode": "0x0f8a7ea5"
+      }
+     ]
+    },
+    "KejbdOjtlWkvBDYclAEutCJjEU/+7HGPVHk6RyfT5eY=": {
+     "hash": "KejbdOjtlWkvBDYclAEutCJjEU/+7HGPVHk6RyfT5eY=",
+     "now": 1792275025,
+     "total_fees": "66068",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "J2MMtPkms+RC0E9sEbIBZw2CUh82y1bcrWjJVvEfXKg=",
+      "source": "0:922D627D7D8EDBD00E4E23BDB0C54A76EE5E1F46573A1AF4417857FA3E23E91F",
+      "destination": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+      "value": "59281062",
+      "opcode": "0xd53276db"
+     },
+     "out_msgs": []
+    },
+    "L85omAnBJNBDmLlo5PnUgceFWSz+PkM/Dlew3ZTnS4o=": {
+     "hash": "L85omAnBJNBDmLlo5PnUgceFWSz+PkM/Dlew3ZTnS4o=",
+     "now": 1792275025,
+     "total_fees": "413427",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "dACuY5zXRSIAH+2B7CItqCZed6Ax9x0YlRRh+gnPn7o=",
+      "source": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+      "destination": "0:7C58EF665C1DF142ECFA23FE3738FFC4E932980EBEC3D98506AB76B1E54A09AD",
+      "value": "30697075",
+      "opcode": "0x0490f09b"
+     },
+     "out_msgs": [
+      {
+       "hash": "t+BlJKKhhlRpzqJlzBa5cvRGoGbPDbS0IfRF3MnFecQ=",
+       "source": "0:7C58EF665C1DF142ECFA23FE3738FFC4E932980EBEC3D98506AB76B1E54A09AD",
+       "destination": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+       "value": "30239202",
+       "opcode": "0xd53276db"
+      }
+     ]
+    },
+    "PrmqNIa99QERoBZPYdc6tVdX6tAhsetPpkKLTP1ROcc=": {
+     "hash": "PrmqNIa99QERoBZPYdc6tVdX6tAhsetPpkKLTP1ROcc=",
+     "now": 1792275025,
+     "total_fees": "501802",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "VHghjpAJnDkqQ82vp1AZGZsMHNlLLYx4IQVRc1i2foI=",
+      "source": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+      "destination": "0:9220C181A6CFEACD11B7B8F62138DF1BB9CC82B6ED2661D2F5FAEE204B3EFB20",
+      "value": "203888849",
+      "opcode": "0x0f8a7ea5"
+     },
+     "out_msgs": [
+      {
+       "hash": "tcksluwIaJV5ZkmCGElEPtP++P6hMO9GLoI17gmXn2M=",
+       "source": "0:9220C181A6CFEACD11B7B8F62138DF1BB9CC82B6ED2661D2F5FAEE204B3EFB20",
+       "destination": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+       "value": "938881609",
+       "opcode": "0x01f3835d"
+      }
+     ]
+    },
+    "RCKTYiIMAr/idSr7haANqSDW3whF2Ohvv7Fm8OpHPQM=": {
+     "hash": "RCKTYiIMAr/idSr7haANqSDW3whF2Ohvv7Fm8OpHPQM=",
+     "now": 1792275025,
+     "total_fees": "933911",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "aR31OiRueGVefYon/XIXQIHCodAJgIovfEbOkvpDvqE=",
+      "source": "0:8649CAD97B5C5BC96A960EF748EA6CCFF8601C01616FE995EE6893AE4AA7A6C6",
+      "destination": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+      "value": "204901517",
+      "opcode": "0x657b54f5"
+     },
+     "out_msgs": [
+      {
+       "hash": "VHghjpAJnDkqQ82vp1AZGZsMHNlLLYx4IQVRc1i2foI=",
+       "source": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+       "destination": "0:9220C181A6CFEACD11B7B8F62138DF1BB9CC82B6ED2661D2F5FAEE204B3EFB20",
+       "value": "203888849",
+       "opcode": "0x0f8a7ea5"
+      }
+     ]
+    },
+    "aHH4NqTh6kZ10q9fhTdXMPyBhEr0iYn5fMi0MG30KaI=": {
+     "hash": "aHH4NqTh6kZ10q9fhTdXMPyBhEr0iYn5fMi0MG30KaI=",
+     "now": 1792275025,
+     "total_fees": "1104067",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "kksf5LPn6FSYh2+7liwFP1kQvOk0+qw01gkw6sPNJfc=",
+      "source": "0:8649CAD97B5C5BC96A960EF748EA6CCFF8601C01616FE995EE6893AE4AA7A6C6",
+      "destination": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+      "value": "31928477",
+      "opcode": "0x63381632",
+      "message_content": {
+       "decoded": {
+        "@type": "stonfi_pay_vault_v2",
+        "query_id": "0",
+        "owner": {
+         "@type": "addr_std",
+         "anycast": {
+          "@type": "nothing_from_maybe"
+         },
+         "workchain_id": "0",
+         "address": "F124A6AB3D2A746C2B5AF43160A7CD4CA6DE61A466EE55C4B1C1F7B36B40629F"
+        },
+        "excesses_address": {
+         "@type": "addr_std",
+         "anycast": {
+          "@type": "nothing_from_maybe"
+         },
+         "workchain_id": "0",
+         "address": "33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF"
+        },
+        "": {
+         "@type": "additional_info_pay_vault_v2",
+         "amount0_out": {
+          "@type": "var_uint",
+          "len": "0",
+          "value": "0"
+         },
+         "token0_address": {
+          "@type": "addr_std",
+          "anycast": {
+           "@type": "nothing_from_maybe"
+          },
+          "workchain_id": "0",
+          "address": "922D627D7D8EDBD00E4E23BDB0C54A76EE5E1F46573A1AF4417857FA3E23E91F"
+         },
+         "amount1_out": {
+          "@type": "var_uint",
+          "len": "3",
+          "value": "3697403"
+         },
+         "token1_address": {
+          "@type": "addr_std",
+          "anycast": {
+           "@type": "nothing_from_maybe"
+          },
+          "workchain_id": "0",
+          "address": "9220C181A6CFEACD11B7B8F62138DF1BB9CC82B6ED2661D2F5FAEE204B3EFB20"
+         }
+        }
+       }
+      }
+     },
+     "out_msgs": [
+      {
+       "hash": "dACuY5zXRSIAH+2B7CItqCZed6Ax9x0YlRRh+gnPn7o=",
+       "source": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+       "destination": "0:7C58EF665C1DF142ECFA23FE3738FFC4E932980EBEC3D98506AB76B1E54A09AD",
+       "value": "30697075",
+       "opcode": "0x0490f09b"
+      }
+     ]
+    },
+    "l3fS7CvVhQmOgBkZX73nLp11Q6LE4H8q2r5u5bPEM3Y=": {
+     "hash": "l3fS7CvVhQmOgBkZX73nLp11Q6LE4H8q2r5u5bPEM3Y=",
+     "now": 1792275025,
+     "total_fees": "168880",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "x806SfREzZeL0zPZzXNY52CoP1TnFN+04bvpmQ5tzrc=",
+      "source": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+      "destination": "0:2E69040C5FC04447E609A572762D67C5EC6555BED5CBB38A34C3D63EC0326E00",
+      "value": "300000000",
+      "opcode": "0x0f8a7ea5"
+     },
+     "out_msgs": [
+      {
+       "hash": "ztYw5L1ApHTl74Z8Dg6GvK9iEQHu0SVCRO1X2CKu0t0=",
+       "source": "0:2E69040C5FC04447E609A572762D67C5EC6555BED5CBB38A34C3D63EC0326E00",
+       "destination": "0:922D627D7D8EDBD00E4E23BDB0C54A76EE5E1F46573A1AF4417857FA3E23E91F",
+       "value": "299626731",
+       "opcode": "0x178d4519"
+      }
+     ]
+    },
+    "yTN7fSDBXjDuf1Qbt20UC/NGbAVIkn4u6KtiAPUCpdE=": {
+     "hash": "yTN7fSDBXjDuf1Qbt20UC/NGbAVIkn4u6KtiAPUCpdE=",
+     "now": 1792275025,
+     "total_fees": "159666",
+     "description": {
+      "aborted": false,
+      "compute_ph": {
+       "success": true,
+       "exit_code": 0
+      },
+      "action": {
+       "success": true,
+       "result_code": 0
+      }
+     },
+     "in_msg": {
+      "hash": "ztYw5L1ApHTl74Z8Dg6GvK9iEQHu0SVCRO1X2CKu0t0=",
+      "source": "0:2E69040C5FC04447E609A572762D67C5EC6555BED5CBB38A34C3D63EC0326E00",
+      "destination": "0:922D627D7D8EDBD00E4E23BDB0C54A76EE5E1F46573A1AF4417857FA3E23E91F",
+      "value": "299626731",
+      "opcode": "0x178d4519"
+     },
+     "out_msgs": [
+      {
+       "hash": "LznhkQGLaB6NsGTXACtgFwdmcidwuQ2bqLBaRjK4XIY=",
+       "source": "0:922D627D7D8EDBD00E4E23BDB0C54A76EE5E1F46573A1AF4417857FA3E23E91F",
+       "destination": "0:92E1411AE546892F33B2C8A89EA90390D8FF4CFBB917A643B91E73F706FDB9D1",
+       "value": "240000000",
+       "opcode": "0x7362d09c"
+      },
+      {
+       "hash": "J2MMtPkms+RC0E9sEbIBZw2CUh82y1bcrWjJVvEfXKg=",
+       "source": "0:922D627D7D8EDBD00E4E23BDB0C54A76EE5E1F46573A1AF4417857FA3E23E91F",
+       "destination": "0:33A14A5A9406979D59B9328898591660B8B1736342B11632EFDCC911AB9057CF",
+       "value": "59281062",
+       "opcode": "0xd53276db"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}
