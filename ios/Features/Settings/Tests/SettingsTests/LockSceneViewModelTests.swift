@@ -583,23 +583,23 @@ struct LockSceneViewModelTests {
     }
 
     @Test
-    func stayingInactivePastTheLockPeriodLocks() async {
+    func stayingCoveredWithoutLeavingDoesNotStartTheLockPeriod() async {
         let viewModel = LockSceneViewModel(service: BiometryAuthenticationMock(lockPeriod: .oneMinute))
         viewModel.state = .unlocked
         viewModel.onScenePhase(.active)
 
         viewModel.onScenePhase(.inactive)
         await viewModel.obscureTask?.value
-        #expect(viewModel.leftAt != nil)
-        viewModel.leftAt = ContinuousClock.now - .seconds(3600)
-        viewModel.onScenePhase(.active)
-
-        #expect(viewModel.isUnlocking)
         #expect(viewModel.isCovered)
+        #expect(viewModel.leftAt == nil)
+
+        viewModel.onScenePhase(.active)
+        #expect(viewModel.state == .unlocked)
+        #expect(!viewModel.isCovered)
     }
 
     @Test
-    func immediateLockAsksAgainAfterTheCoverWasShown() async {
+    func immediateLockAsksAgainOnlyAfterGoingToTheBackground() async {
         let viewModel = LockSceneViewModel(service: BiometryAuthenticationMock(lockPeriod: .immediate))
         viewModel.state = .unlocked
         viewModel.onScenePhase(.active)
@@ -607,7 +607,14 @@ struct LockSceneViewModelTests {
         viewModel.onScenePhase(.inactive)
         await viewModel.obscureTask?.value
         viewModel.onScenePhase(.active)
+        #expect(!viewModel.isUnlocking)
 
+        viewModel.onScenePhase(.inactive)
+        viewModel.onScenePhase(.background)
+        #expect(viewModel.leftAt != nil)
+        viewModel.leftAt = ContinuousClock.now - .seconds(1)
+        viewModel.onScenePhase(.inactive)
+        viewModel.onScenePhase(.active)
         #expect(viewModel.isUnlocking)
     }
 

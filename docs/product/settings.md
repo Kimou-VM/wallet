@@ -37,7 +37,7 @@ flowchart LR
 | The lock period has passed, whatever the app was doing | the lock re-engages | |
 | The user returns before the lock period passes | the app stays unlocked, and the period starts again the next time the user leaves the app | time spent in the app never counts, so a Face ID prompt for a transaction is not followed by an unlock prompt |
 | The lock is on and the user opens the app switcher or leaves Gem | Gem is covered in the app switcher | balances and addresses stay hidden from anyone looking at the switcher |
-| The user stays in the app switcher, Control Center or Notification Center | the lock period runs from the moment Gem is covered | otherwise Gem would open unlocked after any amount of time away |
+| The user opens Control Center, Notification Center or the notification shade, to change brightness say, and comes back | Gem is covered while it is open and comes back unlocked | that is not leaving Gem; the lock period starts when the user moves to another app or the Home Screen, or the phone locks |
 | The lock is on and Gem asks for Face ID, Touch ID, the passcode or notification permission, or to paste | the screen stays as it is, without the cover | the cover is for leaving Gem, not for Gem's own prompts |
 | The lock is on and Gem asks for photos or camera access the first time | Gem is covered behind the prompt | these prompts appear once |
 | The user opens the app switcher while one of those Gem prompts is open or closing | Gem is covered once the user moves to another app or the Home Screen | Gem cannot tell the switcher from its own prompt closing |

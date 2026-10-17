@@ -85,7 +85,9 @@ extension LockSceneViewModel {
             if case let .unlocking(attempt) = state, !attempt.isInvalidated {
                 state = .unlocking(attempt.invalidated())
             }
-            startLockPeriod(at: ContinuousClock.now)
+            if state == .unlocked, leftAt == nil {
+                leftAt = ContinuousClock.now
+            }
         case .active:
             setObscured(false)
             lockIfExpired()
@@ -170,13 +172,6 @@ extension LockSceneViewModel {
             try? await Task.sleep(for: Self.obscureDelay)
             guard !Task.isCancelled, isAutoLockEnabled, !service.hasPresentedSystemPrompt(since: inactiveAt) else { return }
             isObscured = true
-            startLockPeriod(at: inactiveAt)
-        }
-    }
-
-    private func startLockPeriod(at instant: ContinuousClock.Instant) {
-        if state == .unlocked, leftAt == nil {
-            leftAt = instant
         }
     }
 

@@ -118,15 +118,7 @@ class MainActivity :
         viewModel.maintain(isUnlocked = lockViewModel.uiState.map { it.isUnlocked })
 
         lifecycleScope.launch {
-            privacyCover.isCovered.collect { isCovered ->
-                if (isCovered) {
-                    showCover()
-                    lockViewModel.onLeave()
-                } else {
-                    hideCover()
-                    lockViewModel.onReturn()
-                }
-            }
+            privacyCover.isCovered.collect { isCovered -> if (isCovered) showCover() else hideCover() }
         }
 
         lifecycleScope.launch {
