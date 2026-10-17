@@ -79,8 +79,7 @@ mod swap_integration_tests {
     const BLUE_TOKEN_ID: &str = "0xe1b45a0e641b9955a20aa0ad1c1f4ad86aad8afb07296d4085e349a50e90bdca::blue::BLUE";
 
     fn print_quote(label: &str, quote: &Quote) -> Result<PoolRoute, SwapperError> {
-        let route_entry = quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
-        let route: PoolRoute = serde_json::from_str(&route_entry.route_data)?;
+        let route: PoolRoute = quote.route_data()?;
         println!(
             "{label} quote: from_value={}, to_value={}, hops={}, gross_out={}, net_out={}, fee_side={:?}, fee_amount={}",
             quote.from_value,

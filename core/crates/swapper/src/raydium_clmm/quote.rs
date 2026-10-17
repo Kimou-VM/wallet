@@ -9,7 +9,6 @@ use crate::{
     clmm::{ClmmSwap, FEE_RATE_DENOMINATOR, Q64_RESOLUTION, SwapState, SwapTick, cross_tick, divide, fee_amount, overflow},
 };
 
-#[derive(Debug, Clone, Copy, PartialEq)]
 struct LimitOrderFill {
     consumed: u64,
     amount_out: u64,

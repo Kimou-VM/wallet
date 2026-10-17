@@ -399,11 +399,6 @@ mod swap_integration_tests {
         result
     }
 
-    fn mayan_route(quote: &Quote) -> Result<MayanQuote, SwapperError> {
-        let route = quote.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
-        serde_json::from_str(&route.route_data).map_err(SwapperError::from)
-    }
-
     #[tokio::test]
     async fn test_mayan_provider_get_swift_evm_quote_and_data() -> Result<(), SwapperError> {
         let rpc_provider = Arc::new(NativeProvider::default().set_debug(false));
@@ -424,7 +419,7 @@ mod swap_integration_tests {
         assert!(quote.to_value > BigUint::ZERO);
         assert_eq!(quote.data.provider, provider.provider().clone());
         assert_eq!(quote.data.routes.len(), 1);
-        let MayanQuote::Swift(route) = mayan_route(&quote)? else {
+        let MayanQuote::Swift(route) = quote.route_data()? else {
             return Err(SwapperError::InvalidRoute);
         };
         assert_eq!(route.from_chain, wormhole_chain::WormholeChain::Ethereum.name());
@@ -454,7 +449,7 @@ mod swap_integration_tests {
         assert!(quote.to_value > BigUint::ZERO);
         assert_eq!(quote.data.provider, provider.provider().clone());
         assert_eq!(quote.data.routes.len(), 1);
-        let MayanQuote::Swift(route) = mayan_route(&quote)? else {
+        let MayanQuote::Swift(route) = quote.route_data()? else {
             return Err(SwapperError::InvalidRoute);
         };
         assert_eq!(route.from_chain, wormhole_chain::WormholeChain::Solana.name());
@@ -485,7 +480,7 @@ mod swap_integration_tests {
         assert!(quote.to_value > BigUint::ZERO);
         assert_eq!(quote.data.provider, provider.provider().clone());
         assert_eq!(quote.data.routes.len(), 1);
-        let MayanQuote::Mctp(route) = mayan_route(&quote)? else {
+        let MayanQuote::Mctp(route) = quote.route_data()? else {
             return Err(SwapperError::InvalidRoute);
         };
         assert_eq!(route.from_chain, wormhole_chain::WormholeChain::Sui.name());
@@ -514,7 +509,7 @@ mod swap_integration_tests {
 
         assert_eq!(quote.from_value, request.value);
         assert!(quote.to_value > BigUint::ZERO);
-        let MayanQuote::Mctp(route) = mayan_route(&quote)? else {
+        let MayanQuote::Mctp(route) = quote.route_data()? else {
             return Err(SwapperError::InvalidRoute);
         };
         assert_eq!(route.from_chain, wormhole_chain::WormholeChain::Solana.name());
@@ -543,7 +538,7 @@ mod swap_integration_tests {
 
         assert_eq!(quote.from_value, request.value);
         assert!(quote.to_value > BigUint::ZERO);
-        let MayanQuote::Mctp(route) = mayan_route(&quote)? else {
+        let MayanQuote::Mctp(route) = quote.route_data()? else {
             return Err(SwapperError::InvalidRoute);
         };
         assert_eq!(route.from_chain, wormhole_chain::WormholeChain::Ethereum.name());
@@ -571,7 +566,7 @@ mod swap_integration_tests {
 
         assert_eq!(quote.from_value, request.value);
         assert!(quote.to_value > BigUint::ZERO);
-        let MayanQuote::MonoChain(route) = mayan_route(&quote)? else {
+        let MayanQuote::MonoChain(route) = quote.route_data()? else {
             return Err(SwapperError::InvalidRoute);
         };
         assert_eq!(route.from_chain, wormhole_chain::WormholeChain::Hyperevm.name());

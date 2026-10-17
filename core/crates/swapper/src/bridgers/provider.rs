@@ -19,7 +19,7 @@ use super::{
     transaction::get_transaction_value,
 };
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     approval::{check_approval_erc20, get_swap_gas_limit_with_approval},
     config::get_swap_proxy_url,
     cross_chain::VaultAddresses,
@@ -95,20 +95,8 @@ impl Swapper for Bridgers {
         let route_data = RouteData { amount_out_min: quote.amount_out_min };
 
         Ok(Quote {
-            from_value: request.value.clone(),
             min_from_value: Some(min_value),
-            to_value,
-            data: ProviderData {
-                provider: self.provider.clone(),
-                routes: vec![Route {
-                    input: request.from_asset.asset_id(),
-                    output: request.to_asset.asset_id(),
-                    route_data: serde_json::to_string(&route_data)?,
-                }],
-                slippage_bps: request.options.slippage.bps,
-            },
-            request: request.clone(),
-            eta_in_seconds,
+            ..Quote::from_route(request, &self.provider, to_value, &route_data, eta_in_seconds)?
         })
     }
 

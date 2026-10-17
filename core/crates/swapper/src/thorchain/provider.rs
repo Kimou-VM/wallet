@@ -16,7 +16,7 @@ use super::{
     quote_data_mapper, quote_mapper, swap_mapper,
 };
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData, approval::check_approval_erc20,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData, approval::check_approval_erc20,
     cross_chain::VaultAddresses, fees::default_referral_fees, route_cache::Cache, thorchain::client::ThorChainSwapClient,
 };
 
@@ -171,24 +171,13 @@ where
             inbound_address,
         };
 
-        let quote = Quote {
-            from_value: request.value.clone(),
-            min_from_value: None,
-            to_value: to_value.magnitude().clone(),
-            data: ProviderData {
-                provider: self.provider().clone(),
-                routes: vec![Route {
-                    input: request.from_asset.asset_id(),
-                    output: request.to_asset.asset_id(),
-                    route_data: serde_json::to_string(&route_data)?,
-                }],
-                slippage_bps: request.options.slippage.bps,
-            },
-            request: request.clone(),
-            eta_in_seconds: Some(quote_mapper::map_eta_in_seconds(request.to_asset.chain(), quote.total_swap_seconds)),
-        };
-
-        Ok(quote)
+        Quote::from_route(
+            request,
+            self.provider(),
+            to_value.magnitude().clone(),
+            &route_data,
+            Some(quote_mapper::map_eta_in_seconds(request.to_asset.chain(), quote.total_swap_seconds)),
+        )
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
@@ -240,7 +229,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::{Options, SwapperQuoteAsset, alien::mock::ProviderMock, testkit::mock_bitcoin_max_quote, testkit::mock_quote};
+    use crate::{Options, ProviderData, Route, SwapperQuoteAsset, alien::mock::ProviderMock, testkit::mock_bitcoin_max_quote, testkit::mock_quote};
     use gem_client::testkit::MockClient;
     use primitives::asset_constants::{ARBITRUM_USDC_ASSET_ID, THORCHAIN_TCY_ASSET_ID};
 
