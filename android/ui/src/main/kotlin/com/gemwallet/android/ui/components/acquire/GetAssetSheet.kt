@@ -1,4 +1,4 @@
-package com.gemwallet.android.features.transfer.presents.confirm.components
+package com.gemwallet.android.ui.components.acquire
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -22,7 +22,7 @@ import com.wallet.core.primitives.Asset
 import uniffi.gemstone.GemAcquireOption
 
 @Composable
-internal fun GetAssetSheet(asset: Asset?, options: List<GemAcquireOption>, onDismiss: () -> Unit, onSelect: (GemAcquireOption) -> Unit) {
+fun GetAssetSheet(asset: Asset?, options: List<GemAcquireOption>, onDismiss: () -> Unit, onSelect: (GemAcquireOption) -> Unit) {
     val context = LocalContext.current
     ModalBottomSheet(
         item = asset,

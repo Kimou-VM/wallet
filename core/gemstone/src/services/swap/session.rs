@@ -4,7 +4,7 @@ use number_formatter::BigNumberFormatter;
 use primitives::{Asset, AssetData, AssetId, Currency};
 use swapper::{Quote as SwapperQuote, SwapperError, SwapperProvider};
 
-use super::model::{GemSwapButtonAction, GemSwapButtonInput, GemSwapDetails, quote_details};
+use super::model::{GemSwapButtonAction, GemSwapButtonInput, GemSwapDetails, GemSwapNetworkFeeError, quote_details};
 use super::rules;
 use crate::formatted_number::GemFormattedNumber;
 use crate::models::custom_types::{GemBigInt, GemBigUint};
@@ -114,11 +114,12 @@ impl GemSwapSession {
         matches!(self.quote_phase, GemSwapQuotePhase::NoInput)
     }
 
-    fn button_action(&self, available_balance: GemBigInt) -> GemSwapButtonAction {
+    fn button_action(&self, available_balance: GemBigInt, network_fee_error: Option<&GemSwapNetworkFeeError>) -> GemSwapButtonAction {
         GemSwapButtonInput {
             value: self.input.as_ref().map(|input| GemBigInt::from(input.request.value.clone())).unwrap_or_default(),
             available_balance,
             quote_error: self.quote_error(),
+            missing_fee_asset: network_fee_error.and_then(|error| error.info.asset.clone()),
         }
         .action()
     }
@@ -204,6 +205,7 @@ pub struct GemSwapViewState {
     pub receive_amount: Option<GemFormattedNumber>,
     pub providers: Vec<GemProviderRow>,
     pub details: Option<GemSwapDetails>,
+    pub network_fee_error: Option<GemSwapNetworkFeeError>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
@@ -376,9 +378,10 @@ impl GemSwapSession {
         }
     }
 
-    pub fn view_state(&self, pay: Option<AssetData>, receive: Option<AssetData>, currency: Currency) -> GemSwapViewState {
+    pub fn view_state(&self, pay: Option<AssetData>, receive: Option<AssetData>, fee: Option<AssetData>, currency: Currency) -> GemSwapViewState {
         let available_balance = pay.as_ref().map(|pay| GemBigInt::from(pay.balance.available.clone())).unwrap_or_default();
-        let button_action = self.button_action(available_balance);
+        let network_fee_error = pay.as_ref().zip(fee.as_ref()).and_then(|(pay, fee)| rules::network_fee_error(pay, fee, currency.clone()));
+        let button_action = self.button_action(available_balance, network_fee_error.as_ref());
         let is_transfer_loading = self.is_transfer_loading();
         let quote = self.pair_quote(pay.as_ref(), receive.as_ref());
         let is_receive_loading = self.is_quote_loading() && !is_transfer_loading;
@@ -435,6 +438,7 @@ impl GemSwapSession {
                 .zip(quote)
                 .map(|((pay, receive), quote)| quote_details(rules::swap_quote(quote), pay.asset.clone(), receive.asset.clone(), price_value(&pay), price_value(&receive), &currency)),
             quote: quote.cloned(),
+            network_fee_error,
         }
     }
 
@@ -470,7 +474,7 @@ impl GemSwapSession {
 
     fn button_state(&self, action: GemSwapButtonAction) -> GemButtonState {
         match action {
-            GemSwapButtonAction::InsufficientBalance => GemButtonState::Disabled,
+            GemSwapButtonAction::InsufficientBalance | GemSwapButtonAction::InsufficientNetworkFee { .. } => GemButtonState::Disabled,
             _ if self.is_quote_loading() || self.is_transfer_loading() => GemButtonState::Loading,
             GemSwapButtonAction::Swap if self.current_quote().is_none() => GemButtonState::Disabled,
             GemSwapButtonAction::Swap | GemSwapButtonAction::RetryQuote | GemSwapButtonAction::UseMinimumAmount { .. } => GemButtonState::Enabled,
@@ -558,7 +562,7 @@ mod tests {
     use primitives::{Asset, Chain, Price, PriceProvider};
 
     fn view(session: &GemSwapSession, available: u64) -> GemSwapViewState {
-        session.view_state(Some(mock_asset_data(Chain::Ethereum, available)), Some(mock_asset_data(Chain::Solana, 0)), Currency::USD)
+        session.view_state(Some(mock_asset_data(Chain::Ethereum, available)), Some(mock_asset_data(Chain::Solana, 0)), None, Currency::USD)
     }
 
     #[test]
@@ -773,7 +777,7 @@ mod tests {
 
         assert_eq!(amount.value, BigNumberFormatter::f64_value(&quote.to_value, quote.request.to_asset.decimals));
         assert_eq!(amount.unit, crate::formatted_number::GemNumberUnit::Plain, "the receive field shows the number without a symbol");
-        assert!(GemSwapSession::default().view_state(None, None, Currency::USD).receive_amount.is_none());
+        assert!(GemSwapSession::default().view_state(None, None, None, Currency::USD).receive_amount.is_none());
     }
 
     #[test]
@@ -847,15 +851,19 @@ mod tests {
         assert_eq!(loading.button_state(GemSwapButtonAction::Swap), GemButtonState::Loading);
 
         let session = GemSwapSession::mock_ready();
-        assert_eq!(session.button_action(GemBigInt::from(200)), GemSwapButtonAction::Swap);
+        assert_eq!(session.button_action(GemBigInt::from(200), None), GemSwapButtonAction::Swap);
         assert_eq!(session.button_state(GemSwapButtonAction::Swap), GemButtonState::Enabled);
-        assert_eq!(session.button_action(GemBigInt::from(50)), GemSwapButtonAction::InsufficientBalance);
+        assert_eq!(session.button_action(GemBigInt::from(50), None), GemSwapButtonAction::InsufficientBalance);
         assert_eq!(session.button_state(GemSwapButtonAction::InsufficientBalance), GemButtonState::Disabled);
 
         let started = session.start_transfer().unwrap();
         assert_eq!(started.button_state(GemSwapButtonAction::Swap), GemButtonState::Loading);
         let failed = started.on_transfer_failed(started.transfer_phase.clone(), SwapperError::TransactionError("boom".into()));
-        assert_eq!(failed.button_action(GemBigInt::from(200)), GemSwapButtonAction::Swap, "a failed transfer keeps the Swap button, so pressing it swaps again");
+        assert_eq!(
+            failed.button_action(GemBigInt::from(200), None),
+            GemSwapButtonAction::Swap,
+            "a failed transfer keeps the Swap button, so pressing it swaps again"
+        );
         assert_eq!(failed.button_state(GemSwapButtonAction::Swap), GemButtonState::Enabled);
     }
 
@@ -901,7 +909,7 @@ mod tests {
 
     #[test]
     fn test_a_side_without_an_asset_asks_for_one_and_shows_no_zero() {
-        let state = GemSwapSession::default().view_state(Some(mock_asset_data(Chain::Ethereum, 0)), None, Currency::USD);
+        let state = GemSwapSession::default().view_state(Some(mock_asset_data(Chain::Ethereum, 0)), None, None, Currency::USD);
 
         assert_eq!((state.pay.title, state.pay.amount_placeholder.as_str()), (GemLocalizedText::Text { text: "ETH".to_string() }, "0"));
         assert_eq!((state.receive.title, state.receive.amount_placeholder.as_str()), (GemLocalizedText::SelectAsset, ""));
@@ -924,6 +932,25 @@ mod tests {
         assert!(!state.is_quote_loading);
         assert_eq!(state.quotes_state, GemSwapQuotesState::Quotes);
         assert_eq!(view(&session, 50).button_action, GemSwapButtonAction::InsufficientBalance);
+    }
+
+    #[test]
+    fn test_view_state_keeps_the_quote_and_blocks_the_swap_without_the_network_fee_asset() {
+        let usdc = AssetData::mock(Asset::mock_ethereum_usdc(), primitives::Balance::coin_balance(BigUint::from(1000u32)));
+        let session = GemSwapSession::mock_ready_with_request(GemSwapRequest {
+            pay_asset_id: usdc.asset.id.clone(),
+            ..GemSwapRequest::mock()
+        });
+        let state = |fee_available| session.view_state(Some(usdc.clone()), Some(mock_asset_data(Chain::Solana, 0)), Some(mock_asset_data(Chain::Ethereum, fee_available)), Currency::USD);
+
+        let unfunded = state(0);
+        assert!(unfunded.receive_amount.is_some() && unfunded.details.is_some(), "the quote still shows what the swap would receive");
+        assert_eq!(unfunded.network_fee_error.and_then(|error| error.info.asset), Some(Asset::from_chain(Chain::Ethereum)));
+        assert_eq!(unfunded.button_action, GemSwapButtonAction::InsufficientNetworkFee { symbol: "ETH".to_string() });
+        assert_eq!(unfunded.button_state, GemButtonState::Disabled);
+
+        let funded = state(1);
+        assert_eq!((funded.network_fee_error, funded.button_action, funded.button_state), (None, GemSwapButtonAction::Swap, GemButtonState::Enabled));
     }
 
     #[test]
@@ -950,13 +977,16 @@ mod tests {
             ..mock_asset_data(Chain::Ethereum, 1000)
         };
         let typed = GemSwapSession::default().on_input_changed("1".to_string(), Some(pay.asset.clone()), None, GemBigInt::from(1000), None, GemNumberFormat { decimal_separator: ".".to_string() });
-        let state = typed.view_state(Some(pay), None, Currency::USD);
+        let state = typed.view_state(Some(pay), None, None, Currency::USD);
 
         assert_eq!(state.pay.fiat.map(|fiat| fiat.value), Some(2.0));
         assert!(state.pay.balance.is_some());
         assert!(state.pay.interaction.is_balance_action_enabled);
         assert_eq!((state.receive.balance, state.receive.fiat), (None, None));
-        assert!(!GemSwapSession::default().view_state(None, None, Currency::USD).pay.interaction.is_balance_action_enabled, "no asset has no balance to fill in");
+        assert!(
+            !GemSwapSession::default().view_state(None, None, None, Currency::USD).pay.interaction.is_balance_action_enabled,
+            "no asset has no balance to fill in"
+        );
     }
 
     #[test]
@@ -967,7 +997,7 @@ mod tests {
             price: Some(Price::new(100.0, 0.0, Utc::now(), PriceProvider::Coingecko)),
             ..mock_asset_data(Chain::Solana, 0)
         };
-        let state = session.view_state(Some(mock_asset_data(Chain::Ethereum, 1000)), Some(receive.clone()), Currency::USD);
+        let state = session.view_state(Some(mock_asset_data(Chain::Ethereum, 1000)), Some(receive.clone()), None, Currency::USD);
 
         assert_eq!(state.quote.as_ref(), Some(&quote));
         assert_eq!(state.receive_amount, Some(receive_amount(&quote)));
@@ -981,7 +1011,7 @@ mod tests {
         assert_eq!(details.provider.kind, GemProviderKind::Swap { provider: quote.data.provider.id });
         assert!(!details.provider.is_selected);
 
-        let stale = session.view_state(Some(mock_asset_data(Chain::Ethereum, 1000)), Some(mock_asset_data(Chain::Bitcoin, 0)), Currency::USD);
+        let stale = session.view_state(Some(mock_asset_data(Chain::Ethereum, 1000)), Some(mock_asset_data(Chain::Bitcoin, 0)), None, Currency::USD);
         assert_eq!((stale.quote, stale.receive_amount, stale.details, stale.receive.fiat), (None, None, None, None));
         assert!(stale.providers.is_empty(), "a quote for another pair is not shown while the new one loads");
     }
@@ -994,8 +1024,8 @@ mod tests {
             price: Some(Price::new(100.0, 0.0, Utc::now(), PriceProvider::Coingecko)),
             ..mock_asset_data(Chain::Solana, 0)
         };
-        let shown = ready.view_state(Some(mock_asset_data(Chain::Ethereum, 1000)), Some(receive.clone()), Currency::USD);
-        let refreshing = ready.on_fetch_started(request).view_state(Some(mock_asset_data(Chain::Ethereum, 1000)), Some(receive), Currency::USD);
+        let shown = ready.view_state(Some(mock_asset_data(Chain::Ethereum, 1000)), Some(receive.clone()), None, Currency::USD);
+        let refreshing = ready.on_fetch_started(request).view_state(Some(mock_asset_data(Chain::Ethereum, 1000)), Some(receive), None, Currency::USD);
 
         assert!(shown.receive_amount.is_some() && shown.receive.fiat.is_some());
         assert!(refreshing.is_receive_loading);

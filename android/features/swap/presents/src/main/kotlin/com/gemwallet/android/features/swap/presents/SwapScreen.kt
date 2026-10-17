@@ -15,6 +15,8 @@ import com.gemwallet.android.features.swap.presents.dialogs.SwapQuoteDataErrorDi
 import com.gemwallet.android.features.swap.viewmodels.SwapViewModel
 import com.gemwallet.android.ui.ObserveStartedState
 import com.gemwallet.android.ui.components.InfoBottomSheet
+import com.gemwallet.android.ui.components.acquire.GetAssetAction
+import com.gemwallet.android.ui.components.acquire.GetAssetSheet
 import com.gemwallet.android.ui.components.infoSheet
 import com.gemwallet.android.ui.components.screen.SheetExpansion
 import com.gemwallet.android.ui.components.swap.SwapDetailsBottomSheet
@@ -30,6 +32,7 @@ fun SwapScreen(
     onSelectionConsumed: () -> Unit,
     onSelect: (select: SwapItemType, payAssetId: AssetId?, receiveAssetId: AssetId?) -> Unit,
     onConfirm: (ConfirmTransferInput) -> Unit,
+    onGetAsset: (GetAssetAction, AssetId) -> Unit,
     onCancel: () -> Unit,
 ) {
     val infoSheet by viewModel.infoSheet.collectAsStateWithLifecycle()
@@ -38,9 +41,12 @@ fun SwapScreen(
     val receive by viewModel.receiveAsset.collectAsStateWithLifecycle()
     val viewState by viewModel.viewState.collectAsStateWithLifecycle()
     val selectedSlippage by viewModel.selectedSlippage.collectAsStateWithLifecycle()
+    val networkFeeInfo by viewModel.networkFeeInfo.collectAsStateWithLifecycle()
+    val acquireRequest by viewModel.acquireRequest.collectAsStateWithLifecycle()
 
     var isShowPriceImpactAlert by remember { mutableStateOf(false) }
     var isShowDetails by remember { mutableStateOf(false) }
+    var isShowNetworkFeeInfo by remember { mutableStateOf(false) }
     var quoteDataError by remember { mutableStateOf<GemSwapErrorDisplay?>(null) }
 
     ObserveStartedState(viewModel::setRefreshEnabled)
@@ -68,6 +74,8 @@ fun SwapScreen(
 
                 SwapAction.ShowDetails -> isShowDetails = true
 
+                SwapAction.ShowNetworkFeeInfo -> isShowNetworkFeeInfo = true
+
                 SwapAction.Slippage -> if (!viewState.isTransferLoading) {
                     viewModel.openSlippage()
                 }
@@ -80,6 +88,24 @@ fun SwapScreen(
 
                 SwapAction.Cancel -> onCancel()
             }
+        },
+    )
+
+    LaunchedEffect(acquireRequest) {
+        if (acquireRequest != null) {
+            isShowNetworkFeeInfo = false
+        }
+    }
+
+    InfoBottomSheet(item = networkFeeInfo.takeIf { isShowNetworkFeeInfo }, onClose = { isShowNetworkFeeInfo = false })
+
+    GetAssetSheet(
+        asset = acquireRequest?.asset,
+        options = acquireRequest?.acquire?.options.orEmpty(),
+        onDismiss = viewModel::dismissAcquire,
+        onSelect = { option ->
+            acquireRequest?.let { onGetAsset(it.action(option), it.asset.id) }
+            viewModel.dismissAcquire()
         },
     )
 

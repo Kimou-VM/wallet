@@ -1,6 +1,6 @@
 use crate::{
     Asset, AssetId, AssetType, Chain,
-    asset_constants::{ETHEREUM_USDC_ASSET_ID, SOLANA_USDC_ASSET_ID, TON_USDT_ASSET_ID, XRP_RLUSD_TOKEN_ID},
+    asset_constants::{ETHEREUM_USDC_ASSET_ID, SOLANA_USDC_ASSET_ID, TON_USDT_ASSET_ID, TRON_USDT_TOKEN_ID, XRP_RLUSD_TOKEN_ID},
 };
 
 impl Asset {
@@ -31,6 +31,10 @@ impl Asset {
 
     pub fn mock_ton_usdt() -> Self {
         Asset::new(TON_USDT_ASSET_ID.clone(), "Tether USD".to_string(), "USDT".to_string(), 6, AssetType::JETTON)
+    }
+
+    pub fn mock_tron_usdt() -> Self {
+        Asset::new(AssetId::from_token(Chain::Tron, TRON_USDT_TOKEN_ID), "Tether USD".to_string(), "USDT".to_string(), 6, AssetType::TRC20)
     }
 
     pub fn mock_xrp_rlusd() -> Self {

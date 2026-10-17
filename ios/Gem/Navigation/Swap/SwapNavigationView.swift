@@ -39,6 +39,14 @@ struct SwapNavigationView: View {
                         )
                     }
                     .sheetPresentation(.forCurrentDeviceSize(expandable: true))
+                case let .getAsset(assetAddress, acquire):
+                    GetAssetNavigationStack(
+                        assetAddress: assetAddress,
+                        wallet: model.wallet,
+                        acquire: acquire,
+                        viewModelFactory: viewModelFactory,
+                        onComplete: { model.isPresentingInfoSheet = nil },
+                    )
                 }
             }
     }

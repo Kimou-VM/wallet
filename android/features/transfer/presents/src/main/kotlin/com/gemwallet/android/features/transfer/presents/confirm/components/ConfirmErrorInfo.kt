@@ -8,11 +8,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
-import com.gemwallet.android.features.transfer.viewmodels.confirm.models.AcquireAssetRequest
 import com.gemwallet.android.features.transfer.viewmodels.confirm.models.ConfirmErrorUIModel
-import com.gemwallet.android.features.transfer.viewmodels.confirm.models.GetAssetAction
 import com.gemwallet.android.ui.R
 import com.gemwallet.android.ui.components.InfoBottomSheet
+import com.gemwallet.android.ui.components.acquire.AcquireAssetRequest
+import com.gemwallet.android.ui.components.acquire.GetAssetAction
+import com.gemwallet.android.ui.components.acquire.GetAssetSheet
 import com.gemwallet.android.ui.components.list_item.WarningItem
 import com.gemwallet.android.ui.models.ListPosition
 import com.wallet.core.primitives.AssetId

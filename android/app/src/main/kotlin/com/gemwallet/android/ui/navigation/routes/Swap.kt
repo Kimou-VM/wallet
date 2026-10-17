@@ -67,6 +67,7 @@ private fun swapScreenContent(navigator: WalletNavigator, route: NavKey, onConfi
         onSelectionConsumed = { navigator.clearSwapSelection(route) },
         onConfirm = onConfirm,
         onSelect = onSelect,
+        onGetAsset = navigator::openGetAsset,
         onCancel = onCancel,
     )
 }

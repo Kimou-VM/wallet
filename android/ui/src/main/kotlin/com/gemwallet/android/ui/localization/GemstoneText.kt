@@ -1525,14 +1525,19 @@ fun Appearance.stringRes(): Int = when (this) {
 
 @StringRes
 fun GemSwapButtonAction.stringRes(): Int = when (this) {
-    GemSwapButtonAction.InsufficientBalance -> R.string.transfer_insufficient_balance
-
+    GemSwapButtonAction.InsufficientBalance, is GemSwapButtonAction.InsufficientNetworkFee -> R.string.transfer_insufficient_balance
     is GemSwapButtonAction.UseMinimumAmount -> R.string.swap_use_minimum_amount
-
     GemSwapButtonAction.RetryQuote -> R.string.common_try_again
-
     GemSwapButtonAction.Swap -> R.string.wallet_swap
 }
+
+fun GemSwapButtonAction.title(context: Context, paySymbol: String): String = context.getString(
+    stringRes(),
+    when (this) {
+        is GemSwapButtonAction.InsufficientNetworkFee -> symbol
+        GemSwapButtonAction.Swap, GemSwapButtonAction.RetryQuote, is GemSwapButtonAction.UseMinimumAmount, GemSwapButtonAction.InsufficientBalance -> paySymbol
+    },
+)
 
 fun GemSwapErrorDisplay.text(context: Context): String = when (this) {
     is GemSwapErrorDisplay.NotSupportedAsset -> context.getString(R.string.errors_swap_not_supported_asset)

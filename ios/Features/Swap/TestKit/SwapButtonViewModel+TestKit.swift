@@ -21,6 +21,7 @@ extension SwapButtonViewModel {
                     balance: .mock(available: availableBalance),
                 ).toGem(),
                 receive: nil,
+                fee: nil,
                 currency: Currency.usd.toGem(),
             ),
             fromAsset: fromAsset,

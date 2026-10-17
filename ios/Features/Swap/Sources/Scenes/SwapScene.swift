@@ -25,6 +25,16 @@ public struct SwapScene: View {
                 additionalInfoSectionView
             }
 
+            if let error = model.networkFeeError {
+                Section {
+                    ListItemErrorView(
+                        errorTitle: model.errorTitle,
+                        error: error.display,
+                        infoAction: model.networkFeeErrorInfoAction,
+                    )
+                }
+            }
+
             if let error = model.quoteError {
                 Section {
                     ListItemErrorView(
@@ -73,6 +83,7 @@ public struct SwapScene: View {
         .alertSheet($model.quoteDataErrorAlert)
         .onChangeBindQuery(model.fromAssetQuery, action: model.onChangeFromAsset)
         .onChangeBindQuery(model.toAssetQuery, action: model.onChangeToAsset)
+        .bindQuery(model.feeAssetQuery)
         .debouncedTask(id: model.loadTrigger, interval: GemConstants.swapQuoteDebounce) {
             await model.load()
         }

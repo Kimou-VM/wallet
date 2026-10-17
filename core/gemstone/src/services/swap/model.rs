@@ -14,6 +14,7 @@ use crate::models::list::{GemInfoTopic, GemListRow, GemListRowTitle};
 use crate::models::swap::GemSwapValue;
 use crate::percentage::GemPercentageStyle;
 use crate::precision::GemValueStyle;
+use crate::services::confirm::error::{GemConfirmErrorDisplay, GemConfirmErrorInfo};
 use crate::services::localization::GemLocalizedText;
 use num_bigint::BigInt;
 use primitives::swap::SwapPriceImpact;
@@ -172,6 +173,7 @@ pub struct GemSwapButtonInput {
     pub value: GemBigInt,
     pub available_balance: GemBigInt,
     pub quote_error: Option<SwapperError>,
+    pub missing_fee_asset: Option<Asset>,
 }
 
 #[derive(Debug, Clone, PartialEq, uniffi::Enum)]
@@ -180,6 +182,13 @@ pub enum GemSwapButtonAction {
     RetryQuote,
     UseMinimumAmount { value: GemBigInt },
     InsufficientBalance,
+    InsufficientNetworkFee { symbol: String },
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct GemSwapNetworkFeeError {
+    pub display: GemConfirmErrorDisplay,
+    pub info: GemConfirmErrorInfo,
 }
 
 #[cfg(test)]

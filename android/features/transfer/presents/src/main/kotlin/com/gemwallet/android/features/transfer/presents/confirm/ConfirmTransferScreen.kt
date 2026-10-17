@@ -34,12 +34,12 @@ import com.gemwallet.android.features.transfer.presents.confirm.components.Confi
 import com.gemwallet.android.features.transfer.presents.confirm.components.FeeDetails
 import com.gemwallet.android.features.transfer.presents.confirm.components.confirmBalanceChangesContent
 import com.gemwallet.android.features.transfer.viewmodels.confirm.ConfirmTransferViewModel
-import com.gemwallet.android.features.transfer.viewmodels.confirm.models.GetAssetAction
 import com.gemwallet.android.model.AuthRequest
 import com.gemwallet.android.ui.R
 import com.gemwallet.android.ui.components.InfoBottomSheet
 import com.gemwallet.android.ui.components.RefreshOnTimer
 import com.gemwallet.android.ui.components.WebView
+import com.gemwallet.android.ui.components.acquire.GetAssetAction
 import com.gemwallet.android.ui.components.buttons.MainActionButton
 import com.gemwallet.android.ui.components.infoSheet
 import com.gemwallet.android.ui.components.list_head.TransactionListHead

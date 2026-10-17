@@ -85,6 +85,7 @@ impl GemSwapButtonInput {
             value: BigInt::from(value),
             available_balance: BigInt::from(available_balance),
             quote_error: None,
+            missing_fee_asset: None,
         }
     }
 }
@@ -105,14 +106,16 @@ pub fn mock_asset_data(chain: Chain, available: u64) -> AssetData {
 
 impl GemSwapSession {
     pub fn mock_ready() -> Self {
-        let session = Self::default()
-            .on_request_changed(Some(GemSwapRequest::mock()))
-            .on_quote_results(GemSwapQuotesResult::mock(vec![Quote::mock_with_provider(SwapperProvider::Okx, "10"), Quote::mock_with_provider(SwapperProvider::Jupiter, "9")]));
+        Self::mock_ready_with_request(GemSwapRequest::mock())
+    }
+
+    pub fn mock_ready_with_request(request: GemSwapRequest) -> Self {
+        let session = Self::default().on_request_changed(Some(request.clone())).on_quote_results(GemSwapQuotesResult {
+            request: request.clone(),
+            ..GemSwapQuotesResult::mock(vec![Quote::mock_with_provider(SwapperProvider::Okx, "10"), Quote::mock_with_provider(SwapperProvider::Jupiter, "9")])
+        });
         Self {
-            input: Some(GemSwapQuoteInput {
-                request: GemSwapRequest::mock(),
-                use_max_amount: false,
-            }),
+            input: Some(GemSwapQuoteInput { request, use_max_amount: false }),
             ..session
         }
     }

@@ -2,7 +2,6 @@ package com.gemwallet.android.features.transfer.viewmodels.confirm
 
 import com.gemwallet.android.ext.toGem
 import com.gemwallet.android.ext.toIdentifier
-import com.gemwallet.android.features.transfer.viewmodels.confirm.models.AcquireAssetRequest
 import com.gemwallet.android.testkit.mockAccount
 import com.gemwallet.android.testkit.mockAsset
 import com.gemwallet.android.testkit.mockAssetId
@@ -15,6 +14,7 @@ import com.gemwallet.android.testkit.mockGemConfirmMetadata
 import com.gemwallet.android.testkit.mockGemConfirmScreen
 import com.gemwallet.android.testkit.mockGemConfirmSimulationState
 import com.gemwallet.android.testkit.mockGemTransferData
+import com.gemwallet.android.ui.components.acquire.AcquireAssetRequest
 import com.gemwallet.android.ui.models.actions.FinishConfirmAction
 import com.wallet.core.primitives.AssetType
 import com.wallet.core.primitives.Chain

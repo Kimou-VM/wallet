@@ -7,6 +7,7 @@ internal sealed interface SwapAction {
     data class SelectPercent(val percent: Int) : SwapAction
     data object SwitchAssets : SwapAction
     data object ShowDetails : SwapAction
+    data object ShowNetworkFeeInfo : SwapAction
     data object Slippage : SwapAction
     data object Swap : SwapAction
     data object Cancel : SwapAction

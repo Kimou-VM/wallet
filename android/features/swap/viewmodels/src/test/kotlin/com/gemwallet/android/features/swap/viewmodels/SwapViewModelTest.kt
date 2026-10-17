@@ -65,6 +65,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import uniffi.gemstone.GemAcquireOption
 import uniffi.gemstone.GemInfoTopic
 import uniffi.gemstone.GemSwapButtonAction
 import uniffi.gemstone.GemSwapErrorDisplay
@@ -138,6 +139,24 @@ class SwapViewModelTest {
     fun tearDown() = runTest(testDispatcher) {
         createdViewModels.forEach { it.viewModelScope.coroutineContext.job.cancelAndJoin() }
         createdViewModels.clear()
+    }
+
+    @Test
+    fun `a pay token without its network's coin blocks the swap and offers ways to get the coin`() = runTest(testDispatcher) {
+        every { assetQuery(walletId.id, solAsset.id) } returns flowOf(solInfo.copy(balance = mockBalance(available = BigInteger.ZERO)))
+        val viewModel = createViewModel(swapSavedState(from = usdcAsset.id.toIdentifier(), to = solAsset.id.toIdentifier()))
+        advanceUntilIdle()
+
+        assertEquals(GemSwapButtonAction.InsufficientNetworkFee(symbol = "SOL"), viewModel.viewState.value.buttonAction)
+        val info = checkNotNull(viewModel.networkFeeInfo.value)
+        info.onAction?.invoke(checkNotNull(info.sheet.action))
+
+        val request = checkNotNull(viewModel.acquireRequest.value)
+        assertEquals(solAsset.id, request.asset.id)
+        assertFalse(GemAcquireOption.SWAP in request.acquire.options)
+
+        viewModel.dismissAcquire()
+        assertNull(viewModel.acquireRequest.value)
     }
 
     @Test

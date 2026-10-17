@@ -12,13 +12,13 @@ import com.gemwallet.android.application.wallet_connect.WalletConnectSessionRequ
 import com.gemwallet.android.application.wallet_connect.WalletConnectUserRequest
 import com.gemwallet.android.application.wallet_connect.WalletConnectVerifyContext
 import com.gemwallet.android.features.transfer.presents.confirm.ConfirmTransferScreen
-import com.gemwallet.android.features.transfer.viewmodels.confirm.models.GetAssetAction
 import com.gemwallet.android.features.wallet_connector.presents.AuthRequestScreen
 import com.gemwallet.android.features.wallet_connector.presents.ConnectionProposalScreen
 import com.gemwallet.android.features.wallet_connector.presents.SignMessageScreen
 import com.gemwallet.android.features.wallet_connector.viewmodels.WalletConnectorRequestViewModel
 import com.gemwallet.android.features.wallet_connector.viewmodels.models.WalletConnectorRequestUIState
 import com.gemwallet.android.ui.R
+import com.gemwallet.android.ui.components.acquire.GetAssetAction
 import com.gemwallet.android.ui.components.screen.LoadingScene
 import com.gemwallet.android.ui.models.actions.CancelAction
 import com.gemwallet.android.ui.models.actions.FinishConfirmAction

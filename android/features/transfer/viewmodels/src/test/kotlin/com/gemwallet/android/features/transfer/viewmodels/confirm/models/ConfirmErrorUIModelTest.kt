@@ -5,6 +5,8 @@ import com.gemwallet.android.ext.toIdentifier
 import com.gemwallet.android.model.text
 import com.gemwallet.android.testkit.mockAsset
 import com.gemwallet.android.testkit.mockAssetId
+import com.gemwallet.android.ui.components.acquire.AcquireAssetRequest
+import com.gemwallet.android.ui.components.acquire.GetAssetAction
 import com.gemwallet.android.ui.localization.text
 import com.wallet.core.primitives.Chain
 import org.junit.After

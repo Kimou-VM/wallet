@@ -5,11 +5,13 @@ import Components
 import Foundation
 import class Gemstone.Config
 import func Gemstone.formattedPercentage
+import enum Gemstone.GemInfoAction
 import enum Gemstone.GemInfoTopic
 import struct Gemstone.GemProviderRow
 import enum Gemstone.GemSlippageSelection
 import struct Gemstone.GemSwapDetails
 import enum Gemstone.GemSwapErrorDisplay
+import struct Gemstone.GemSwapNetworkFeeError
 import struct Gemstone.GemSwapPairSelection
 import struct Gemstone.GemSwapQuoteInput
 import protocol Gemstone.GemSwapQuoteServiceProtocol
@@ -39,12 +41,13 @@ public final class SwapSceneViewModel {
     public let wallet: Wallet
 
     public var session: GemSwapSession
-    @ObservationIgnored private var viewStateCache: (session: GemSwapSession, pay: AssetData?, receive: AssetData?, state: GemSwapViewState)?
+    @ObservationIgnored private var viewStateCache: (session: GemSwapSession, pay: AssetData?, receive: AssetData?, fee: AssetData?, state: GemSwapViewState)?
     var quoteDataErrorAlert: AlertMessage?
     public var isPresentingInfoSheet: SwapSheetType?
 
     public let fromAssetQuery: ObservableQuery<AssetQueryOptional>
     public let toAssetQuery: ObservableQuery<AssetQueryOptional>
+    public let feeAssetQuery: ObservableQuery<AssetQueryOptional>
 
     var fromAsset: AssetData? {
         fromAssetQuery.value
@@ -54,17 +57,22 @@ public final class SwapSceneViewModel {
         toAssetQuery.value
     }
 
+    var feeAsset: AssetData? {
+        feeAssetQuery.value
+    }
+
     var isPresentingPriceImpactConfirmation: String?
     var pairSelectorModel: SwapPairSelectorViewModel
 
     var viewState: GemSwapViewState {
         let pay = fromAsset
         let receive = toAsset
-        if let cache = viewStateCache, cache.session == session, cache.pay == pay, cache.receive == receive {
+        let fee = feeAsset
+        if let cache = viewStateCache, cache.session == session, cache.pay == pay, cache.receive == receive, cache.fee == fee {
             return cache.state
         }
-        let state = session.viewState(pay: pay?.toGem(), receive: receive?.toGem(), currency: service.getCurrency())
-        viewStateCache = (session, pay, receive, state)
+        let state = session.viewState(pay: pay?.toGem(), receive: receive?.toGem(), fee: fee?.toGem(), currency: service.getCurrency())
+        viewStateCache = (session, pay, receive, fee, state)
         return state
     }
 
@@ -88,6 +96,7 @@ public final class SwapSceneViewModel {
 
         fromAssetQuery = ObservableQuery(AssetQueryOptional(walletId: input.wallet.id, assetId: pairSelectorModel.fromAssetId), initialValue: nil)
         toAssetQuery = ObservableQuery(AssetQueryOptional(walletId: input.wallet.id, assetId: pairSelectorModel.toAssetId), initialValue: nil)
+        feeAssetQuery = ObservableQuery(AssetQueryOptional(walletId: input.wallet.id, assetId: pairSelectorModel.feeAssetId), initialValue: nil)
         self.onSwap = onSwap
         selectedSlippage = service.slippageBps().map { .manual(bps: $0) } ?? .auto
         session = service.newSession()
@@ -173,6 +182,19 @@ public final class SwapSceneViewModel {
         Set([fromAsset?.asset.id, toAsset?.asset.id].compactMap(\.self))
     }
 
+    var networkFeeError: GemSwapNetworkFeeError? {
+        viewState.networkFeeError
+    }
+
+    var networkFeeErrorInfoAction: VoidAction {
+        guard let info = networkFeeError?.info else {
+            return nil
+        }
+        return VoidAction { [weak self] in
+            self?.isPresentingInfoSheet = .info(InfoSheetModel(sheet: info.infoSheet, onAction: { self?.onInfoAction($0) }))
+        }
+    }
+
     var quoteErrorInfoAction: VoidAction {
         guard let topic = quoteError?.info() else {
             return nil
@@ -213,6 +235,7 @@ extension SwapSceneViewModel {
     func onChangePair(_ _: SwapPairSelectorViewModel, _ newModel: SwapPairSelectorViewModel) {
         fromAssetQuery.request.assetId = newModel.fromAssetId
         toAssetQuery.request.assetId = newModel.toAssetId
+        feeAssetQuery.request.assetId = newModel.feeAssetId
     }
 
     func onChangeFromValue(_: String, _: String) {
@@ -270,6 +293,11 @@ extension SwapSceneViewModel {
 
     func onSelectSwapDetails() {
         isPresentingInfoSheet = .swapDetails
+    }
+
+    func onInfoAction(_ action: GemInfoAction) {
+        guard case let .acquire(_, acquire) = action, let feeAsset else { return }
+        isPresentingInfoSheet = .getAsset(AssetAddress(asset: feeAsset.asset, address: feeAsset.account.address), acquire: acquire)
     }
 
     public func onFinishSwapProviderSelection(_ provider: SwapProvider) {
@@ -395,7 +423,7 @@ extension SwapSceneViewModel {
                 session = session.onRefreshRequested(request: input.request)
             }
             setLoadTrigger(isImmediate: true)
-        case .insufficientBalance: break
+        case .insufficientBalance, .insufficientNetworkFee: break
         case .useMinimumAmount: setMinimumAmount()
         case .swap:
             if let warningText = viewState.details?.priceImpactWarning {

@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import com.gemwallet.android.domains.swap.SwapItemType
 import com.gemwallet.android.features.swap.presents.components.SwapButton
+import com.gemwallet.android.features.swap.presents.components.SwapNetworkFeeError
 import com.gemwallet.android.features.swap.presents.components.SwapQuoteError
 import com.gemwallet.android.features.swap.presents.components.SwapToken
 import com.gemwallet.android.features.swap.viewmodels.SwapViewModel
@@ -133,6 +134,12 @@ internal fun SwapScene(viewState: GemSwapViewState, pay: AssetData?, receive: As
             item {
                 viewState.details?.let {
                     SwapDetailsSummaryItem(details = it, onClick = { onAction(SwapAction.ShowDetails) })
+                }
+            }
+
+            item {
+                viewState.networkFeeError?.let {
+                    SwapNetworkFeeError(error = it, onClick = { onAction(SwapAction.ShowNetworkFeeInfo) })
                 }
             }
 

@@ -44,6 +44,33 @@ struct SwapSceneViewModelTests {
     }
 
     @Test
+    func missingNetworkFeeOffersToGetTheFeeAsset() throws {
+        let model = SwapSceneViewModel.mock()
+        model.fromAssetQuery.value = .mock(asset: .mock(id: .mock(chain: .ethereum, tokenId: "0xdAC17F958D2ee523a2206206994597C13D831ec7"), name: "Tether", symbol: "USDT", decimals: 6, type: .erc20), balance: .mock(available: 10_000_000))
+        model.toAssetQuery.value = .mock(asset: .mock(id: .mock(chain: .solana), name: "Solana", symbol: "SOL", decimals: 9))
+        model.feeAssetQuery.value = .mock(asset: .mock(id: .mock(chain: .ethereum), name: "Ethereum", symbol: "ETH", decimals: 18), balance: .mock(available: 0))
+        model.onChangeFromValue("", "1")
+
+        #expect(model.networkFeeError != nil)
+        #expect(model.buttonViewModel.title == Localized.Transfer.insufficientBalance("ETH"))
+
+        let showInfo = try #require(model.networkFeeErrorInfoAction)
+        showInfo()
+        guard case let .info(sheet) = model.isPresentingInfoSheet, case let .action(_, action)? = sheet.button else {
+            Issue.record("the network fee error opens a sheet with a get-asset action")
+            return
+        }
+        action()
+
+        guard case let .getAsset(assetAddress, acquire) = model.isPresentingInfoSheet else {
+            Issue.record("the sheet's action offers ways to get the fee asset")
+            return
+        }
+        #expect(assetAddress.asset.id == .mock(chain: .ethereum))
+        #expect(!acquire.options.contains(.swap))
+    }
+
+    @Test
     func toValue() async {
         let cases: [(BigUInt, String)] = [(250_000_000_000, "250,000"), (1_000_000, "1"), (10000, "0.01"), (12, "0.000012")]
         for (toValue, expected) in cases {

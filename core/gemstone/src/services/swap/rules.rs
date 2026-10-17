@@ -3,19 +3,25 @@ use num_bigint::BigInt;
 use num_bigint::BigUint;
 use number_formatter::BigNumberFormatter;
 use primitives::swap::{SwapData, SwapPriceImpact, SwapPriceImpactType, SwapProviderData, SwapQuote, SwapQuoteData};
-use primitives::{Asset, AssetId, Chain, TransactionInputType, Wallet};
+use primitives::{Asset, AssetData, AssetId, Chain, Currency, TransactionInputType, Wallet};
 use swapper::permit2_data::{Permit2Detail, PermitSingle};
 use swapper::{AssetList, Options, Permit2ApprovalData, Quote, QuoteRequest, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperSlippage, SwapperSlippageMode};
 
+use crate::config::fiat_config::get_fiat_config;
 use crate::config::swap_config::{SwapConfig, get_default_slippage};
 use crate::formatted_number::GemValueTone;
 use crate::models::swap::GemSlippageCheck;
 use crate::percentage::GemPercentageStyle;
 use crate::services::amount::model::GemNumberFormat;
 use crate::services::amount::rules::value_from_input;
+use crate::services::assets::rules::fee_asset_id;
 use crate::services::assets::{GemAssetAction, GemAssetFilter};
+use crate::services::collections::unique;
+use crate::services::confirm::error::GemConfirmErrorInfo;
+use crate::services::confirm::rules::{error_info, is_insufficient_network_fee};
+use crate::services::confirm::{GemAcquireAsset, GemAcquireAssetFlow, GemAcquireOption, GemConfirmError};
 use crate::services::localization::GemLocalizedText;
-use crate::services::swap::model::{GemAssetRate, GemSwapButtonAction, GemSwapButtonInput, GemSwapPair, GemSwapPairSelection, GemSwapPairSuggestion, GemSwapPriceImpactRow, GemSwapRate, GemSwapSide};
+use crate::services::swap::model::{GemAssetRate, GemSwapButtonAction, GemSwapButtonInput, GemSwapNetworkFeeError, GemSwapPair, GemSwapPairSelection, GemSwapPairSuggestion, GemSwapPriceImpactRow, GemSwapRate, GemSwapSide};
 use crate::services::swap::session::{GemSwapQuoteInput, GemSwapRequest};
 use crate::services::transfer::{GemRecipient, GemTransferData};
 use std::collections::HashMap;
@@ -288,8 +294,51 @@ impl GemSwapButtonInput {
         if self.value > self.available_balance {
             return GemSwapButtonAction::InsufficientBalance;
         }
+        if let Some(asset) = &self.missing_fee_asset {
+            return GemSwapButtonAction::InsufficientNetworkFee { symbol: asset.symbol.clone() };
+        }
         GemSwapButtonAction::Swap
     }
+}
+
+pub fn is_missing_network_fee(fee: &AssetData) -> bool {
+    match fee.asset.id.chain {
+        Chain::Tron => fee.asset.id.is_native() && fee.balance.available == BigUint::ZERO && fee.balance.metadata.as_ref().is_none_or(|metadata| metadata.energy_available == 0),
+        _ => is_insufficient_network_fee(&fee.asset.id, &fee.balance.available),
+    }
+}
+
+pub fn network_fee_error(pay: &AssetData, fee: &AssetData, currency: Currency) -> Option<GemSwapNetworkFeeError> {
+    let pays_fee_from_another_asset = fee.asset.id == fee_asset_id(&pay.asset.id) && fee.asset.id != pay.asset.id;
+    if !pays_fee_from_another_asset || !is_missing_network_fee(fee) {
+        return None;
+    }
+    let display = GemConfirmError::InsufficientNetworkFee { asset: fee.asset.clone(), requirement: None }.display();
+    let info = error_info(&display, &[], currency, &pay.asset.id, &fee.asset.id)?;
+    Some(GemSwapNetworkFeeError {
+        info: GemConfirmErrorInfo {
+            acquire: Some(network_fee_acquire(fee)),
+            ..info
+        },
+        display,
+    })
+}
+
+fn network_fee_acquire(fee: &AssetData) -> GemAcquireAsset {
+    let is_buyable = fee.metadata.is_buy_enabled;
+    GemAcquireAsset {
+        flow: GemAcquireAssetFlow::Options,
+        options: [is_buyable.then_some(GemAcquireOption::Buy), Some(GemAcquireOption::Receive)].into_iter().flatten().collect(),
+        buy_amount: is_buyable.then(|| get_fiat_config().insufficient_network_fee_buy_amount),
+        swap_pair: GemSwapPairSelection {
+            pay_asset_id: None,
+            receive_asset_id: Some(fee.asset.id.clone()),
+        },
+    }
+}
+
+pub fn pair_balance_asset_ids(asset_ids: &[AssetId]) -> Vec<AssetId> {
+    unique(asset_ids.iter().flat_map(|asset_id| [asset_id.clone(), fee_asset_id(asset_id)]))
 }
 
 fn is_retryable(error: Option<&SwapperError>) -> bool {
@@ -528,8 +577,11 @@ mod tests {
 
     use super::*;
     use crate::models::custom_types::GemBigInt;
+    use crate::services::confirm::error::{GemConfirmErrorDisplay, GemConfirmErrorSheet};
+    use crate::services::swap::testkit::mock_asset_data;
+    use primitives::asset_balance::BalanceMetadata;
     use primitives::swap::SwapData;
-    use primitives::{Account, AssetId, Chain};
+    use primitives::{Account, AssetId, AssetMetaData, Balance, Chain};
 
     #[test]
     fn test_quote_request_uses_wallet_accounts_and_slippage() {
@@ -752,6 +804,114 @@ mod tests {
     fn test_swap_button_input_carries_big_integers_so_a_malformed_value_cannot_read_as_zero() {
         let _: fn(GemSwapButtonInput) -> (GemBigInt, GemBigInt) = |input| (input.value, input.available_balance);
         assert_eq!(GemSwapButtonInput::mock(101, 100).value, BigInt::from(101));
+    }
+
+    #[test]
+    fn test_button_action_blocks_a_swap_the_wallet_cannot_pay_the_network_fee_for() {
+        let missing_fee = |value, available| GemSwapButtonInput {
+            missing_fee_asset: Some(Asset::from_chain(Chain::Tron)),
+            ..GemSwapButtonInput::mock(value, available)
+        };
+        assert_eq!(missing_fee(100, 100).action(), GemSwapButtonAction::InsufficientNetworkFee { symbol: "TRX".to_string() });
+        assert_eq!(missing_fee(101, 100).action(), GemSwapButtonAction::InsufficientBalance, "the amount the user typed is fixed first");
+        assert_eq!(
+            GemSwapButtonInput {
+                quote_error: Some(SwapperError::NoQuoteAvailable),
+                ..missing_fee(100, 100)
+            }
+            .action(),
+            GemSwapButtonAction::RetryQuote
+        );
+    }
+
+    #[test]
+    fn test_is_missing_network_fee() {
+        let tron_with_energy = |energy_available| AssetData {
+            balance: Balance {
+                metadata: Some(BalanceMetadata {
+                    energy_available,
+                    ..BalanceMetadata::default()
+                }),
+                ..Balance::coin_balance(BigUint::ZERO)
+            },
+            ..mock_asset_data(Chain::Tron, 0)
+        };
+
+        assert!(is_missing_network_fee(&mock_asset_data(Chain::SmartChain, 0)));
+        assert!(!is_missing_network_fee(&mock_asset_data(Chain::SmartChain, 1)));
+        assert!(is_missing_network_fee(&mock_asset_data(Chain::Tron, 0)), "a Tron balance that was never staked has no energy");
+        assert!(is_missing_network_fee(&tron_with_energy(0)));
+        assert!(!is_missing_network_fee(&tron_with_energy(65_000)), "staked or rented energy pays a Tron fee without TRX");
+        assert!(!is_missing_network_fee(&mock_asset_data(Chain::Tron, 1)));
+        assert!(
+            !is_missing_network_fee(&AssetData::mock(Asset::mock_hypercore_usdc(), Balance::coin_balance(BigUint::ZERO))),
+            "HyperCore charges no network fee"
+        );
+    }
+
+    #[test]
+    fn test_network_fee_error() {
+        let usdt = AssetData::mock(Asset::mock_tron_usdt(), Balance::coin_balance(BigUint::from(10_000_000u32)));
+        let trx = mock_asset_data(Chain::Tron, 0);
+        let buyable_trx = AssetData {
+            metadata: AssetMetaData {
+                is_buy_enabled: true,
+                ..AssetMetaData::mock()
+            },
+            ..trx.clone()
+        };
+        let swap_pair = GemSwapPairSelection {
+            pay_asset_id: None,
+            receive_asset_id: Some(trx.asset.id.clone()),
+        };
+
+        let error = network_fee_error(&usdt, &buyable_trx, Currency::USD).unwrap();
+        assert_eq!(
+            error.display,
+            GemConfirmErrorDisplay::NetworkFeeMissing {
+                asset: trx.asset.clone(),
+                title: trx.asset.display_title(),
+            }
+        );
+        assert_eq!((error.info.sheet, error.info.asset), (GemConfirmErrorSheet::NetworkFeeMissing, Some(trx.asset.clone())));
+        assert_eq!(
+            error.info.acquire,
+            Some(GemAcquireAsset {
+                flow: GemAcquireAssetFlow::Options,
+                options: vec![GemAcquireOption::Buy, GemAcquireOption::Receive],
+                buy_amount: Some(get_fiat_config().insufficient_network_fee_buy_amount),
+                swap_pair: swap_pair.clone(),
+            }),
+            "swapping on the same network needs the fee too, so it is never offered"
+        );
+        assert_eq!(
+            network_fee_error(&usdt, &trx, Currency::USD).unwrap().info.acquire,
+            Some(GemAcquireAsset {
+                flow: GemAcquireAssetFlow::Options,
+                options: vec![GemAcquireOption::Receive],
+                buy_amount: None,
+                swap_pair,
+            }),
+            "a native coin no provider sells is only offered to receive"
+        );
+
+        assert_eq!(network_fee_error(&usdt, &mock_asset_data(Chain::Tron, 1), Currency::USD), None);
+        assert_eq!(network_fee_error(&trx, &trx, Currency::USD), None, "paying with the fee asset itself is a balance error");
+        assert_eq!(
+            network_fee_error(&usdt, &mock_asset_data(Chain::SmartChain, 0), Currency::USD),
+            None,
+            "a fee asset of another network belongs to a previous pair"
+        );
+    }
+
+    #[test]
+    fn test_pair_balance_asset_ids() {
+        let usdt = Asset::mock_tron_usdt().id;
+        let trx = AssetId::from_chain(Chain::Tron);
+        let eth = AssetId::from_chain(Chain::Ethereum);
+
+        assert_eq!(pair_balance_asset_ids(&[usdt.clone(), eth.clone()]), vec![usdt, trx.clone(), eth]);
+        assert_eq!(pair_balance_asset_ids(std::slice::from_ref(&trx)), vec![trx]);
     }
 
     #[test]

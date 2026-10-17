@@ -23,11 +23,11 @@ import com.gemwallet.android.features.onboarding.presents.import_wallet.ImportWa
 import com.gemwallet.android.features.onboarding.presents.import_wallet.ImportWalletTypeRoute
 import com.gemwallet.android.features.onboarding.presents.terms.AcceptTermsDestination
 import com.gemwallet.android.features.onboarding.presents.terms.AcceptTermsRoute
-import com.gemwallet.android.features.transfer.viewmodels.confirm.models.GetAssetAction
 import com.gemwallet.android.model.AmountParams
 import com.gemwallet.android.model.ImportType
 import com.gemwallet.android.model.Session
 import com.gemwallet.android.routes
+import com.gemwallet.android.ui.components.acquire.GetAssetAction
 import com.gemwallet.android.ui.models.navigation.ContactAddressDraft
 import com.gemwallet.android.ui.models.navigation.RouteMessage
 import com.gemwallet.android.ui.navigation.routes.AboutUsRoute

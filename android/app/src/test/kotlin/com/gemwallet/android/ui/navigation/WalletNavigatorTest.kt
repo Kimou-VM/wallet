@@ -16,7 +16,6 @@ import com.gemwallet.android.features.onboarding.presents.import_wallet.ImportWa
 import com.gemwallet.android.features.onboarding.presents.import_wallet.ImportWalletTypeRoute
 import com.gemwallet.android.features.onboarding.presents.terms.AcceptTermsDestination
 import com.gemwallet.android.features.onboarding.presents.terms.AcceptTermsRoute
-import com.gemwallet.android.features.transfer.viewmodels.confirm.models.GetAssetAction
 import com.gemwallet.android.model.ImportType
 import com.gemwallet.android.model.Session
 import com.gemwallet.android.testkit.mockAsset
@@ -24,6 +23,7 @@ import com.gemwallet.android.testkit.mockAssetId
 import com.gemwallet.android.testkit.mockSession
 import com.gemwallet.android.testkit.mockTransactionId
 import com.gemwallet.android.testkit.mockWallet
+import com.gemwallet.android.ui.components.acquire.GetAssetAction
 import com.gemwallet.android.ui.models.navigation.RouteMessage
 import com.gemwallet.android.ui.navigation.routes.AmountRoute
 import com.gemwallet.android.ui.navigation.routes.AssetPriceAlertsRoute

@@ -16,12 +16,12 @@ import com.gemwallet.android.domains.confirm.unpackTransferData
 import com.gemwallet.android.ext.toGem
 import com.gemwallet.android.ext.toIdentifier
 import com.gemwallet.android.ext.toPrimitives
-import com.gemwallet.android.features.transfer.viewmodels.confirm.models.AcquireAssetRequest
 import com.gemwallet.android.features.transfer.viewmodels.confirm.models.ConfirmErrorUIModel
 import com.gemwallet.android.features.transfer.viewmodels.confirm.models.listItem
 import com.gemwallet.android.features.transfer.viewmodels.confirm.models.verificationListItem
 import com.gemwallet.android.math.numberFormat
 import com.gemwallet.android.ui.R
+import com.gemwallet.android.ui.components.acquire.AcquireAssetRequest
 import com.gemwallet.android.ui.components.infoSheet
 import com.gemwallet.android.ui.components.list_item.ListItemModel
 import com.gemwallet.android.ui.localization.broadcastLabel

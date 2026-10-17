@@ -126,7 +126,7 @@ impl GemSwapQuoteService {
         let wallet_id = self.session.current_wallet_id();
         let (prices, balances) = futures::join!(self.stream.add_prices(asset_ids.clone()), async {
             match wallet_id {
-                Ok(wallet_id) => self.balances.update(wallet_id, asset_ids).await,
+                Ok(wallet_id) => self.balances.update(wallet_id, rules::pair_balance_asset_ids(&asset_ids)).await,
                 Err(error) => Err(error),
             }
         });

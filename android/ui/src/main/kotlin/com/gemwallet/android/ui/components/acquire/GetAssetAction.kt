@@ -1,4 +1,4 @@
-package com.gemwallet.android.features.transfer.viewmodels.confirm.models
+package com.gemwallet.android.ui.components.acquire
 
 import com.wallet.core.primitives.AssetId
 

@@ -6,11 +6,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
-import com.gemwallet.android.ui.R
+import androidx.compose.ui.platform.LocalContext
 import com.gemwallet.android.ui.components.buttons.MainActionButton
 import com.gemwallet.android.ui.components.progress.CircularProgressIndicator20
-import com.gemwallet.android.ui.localization.stringRes
+import com.gemwallet.android.ui.localization.title
 import com.gemwallet.android.ui.models.ButtonState
 import com.gemwallet.android.ui.models.buttonState
 import com.gemwallet.android.ui.theme.paddingHalfSmall
@@ -29,7 +28,7 @@ internal fun SwapButton(viewState: GemSwapViewState, pay: AssetData?, onSwap: ()
         } else {
             Text(
                 modifier = Modifier.padding(paddingHalfSmall),
-                text = stringResource(viewState.buttonAction.stringRes(), pay?.asset?.symbol ?: ""),
+                text = viewState.buttonAction.title(LocalContext.current, pay?.asset?.symbol.orEmpty()),
                 style = MaterialTheme.typography.bodyLarge,
             )
         }

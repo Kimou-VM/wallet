@@ -6,8 +6,8 @@ import com.gemwallet.android.features.assets.presents.select.SelectDepositScreen
 import com.gemwallet.android.features.perpetuals.presents.perpetual.PerpetualScreen
 import com.gemwallet.android.features.perpetuals.presents.perpetuals.PerpetualsScreen
 import com.gemwallet.android.features.transfer.presents.confirm.ConfirmTransferScreen
-import com.gemwallet.android.features.transfer.viewmodels.confirm.models.GetAssetAction
 import com.gemwallet.android.model.AmountParams
+import com.gemwallet.android.ui.components.acquire.GetAssetAction
 import com.gemwallet.android.ui.models.actions.AmountTransactionAction
 import com.gemwallet.android.ui.models.actions.AssetIdAction
 import com.gemwallet.android.ui.models.actions.ConfirmTransactionAction

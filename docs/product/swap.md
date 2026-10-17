@@ -315,6 +315,8 @@ A deposit no relayer fills is refunded once its fill deadline passes. The deadli
 | A refresh, including going back from Confirm | You Receive shows only the loading indicator until the new quote arrives, never the old amount with it | |
 | A refresh while Details is open | Details shows the loading indicator until the new quote arrives, never the old quote's details | it matches You Receive |
 | A refresh fails while Details is open | Details stays open and shows the error, as the Swap screen does | |
+| The user pays with a token and holds none of its network's coin, such as TRX on Tron or BNB on BNB Chain | You Receive and Details still show the quote; below Details an error row says the coin is missing, and its sheet offers Get with Buy, when a provider sells that coin, and Receive; Swap reads "Insufficient TRX balance" and stays disabled (`test_network_fee_error`) | the network fee cannot be paid, so the swap would only fail on the confirmation screen; swapping for the coin on the same network needs the fee too, so Swap is never offered |
+| The wallet holds no TRX but has staked or rented energy | no error row; the confirmation screen checks the exact fee (`test_is_missing_network_fee`) | energy pays a Tron fee without TRX |
 | The selected quote's `get_quote_data` call fails | an error alert; the quote, Details and the Swap button stay, so tapping Swap prepares it again, with no inline error row and no Try Again | quote fetching succeeded; only the later transaction-data preparation failed, and Try Again belongs to a failed quote |
 | The amount, an asset or the slippage changes | You Receive clears | |
 | An answer arrives for an amount or pair the user has already changed | it is thrown away | |

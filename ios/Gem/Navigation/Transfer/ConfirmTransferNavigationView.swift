@@ -3,8 +3,8 @@
 import Assets
 import Components
 import FiatConnect
+import struct Gemstone.GemAcquireAsset
 import enum Gemstone.GemAcquireOption
-import struct Gemstone.GemSwapPairSelection
 import GemstonePrimitives
 import InfoSheet
 import Primitives
@@ -55,12 +55,11 @@ struct ConfirmTransferNavigationView: View {
                     }
                 case let .getAsset(asset, acquire):
                     GetAssetNavigationStack(
-                        asset: asset,
-                        options: acquire.options,
-                        buyAmount: acquire.buyAmount.map(Int.init),
-                        swapPair: acquire.swapPair,
-                        model: model,
+                        assetAddress: model.assetAddress(asset),
+                        wallet: model.assetAcquisitionWallet,
+                        acquire: acquire,
                         viewModelFactory: viewModelFactory,
+                        onComplete: { model.isPresentingSheet = nil },
                     )
                 case let .selectedAsset(input, wallet):
                     SelectedAssetNavigationStack(
@@ -87,15 +86,14 @@ struct ConfirmTransferNavigationView: View {
     }
 }
 
-private struct GetAssetNavigationStack: View {
+struct GetAssetNavigationStack: View {
     private static let optionsDetent = PresentationDetent.height(360)
 
-    let asset: Asset
-    let options: [GemAcquireOption]
-    let buyAmount: Int?
-    let swapPair: GemSwapPairSelection
-    let model: ConfirmTransferSceneViewModel
+    let assetAddress: AssetAddress
+    let wallet: Wallet
+    let acquire: GemAcquireAsset
     let viewModelFactory: ViewModelFactory
+    let onComplete: () -> Void
 
     @State private var selectedAction: GemAcquireOption?
     @State private var actionNavigationPath = NavigationPath()
@@ -103,8 +101,8 @@ private struct GetAssetNavigationStack: View {
     var body: some View {
         NavigationStack {
             GetAssetScene(
-                asset: asset,
-                options: options,
+                asset: assetAddress.asset,
+                options: acquire.options,
                 onSelect: {
                     actionNavigationPath = NavigationPath()
                     selectedAction = $0
@@ -119,9 +117,9 @@ private struct GetAssetNavigationStack: View {
                         .navigationDestination(for: ConfirmTransferInput.self) { input in
                             ConfirmTransferNavigationView(
                                 model: viewModelFactory.confirmTransferScene(
-                                    wallet: model.assetAcquisitionWallet,
+                                    wallet: wallet,
                                     data: input.data,
-                                    onComplete: { model.isPresentingSheet = nil },
+                                    onComplete: onComplete,
                                 ),
                             )
                         }
@@ -138,23 +136,23 @@ private struct GetAssetNavigationStack: View {
         case .buy:
             FiatConnectNavigationView(
                 model: viewModelFactory.fiatScene(
-                    assetAddress: model.assetAddress(asset),
-                    wallet: model.assetAcquisitionWallet,
-                    amount: buyAmount,
+                    assetAddress: assetAddress,
+                    wallet: wallet,
+                    amount: acquire.buyAmount.map(Int.init),
                 ),
             )
         case .swap:
             SwapNavigationView(
                 model: viewModelFactory.swapScene(
                     input: SwapInput(
-                        wallet: model.assetAcquisitionWallet,
-                        pairSelector: swapPair.map(),
+                        wallet: wallet,
+                        pairSelector: acquire.swapPair.map(),
                     ),
                     onSwap: { actionNavigationPath.append(ConfirmTransferInput(data: $0)) },
                 ),
             )
         case .receive:
-            ReceiveScene(model: viewModelFactory.receiveScene(assetAddress: model.assetAddress(asset), wallet: model.assetAcquisitionWallet))
+            ReceiveScene(model: viewModelFactory.receiveScene(assetAddress: assetAddress, wallet: wallet))
         }
     }
 }

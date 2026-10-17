@@ -7,8 +7,8 @@ import com.gemwallet.android.domains.confirm.unpackConfirmTransferInput
 import com.gemwallet.android.features.assets.presents.select.SelectPaymentScreen
 import com.gemwallet.android.features.transfer.presents.confirm.ConfirmTransferScreen
 import com.gemwallet.android.features.transfer.presents.confirm.PaymentVerificationScreen
-import com.gemwallet.android.features.transfer.viewmodels.confirm.models.GetAssetAction
 import com.gemwallet.android.serializer.packRoutePayload
+import com.gemwallet.android.ui.components.acquire.GetAssetAction
 import com.gemwallet.android.ui.models.actions.CancelAction
 import com.gemwallet.android.ui.models.actions.FinishConfirmAction
 import com.gemwallet.android.ui.models.navigation.RouteArgument

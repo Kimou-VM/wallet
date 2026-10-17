@@ -20,8 +20,12 @@ import com.gemwallet.android.ext.runCatchingCancellable
 import com.gemwallet.android.ext.toAssetId
 import com.gemwallet.android.ext.toGem
 import com.gemwallet.android.ext.toIdentifier
+import com.gemwallet.android.ext.toPrimitives
 import com.gemwallet.android.math.numberFormat
 import com.gemwallet.android.model.text
+import com.gemwallet.android.ui.components.InfoSheetEntity
+import com.gemwallet.android.ui.components.acquire.AcquireAssetRequest
+import com.gemwallet.android.ui.components.infoSheet
 import com.gemwallet.android.ui.models.navigation.RouteArgument
 import com.wallet.core.primitives.AssetId
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -58,6 +62,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uniffi.gemstone.GemButtonState
+import uniffi.gemstone.GemInfoAction
 import uniffi.gemstone.GemInfoTopic
 import uniffi.gemstone.GemPercentageStyle
 import uniffi.gemstone.GemSlippageSelection
@@ -73,6 +78,7 @@ import uniffi.gemstone.GemSwapRequest
 import uniffi.gemstone.GemSwapViewState
 import uniffi.gemstone.SwapProvider
 import uniffi.gemstone.SwapperException
+import uniffi.gemstone.feeAssetId
 import uniffi.gemstone.formattedPercentage
 import uniffi.gemstone.newSlippageSession
 import uniffi.gemstone.swapErrorDisplay
@@ -134,6 +140,12 @@ class SwapViewModel @Inject constructor(
         .flatMapLatest { assetId -> assetId?.let { assetInfo(it) } ?: flow { emit(null) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    private val feeAsset = payAssetIdFlow
+        .map { assetId -> assetId?.let { feeAssetId(it.toIdentifier()).toAssetId() } }
+        .distinctUntilChanged()
+        .flatMapLatest { assetId -> assetId?.let { assetInfo(it) } ?: flow { emit(null) } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     private val quoteInput: StateFlow<GemSwapQuoteInput?> = session.map { it.input }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -171,11 +183,18 @@ class SwapViewModel @Inject constructor(
 
     private val currency = service.getCurrency()
 
-    val viewState: StateFlow<GemSwapViewState> = combine(session, payAsset, receiveAsset) { quoteSession, pay, receive ->
-        quoteSession.viewState(pay?.toGem(), receive?.toGem(), currency)
+    val viewState: StateFlow<GemSwapViewState> = combine(session, payAsset, receiveAsset, feeAsset) { quoteSession, pay, receive, fee ->
+        quoteSession.viewState(pay?.toGem(), receive?.toGem(), fee?.toGem(), currency)
     }
         .flowOn(ioDispatcher)
-        .stateIn(viewModelScope, SharingStarted.Eagerly, session.value.viewState(null, null, currency))
+        .stateIn(viewModelScope, SharingStarted.Eagerly, session.value.viewState(null, null, null, currency))
+
+    val networkFeeInfo: StateFlow<InfoSheetEntity?> = viewState
+        .map { state -> state.networkFeeError?.info?.infoSheet(::onInfoAction) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val acquireRequestState = MutableStateFlow<AcquireAssetRequest?>(null)
+    val acquireRequest: StateFlow<AcquireAssetRequest?> = acquireRequestState.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -308,8 +327,17 @@ class SwapViewModel @Inject constructor(
 
             is GemSwapButtonAction.UseMinimumAmount -> setMinimumAmount()
 
-            GemSwapButtonAction.InsufficientBalance -> Unit
+            GemSwapButtonAction.InsufficientBalance, is GemSwapButtonAction.InsufficientNetworkFee -> Unit
         }
+    }
+
+    fun onInfoAction(action: GemInfoAction) {
+        val acquire = action as? GemInfoAction.Acquire ?: return
+        acquireRequestState.value = AcquireAssetRequest(asset = acquire.asset.toPrimitives(), acquire = acquire.acquire)
+    }
+
+    fun dismissAcquire() {
+        acquireRequestState.value = null
     }
 
     fun setRefreshEnabled(isEnabled: Boolean) {

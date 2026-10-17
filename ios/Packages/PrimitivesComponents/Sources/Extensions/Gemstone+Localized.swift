@@ -1464,6 +1464,7 @@ public extension GemSwapButtonAction {
         switch self {
         case .retryQuote: Localized.Common.tryAgain
         case .insufficientBalance: Localized.Transfer.insufficientBalance(symbol)
+        case let .insufficientNetworkFee(feeSymbol): Localized.Transfer.insufficientBalance(feeSymbol)
         case .useMinimumAmount: Localized.Swap.useMinimumAmount
         case .swap: Localized.Wallet.swap
         }
