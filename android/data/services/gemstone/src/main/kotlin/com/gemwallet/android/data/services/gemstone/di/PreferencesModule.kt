@@ -1,7 +1,6 @@
 package com.gemwallet.android.data.services.gemstone.di
 
 import android.content.Context
-import com.gemwallet.android.data.services.gemstone.pricealerts.MigratePriceAlertsPreference
 import com.gemwallet.android.data.services.gemstone.stores.GemstonePreferencesStore
 import dagger.Module
 import dagger.Provides
@@ -35,10 +34,6 @@ object PreferencesModule {
     @Singleton
     @Provides
     fun provideGemTransactionDetailsService(explorerService: GemExplorerService, preferencesService: GemPreferencesService): GemTransactionDetailsService = GemTransactionDetailsService(explorerService, preferencesService)
-
-    @Singleton
-    @Provides
-    fun provideMigratePriceAlertsPreference(@ApplicationContext context: Context, preferencesService: GemPreferencesService): MigratePriceAlertsPreference = MigratePriceAlertsPreference(context, preferencesService)
 
     @Provides
     fun provideGemExplorerServiceInterface(service: GemExplorerService): GemExplorerServiceInterface = service

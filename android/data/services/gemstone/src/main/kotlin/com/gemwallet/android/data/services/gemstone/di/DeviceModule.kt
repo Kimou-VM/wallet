@@ -39,12 +39,8 @@ object DeviceModule {
 
     @Provides
     @Singleton
-    fun provideGemDeviceService(
-        @Named("registration") apiClient: GemDeviceApiClient,
-        subscriptionService: GemSubscriptionService,
-        platform: GemstoneDevicePlatform,
-        preferencesService: GemPreferencesService,
-    ): GemDeviceService = GemDeviceService(apiClient, subscriptionService, platform, preferencesService)
+    fun provideGemDeviceService(@Named("registration") apiClient: GemDeviceApiClient, subscriptionService: GemSubscriptionService, platform: GemstoneDevicePlatform, preferencesService: GemPreferencesService): GemDeviceService =
+        GemDeviceService(apiClient, subscriptionService, platform, preferencesService)
 
     @Provides
     @Singleton
@@ -57,20 +53,13 @@ object DeviceModule {
 
     @Provides
     @Singleton
-    fun provideDevicePushSettings(
-        @ApplicationContext context: Context,
-        notificationsAvailable: NotificationsAvailable,
-        preferencesService: GemPreferencesService,
-        deviceService: Lazy<GemDeviceService>,
-        notificationsService: Lazy<GemNotificationsService>,
-    ): DevicePushSettings = DevicePushSettings(
-        context = context,
-        configStore = ConfigStore(context.getSharedPreferences("device-info", Context.MODE_PRIVATE)),
-        notificationsAvailable = notificationsAvailable,
-        preferencesService = preferencesService,
-        deviceService = deviceService,
-        notificationsService = notificationsService,
-    )
+    fun provideDevicePushSettings(@ApplicationContext context: Context, notificationsAvailable: NotificationsAvailable, deviceService: Lazy<GemDeviceService>, notificationsService: Lazy<GemNotificationsService>): DevicePushSettings =
+        DevicePushSettings(
+            configStore = ConfigStore(context.getSharedPreferences("device-info", Context.MODE_PRIVATE)),
+            notificationsAvailable = notificationsAvailable,
+            deviceService = deviceService,
+            notificationsService = notificationsService,
+        )
 
     @Provides
     @Singleton

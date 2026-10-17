@@ -127,7 +127,6 @@ class MainViewModelStartupErrorTest {
             appStartService = mockk(relaxed = true),
             migrateV3KeystoreService = mockk(relaxed = true),
             walletService = walletService,
-            migratePriceAlertsPreference = mockk(relaxed = true),
             pendingNavigationCoordinator = coordinator,
             toastPresenter = toastPresenter,
             ioDispatcher = dispatcher,

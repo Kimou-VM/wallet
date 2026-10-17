@@ -1,9 +1,5 @@
 package com.gemwallet.android.data.services.gemstone.device
 
-import android.content.Context
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStore
 import com.gemwallet.android.application.device.cases.EnablePushForNewWallet
 import com.gemwallet.android.application.device.cases.EnablePushForSupport
 import com.gemwallet.android.application.device.cases.GetPushEnabled
@@ -19,23 +15,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uniffi.gemstone.GemDeviceService
 import uniffi.gemstone.GemNotificationsService
-import uniffi.gemstone.GemPreferencesService
-import uniffi.gemstone.GemPreferencesServiceInterface
 import uniffi.gemstone.GemPushState
 
 class DevicePushSettings(
-    private val context: Context,
     private val configStore: ConfigStore,
     private val notificationsAvailable: NotificationsAvailable,
-    private val preferencesService: GemPreferencesServiceInterface,
     private val deviceService: Lazy<GemDeviceService>,
     private val notificationsService: Lazy<GemNotificationsService>,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -45,8 +35,6 @@ class DevicePushSettings(
     EnablePushForNewWallet,
     GetPushEnabled,
     SetPushToken {
-
-    private val Context.dataStore by preferencesDataStore(name = "device_config")
 
     private val pushEnabledState = MutableStateFlow(false)
 
@@ -69,7 +57,6 @@ class DevicePushSettings(
     }
 
     override fun getPushEnabled(): Flow<Boolean> = pushEnabledState.onStart {
-        migratePushEnabled()
         pushEnabledState.value = notificationsService.get().isEnabled()
     }.flowOn(ioDispatcher)
 
@@ -84,16 +71,7 @@ class DevicePushSettings(
 
     suspend fun getPushToken(): String = configStore.getString(PUSH_TOKEN)
 
-    private suspend fun migratePushEnabled() {
-        val stored = context.dataStore.data.map { it[LegacyPushEnabled] }.firstOrNull() ?: return
-        if (stored && !preferencesService.isPushNotificationsEnabled()) {
-            preferencesService.setPushNotificationsEnabled(true)
-        }
-        context.dataStore.edit { it.remove(LegacyPushEnabled) }
-    }
-
     private companion object {
         const val PUSH_TOKEN = "push_token"
-        val LegacyPushEnabled = booleanPreferencesKey("push_enabled")
     }
 }

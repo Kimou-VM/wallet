@@ -11,7 +11,6 @@ import com.gemwallet.android.application.security.cases.SecurityPreferences
 import com.gemwallet.android.application.wallet_connect.cases.IsWalletConnectEnabled
 import com.gemwallet.android.application.wallet_connect.cases.PairWalletConnect
 import com.gemwallet.android.data.services.gemstone.config.UserConfig
-import com.gemwallet.android.data.services.gemstone.pricealerts.MigratePriceAlertsPreference
 import com.gemwallet.android.ext.errorText
 import com.gemwallet.android.services.MigrateV3KeystoreService
 import com.gemwallet.android.ui.R
@@ -51,7 +50,6 @@ class MainViewModel @Inject constructor(
     private val appStartService: GemAppStartServiceInterface,
     private val migrateV3KeystoreService: MigrateV3KeystoreService,
     private val walletService: GemWalletServiceInterface,
-    private val migratePriceAlertsPreference: MigratePriceAlertsPreference,
     private val pendingNavigationCoordinator: PendingNavigationCoordinator,
     private val toastPresenter: ToastPresenter,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
@@ -115,7 +113,6 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch(ioDispatcher) { appStartService.run().forEach(::logAppStartFailure) }
         viewModelScope.launch(ioDispatcher) {
             isUnlocked.first { it }
-            migratePriceAlertsPreference()
             if (securityPreferences.authRequired() && !passwordProtection.authenticationRequired()) {
                 runCatching { passwordProtection.setAuthenticationRequired(true) }
                     .onFailure { error ->

@@ -106,11 +106,11 @@ class AppLockPreferencesTest {
     }
 
     @Test
-    fun setAuthRequired_writesBothStores() {
+    fun setAuthRequired_writesTheEncryptedStore() {
         subject().setAuthRequired(true)
 
         verify { secureStore.set("auth_required", "true") }
-        verify { configStore.putBoolean("auth", true) }
+        verify(exactly = 0) { configStore.putBoolean(any(), any()) }
     }
 
     private fun subject() = AppLockPreferences(

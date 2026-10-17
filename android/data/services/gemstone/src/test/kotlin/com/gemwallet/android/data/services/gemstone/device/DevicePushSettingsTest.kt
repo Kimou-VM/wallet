@@ -1,6 +1,5 @@
 package com.gemwallet.android.data.services.gemstone.device
 
-import android.content.Context
 import com.gemwallet.android.data.services.store.ConfigStore
 import dagger.Lazy
 import io.mockk.coEvery
@@ -17,7 +16,6 @@ import org.junit.Test
 import uniffi.gemstone.GemDeviceService
 import uniffi.gemstone.GemErrorText
 import uniffi.gemstone.GemNotificationsService
-import uniffi.gemstone.GemPreferencesService
 import uniffi.gemstone.GemPushResult
 import uniffi.gemstone.GemPushState
 
@@ -91,10 +89,8 @@ class DevicePushSettingsTest {
     }
 
     private fun TestScope.settings(configStore: ConfigStore) = DevicePushSettings(
-        context = mockk<Context>(relaxed = true),
         configStore = configStore,
         notificationsAvailable = true,
-        preferencesService = mockk<GemPreferencesService>(relaxed = true),
         deviceService = mockk<Lazy<GemDeviceService>> { every { get() } returns deviceService },
         notificationsService = mockk<Lazy<GemNotificationsService>> { every { get() } returns notificationsService },
         scope = this,

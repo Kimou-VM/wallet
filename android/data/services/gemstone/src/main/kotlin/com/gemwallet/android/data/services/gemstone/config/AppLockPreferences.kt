@@ -22,7 +22,6 @@ class AppLockPreferences(private val configStore: ConfigStore, private val secur
 
     override fun setAuthRequired(enabled: Boolean) {
         secureStore.set(SecureKey.Auth.string, enabled.toString())
-        configStore.putBoolean(ConfigKey.Auth.string, enabled)
         authRequiredState.value = enabled
     }
 
