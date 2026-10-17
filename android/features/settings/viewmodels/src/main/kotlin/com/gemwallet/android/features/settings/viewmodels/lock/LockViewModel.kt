@@ -1,24 +1,20 @@
 package com.gemwallet.android.features.settings.viewmodels.lock
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.gemwallet.android.application.IoDispatcher
 import com.gemwallet.android.application.security.cases.SecurityPreferences
 import com.gemwallet.android.features.settings.viewmodels.lock.models.AuthState
 import com.gemwallet.android.features.settings.viewmodels.lock.models.LockUIState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 
 @HiltViewModel
-class LockViewModel @Inject constructor(private val securityPreferences: SecurityPreferences, private val lockTimer: LockTimer, @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher) : ViewModel() {
+class LockViewModel @Inject constructor(private val securityPreferences: SecurityPreferences, private val lockTimer: LockTimer) : ViewModel() {
 
     private val isInitialAuthRequired = isAuthRequired()
 
@@ -82,10 +78,10 @@ class LockViewModel @Inject constructor(private val securityPreferences: Securit
         lockTimer.onLeft()
     }
 
-    fun onReturn() {
-        viewModelScope.launch(ioDispatcher) {
-            if (lockTimer.shouldRelockOnReturn()) relock()
-        }
+    fun onReturn(): Boolean {
+        if (!lockTimer.shouldRelockOnReturn()) return false
+        relock()
+        return true
     }
 
     internal fun relock() {

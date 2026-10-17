@@ -11,6 +11,8 @@ interface SecurityPreferences {
 
     fun getLockEnabled(): Flow<Boolean>
 
+    fun lockInterval(): Int
+
     fun getLockInterval(): Flow<Int>
 
     suspend fun setLockInterval(minutes: Int)

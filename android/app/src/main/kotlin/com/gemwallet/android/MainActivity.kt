@@ -20,7 +20,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.ComposeView
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
@@ -28,14 +27,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.gemwallet.android.application.notifications.NotificationPermissionRequests
 import com.gemwallet.android.application.security.cases.AuthRequester
 import com.gemwallet.android.application.wallet_connect.ActiveWalletConnectRequest
 import com.gemwallet.android.data.services.gemstone.connection.ConnectionStatusObserver
 import com.gemwallet.android.ext.GemConstants
-import com.gemwallet.android.features.settings.presents.lock.LockScene
 import com.gemwallet.android.features.settings.viewmodels.lock.LockViewModel
 import com.gemwallet.android.model.AuthRequest
 import com.gemwallet.android.ui.AppViewModel
@@ -46,7 +42,6 @@ import com.gemwallet.android.ui.LocalStreamConnected
 import com.gemwallet.android.ui.components.ConnectionBannerState
 import com.gemwallet.android.ui.components.LocalConnectionBannerState
 import com.gemwallet.android.ui.localization.stringRes
-import com.gemwallet.android.ui.theme.WalletTheme
 import com.gemwallet.android.ui.theme.walletSurfaceColor
 import com.wallet.core.primitives.Appearance
 import com.wallet.core.primitives.ConnectionComponent
@@ -91,7 +86,7 @@ class MainActivity :
     private val privacyCover by lazy { PrivacyCover(lifecycleScope, ::isGemFocused) }
     private val watchedWindows = Collections.newSetFromMap(WeakHashMap<View, Boolean>())
     private val windowFocusListener = ViewTreeObserver.OnWindowFocusChangeListener { privacyCover.onFocusChanged(isGemFocused()) }
-    private var coverView: ComposeView? = null
+    private var coverView: View? = null
     private var isDarkTheme = false
 
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -223,11 +218,7 @@ class MainActivity :
 
     private fun showCover() {
         if (coverView != null || isFinishing) return
-        val cover = ComposeView(this).apply {
-            setViewTreeLifecycleOwner(this@MainActivity)
-            setViewTreeSavedStateRegistryOwner(this@MainActivity)
-            setContent { WalletTheme(darkTheme = isDarkTheme) { LockScene(logo = R.drawable.ic_splash_screen) } }
-        }
+        val cover = View(this).apply { setBackgroundColor(walletSurfaceColor(isDarkTheme).toArgb()) }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.TYPE_APPLICATION,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
@@ -247,20 +238,20 @@ class MainActivity :
         privacyCover.onFocusChanged(isGemFocused())
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (!lockViewModel.onReturn()) privacyCover.onReturn()
+    }
+
     override fun onStop() {
         super.onStop()
         privacyCover.onStop()
+        lockViewModel.onLeave()
     }
 
     override fun onResume() {
         super.onResume()
         systemAuthenticator.refreshEnrollment()
-        lockViewModel.onReturn()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        lockViewModel.onLeave()
     }
 
     override fun onDestroy() {

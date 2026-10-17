@@ -50,6 +50,11 @@ internal class PrivacyCover(private val scope: CoroutineScope, private val isGem
         if (isLockEnabled) _isCovered.value = true
     }
 
+    fun onReturn() {
+        pendingCover?.cancel()
+        _isCovered.value = false
+    }
+
     private companion object {
         val obscureDelay = 150.milliseconds
     }

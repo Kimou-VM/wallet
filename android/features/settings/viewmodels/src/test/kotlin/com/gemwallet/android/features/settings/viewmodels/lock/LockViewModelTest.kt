@@ -4,15 +4,12 @@ import com.gemwallet.android.application.security.cases.SecurityPreferences
 import com.gemwallet.android.features.settings.viewmodels.lock.models.AuthState
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class LockViewModelTest {
 
     @Test
@@ -82,14 +79,31 @@ class LockViewModelTest {
         assertEquals(stateBefore, viewModel.uiState.value)
     }
 
-    private fun lockViewModel(authRequired: Boolean): LockViewModel {
+    @Test
+    fun returningAfterTheLockPeriodRelocksBeforeReturning() {
+        val viewModel = lockViewModel(authRequired = true, lockTimer = mockk { every { shouldRelockOnReturn() } returns true })
+        viewModel.onInitialAuth(AuthState.Success)
+
+        assertTrue(viewModel.onReturn())
+        assertEquals(AuthState.Required, viewModel.uiState.value.initialAuth)
+    }
+
+    @Test
+    fun returningWithinTheLockPeriodKeepsTheAppUnlocked() {
+        val viewModel = lockViewModel(authRequired = true, lockTimer = mockk { every { shouldRelockOnReturn() } returns false })
+        viewModel.onInitialAuth(AuthState.Success)
+
+        assertFalse(viewModel.onReturn())
+        assertEquals(AuthState.Success, viewModel.uiState.value.initialAuth)
+    }
+
+    private fun lockViewModel(authRequired: Boolean, lockTimer: LockTimer = mockk(relaxed = true)): LockViewModel {
         val securityPreferences = mockk<SecurityPreferences>()
         every { securityPreferences.isLockEnabled() } returns authRequired
 
         return LockViewModel(
             securityPreferences = securityPreferences,
-            lockTimer = mockk<LockTimer>(relaxed = true),
-            ioDispatcher = UnconfinedTestDispatcher(),
+            lockTimer = lockTimer,
         )
     }
 }

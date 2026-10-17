@@ -1,6 +1,5 @@
 package com.gemwallet.android.data.services.gemstone.config
 
-import android.content.Context
 import com.gemwallet.android.application.WalletPasswordProtection
 import com.gemwallet.android.data.services.store.ConfigStore
 import io.mockk.every
@@ -89,8 +88,10 @@ class AppLockPreferencesTest {
     @Test
     fun lockInterval_readsTheEncryptedValue() = runTest {
         every { secureStore.get("lock_interval") } returns "7"
+        val subject = subject()
 
-        assertEquals(7, subject().getLockInterval().first())
+        assertEquals(7, subject.lockInterval())
+        assertEquals(7, subject.getLockInterval().first())
     }
 
     @Test
@@ -113,7 +114,6 @@ class AppLockPreferencesTest {
     }
 
     private fun subject() = AppLockPreferences(
-        context = mockk<Context>(relaxed = true),
         configStore = configStore,
         secureStore = secureStore,
         passwordProtection = passwordProtection,

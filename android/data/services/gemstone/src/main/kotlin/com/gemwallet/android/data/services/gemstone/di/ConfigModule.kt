@@ -31,13 +31,7 @@ object ConfigModule {
 
     @Singleton
     @Provides
-    fun provideSecurityPreferences(
-        @ApplicationContext context: Context,
-        secureStore: GemSecureStore,
-        passwordProtection: WalletPasswordProtection,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ): SecurityPreferences = AppLockPreferences(
-        context = context,
+    fun provideSecurityPreferences(@ApplicationContext context: Context, secureStore: GemSecureStore, passwordProtection: WalletPasswordProtection, @IoDispatcher ioDispatcher: CoroutineDispatcher): SecurityPreferences = AppLockPreferences(
         configStore = ConfigStore(context.getSharedPreferences(AppLockPreferences.CONFIG_FILE_NAME, Context.MODE_PRIVATE)),
         secureStore = secureStore,
         passwordProtection = passwordProtection,

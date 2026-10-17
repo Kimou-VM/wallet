@@ -108,6 +108,27 @@ class PrivacyCoverTest {
     }
 
     @Test
+    fun returningUncoversAtOnce() = runTest {
+        val cover = cover()
+        cover.onStop()
+
+        cover.onReturn()
+
+        assertFalse(cover.isCovered.value)
+    }
+
+    @Test
+    fun returningCancelsACoverStillToCome() = runTest {
+        val cover = cover()
+        cover.onFocusChanged(false)
+
+        cover.onReturn()
+        settle()
+
+        assertFalse(cover.isCovered.value)
+    }
+
+    @Test
     fun nothingCoversWhileTheLockIsOff() = runTest {
         val cover = cover(isLockEnabled = false)
 

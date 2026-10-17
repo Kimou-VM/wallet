@@ -4,8 +4,6 @@ import android.text.format.DateUtils
 import com.gemwallet.android.application.security.cases.SecurityPreferences
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,7 +12,7 @@ import uniffi.gemstone.GemSecurityService
 class LockTimerTest {
 
     @Test
-    fun shouldRelock_returnsFalseWhenAuthNotRequired() = runTest {
+    fun shouldRelock_returnsFalseWhenAuthNotRequired() {
         val timer = lockTimer(authRequired = false, lockIntervalMinutes = 1)
         timer.onLeft(at = 0)
 
@@ -22,7 +20,7 @@ class LockTimerTest {
     }
 
     @Test
-    fun shouldRelock_returnsFalseWhenWithinLockInterval() = runTest {
+    fun shouldRelock_returnsFalseWhenWithinLockInterval() {
         val timer = lockTimer(authRequired = true, lockIntervalMinutes = 1)
         timer.onLeft(at = 0)
 
@@ -30,7 +28,7 @@ class LockTimerTest {
     }
 
     @Test
-    fun shouldRelock_returnsTrueAfterLockIntervalElapsed() = runTest {
+    fun shouldRelock_returnsTrueAfterLockIntervalElapsed() {
         val timer = lockTimer(authRequired = true, lockIntervalMinutes = 1)
         timer.onLeft(at = 0)
 
@@ -38,7 +36,7 @@ class LockTimerTest {
     }
 
     @Test
-    fun shouldRelock_returnsTrueImmediatelyWhenIntervalIsZero() = runTest {
+    fun shouldRelock_returnsTrueImmediatelyWhenIntervalIsZero() {
         val timer = lockTimer(authRequired = true, lockIntervalMinutes = 0)
         timer.onLeft(at = 0)
 
@@ -46,7 +44,7 @@ class LockTimerTest {
     }
 
     @Test
-    fun shouldRelock_returnsTrueWhileAWalletConnectRequestIsOpen() = runTest {
+    fun shouldRelock_returnsTrueWhileAWalletConnectRequestIsOpen() {
         val timer = lockTimer(authRequired = true, lockIntervalMinutes = 0)
         timer.onLeft(at = 0)
 
@@ -54,14 +52,14 @@ class LockTimerTest {
     }
 
     @Test
-    fun returningWithoutLeavingNeverRelocks() = runTest {
+    fun returningWithoutLeavingNeverRelocks() {
         val timer = lockTimer(authRequired = true, lockIntervalMinutes = 0)
 
         assertFalse(timer.shouldRelockOnReturn(now = Long.MAX_VALUE))
     }
 
     @Test
-    fun theFirstLeaveOfAnAwaySpellStartsTheLockPeriod() = runTest {
+    fun theFirstLeaveOfAnAwaySpellStartsTheLockPeriod() {
         val timer = lockTimer(authRequired = true, lockIntervalMinutes = 1)
         timer.onLeft(at = 0)
         timer.onLeft(at = DateUtils.MINUTE_IN_MILLIS)
@@ -70,7 +68,7 @@ class LockTimerTest {
     }
 
     @Test
-    fun returningEndsTheAwaySpell() = runTest {
+    fun returningEndsTheAwaySpell() {
         val timer = lockTimer(authRequired = true, lockIntervalMinutes = 1)
         timer.onLeft(at = 0)
 
@@ -81,7 +79,7 @@ class LockTimerTest {
     private fun lockTimer(authRequired: Boolean, lockIntervalMinutes: Int): LockTimer {
         val securityPreferences = mockk<SecurityPreferences>()
         every { securityPreferences.isLockEnabled() } returns authRequired
-        every { securityPreferences.getLockInterval() } returns flowOf(lockIntervalMinutes)
+        every { securityPreferences.lockInterval() } returns lockIntervalMinutes
         return LockTimer(securityPreferences, GemSecurityService())
     }
 }
