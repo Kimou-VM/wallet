@@ -4,7 +4,7 @@ use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
     DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaRpc, SolanaRpcConfig,
-    instructions::program_ids::{sysvar_clock, sysvar_program},
+    instructions::program_ids::{sysvar_clock, sysvar_program, token_2022_program, token_program},
     models::{AccountData, Clock, ValueResult, blockhash::SolanaBlockhashResult},
 };
 use num_bigint::BigUint;
@@ -18,9 +18,9 @@ use std::{
 };
 
 use super::{
-    protocol::{DexProtocol, PoolSwap},
+    protocol::{DexProtocol, PoolSwap, QuoteAccount},
     route::{DexHop, DexRoute, preferred_fee_side},
-    token::{INTERMEDIATE_TOKENS, SwapToken, decode_mint},
+    token::{SwapToken, decode_mint},
     transaction::DexTransaction,
 };
 use crate::{
@@ -85,7 +85,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
     }
 
     fn path_lookups(&self, (input_mint, output_mint): Pair) -> Result<Vec<PathLookup<P::Pool>>, SwapperError> {
-        let paths = RoutePath::all(&input_mint, &output_mint, INTERMEDIATE_TOKENS.iter().map(|token| token.mint), |left, right| left == right);
+        let paths = RoutePath::all(&input_mint, &output_mint, self.protocol.intermediate_tokens().iter().map(|token| token.mint), |left, right| left == right);
         let lookups = paths
             .into_iter()
             .map(|path| Ok((path.clone(), path.pairs(&input_mint, &output_mint).into_iter().map(|pair| self.pool_lookup(pair)).collect::<Result<Vec<_>, SwapperError>>()?)))
@@ -175,17 +175,17 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             .collect()
     }
 
-    fn route_quote_accounts(&self, route: &[(DexHop, P::Pool)]) -> Option<Vec<Vec<Pubkey>>> {
+    fn route_quote_accounts(&self, route: &[(DexHop, P::Pool)]) -> Option<Vec<Vec<QuoteAccount>>> {
         route.iter().map(|(hop, pool)| self.protocol.quote_accounts(&hop.pool, pool, &hop.input_mint).ok()).collect()
     }
 
     fn predicted_quote_accounts(&self, routes: &[PoolRoute<P::Pool>]) -> Vec<Pubkey> {
-        routes.iter().filter_map(|route| self.route_quote_accounts(route)).flatten().flatten().collect()
+        routes.iter().filter_map(|route| self.route_quote_accounts(route)).flatten().flatten().map(|account| account.address()).collect()
     }
 
     async fn quote_routes(&self, routes: Vec<PoolRoute<P::Pool>>, amount_in: u64, accounts: Accounts, timestamp: u64) -> Result<Vec<(PoolRoute<P::Pool>, Option<u64>)>, SwapperError> {
         let route_accounts = routes.iter().map(|route| self.route_quote_accounts(route)).collect::<Vec<_>>();
-        let missing = route_accounts.iter().flatten().flatten().flatten().filter(|address| !accounts.contains_key(address)).copied().collect();
+        let missing = route_accounts.iter().flatten().flatten().flatten().map(QuoteAccount::address).filter(|address| !accounts.contains_key(address)).collect();
         let constants = self.constant_route_accounts(routes.iter().flatten().map(|(_, pool)| pool));
         let accounts = accounts.into_iter().chain(self.load_accounts(missing, &constants).await?).collect::<Accounts>();
         Ok(routes
@@ -193,8 +193,8 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             .zip(route_accounts)
             .map(|(route, hop_accounts)| {
                 let output_value = hop_accounts.and_then(|hop_accounts| {
-                    route.iter().zip(hop_accounts).try_fold(amount_in, |amount, ((hop, pool), addresses)| {
-                        let data = addresses.iter().map(|account| Self::program_data(&accounts, account)).collect::<Result<Vec<_>, _>>().ok()?;
+                    route.iter().zip(hop_accounts).try_fold(amount_in, |amount, ((hop, pool), quote_accounts)| {
+                        let data = quote_accounts.iter().map(|account| quote_data(&accounts, account)).collect::<Result<Vec<_>, _>>().ok()?;
                         self.protocol.quote(&hop.pool, pool, &hop.input_mint, amount, &data, timestamp).ok()
                     })
                 });
@@ -351,6 +351,17 @@ fn owned_account<'a>(accounts: &'a Accounts, address: &Pubkey, owner: &Pubkey) -
 
 fn owned_data(accounts: &Accounts, address: &Pubkey, owner: &Pubkey) -> Result<Option<Vec<u8>>, SwapperError> {
     Ok(owned_account(accounts, address, owner).map(AccountData::decoded_data).transpose()?)
+}
+
+fn quote_data(accounts: &Accounts, account: &QuoteAccount) -> Result<Option<Vec<u8>>, SwapperError> {
+    match account {
+        QuoteAccount::Owned { address, owner } => owned_data(accounts, address, owner),
+        QuoteAccount::Token(address) => Ok([token_program(), token_2022_program()]
+            .iter()
+            .find_map(|owner| owned_account(accounts, address, owner))
+            .map(AccountData::decoded_data)
+            .transpose()?),
+    }
 }
 
 fn chain_clock(accounts: &Accounts) -> Result<Clock, SwapperError> {

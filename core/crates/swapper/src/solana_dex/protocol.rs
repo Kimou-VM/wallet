@@ -1,7 +1,21 @@
 use gem_solana::{Instruction, Pubkey};
 
-use super::token::SwapToken;
+use super::token::{INTERMEDIATE_TOKENS, SwapToken};
 use crate::{SwapperError, SwapperProvider};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum QuoteAccount {
+    Owned { address: Pubkey, owner: Pubkey },
+    Token(Pubkey),
+}
+
+impl QuoteAccount {
+    pub fn address(&self) -> Pubkey {
+        match self {
+            Self::Owned { address, .. } | Self::Token(address) => *address,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct PoolSwap<'a> {
@@ -58,7 +72,11 @@ pub(crate) trait DexProtocol: Send + Sync {
         self.liquidity(pool) > 0
     }
 
-    fn quote_accounts(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError>;
+    fn intermediate_tokens(&self) -> &'static [SwapToken] {
+        &INTERMEDIATE_TOKENS
+    }
+
+    fn quote_accounts(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError>;
     fn quote(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError>;
     fn swap_instruction(&self, address: &Pubkey, pool: &Self::Pool, swap: &PoolSwap) -> Result<Instruction, SwapperError>;
     fn two_hop_swap_instruction(&self, first: &(Pubkey, Self::Pool), second: &(Pubkey, Self::Pool), swap: &PoolSwap, intermediate: &SwapToken) -> Result<Instruction, SwapperError>;

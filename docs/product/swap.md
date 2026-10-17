@@ -69,11 +69,12 @@ The quote that gives the most wins. A provider that runs on-chain, with no third
 | Across | the deposit goes straight to its SpokePool contract on the paying network and settles in seconds |
 | Orca | the quote is read from the Whirlpool accounts and the swap goes straight to the pool |
 | Raydium | the quote is read from the CLMM pool accounts and the swap goes straight to the pool |
+| PumpSwap | the quote is read from the pool, its token vaults and pump.fun's fee schedule, and the swap goes straight to the pool |
 | THORChain | the quote comes from THORChain's own node and the deposit goes straight to its vault |
 
 ## On-chain quotes
 
-Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, Cetus, STON.fi, DeDust and Hyperion quote straight from the chain. What a pool is never changes once it exists: its address, its tokens, its fee tier. What it holds changes with every trade: its price, liquidity and reserves. The wallet keeps the first and reads the second again for every quote, so a quote is always priced on live state while the lookups that never change are not repeated. Dynode, the node proxy every wallet talks to, keeps the same unchanging lookups for all users ([how Dynode caches](../DYNODE.md#caching)).
+Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, PumpSwap, Cetus, STON.fi, DeDust and Hyperion quote straight from the chain. What a pool is never changes once it exists: its address, its tokens, its fee tier. What it holds changes with every trade: its price, liquidity and reserves. The wallet keeps the first and reads the second again for every quote, so a quote is always priced on live state while the lookups that never change are not repeated. Dynode, the node proxy every wallet talks to, keeps the same unchanging lookups for all users ([how Dynode caches](../DYNODE.md#caching)).
 
 ```mermaid
 flowchart LR
@@ -90,9 +91,9 @@ flowchart LR
 | A pool exists: its address, tokens and fee tier, and the version Cetus needs to trade with it | `7 days` |
 | DeDust pool and vault addresses | `7 days` |
 | No pool exists at a fee tier | `1 day` |
-| A pool cannot trade: no liquidity at its price, or swaps paused or not open yet on Orca and Raydium, or locked on STON.fi | `1 hour`, then it is checked again |
+| A pool cannot trade: no liquidity at its price, or swaps paused or not open yet on Orca and Raydium, or a cashback coin on PumpSwap, or locked on STON.fi | `1 hour`, then it is checked again |
 | A pool or route that gave more than `3%` less than the best, or failed while another succeeded | `5 minutes`, skipped only when the same pair is quoted for the same amount |
-| On Solana: the token mints, Gem's fee accounts and Raydium's fee configs | `1 day` |
+| On Solana: the token mints, Gem's fee accounts, Raydium's fee configs and pump.fun's fee schedule | `1 day` |
 | Cetus's four main SUI/USDC pools | always; they ship with the app |
 
 | On Dynode | Kept for |
@@ -105,7 +106,7 @@ flowchart LR
 
 Anything not listed is read again for every quote.
 
-Solana, Uniswap v4 and Hyperion pool addresses are computed on the device from the two tokens and the fee tier, so finding a pool only checks that it exists. On Solana a quote reads every account it needs in one request. Orca and Raydium each look up their `8` most-used fee tiers, which hold about `92%` and `94%` of the liquidity in their 200 largest pools. With 8 tiers, a token-to-token pair needs at most `93` accounts, which fits Solana's `100`-account limit, so a quote never splits into a second request.
+Solana, Uniswap v4 and Hyperion pool addresses are computed on the device from the two tokens and the fee tier, so finding a pool only checks that it exists. On Solana a quote reads every account it needs in one request. Orca and Raydium each look up their `8` most-used fee tiers, which hold about `92%` and `94%` of the liquidity in their 200 largest pools. With 8 tiers, a token-to-token pair needs at most `93` accounts, which fits Solana's `100`-account limit, so a quote never splits into a second request. PumpSwap looks up the one pool pump.fun creates when a coin graduates, against SOL or USDC, and trades it directly; its fee depends on the coin's market cap, read from the same request.
 
 ### Skipping pools that lose
 
@@ -119,7 +120,7 @@ Every quote compares candidates and keeps the best. A candidate that gave more t
 | DeDust | each path: one pool, or two pools through TON or USDT |
 | Hyperion | each path, and each pool within a hop |
 
-Cetus prices all its pools in one dry run, so it has nothing to skip. `3%` keeps close rivals: two fee tiers on a busy pair are often within `1%` and trade places as prices move, so both stay. In the measured pairs, every pool that lost was `6%` to `99%` worse than the best, or failed.
+Cetus prices all its pools in one dry run, and PumpSwap has one pool per pair, so neither has anything to skip. `3%` keeps close rivals: two fee tiers on a busy pair are often within `1%` and trade places as prices move, so both stay. In the measured pairs, every pool that lost was `6%` to `99%` worse than the best, or failed.
 
 ### Requests per quote
 
@@ -133,6 +134,7 @@ Measured on 2026-10-17, one pair per provider and the same amount, on the build 
 | Raydium, SOL to USDC | 2 | 1 | 2 → 1 | 1 | 335 → 229 KB |
 | Orca, JUP to USDC | 2 | 2 → 1 | 2 → 1 | 1 | 337 → 213 KB |
 | Raydium, JUP to USDC | 2 | 2 → 1 | 2 → 1 | 1 | 193 → 127 KB |
+| PumpSwap, SOL to TOS | 2 | 1 | 1 | 1 | 2 KB |
 | Cetus, SUI to USDC | 7 | 1 | 7 → 1 | 6 | 3 KB |
 | STON.fi, TON to USDT | 10 | 4 → 2 | 10 → 4 | 0 | 2 → 1 KB |
 | DeDust, TON to USDT | 2 | 1 | 2 → 1 | 1 | under 1 KB |
@@ -180,5 +182,6 @@ A repeat quote took about `110 ms` to `130 ms` on Ethereum and Sui, most of it t
 - Every eligible provider is awaited, so the slowest one decides how long a quote takes.
 - Swap never signs anything: the confirmation screen holds the only authentication and signs the trade it loaded and showed.
 - The Slippage row reads Auto on both screens until the user picks a value.
+- A wallet's first PumpSwap trade creates its pump.fun volume account, so that trade costs about `0.0018 SOL` of rent on top of the network fee; later trades do not.
 - DeDust has no fee field, so the `0.5%` fee is taken from the amount paid and sent as a second message in the same wallet transaction (`test_native_messages`, `test_jetton_messages`). TON runs the two messages independently: when DeDust rejects the swap because the price moved past the slippage limit, the swap amount comes back but the fee stays paid. The swap carries no deadline, so time spent on the confirmation screen cannot get it rejected.
 - Near Intents serves HyperCore spot USDC as a source only. HyperCore destinations are excluded because the provider pays USDC into perps, which is separate from the wallet's spot asset (`test_supports_destination`). HyperCore deposits use an exact input quote and send its returned input amount from spot with `sendAsset`, since unified accounts reject `spotSend`; the provider deducts its deposit fee from that amount (`test_swap_type`, `test_hypercore_quote_data`).

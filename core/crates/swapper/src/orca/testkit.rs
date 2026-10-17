@@ -1,6 +1,5 @@
-use gem_client::testkit::MockClient;
 use gem_encoding::{decode_base64, encode_base64};
-use gem_jsonrpc::{client::JsonRpcClient, testkit::mock_jsonrpc_client, types::JsonRpcResponse};
+use gem_jsonrpc::types::JsonRpcResponse;
 use gem_solana::{
     Pubkey, USDT_TOKEN_MINT,
     anchor::AnchorAccount,
@@ -8,16 +7,10 @@ use gem_solana::{
     models::{AccountData, ValueResult},
 };
 use serde_json::{Value, json};
-use std::{
-    collections::HashMap,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-};
+use std::collections::HashMap;
 
 use super::{tick_array::TickArray, whirlpool::Whirlpool};
-use crate::solana_dex::testkit::{mock_account_snapshot, mock_rpc_snapshot};
+use crate::solana_dex::testkit::{mock_account_snapshot, mock_rpc_accounts};
 
 pub(super) const TEST_WHIRLPOOL: &str = "HJPjoWUrhoZzkNfRpHuieeFk9WcZWjwy6PBjZ81ngndJ";
 pub(super) const TEST_AQUA_MINT: &str = "AQVcP67EpMyu4cBZZjqMu91cVsWy1aX98JmcZm1FyY9";
@@ -51,18 +44,6 @@ impl Whirlpool {
     }
 }
 
-pub(super) fn mock_rpc_client(accounts: HashMap<String, Value>, requests: Arc<AtomicUsize>) -> JsonRpcClient<MockClient> {
-    mock_jsonrpc_client(move |method, params| match method {
-        "getMultipleAccounts" => {
-            requests.fetch_add(1, Ordering::SeqCst);
-            let addresses = params[0].as_array().unwrap();
-            Ok(json!({ "context": { "slot": 1 }, "value": addresses.iter().map(|address| accounts.get(address.as_str().unwrap()).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() }))
-        }
-        "getLatestBlockhash" => Ok(json!({ "context": { "slot": 1 }, "value": { "blockhash": "11111111111111111111111111111111", "lastValidBlockHeight": 1 } })),
-        method => panic!("unexpected method {method}"),
-    })
-}
-
 pub(super) fn mock_snapshot_rpc_accounts() -> HashMap<String, Value> {
     let response: Value = serde_json::from_str(include_str!("../../testdata/orca/snapshot.json")).unwrap();
     let whirlpool = Pubkey::from_base58(TEST_WHIRLPOOL).unwrap();
@@ -86,10 +67,6 @@ pub(super) fn mock_snapshot_rpc_accounts() -> HashMap<String, Value> {
         .chain([(sysvar_clock().to_base58(), clock)])
         .chain(mints)
         .collect()
-}
-
-pub(super) fn mock_rpc_accounts(snapshot: &str) -> HashMap<String, Value> {
-    mock_rpc_snapshot(snapshot).into_iter().collect()
 }
 
 pub(super) fn mock_aqua_whirlpool() -> (Pubkey, Whirlpool) {

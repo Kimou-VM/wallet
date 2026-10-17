@@ -161,7 +161,8 @@ pub fn swap_explorer(provider: SwapProvider, chain: Chain) -> Option<Box<dyn Blo
         | SwapProvider::Orca
         | SwapProvider::RaydiumClmm
         | SwapProvider::Hyperion
-        | SwapProvider::Dedust => None,
+        | SwapProvider::Dedust
+        | SwapProvider::PumpSwap => None,
     }
 }
 

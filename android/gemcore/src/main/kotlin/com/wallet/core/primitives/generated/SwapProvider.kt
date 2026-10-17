@@ -59,5 +59,7 @@ enum class SwapProvider(val string: String) {
 	RaydiumClmm("raydium_clmm"),
 	@SerialName("dedust")
 	Dedust("dedust"),
+	@SerialName("pump_swap")
+	PumpSwap("pump_swap"),
 }
 

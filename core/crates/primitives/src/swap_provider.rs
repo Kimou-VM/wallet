@@ -35,6 +35,7 @@ pub enum SwapProvider {
     Hyperion,
     RaydiumClmm,
     Dedust,
+    PumpSwap,
 }
 
 impl SwapProvider {
@@ -63,7 +64,8 @@ impl SwapProvider {
             | Self::Orca
             | Self::Hyperion
             | Self::RaydiumClmm
-            | Self::Dedust => false,
+            | Self::Dedust
+            | Self::PumpSwap => false,
         }
     }
 
@@ -98,6 +100,7 @@ impl SwapProvider {
             Self::Hyperion => "Hyperion",
             Self::RaydiumClmm => "Raydium",
             Self::Dedust => "DeDust",
+            Self::PumpSwap => "PumpSwap",
         }
     }
 
@@ -128,7 +131,8 @@ impl SwapProvider {
             | Self::SwapsXyz
             | Self::Bridgers
             | Self::Hyperion
-            | Self::Dedust => self.name(),
+            | Self::Dedust
+            | Self::PumpSwap => self.name(),
         }
     }
 }

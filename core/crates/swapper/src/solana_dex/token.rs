@@ -92,7 +92,7 @@ mod tests {
     fn test_decode_mint() {
         let non_transferable = [[0; 165].as_slice(), &[1], &[9, 0, 0, 0]].concat();
 
-        assert_eq!(decode_mint(Some(vec![0; 82])), Ok(Mint { extensions: vec![] }));
+        assert_eq!(decode_mint(Some(vec![0; 82])), Ok(Mint { supply: 0, extensions: vec![] }));
         assert_eq!(decode_mint(Some(non_transferable)), Err(SwapperError::NotSupportedAsset));
         assert_eq!(decode_mint(Some(vec![0; 10])), Err(SwapperError::NotSupportedAsset));
         assert_eq!(decode_mint(None), Err(SwapperError::NotSupportedAsset));

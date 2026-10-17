@@ -9,7 +9,7 @@ use super::{
 use crate::{
     SwapperError, SwapperProvider,
     clmm::{StaticFee, quote_exact_in},
-    solana_dex::{DexPool, DexProtocol, PoolSwap, SwapToken},
+    solana_dex::{DexPool, DexProtocol, PoolSwap, QuoteAccount, SwapToken},
 };
 
 pub(crate) struct Orca;
@@ -37,9 +37,13 @@ impl DexProtocol for Orca {
         vec![]
     }
 
-    fn quote_accounts(&self, address: &Pubkey, pool: &Whirlpool, input_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
+    fn quote_accounts(&self, address: &Pubkey, pool: &Whirlpool, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
         let tick_arrays = TickArray::addresses(address, &pool.swap_start_tick_indexes(pool.is_a_to_b(input_mint)?))?;
-        Ok([tick_arrays, vec![Whirlpool::oracle_address(address)?]].concat())
+        Ok([tick_arrays, vec![Whirlpool::oracle_address(address)?]]
+            .concat()
+            .into_iter()
+            .map(|address| QuoteAccount::Owned { address, owner: Self::PROGRAM_ID })
+            .collect())
     }
 
     fn quote(&self, address: &Pubkey, pool: &Whirlpool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError> {
@@ -129,10 +133,11 @@ mod tests {
     use super::*;
     use crate::{
         FetchQuoteData, ProviderData, Quote, QuoteRequest, Route, Swapper, SwapperQuoteAsset,
-        orca::testkit::{
-            TEST_AQUA_MINT, TEST_PUMP_MINT, TEST_PUMP_SNAPSHOT, TEST_PUMP_WHIRLPOOL, TEST_TOKEN_2022_SNAPSHOT, TEST_WHIRLPOOL, mock_adaptive_snapshot, mock_rpc_accounts, mock_rpc_client, mock_snapshot_rpc_accounts, mock_tick_array_accounts,
+        orca::testkit::{TEST_AQUA_MINT, TEST_PUMP_MINT, TEST_PUMP_SNAPSHOT, TEST_PUMP_WHIRLPOOL, TEST_TOKEN_2022_SNAPSHOT, TEST_WHIRLPOOL, mock_adaptive_snapshot, mock_snapshot_rpc_accounts, mock_tick_array_accounts},
+        solana_dex::{
+            SolanaDex,
+            testkit::{mock_rpc_accounts, mock_rpc_client},
         },
-        solana_dex::SolanaDex,
         testkit::mock_quote,
     };
     use gem_encoding::{decode_base64, encode_base64};
@@ -319,8 +324,8 @@ mod tests {
             let (oracle, tick_arrays) = addresses.split_last().unwrap();
             let data = tick_arrays
                 .iter()
-                .map(|account| accounts.get(account).cloned().flatten())
-                .chain([with_oracle.then(|| accounts[oracle].clone()).flatten()])
+                .map(|account| accounts.get(&account.address()).cloned().flatten())
+                .chain([with_oracle.then(|| accounts[&oracle.address()].clone()).flatten()])
                 .collect::<Vec<_>>();
             Orca.quote(&address, &whirlpool, input_mint, amount_in, &data, timestamp)
         };

@@ -9,7 +9,7 @@ use super::{
 use crate::{
     SwapperError, SwapperProvider,
     clmm::{StaticFee, quote_exact_in},
-    solana_dex::{DexPool, DexProtocol, PoolSwap, SwapToken},
+    solana_dex::{DexPool, DexProtocol, PoolSwap, QuoteAccount, SwapToken},
 };
 
 pub(crate) struct RaydiumClmm;
@@ -41,9 +41,9 @@ impl DexProtocol for RaydiumClmm {
         pool.is_tradable(timestamp)
     }
 
-    fn quote_accounts(&self, address: &Pubkey, pool: &PoolState, input_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
+    fn quote_accounts(&self, address: &Pubkey, pool: &PoolState, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
         let tick_arrays = TickArray::addresses(address, pool.swap_tick_arrays(pool.is_a_to_b(input_mint)?)?.starts())?;
-        Ok([vec![pool.amm_config], tick_arrays].concat())
+        Ok([vec![pool.amm_config], tick_arrays].concat().into_iter().map(|address| QuoteAccount::Owned { address, owner: Self::PROGRAM_ID }).collect())
     }
 
     fn quote(&self, address: &Pubkey, pool: &PoolState, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError> {
@@ -134,12 +134,7 @@ mod tests {
         let usdc = Pubkey::from_base58(USDC_TOKEN_MINT).unwrap();
         let quote = |snapshot: &str, amount_in: u64| {
             let snapshot = mock_pool_snapshot(snapshot);
-            let data = RaydiumClmm
-                .quote_accounts(&snapshot.address, &snapshot.pool, &usdc)
-                .unwrap()
-                .iter()
-                .map(|account| snapshot.accounts.get(account).cloned().flatten())
-                .collect::<Vec<_>>();
+            let data = snapshot.quote_data(&RaydiumClmm.quote_accounts(&snapshot.address, &snapshot.pool, &usdc).unwrap());
             RaydiumClmm.quote(&snapshot.address, &snapshot.pool, &usdc, amount_in, &data, snapshot.timestamp)
         };
 

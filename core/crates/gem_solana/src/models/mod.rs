@@ -8,6 +8,7 @@ pub mod prioritization_fee;
 pub mod rpc;
 pub mod simulation;
 pub mod token;
+pub mod token_account;
 pub mod transaction;
 
 pub use block::*;
@@ -16,4 +17,5 @@ pub use mint::{Mint, MintExtension};
 pub use rpc::*;
 pub use simulation::*;
 pub use token::*;
+pub use token_account::TokenAccount;
 pub use transaction::*;

@@ -106,6 +106,7 @@ public enum Images {
         public static let hyperion = Image(.hyperion)
         public static let raydium = Image(.raydium)
         public static let dedust = Image(.dedust)
+        public static let pumpswap = Image(.pumpswap)
     }
 
     public enum EarnProviders {

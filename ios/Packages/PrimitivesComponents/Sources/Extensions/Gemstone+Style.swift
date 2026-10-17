@@ -735,6 +735,7 @@ public extension SwapProvider {
         case .hyperion: Images.SwapProviders.hyperion
         case .raydiumClmm: Images.SwapProviders.raydium
         case .dedust: Images.SwapProviders.dedust
+        case .pumpSwap: Images.SwapProviders.pumpswap
         }
     }
 }

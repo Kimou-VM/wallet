@@ -51,6 +51,7 @@ impl ProviderType {
             | SwapperProvider::RaydiumClmm
             | SwapperProvider::Hyperion
             | SwapperProvider::Dedust
+            | SwapperProvider::PumpSwap
             | SwapperProvider::Okx => SwapProviderMode::OnChain,
             SwapperProvider::Mayan | SwapperProvider::Mayachain | SwapperProvider::Squid | SwapperProvider::SwapsXyz | SwapperProvider::Bridgers => SwapProviderMode::CrossChain,
             SwapperProvider::Chainflip => SwapProviderMode::OmniChain(vec![Chain::Tron]),
@@ -79,6 +80,7 @@ impl ProviderType {
             | SwapperProvider::RaydiumClmm
             | SwapperProvider::Hyperion
             | SwapperProvider::Dedust
+            | SwapperProvider::PumpSwap
             | SwapperProvider::Mayachain
             | SwapperProvider::Chainflip
             | SwapperProvider::Thorchain

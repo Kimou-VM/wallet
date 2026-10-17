@@ -1,15 +1,27 @@
 use borsh::BorshDeserialize;
+use gem_client::testkit::MockClient;
 use gem_encoding::decode_base64;
+use gem_jsonrpc::{client::JsonRpcClient, testkit::mock_jsonrpc_client};
 use gem_solana::{
     Instruction, Pubkey, USDC_TOKEN_MINT,
     instructions::program_ids::{sysvar_clock, token_program},
     models::Clock,
 };
 use primitives::swap::SOLANA_REFERRAL_ADDRESS;
-use serde_json::Value;
-use std::collections::HashMap;
+use serde_json::{Value, json};
+use std::{
+    collections::HashMap,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
 
-use super::{protocol::PoolSwap, token::SwapToken, transaction::DexTransaction};
+use super::{
+    protocol::{DexProtocol, PoolSwap, QuoteAccount},
+    token::SwapToken,
+    transaction::DexTransaction,
+};
 use crate::fees::{FeeSide, ReferralTransfer};
 
 pub(crate) const TEST_AUTHORITY: &str = "7g2rVN8fAAQdPh1mkajpvELqYa3gWvFXJsBLnKfEQfqy";
@@ -68,4 +80,43 @@ pub(crate) fn mock_account_snapshot(snapshot: &str) -> (Vec<Pubkey>, HashMap<Pub
         .collect::<HashMap<_, _>>();
     let clock = Clock::try_from_slice(accounts[&sysvar_clock()].as_ref().unwrap()).unwrap();
     (addresses, accounts, u64::try_from(clock.unix_timestamp).unwrap())
+}
+
+pub(crate) struct PoolSnapshot<Pool> {
+    pub address: Pubkey,
+    pub pool: Pool,
+    pub accounts: HashMap<Pubkey, Option<Vec<u8>>>,
+    pub timestamp: u64,
+}
+
+impl<Pool> PoolSnapshot<Pool> {
+    pub fn quote_data(&self, accounts: &[QuoteAccount]) -> Vec<Option<Vec<u8>>> {
+        accounts.iter().map(|account| self.accounts.get(&account.address()).cloned().flatten()).collect()
+    }
+}
+
+pub(crate) fn mock_dex_pool_snapshot<P: DexProtocol>(protocol: &P, snapshot: &str) -> PoolSnapshot<P::Pool> {
+    let (addresses, accounts, timestamp) = mock_account_snapshot(snapshot);
+    PoolSnapshot {
+        address: addresses[0],
+        pool: protocol.decode_pool(accounts[&addresses[0]].as_ref().unwrap()).unwrap(),
+        accounts,
+        timestamp,
+    }
+}
+
+pub(crate) fn mock_rpc_accounts(snapshot: &str) -> HashMap<String, Value> {
+    mock_rpc_snapshot(snapshot).into_iter().collect()
+}
+
+pub(crate) fn mock_rpc_client(accounts: HashMap<String, Value>, requests: Arc<AtomicUsize>) -> JsonRpcClient<MockClient> {
+    mock_jsonrpc_client(move |method, params| match method {
+        "getMultipleAccounts" => {
+            requests.fetch_add(1, Ordering::SeqCst);
+            let addresses = params[0].as_array().unwrap();
+            Ok(json!({ "context": { "slot": 1 }, "value": addresses.iter().map(|address| accounts.get(address.as_str().unwrap()).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() }))
+        }
+        "getLatestBlockhash" => Ok(json!({ "context": { "slot": 1 }, "value": { "blockhash": "11111111111111111111111111111111", "lastValidBlockHeight": 1 } })),
+        method => panic!("unexpected method {method}"),
+    })
 }

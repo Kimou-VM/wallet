@@ -30,6 +30,7 @@ pub mod okx;
 mod orca;
 pub mod panora;
 pub mod permit2_data;
+mod pump_swap;
 mod raydium_clmm;
 pub mod relay;
 mod route_cache;

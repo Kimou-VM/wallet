@@ -5,6 +5,7 @@ use std::iter::once;
 use crate::{Pubkey, SolanaError, error::Result};
 
 const MINT_LEN: usize = 82;
+const SUPPLY_OFFSET: usize = 36;
 const ACCOUNT_TYPE_OFFSET: usize = 165;
 const EXTENSIONS_OFFSET: usize = 166;
 const MINT_ACCOUNT_TYPE: u8 = 1;
@@ -50,18 +51,20 @@ pub enum MintExtension {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mint {
+    pub supply: u64,
     pub extensions: Vec<MintExtension>,
 }
 
 impl Mint {
     pub fn decode(data: &[u8]) -> Result<Self> {
-        match (data.len(), data.get(ACCOUNT_TYPE_OFFSET)) {
-            (MINT_LEN, _) => Ok(Self { extensions: vec![] }),
-            (_, Some(&MINT_ACCOUNT_TYPE)) => Ok(Self {
-                extensions: decode_extensions(&data[EXTENSIONS_OFFSET..])?,
-            }),
-            _ => Err(SolanaError::invalid_input("Invalid mint account")),
-        }
+        let invalid = || SolanaError::invalid_input("Invalid mint account");
+        let supply = data.get(SUPPLY_OFFSET..).and_then(|mut supply| u64::deserialize(&mut supply).ok()).ok_or_else(invalid)?;
+        let extensions = match (data.len(), data.get(ACCOUNT_TYPE_OFFSET)) {
+            (MINT_LEN, _) => vec![],
+            (_, Some(&MINT_ACCOUNT_TYPE)) => decode_extensions(&data[EXTENSIONS_OFFSET..])?,
+            _ => return Err(invalid()),
+        };
+        Ok(Self { supply, extensions })
     }
 
     pub fn transfer_fee(&self, epoch: u64, amount: u64) -> u64 {
@@ -143,10 +146,17 @@ mod tests {
     fn test_decode() {
         let fee = |epoch, basis_points| TransferFee { epoch, maximum_fee: u64::MAX, basis_points };
 
-        assert_eq!(decode(include_str!("../../testdata/mint_usdc.base64")), Mint { extensions: vec![] });
+        assert_eq!(
+            decode(include_str!("../../testdata/mint_usdc.base64")),
+            Mint {
+                supply: 7_901_856_805_554_361,
+                extensions: vec![]
+            }
+        );
         assert_eq!(
             decode(include_str!("../../testdata/mint_transfer_fee.base64")),
             Mint {
+                supply: 957_493_468_947_067,
                 extensions: vec![MintExtension::TransferFee(TransferFeeConfig {
                     older: fee(1035, 200),
                     newer: fee(1035, 200)
@@ -156,6 +166,7 @@ mod tests {
         assert_eq!(
             decode(include_str!("../../testdata/mint_xstock.base64")),
             Mint {
+                supply: 32_126_240_400_142,
                 extensions: vec![
                     MintExtension::Other(18),
                     MintExtension::Other(12),
@@ -192,7 +203,7 @@ mod tests {
 
     #[test]
     fn test_has_transfer_restrictions() {
-        let restricted = |extension: MintExtension| Mint { extensions: vec![extension] }.has_transfer_restrictions();
+        let restricted = |extension: MintExtension| Mint { supply: 0, extensions: vec![extension] }.has_transfer_restrictions();
 
         assert!(!decode(include_str!("../../testdata/mint_xstock.base64")).has_transfer_restrictions());
         assert!(!decode(include_str!("../../testdata/mint_transfer_fee_schedule.base64")).has_transfer_restrictions());

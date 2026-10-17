@@ -1107,6 +1107,7 @@ public extension Gemstone.SwapProvider {
         case .hyperion: .hyperion
         case .raydiumClmm: .raydiumClmm
         case .dedust: .dedust
+        case .pumpSwap: .pumpSwap
         }
     }
 }
@@ -1140,6 +1141,7 @@ public extension Primitives.SwapProvider {
         case .hyperion: .hyperion
         case .raydiumClmm: .raydiumClmm
         case .dedust: .dedust
+        case .pumpSwap: .pumpSwap
         }
     }
 }
