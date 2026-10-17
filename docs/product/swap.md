@@ -97,13 +97,12 @@ flowchart LR
 |---|---|
 | Uniswap v3, PancakeSwap, Aerodrome, Oku and Wagmi pool lookups | `1 day` |
 | Cetus pool lookups | `1 day` |
-| Hyperion pool addresses and pool details | `1 day` |
 | STON.fi pool and jetton wallet addresses | `30 days` |
 | Sui epoch and gas price | `10 minutes` |
 
 Anything not listed is read again for every quote.
 
-On Solana a quote reads every account it needs in one request. Orca and Raydium each look up their `8` most-used fee tiers, which hold about `92%` and `94%` of the liquidity in their 200 largest pools. With 8 tiers, a token-to-token pair needs at most `93` accounts, which fits Solana's `100`-account limit, so a quote never splits into a second request.
+Solana, Uniswap v4 and Hyperion pool addresses are computed on the device from the two tokens and the fee tier, so finding a pool only checks that it exists. On Solana a quote reads every account it needs in one request. Orca and Raydium each look up their `8` most-used fee tiers, which hold about `92%` and `94%` of the liquidity in their 200 largest pools. With 8 tiers, a token-to-token pair needs at most `93` accounts, which fits Solana's `100`-account limit, so a quote never splits into a second request.
 
 ### Requests per quote
 
@@ -119,7 +118,7 @@ Measured on 2026-10-17, one pair per provider and the same amount, on the build 
 | Raydium, JUP to USDC | 2 | 2 → 1 | 2 → 1 | 1 | 193 → 143 KB |
 | Cetus, SUI to USDC | 7 | 1 | 7 → 1 | 6 | 3 KB |
 | STON.fi, TON to USDT | 10 | 4 | 10 → 4 | 0 | 2 KB |
-| Hyperion, APT to USDC | 19 | 7 | 19 → 7 | 3 | under 1 KB |
+| Hyperion, APT to USDC | 19 → 13 | 7 | 19 → 7 | 3 | under 1 KB |
 
 A repeat quote took about `110 ms` to `130 ms` on Ethereum, Solana and Sui, most of it the round trip to Dynode. STON.fi and Hyperion ask one pool per request, so their repeat quotes took about `230 ms` and `320 ms`.
 

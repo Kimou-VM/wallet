@@ -1,5 +1,5 @@
 use super::{
-    constants::{FUNCTION_GET_AMOUNT_OUT, FUNCTION_LIQUIDITY_POOL_ADDRESS_SAFE, FUNCTION_LIQUIDITY_POOL_INFO, FUNCTION_POOL_RESERVE_AMOUNT, HYPERION_FEE_TIERS, MODULE_POOL},
+    constants::{FUNCTION_GET_AMOUNT_OUT, FUNCTION_POOL_RESERVE_AMOUNT, HYPERION_FEE_TIERS, MODULE_POOL},
     model::{INTERMEDIATE_TOKENS, Pool, PoolQuote, PoolRoute},
 };
 use crate::{
@@ -14,10 +14,15 @@ use futures::{
     future::{join, join_all},
     stream,
 };
-use gem_aptos::{AccountAddress, AptosClient, HYPERION_CONTRACT, models::ViewRequest};
-use gem_client::Client;
+use gem_aptos::{
+    AccountAddress, AptosClient, HYPERION_CONTRACT, VM_STATUS_ABORTED,
+    models::{TransactionResponse, ViewRequest},
+};
+use gem_client::{Client, ClientError};
 use serde_json::json;
-use std::{cmp::Reverse, collections::BTreeMap, pin::pin, sync::Arc};
+use std::{cmp::Reverse, collections::BTreeMap, error::Error, pin::pin, sync::Arc};
+
+type ViewError = Box<dyn Error + Send + Sync>;
 
 #[derive(Debug)]
 pub struct Hyperion<C: Client> {
@@ -84,23 +89,17 @@ impl<C: Client> Hyperion<C> {
 
     async fn discover_pools(&self, token_a: &str, token_b: &str) -> Vec<Pool> {
         let missing = self.discovery_cache.missing_probes(token_a, token_b, &HYPERION_FEE_TIERS);
-        if !missing.is_empty() {
-            let lookups = missing.iter().map(|tier| async move { self.get_pool(token_a, token_b, *tier).await.ok().map(|pool| (*tier, pool)) });
-            let discoveries = join_all(lookups).await.into_iter().flatten().collect::<Vec<_>>();
-            self.discovery_cache.record_discovery(token_a, token_b, discoveries);
-        }
+        let pools = missing.iter().filter_map(|tier| Some((*tier, Pool::new(token_a, token_b, *tier).ok()?))).collect::<Vec<_>>();
+        let probes = join_all(pools.into_iter().map(|(tier, pool)| async move { (tier, pool.clone(), self.get_pool_reserves(&pool.address).await) })).await;
+        let tradable = |(reserve_a, reserve_b): &(u64, u64)| *reserve_a > 0 && *reserve_b > 0;
+        let discoveries = probes.iter().filter_map(|(tier, pool, reserves)| match reserves {
+            Ok(reserves) => tradable(reserves).then(|| (*tier, Some(pool.clone()))),
+            Err(error) => is_missing_pool(error).then_some((*tier, None)),
+        });
+        self.discovery_cache.record_discovery(token_a, token_b, discoveries);
+        self.discovery_cache
+            .record_unusable(token_a, token_b, probes.iter().filter(|(_, _, reserves)| reserves.as_ref().is_ok_and(|reserves| !tradable(reserves))).map(|(tier, _, _)| *tier));
         self.discovery_cache.candidates_for_probes(token_a, token_b, &HYPERION_FEE_TIERS)
-    }
-
-    async fn get_pool(&self, token_a: &str, token_b: &str, fee_tier: u8) -> Result<Option<Pool>, SwapperError> {
-        let request = ViewRequest::new(pool_function(FUNCTION_LIQUIDITY_POOL_ADDRESS_SAFE), vec![json!(token_a), json!(token_b), json!(fee_tier)]);
-        let (exists, address): (bool, String) = self.client.view(request).await.map_err(SwapperError::compute_quote_error)?;
-        if !exists {
-            return Ok(None);
-        }
-        let request = ViewRequest::new(pool_function(FUNCTION_LIQUIDITY_POOL_INFO), vec![json!(address)]);
-        let (info,): (Vec<String>,) = self.client.view(request).await.map_err(SwapperError::compute_quote_error)?;
-        Ok(Pool::from_info(address, &info, token_a, token_b))
     }
 
     async fn get_amount_out(&self, pool: &str, from: &str, amount_in: u64) -> Result<u64, SwapperError> {
@@ -109,10 +108,17 @@ impl<C: Client> Hyperion<C> {
         amount_out.parse().map_err(SwapperError::compute_quote_error)
     }
 
-    async fn get_pool_reserves(&self, pool: &str) -> Result<(u64, u64), SwapperError> {
+    async fn get_pool_reserves(&self, pool: &str) -> Result<(u64, u64), ViewError> {
         let request = ViewRequest::new(pool_function(FUNCTION_POOL_RESERVE_AMOUNT), vec![json!(pool)]);
-        let (reserve_a, reserve_b): (String, String) = self.client.view(request).await.map_err(SwapperError::compute_quote_error)?;
-        Ok((reserve_a.parse().map_err(SwapperError::compute_quote_error)?, reserve_b.parse().map_err(SwapperError::compute_quote_error)?))
+        let (reserve_a, reserve_b): (String, String) = self.client.view(request).await?;
+        Ok((reserve_a.parse()?, reserve_b.parse()?))
+    }
+}
+
+fn is_missing_pool(error: &ViewError) -> bool {
+    match error.downcast_ref::<ClientError>() {
+        Some(ClientError::Http { status: 400, body }) => serde_json::from_slice::<TransactionResponse>(body).is_ok_and(|response| response.vm_error_code == Some(VM_STATUS_ABORTED)),
+        _ => false,
     }
 }
 
@@ -147,6 +153,25 @@ mod tests {
             route_paths(APTOS_USDT_TOKEN_ID, "0x05fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2"),
             vec![RoutePath::Direct, RoutePath::Intermediary(apt), RoutePath::Intermediary(APTOS_USDC_TOKEN_ID.to_string())]
         );
+    }
+
+    #[tokio::test]
+    async fn test_discover_pools_records_each_probe() {
+        let apt = AccountAddress::from_hex("0xa").unwrap().to_string();
+        let reserves = |tier: u8, status: u16, response: serde_json::Value| json!({ "function": pool_function(FUNCTION_POOL_RESERVE_AMOUNT), "arguments": [Pool::new(&apt, APTOS_USDC_TOKEN_ID, tier).unwrap().address], "status": status, "response": response });
+        let aborted = json!({ "message": "VMError with status ABORTED", "error_code": "invalid_input", "vm_error_code": VM_STATUS_ABORTED });
+        let views = json!([
+            reserves(0, 200, json!(["1000", "2000"])),
+            reserves(1, 200, json!(["0", "2000"])),
+            reserves(2, 400, aborted.clone()),
+            reserves(3, 500, json!({ "message": "node unavailable" })),
+            reserves(4, 400, json!({ "message": "invalid argument", "error_code": "invalid_input" })),
+            reserves(5, 400, aborted),
+        ]);
+        let provider = Hyperion::with_client(mock_aptos_client(&views.to_string()));
+
+        assert_eq!(provider.discover_pools(&apt, APTOS_USDC_TOKEN_ID).await, vec![Pool::new(&apt, APTOS_USDC_TOKEN_ID, 0).unwrap()]);
+        assert_eq!(provider.discovery_cache.missing_probes(&apt, APTOS_USDC_TOKEN_ID, &HYPERION_FEE_TIERS), vec![3, 4]);
     }
 
     #[tokio::test]
