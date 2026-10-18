@@ -58,7 +58,7 @@ pub struct Mint {
 impl Mint {
     pub fn decode(data: &[u8]) -> Result<Self> {
         let invalid = || SolanaError::invalid_input("Invalid mint account");
-        let supply = data.get(SUPPLY_OFFSET..).and_then(|mut supply| u64::deserialize(&mut supply).ok()).ok_or_else(invalid)?;
+        let supply = data.get(SUPPLY_OFFSET..SUPPLY_OFFSET + 8).and_then(|bytes| bytes.try_into().ok()).map(u64::from_le_bytes).ok_or_else(invalid)?;
         let extensions = match (data.len(), data.get(ACCOUNT_TYPE_OFFSET)) {
             (MINT_LEN, _) => vec![],
             (_, Some(&MINT_ACCOUNT_TYPE)) => decode_extensions(&data[EXTENSIONS_OFFSET..])?,
