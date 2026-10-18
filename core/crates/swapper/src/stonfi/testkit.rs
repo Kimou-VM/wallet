@@ -69,6 +69,7 @@ impl PoolData {
             token1_wallet: TEST_PTON_WALLET.to_string(),
             lp_fee: 7,
             protocol_fee: 3,
+            referral_fee: None,
         }
     }
 }

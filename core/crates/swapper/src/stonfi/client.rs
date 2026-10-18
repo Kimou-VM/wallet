@@ -100,6 +100,7 @@ fn parse_pool_data(result: &RunGetMethodResult) -> Result<PoolData, SwapperError
             token1_wallet: stack_cell_address(result, 6)?,
             lp_fee: stack_num_u32(result, 7)?,
             protocol_fee: stack_num_u32(result, 8)?,
+            referral_fee: None,
         }),
         10.. => Ok(PoolData {
             is_locked: false,
@@ -109,6 +110,7 @@ fn parse_pool_data(result: &RunGetMethodResult) -> Result<PoolData, SwapperError
             token1_wallet: stack_cell_address(result, 3)?,
             lp_fee: stack_num_u32(result, 4)?,
             protocol_fee: stack_num_u32(result, 5)?,
+            referral_fee: Some(stack_num_u32(result, 6)?),
         }),
         _ => Err(SwapperError::ComputeQuoteError("STON.fi get_pool_data returned truncated stack".into())),
     }

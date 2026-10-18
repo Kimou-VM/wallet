@@ -67,12 +67,14 @@ where
             return Err(SwapperError::NoQuoteAvailable);
         }
 
-        let to_intermediary = self.quote_swap(&request.from_asset, from_value, intermediary, request.options.slippage.bps, allow_discovery, true).await?;
+        let to_intermediary = self.quote_swap(&request.from_asset, from_value, intermediary, (request.options.slippage.bps, 0), allow_discovery, true).await?;
         if !to_intermediary.router.is_supported_v2() {
             return Err(SwapperError::InvalidRoute);
         }
 
-        let from_intermediary = self.quote_swap(intermediary, &to_intermediary.ask_units, &request.to_asset, request.options.slippage.bps, allow_discovery, true).await?;
+        let from_intermediary = self
+            .quote_swap(intermediary, &to_intermediary.ask_units, &request.to_asset, (request.options.slippage.bps, Self::referral_fee().bps), allow_discovery, true)
+            .await?;
         if !from_intermediary.router.is_supported_v2() {
             return Err(SwapperError::InvalidRoute);
         }
@@ -95,7 +97,9 @@ where
     }
 
     async fn quote_direct(&self, request: &QuoteRequest, from_value: &str, allow_discovery: bool) -> Result<QuotePath, SwapperError> {
-        let simulation = self.quote_swap(&request.from_asset, from_value, &request.to_asset, request.options.slippage.bps, allow_discovery, false).await?;
+        let simulation = self
+            .quote_swap(&request.from_asset, from_value, &request.to_asset, (request.options.slippage.bps, Self::referral_fee().bps), allow_discovery, false)
+            .await?;
         Ok(QuotePath {
             to_value: simulation.ask_units.clone(),
             routes: vec![Route {
@@ -150,13 +154,16 @@ where
         default_referral_fees().ton
     }
 
-    async fn quote_swap(&self, from_asset: &SwapperQuoteAsset, from_value: &str, to_asset: &SwapperQuoteAsset, slippage_bps: u32, allow_discovery: bool, require_v2: bool) -> Result<SwapSimulation, SwapperError> {
+    async fn quote_swap(&self, from_asset: &SwapperQuoteAsset, from_value: &str, to_asset: &SwapperQuoteAsset, (slippage_bps, referral_bps): (u32, u32), allow_discovery: bool, require_v2: bool) -> Result<SwapSimulation, SwapperError> {
         let from_token = token_address(from_asset);
         let to_token = token_address(to_asset);
         let amount = BigUint::from_str(from_value)?;
         nonzero_swap_value(&amount)?;
 
-        match self.quote_best_candidate(self.known_candidates(&from_token, &to_token, require_v2), &[], &from_token, &to_token, &amount, slippage_bps).await {
+        match self
+            .quote_best_candidate(self.known_candidates(&from_token, &to_token, require_v2), &[], &from_token, &to_token, &amount, (slippage_bps, referral_bps))
+            .await
+        {
             Ok((_, simulation)) => return Ok(simulation),
             Err(error) if is_retryable_get_method_error(&error) => return Err(error),
             Err(_) => {}
@@ -167,7 +174,7 @@ where
         }
 
         let pool_data = self.discover_candidates(&from_token, &to_token, require_v2).await?;
-        self.quote_best_candidate(self.known_candidates(&from_token, &to_token, require_v2), &pool_data, &from_token, &to_token, &amount, slippage_bps)
+        self.quote_best_candidate(self.known_candidates(&from_token, &to_token, require_v2), &pool_data, &from_token, &to_token, &amount, (slippage_bps, referral_bps))
             .await
             .map(|(_, simulation)| simulation)
     }
@@ -261,23 +268,23 @@ where
         ))
     }
 
-    async fn quote_best_candidate(&self, candidates: Vec<DiscoveredPool>, pool_data: &[(String, PoolData)], from_token: &str, to_token: &str, amount: &BigUint, slippage_bps: u32) -> Result<(DiscoveredPool, SwapSimulation), SwapperError> {
+    async fn quote_best_candidate(&self, candidates: Vec<DiscoveredPool>, pool_data: &[(String, PoolData)], from_token: &str, to_token: &str, amount: &BigUint, fees: (u32, u32)) -> Result<(DiscoveredPool, SwapSimulation), SwapperError> {
         self.outpriced_pools
             .quote_live_first(
                 (&from_token.to_string(), &to_token.to_string()),
                 amount_key(amount),
                 candidates,
                 |candidate| candidate.pool_address.clone(),
-                |candidates| self.quote_candidates(candidates, pool_data, from_token, to_token, amount, slippage_bps),
+                |candidates| self.quote_candidates(candidates, pool_data, from_token, to_token, amount, fees),
             )
             .await
     }
 
-    async fn quote_candidates(&self, candidates: Vec<DiscoveredPool>, pool_data: &[(String, PoolData)], from_token: &str, to_token: &str, amount: &BigUint, slippage_bps: u32) -> Result<(DiscoveredPool, SwapSimulation), SwapperError> {
+    async fn quote_candidates(&self, candidates: Vec<DiscoveredPool>, pool_data: &[(String, PoolData)], from_token: &str, to_token: &str, amount: &BigUint, fees: (u32, u32)) -> Result<(DiscoveredPool, SwapSimulation), SwapperError> {
         let addresses = candidates.iter().map(|candidate| candidate.pool_address.clone()).collect::<Vec<_>>();
         let quotes = join_all(candidates.into_iter().map(|candidate| {
             let pool_data = pool_data.iter().find(|(address, _)| address == &candidate.pool_address).map(|(_, data)| data);
-            self.quote_candidate(candidate, pool_data, from_token, to_token, amount, slippage_bps)
+            self.quote_candidate(candidate, pool_data, from_token, to_token, amount, fees)
         }))
         .await;
         if let Some(error) = quotes.iter().filter_map(|quote| quote.as_ref().err()).find(|error| is_retryable_get_method_error(error)) {
@@ -292,7 +299,15 @@ where
         ranked.into_iter().min_by_key(|(amount, _)| Reverse(amount.clone())).map(|(_, quote)| quote).ok_or(SwapperError::NoQuoteAvailable)
     }
 
-    async fn quote_candidate(&self, candidate: DiscoveredPool, pool_data: Option<&PoolData>, from_token: &str, to_token: &str, amount: &BigUint, slippage_bps: u32) -> Result<(DiscoveredPool, SwapSimulation), SwapperError> {
+    async fn quote_candidate(
+        &self,
+        candidate: DiscoveredPool,
+        pool_data: Option<&PoolData>,
+        from_token: &str,
+        to_token: &str,
+        amount: &BigUint,
+        (slippage_bps, referral_bps): (u32, u32),
+    ) -> Result<(DiscoveredPool, SwapSimulation), SwapperError> {
         let fetched_pool_data;
         let pool_data = match pool_data {
             Some(pool_data) => pool_data,
@@ -312,7 +327,7 @@ where
         }
         let offer_wallet = candidate.wallet_for(from_token).ok_or(SwapperError::InvalidRoute)?;
         let ask_wallet = candidate.wallet_for(to_token).ok_or(SwapperError::InvalidRoute)?;
-        let ask_units = compute_amount_out(pool_data, offer_wallet, amount)?;
+        let ask_units = compute_amount_out(pool_data, offer_wallet, amount, referral_bps)?;
         if ask_units == BigUint::from(0u8) {
             return Err(SwapperError::NoQuoteAvailable);
         }
@@ -663,7 +678,7 @@ mod tests {
         let probes = [pool.router.address.clone()];
 
         assert_eq!(
-            provider.quote_candidate(pool, None, TON_PROXY_JETTON_ADDRESS, TON_USDT_TOKEN_ID, &amount, 100).await.unwrap_err(),
+            provider.quote_candidate(pool, None, TON_PROXY_JETTON_ADDRESS, TON_USDT_TOKEN_ID, &amount, (100, 0)).await.unwrap_err(),
             SwapperError::NoQuoteAvailable
         );
         assert!(provider.route_cache.missing_probes(TON_PROXY_JETTON_ADDRESS, TON_USDT_TOKEN_ID, &probes).is_empty());
@@ -733,7 +748,7 @@ mod tests {
         assert_eq!(cold_calls.iter().filter(|call| *call == &discovered_pool_call).count(), DISCOVERY_ROUTERS.len() - 1);
         assert_eq!(cold_calls.iter().filter(|call| *call == &v1_pool_call).count(), 1);
         assert_eq!(simulation.router.major_version, 1);
-        assert_eq!(simulation.ask_units, "199854680472");
+        assert_eq!(simulation.ask_units, "199654820936");
 
         calls.lock().unwrap().clear();
         provider.quote_direct(&request, &request.value.to_string(), true).await.unwrap();
@@ -750,7 +765,7 @@ mod tests {
         });
         let amount = BigUint::from(1_000_000_000u64);
         let (pool, simulation) = provider
-            .quote_best_candidate(vec![DiscoveredPool::mock("pool-a"), DiscoveredPool::mock("pool-b")], &[], TON_PROXY_JETTON_ADDRESS, TON_USDT_TOKEN_ID, &amount, 100)
+            .quote_best_candidate(vec![DiscoveredPool::mock("pool-a"), DiscoveredPool::mock("pool-b")], &[], TON_PROXY_JETTON_ADDRESS, TON_USDT_TOKEN_ID, &amount, (100, 0))
             .await
             .unwrap();
 

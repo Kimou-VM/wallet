@@ -2,9 +2,10 @@ use super::{
     constants::{RouterInfo, STATIC_POOLS, StaticPool},
     model::{Router, SwapSimulation},
 };
-use crate::{SwapperError, SwapperQuoteAsset, fees::subtract_bps};
+use crate::{SwapperError, SwapperQuoteAsset};
 use gem_ton::{address::Address, constants::TON_PROXY_JETTON_ADDRESS};
 use num_bigint::BigUint;
+use num_integer::Integer;
 use primitives::swap::HUNDRED_PERCENT_IN_BPS;
 use std::str::FromStr;
 
@@ -28,6 +29,7 @@ pub(super) struct PoolData {
     pub token1_wallet: String,
     pub lp_fee: u32,
     pub protocol_fee: u32,
+    pub referral_fee: Option<u32>,
 }
 
 impl DiscoveredPool {
@@ -78,7 +80,7 @@ pub(super) fn token_address(asset: &SwapperQuoteAsset) -> String {
     }
 }
 
-pub(super) fn compute_amount_out(pool: &PoolData, offer_wallet: &str, amount: &BigUint) -> Result<BigUint, SwapperError> {
+pub(super) fn compute_amount_out(pool: &PoolData, offer_wallet: &str, amount: &BigUint, referral_bps: u32) -> Result<BigUint, SwapperError> {
     let offer = Address::parse(offer_wallet)?;
     let token0 = Address::parse(&pool.token0_wallet)?;
     let token1 = Address::parse(&pool.token1_wallet)?;
@@ -89,15 +91,16 @@ pub(super) fn compute_amount_out(pool: &PoolData, offer_wallet: &str, amount: &B
     } else {
         return Err(SwapperError::InvalidRoute);
     };
-    let total_fee = pool.lp_fee.checked_add(pool.protocol_fee).ok_or_else(|| SwapperError::ComputeQuoteError("STON.fi fee overflow".into()))?;
-    if total_fee >= HUNDRED_PERCENT_IN_BPS {
+    let referral_bps = pool.referral_fee.unwrap_or(referral_bps);
+    if pool.lp_fee.saturating_add(pool.protocol_fee).saturating_add(referral_bps) >= HUNDRED_PERCENT_IN_BPS {
         return Err(SwapperError::ComputeQuoteError("STON.fi fee exceeds 100%".into()));
     }
-    let amount_after_fee = subtract_bps(amount, total_fee);
-    if amount_after_fee == BigUint::from(0u8) {
-        return Ok(BigUint::from(0u8));
-    }
-    Ok((reserve_out * &amount_after_fee) / (reserve_in + amount_after_fee))
+    let divider = BigUint::from(HUNDRED_PERCENT_IN_BPS);
+    let amount_in_with_fee = amount * (HUNDRED_PERCENT_IN_BPS - pool.lp_fee);
+    let base_out = reserve_out * &amount_in_with_fee / (reserve_in * &divider + &amount_in_with_fee);
+    let fee_out = |bps: u32| (&base_out * bps).div_ceil(&divider);
+    let fees_out = fee_out(pool.protocol_fee) + fee_out(referral_bps);
+    Ok(if base_out > fees_out { &base_out - fees_out } else { BigUint::ZERO })
 }
 
 pub(super) fn scaled_next_min_ask_amount(first: &SwapSimulation, next: &SwapSimulation) -> Result<BigUint, SwapperError> {
@@ -115,6 +118,7 @@ mod tests {
     use super::super::constants::DISCOVERY_ROUTERS;
     use super::super::testkit::{TEST_PTON_WALLET, TEST_USDT_WALLET};
     use super::*;
+    use crate::fees::subtract_bps;
     use primitives::{AssetId, Chain, asset_constants::TON_USDT_TOKEN_ID};
 
     #[test]
@@ -126,24 +130,29 @@ mod tests {
     #[test]
     fn test_compute_amount_out() {
         let amount = BigUint::from(1_000_000_000u64);
-        let out = compute_amount_out(&PoolData::mock(), TEST_PTON_WALLET, &amount).unwrap();
+        let out = compute_amount_out(&PoolData::mock(), TEST_PTON_WALLET, &amount, 0).unwrap();
 
         assert_eq!(out, BigUint::from(2_132_526u64));
+        assert_eq!(compute_amount_out(&PoolData::mock(), TEST_PTON_WALLET, &amount, 50).unwrap(), BigUint::from(2_121_860u64));
+        assert_eq!(
+            compute_amount_out(&PoolData { referral_fee: Some(10), ..PoolData::mock() }, TEST_PTON_WALLET, &amount, 50).unwrap(),
+            compute_amount_out(&PoolData::mock(), TEST_PTON_WALLET, &amount, 10).unwrap()
+        );
         assert_eq!(subtract_bps(&out, 100), BigUint::from(2_111_200u64));
     }
 
     #[test]
     fn test_compute_amount_out_rejects_unknown_offer_wallet() {
         let amount = BigUint::from(1_000_000_000u64);
-        assert_eq!(compute_amount_out(&PoolData::mock(), "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c", &amount).unwrap_err(), SwapperError::InvalidRoute);
+        assert_eq!(compute_amount_out(&PoolData::mock(), "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c", &amount, 0).unwrap_err(), SwapperError::InvalidRoute);
     }
 
     #[test]
     fn test_compute_amount_out_selects_pool_side() {
         let amount = BigUint::from(2_000_000u64);
-        let out = compute_amount_out(&PoolData::mock(), TEST_USDT_WALLET, &amount).unwrap();
+        let out = compute_amount_out(&PoolData::mock(), TEST_USDT_WALLET, &amount, 0).unwrap();
 
-        assert_eq!(out, BigUint::from(935_978_872u64));
+        assert_eq!(out, BigUint::from(935_979_069u64));
     }
 
     #[test]
