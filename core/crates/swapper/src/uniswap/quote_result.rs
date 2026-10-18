@@ -1,5 +1,11 @@
-use crate::{RpcClient, SwapperError, route_cache::OutpricedCache};
+use crate::{
+    ProviderData, ProviderType, Quote, QuoteRequest, RpcClient, SwapperError,
+    fees::{default_referral_fees, subtract_bps},
+    route_cache::OutpricedCache,
+    uniswap::swap_route::build_swap_route,
+};
 use alloy_primitives::{Address, U256};
+use gem_evm::u256::u256_to_biguint;
 use gem_evm::{jsonrpc::EthereumRpc, uniswap::path::TokenPair};
 use gem_jsonrpc::{
     client::JsonRpcClient,
@@ -19,12 +25,21 @@ pub struct QuoteResult {
 }
 
 impl QuoteResult {
-    pub fn fee_tier(&self) -> Option<u32> {
-        self.pairs.first().map(|pair| pair.fee_tier as u32)
-    }
-
-    pub fn intermediary(&self) -> Option<Address> {
-        self.pairs.split_last().and_then(|(_, hops)| hops.first()).map(|pair| pair.token_out)
+    pub fn into_quote(self, request: &QuoteRequest, provider: ProviderType, fee_token_is_input: bool, output_scale: U256) -> Quote {
+        let to_value = if fee_token_is_input { self.amount_out } else { subtract_bps(&self.amount_out, default_referral_fees().evm.bps) };
+        let min_amount_out = subtract_bps(&to_value, request.options.slippage.bps);
+        Quote {
+            from_value: request.value.clone(),
+            min_from_value: None,
+            to_value: u256_to_biguint(&(to_value * output_scale)),
+            data: ProviderData {
+                provider,
+                routes: build_swap_route(request.from_asset.chain(), &self.pairs, &min_amount_out),
+                slippage_bps: request.options.slippage.bps,
+            },
+            request: request.clone(),
+            eta_in_seconds: None,
+        }
     }
 }
 
@@ -86,7 +101,6 @@ mod tests {
     };
 
     const TOKEN_IN: Address = Address::repeat_byte(1);
-    const INTERMEDIARY: Address = Address::repeat_byte(2);
     const TOKEN_OUT: Address = Address::repeat_byte(3);
 
     fn mock_quoter(calls: Arc<AtomicUsize>) -> JsonRpcClient<RpcClient> {
@@ -130,7 +144,7 @@ mod tests {
         let quote = |amount_in| get_best_quote(&client, &outpriced, (Chain::Ethereum, TOKEN_IN), (Chain::Ethereum, TOKEN_OUT), amount_in, paths(), decoder);
 
         let best = quote(100).await.unwrap();
-        assert_eq!((best.amount_out, best.fee_tier()), (U256::from(1000), Some(500)));
+        assert_eq!((best.amount_out, best.pairs[0].fee_tier), (U256::from(1000), FeeTier::FiveHundred));
         assert_eq!(calls.swap(0, Ordering::Relaxed), 3);
 
         assert_eq!(quote(100).await.unwrap(), best);
@@ -138,24 +152,5 @@ mod tests {
 
         assert_eq!(quote(50).await.unwrap(), best);
         assert_eq!(calls.swap(0, Ordering::Relaxed), 3);
-    }
-
-    #[test]
-    fn test_quote_result_route() {
-        let direct = QuoteResult {
-            amount_out: U256::ZERO,
-            pairs: vec![TokenPair {
-                token_in: TOKEN_IN,
-                token_out: TOKEN_OUT,
-                fee_tier: FeeTier::ThreeThousand,
-            }],
-        };
-        let two_hop = QuoteResult {
-            amount_out: U256::ZERO,
-            pairs: TokenPair::new_two_hop(&TOKEN_IN, &INTERMEDIARY, &TOKEN_OUT, FeeTier::FiveHundred),
-        };
-
-        assert_eq!((direct.fee_tier(), direct.intermediary()), (Some(3000), None));
-        assert_eq!((two_hop.fee_tier(), two_hop.intermediary()), (Some(500), Some(INTERMEDIARY)));
     }
 }

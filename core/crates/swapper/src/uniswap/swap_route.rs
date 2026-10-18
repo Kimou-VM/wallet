@@ -1,7 +1,10 @@
 use crate::Route;
-use alloy_primitives::Address;
-use gem_evm::uniswap::path::BasePair;
-use primitives::AssetId;
+use alloy_primitives::{Address, U256};
+use gem_evm::uniswap::{
+    FeeTier,
+    path::{BasePair, TokenPair},
+};
+use primitives::{AssetId, Chain};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -11,34 +14,56 @@ pub struct RouteData {
 }
 
 pub fn get_intermediaries(token_in: &Address, token_out: &Address, base_pair: &BasePair) -> Vec<Address> {
-    let array = base_pair.path_building_array();
-    get_intermediaries_by_array(token_in, token_out, &array)
+    base_pair.path_building_array().into_iter().filter(|intermediary| intermediary != token_in && intermediary != token_out).collect()
 }
 
-pub fn get_intermediaries_by_array(token_in: &Address, token_out: &Address, array: &[Address]) -> Vec<Address> {
-    array.iter().filter(|intermediary| *intermediary != token_in && *intermediary != token_out).cloned().collect()
+pub fn two_hop_pairs(token_in: &Address, token_out: &Address, intermediaries: &[Address], fee_tiers: &[FeeTier]) -> Vec<Vec<TokenPair>> {
+    intermediaries
+        .iter()
+        .flat_map(|intermediary| {
+            fee_tiers
+                .iter()
+                .flat_map(move |first| fee_tiers.iter().map(move |second| TokenPair::new_two_hop(token_in, intermediary, token_out, [*first, *second])))
+        })
+        .collect()
 }
 
-pub fn build_swap_route(token_in: &AssetId, intermediary: Option<&AssetId>, token_out: &AssetId, route_data: &RouteData) -> Vec<Route> {
-    let data = serde_json::to_string(route_data).unwrap_or_default();
-    if let Some(intermediary) = intermediary {
-        vec![
+pub fn build_swap_route(chain: Chain, pairs: &[TokenPair], min_amount_out: &U256) -> Vec<Route> {
+    pairs
+        .iter()
+        .map(|pair| {
+            let route_data = RouteData {
+                fee_tier: (pair.fee_tier as u32).to_string(),
+                min_amount_out: min_amount_out.to_string(),
+            };
             Route {
-                input: token_in.clone(),
-                output: intermediary.clone(),
-                route_data: data.clone(),
-            },
-            Route {
-                input: intermediary.clone(),
-                output: token_out.clone(),
-                route_data: data,
-            },
-        ]
-    } else {
-        vec![Route {
-            input: token_in.clone(),
-            output: token_out.clone(),
-            route_data: data,
-        }]
+                input: AssetId::from(chain, Some(pair.token_in.to_checksum(None))),
+                output: AssetId::from(chain, Some(pair.token_out.to_checksum(None))),
+                route_data: serde_json::to_string(&route_data).unwrap_or_default(),
+            }
+        })
+        .collect()
+}
+
+pub fn route_fee_tier(route: &Route) -> Result<FeeTier, crate::SwapperError> {
+    let route_data: RouteData = serde_json::from_str(&route.route_data).map_err(|_| crate::SwapperError::InvalidRoute)?;
+    FeeTier::try_from(route_data.fee_tier.as_str()).map_err(|_| crate::SwapperError::ComputeQuoteError("invalid fee tier".into()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_two_hop_routes_keep_each_hop_fee_tier() {
+        let (token_in, intermediary, token_out) = (Address::repeat_byte(1), Address::repeat_byte(2), Address::repeat_byte(3));
+        let pairs = two_hop_pairs(&token_in, &token_out, &[intermediary], &[FeeTier::FiveHundred, FeeTier::ThreeThousand]);
+        let mixed = TokenPair::new_two_hop(&token_in, &intermediary, &token_out, [FeeTier::ThreeThousand, FeeTier::FiveHundred]);
+        let routes = build_swap_route(Chain::Ethereum, &mixed, &U256::from(99));
+
+        assert_eq!(pairs.len(), 4);
+        assert!(pairs.contains(&mixed));
+        assert_eq!(routes.iter().map(route_fee_tier).collect::<Result<Vec<_>, _>>().unwrap(), vec![FeeTier::ThreeThousand, FeeTier::FiveHundred]);
+        assert_eq!(routes[0].output, AssetId::from(Chain::Ethereum, Some(intermediary.to_checksum(None))));
     }
 }

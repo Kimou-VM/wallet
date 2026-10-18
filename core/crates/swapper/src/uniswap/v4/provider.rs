@@ -6,7 +6,7 @@ use num_bigint::BigUint;
 use std::{fmt, str::FromStr, sync::Arc, vec};
 
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     alien::RpcProvider,
     approval::evm::{check_approval_erc20_with_client, check_approval_permit2_with_client},
     fees::{default_referral_fees, subtract_bps},
@@ -16,7 +16,7 @@ use crate::{
         fee_token::is_quote_input_fee_token,
         quote_result::{OutpricedPaths, get_best_quote},
         routed_asset::{Funding, Protocol, RoutedAsset, base_pair, routed_pair},
-        swap_route::{RouteData, build_swap_route, get_intermediaries},
+        swap_route::{RouteData, get_intermediaries},
     },
 };
 use gem_evm::uniswap::{
@@ -132,7 +132,6 @@ impl Swapper for UniswapV4 {
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let from_chain = request.from_asset.chain();
-        let to_chain = request.to_asset.chain();
         let deployment = get_uniswap_deployment_by_chain(&from_chain).ok_or(SwapperError::NotSupportedChain)?;
         let (evm_chain, input, output, from_value) = Self::routed_request(request)?;
         let (token_in, token_out) = (input.address, output.address);
@@ -149,37 +148,12 @@ impl Swapper for UniswapV4 {
         let intermediaries = route_intermediaries(&token_in, &token_out, &base_pair);
         let multi_hop_paths = build_quote_exact_params(quote_amount_in, &token_in, &token_out, &fee_tiers, &intermediaries)
             .into_iter()
-            .flatten()
             .map(|(pairs, params)| (pairs, build_quote_exact_request(deployment.quoter, &params)));
         let paths = direct_paths.chain(multi_hop_paths).filter(|(pairs, _)| self.pool_discovery.path_may_exist(from_chain, pairs)).collect();
         let client = create_client(self.rpc_provider.clone(), from_chain)?;
         let quote_result = get_best_quote(&client, &self.outpriced_paths, (from_chain, token_in), (from_chain, token_out), quote_amount_in, paths, super::quoter::decode_quoter_response).await?;
 
-        let to_value = if fee_token_is_input { quote_result.amount_out } else { subtract_bps(&quote_result.amount_out, fee_bps) };
-        let to_min_value = subtract_bps(&to_value, request.options.slippage.bps);
-
-        let fee_tier = quote_result.fee_tier().ok_or(SwapperError::InvalidRoute)?;
-        let asset_id_in = AssetId::from(from_chain, Some(token_in.to_checksum(None)));
-        let asset_id_out = AssetId::from(to_chain, Some(token_out.to_checksum(None)));
-        let asset_id_intermediary = quote_result.intermediary().map(|token| AssetId::from(to_chain, Some(token.to_checksum(None))));
-        let route_data = RouteData {
-            fee_tier: fee_tier.to_string(),
-            min_amount_out: to_min_value.to_string(),
-        };
-        let routes = build_swap_route(&asset_id_in, asset_id_intermediary.as_ref(), &asset_id_out, &route_data);
-
-        Ok(Quote {
-            from_value: request.value.clone(),
-            min_from_value: None,
-            to_value: u256_to_biguint(&(to_value * output.scale)),
-            data: ProviderData {
-                provider: self.provider().clone(),
-                routes,
-                slippage_bps: request.options.slippage.bps,
-            },
-            request: request.clone(),
-            eta_in_seconds: None,
-        })
+        Ok(quote_result.into_quote(request, self.provider().clone(), fee_token_is_input, output.scale))
     }
 
     async fn get_quote_data(&self, quote: &Quote, data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {

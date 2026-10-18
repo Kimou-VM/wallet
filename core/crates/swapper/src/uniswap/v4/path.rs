@@ -5,7 +5,12 @@ use gem_evm::uniswap::{
     path::TokenPair,
 };
 
-use crate::{Route, SwapperError, error::INVALID_ADDRESS, eth_address, uniswap::swap_route::RouteData};
+use crate::{
+    Route, SwapperError,
+    error::INVALID_ADDRESS,
+    eth_address,
+    uniswap::swap_route::{route_fee_tier, two_hop_pairs},
+};
 
 fn sort_addresses(token_in: &Address, token_out: &Address) -> (Address, Address) {
     if token_in.0 < token_out.0 { (*token_in, *token_out) } else { (*token_out, *token_in) }
@@ -45,33 +50,25 @@ pub fn build_pool_keys(token_in: &Address, token_out: &Address, fee_tiers: &[Fee
         .collect()
 }
 
-pub fn build_quote_exact_params(amount_in: u128, token_in: &Address, token_out: &Address, fee_tiers: &[FeeTier], intermediaries: &[Address]) -> Vec<Vec<(Vec<TokenPair>, QuoteExactParams)>> {
-    intermediaries
-        .iter()
-        .map(|intermediary| {
-            fee_tiers
-                .iter()
-                .map(|fee_tier| TokenPair::new_two_hop(token_in, intermediary, token_out, *fee_tier))
-                .filter(|token_pairs| token_pairs.len() >= 2)
-                .map(|token_pairs| {
-                    let quote_exact_params = QuoteExactParams {
-                        exactCurrency: token_pairs[0].token_in,
-                        path: token_pairs
-                            .iter()
-                            .map(|token_pair| PathKey {
-                                intermediateCurrency: token_pair.token_out,
-                                fee: token_pair.fee_tier.as_u24(),
-                                tickSpacing: token_pair.fee_tier.default_tick_spacing(),
-                                hooks: Address::ZERO,
-                                hookData: Bytes::new(),
-                            })
-                            .collect(),
-                        exactAmount: amount_in,
-                    };
-
-                    (token_pairs, quote_exact_params)
-                })
-                .collect()
+pub fn build_quote_exact_params(amount_in: u128, token_in: &Address, token_out: &Address, fee_tiers: &[FeeTier], intermediaries: &[Address]) -> Vec<(Vec<TokenPair>, QuoteExactParams)> {
+    two_hop_pairs(token_in, token_out, intermediaries, fee_tiers)
+        .into_iter()
+        .map(|token_pairs| {
+            let quote_exact_params = QuoteExactParams {
+                exactCurrency: *token_in,
+                path: token_pairs
+                    .iter()
+                    .map(|token_pair| PathKey {
+                        intermediateCurrency: token_pair.token_out,
+                        fee: token_pair.fee_tier.as_u24(),
+                        tickSpacing: token_pair.fee_tier.default_tick_spacing(),
+                        hooks: Address::ZERO,
+                        hookData: Bytes::new(),
+                    })
+                    .collect(),
+                exactAmount: amount_in,
+            };
+            (token_pairs, quote_exact_params)
         })
         .collect()
 }
@@ -83,8 +80,7 @@ impl TryFrom<&Route> for PathKey {
         let token_id = value.output.token_id.as_ref().ok_or_else(|| SwapperError::ComputeQuoteError(format!("{}: {}", INVALID_ADDRESS, value.output)))?;
         let currency = eth_address::parse_str(token_id)?;
 
-        let route_data: RouteData = serde_json::from_str(&value.route_data).map_err(|_| SwapperError::InvalidRoute)?;
-        let fee_tier = FeeTier::try_from(route_data.fee_tier.as_str()).map_err(|_| SwapperError::ComputeQuoteError("invalid fee tier".into()))?;
+        let fee_tier = route_fee_tier(value)?;
         Ok(PathKey {
             intermediateCurrency: currency,
             fee: fee_tier.as_u24(),

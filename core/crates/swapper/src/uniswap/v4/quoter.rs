@@ -90,9 +90,8 @@ mod tests {
         let amount_in = 10000000000000000_u128;
 
         let quote_params = build_quote_exact_params(amount_in, &token_in, &token_out, &fee_tiers, &base_pair.path_building_array());
-        let rpc_calls = quote_params.iter().flatten().map(|(_, params)| build_quote_exact_request(v4_quoter, params)).collect::<Vec<_>>();
+        let rpc_calls = quote_params.iter().map(|(_, params)| build_quote_exact_request(v4_quoter, params)).collect::<Vec<_>>();
 
-        assert_eq!(quote_params.len(), 3);
-        assert_eq!(rpc_calls.len(), 9);
+        assert_eq!(rpc_calls.len(), 27);
     }
 }

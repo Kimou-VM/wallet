@@ -35,17 +35,17 @@ impl Display for TokenPairs {
 }
 
 impl TokenPair {
-    pub fn new_two_hop(token_in: &Address, intermediary: &Address, token_out: &Address, fee_tier: FeeTier) -> Vec<TokenPair> {
+    pub fn new_two_hop(token_in: &Address, intermediary: &Address, token_out: &Address, [first_fee_tier, second_fee_tier]: [FeeTier; 2]) -> Vec<TokenPair> {
         vec![
             TokenPair {
                 token_in: *token_in,
                 token_out: *intermediary,
-                fee_tier,
+                fee_tier: first_fee_tier,
             },
             TokenPair {
                 token_in: *intermediary,
                 token_out: *token_out,
-                fee_tier,
+                fee_tier: second_fee_tier,
             },
         ]
     }
@@ -246,7 +246,7 @@ mod tests {
         let token0 = address!("0x6fd9d7AD17242c41f7131d257212c54A0e816691");
         let token1: Address = OPTIMISM_WETH_TOKEN_ID.parse().unwrap();
         let token2 = address!("0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6");
-        let token_pairs = TokenPair::new_two_hop(&token0, &token1, &token2, FeeTier::ThreeThousand);
+        let token_pairs = TokenPair::new_two_hop(&token0, &token1, &token2, [FeeTier::ThreeThousand, FeeTier::ThreeThousand]);
         let bytes = build_pairs(&token_pairs);
 
         assert_eq!(
