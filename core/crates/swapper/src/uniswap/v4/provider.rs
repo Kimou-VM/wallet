@@ -23,6 +23,7 @@ use gem_evm::uniswap::{
     FeeTier,
     command::{Permit2Permit, encode_commands},
     deployment::v4::get_uniswap_deployment_by_chain,
+    path::BasePair,
 };
 use gem_hash::keccak::keccak256;
 use gem_jsonrpc::alien::create_client;
@@ -75,7 +76,7 @@ impl UniswapV4 {
         let base_pair = base_pair(evm_chain, PROTOCOL).ok_or_else(|| SwapperError::ComputeQuoteError("base pair not found".into()))?;
         let client = create_client(self.rpc_provider.clone(), chain)?;
         let fee_tiers = self.get_tiers();
-        let pairs = candidate_pairs(token_in, token_out, get_intermediaries(&token_in, &token_out, &base_pair));
+        let pairs = candidate_pairs(token_in, token_out, route_intermediaries(&token_in, &token_out, &base_pair));
         let pools = self
             .pool_discovery
             .missing_pools(chain, &pairs, &fee_tiers)
@@ -92,6 +93,14 @@ impl UniswapV4 {
         self.pool_discovery.record_pools(chain, &discovered);
         Ok(())
     }
+}
+
+fn route_intermediaries(token_in: &Address, token_out: &Address, base_pair: &BasePair) -> Vec<Address> {
+    let base_tokens = base_pair.path_building_array();
+    if base_tokens.contains(token_in) && base_tokens.contains(token_out) {
+        return vec![];
+    }
+    get_intermediaries(token_in, token_out, base_pair)
 }
 
 impl fmt::Debug for UniswapV4 {
@@ -137,7 +146,7 @@ impl Swapper for UniswapV4 {
         let direct_paths = build_pool_keys(&token_in, &token_out, &fee_tiers)
             .into_iter()
             .map(|(pairs, pool_key)| (pairs, build_quote_exact_single_request(&token_in, deployment.quoter, quote_amount_in, &pool_key)));
-        let intermediaries = get_intermediaries(&token_in, &token_out, &base_pair);
+        let intermediaries = route_intermediaries(&token_in, &token_out, &base_pair);
         let multi_hop_paths = build_quote_exact_params(quote_amount_in, &token_in, &token_out, &fee_tiers, &intermediaries)
             .into_iter()
             .flatten()
@@ -236,6 +245,17 @@ mod tests {
     use crate::alien::mock::ProviderMock;
     use primitives::asset_constants::TEMPO_BRIDGED_USDC_ASSET_ID;
     use std::sync::Arc;
+
+    #[test]
+    fn test_route_intermediaries() {
+        let base_pair = base_pair(EVMChain::Ethereum, PROTOCOL).unwrap();
+        let usdc = base_pair.stables[0];
+        let cfg = Address::repeat_byte(7);
+
+        assert!(route_intermediaries(&base_pair.primary, &usdc, &base_pair).is_empty());
+        assert_eq!(route_intermediaries(&usdc, &cfg, &base_pair), get_intermediaries(&usdc, &cfg, &base_pair));
+        assert!(route_intermediaries(&usdc, &cfg, &base_pair).contains(&base_pair.primary));
+    }
 
     #[test]
     fn test_robinhood_supported() {

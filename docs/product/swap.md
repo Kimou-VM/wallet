@@ -114,7 +114,7 @@ Every quote compares candidates and keeps the best. A candidate that gave more t
 
 | Provider | Candidates |
 |---|---|
-| Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi | each path: one pool at a fee tier, or two pools through a base token, also when one side is a base token |
+| Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi | each path: one pool at a fee tier, or two pools through a base token unless both sides are base tokens |
 | Orca, Raydium | each route: one pool, or two pools through an intermediate token; a skipped pool's accounts are left out of the request |
 | STON.fi | each path, and each pool within a hop |
 | DeDust | each path: one pool, or two pools through TON or USDT |
@@ -129,7 +129,7 @@ Measured on 2026-10-17, one pair per provider and the same amount, on the build 
 | Provider and pair | First quote | Repeat quote | A day later | Swap build | Size |
 |---|---|---|---|---|---|
 | Uniswap v3, ETH to USDC | 2 | 1, with 8 → 7 calls | 2 → 1 | 0 | 4 KB |
-| Uniswap v4, ETH to USDC | 2, with 16 → 20 calls | 1, with 4 → 5 calls | 2 → 1 | 0 | under 1 KB |
+| Uniswap v4, ETH to USDC | 2, with 16 → 8 calls | 1, with 4 → 3 calls | 2 → 1 | 0 | under 1 KB |
 | Uniswap v4, USDC to CFG | no quote → 2, with 26 calls | 1, with 1 call | 1 | 2 | under 1 KB |
 | Orca, SOL to USDC | 2 | 1 | 2 → 1 | 1 | 318 → 234 KB |
 | Raydium, SOL to USDC | 2 | 1 | 2 → 1 | 1 | 335 → 229 KB |
