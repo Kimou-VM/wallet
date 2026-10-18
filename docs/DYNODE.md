@@ -50,8 +50,8 @@ A request is cached only when a rule in `chains.yml` matches it. Three kinds of 
 | Rule | Matches | Example |
 |---|---|---|
 | `rpc_method` | a JSON-RPC method | Solana `getEpochInfo` |
-| `path` with `params` | an HTTP path and method, and top-level JSON body fields equal to `params` | TON `/api/v3/runGetMethod` whose `method` is `get_pool_address` |
-| `contracts.methods` | contract calls decoded from the request: an `eth_call` to one of `addresses` with one of the 4-byte `identifiers`, a Sui transaction whose Move calls are all in `identifiers` on one of `addresses`, or a Solana `getProgramAccounts` of one of `addresses` | Uniswap v3 factory `getPool`, Cetus `factory::pool_simple_info`, Meteora DAMM v2 pools |
+| `path` with `params` | an HTTP path and method, and top-level JSON body fields equal to `params`; a path ending in `/**` matches everything under it | TON `/api/v3/runGetMethod` whose `method` is `get_pool_address`, Algorand `/v2/assets/**` |
+| `contracts.methods` | contract calls decoded from the request: an `eth_call` to one of `addresses` with one of the 4-byte `identifiers`, a Sui transaction whose Move calls are all in `identifiers` on one of `addresses`, or a Solana `getProgramAccounts` of one of `addresses`; the address `*` matches any contract | Uniswap v3 factory `getPool`, Cetus `factory::pool_simple_info`, Meteora DAMM v2 pools, ERC-20 `decimals()` of any token |
 
 The cache key is the request's own content, never its caller, so every wallet asking the same thing shares one entry:
 
@@ -59,6 +59,8 @@ The cache key is the request's own content, never its caller, so every wallet as
 |---|---|
 | JSON-RPC call | host, path, method and params; the call `id` is left out |
 | Any other request | host, HTTP method, path and the full body |
+
+A JSON-RPC answer of `null` or `0x` is never kept: it says nothing exists yet, and a pending transaction, a contract not deployed yet or a token at a precomputed address would otherwise stay missing for the whole TTL (`test_empty_answers_are_not_cached`).
 
 A JSON-RPC batch is checked call by call: cached calls are answered from memory, only the missing calls go upstream as one batch, and each answer is kept under its own key.
 

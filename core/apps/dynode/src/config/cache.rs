@@ -7,9 +7,11 @@ use serde::Deserialize;
 use serde_json::Value;
 use serde_serializers::{duration, size};
 
-use super::path::path_without_query;
+use super::path::{path_matches, path_without_query};
 use crate::cache::decoder::{ContractCall, ContractRequest, decode_contract_calls};
 use crate::jsonrpc_types::JsonRpcCall;
+
+const ANY_ADDRESS: &str = "*";
 
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct CacheConfig {
@@ -103,7 +105,7 @@ impl CacheRule {
         let Some(rule_path) = self.path.as_ref() else {
             return false;
         };
-        path_without_query(path) == rule_path && self.matches_body(body)
+        path_matches(rule_path, path_without_query(path)) && self.matches_body(body)
     }
 
     pub(crate) fn matches_rpc(&self, rpc_method: &str) -> bool {
@@ -153,7 +155,7 @@ impl ContractMethodRule {
             && calls.len().is_multiple_of(self.identifiers.len())
             && calls.chunks_exact(self.identifiers.len()).all(|chunk| {
                 chunk.iter().zip(&self.identifiers).all(|(call, identifier)| {
-                    self.addresses.iter().any(|address| address.eq_ignore_ascii_case(&call.address))
+                    self.addresses.iter().any(|address| address == ANY_ADDRESS || address.eq_ignore_ascii_case(&call.address))
                         && match chain_type {
                             ChainType::Ethereum => identifier.eq_ignore_ascii_case(&call.identifier),
                             _ => identifier == &call.identifier,
@@ -219,6 +221,34 @@ mod tests {
                 identifier: "pool::calculate_swap_result".to_string(),
             }]
         ));
+    }
+
+    #[test]
+    fn test_path_rule_matches_everything_under_a_prefix() {
+        let rule: CacheRule = serde_json::from_value(serde_json::json!({ "path": "/v2/assets/**", "method": "GET", "ttl": "1d" })).unwrap();
+
+        assert!(rule.matches_path_request("/v2/assets/31566704", "GET", None));
+        assert!(rule.matches_path_request("/v2/assets/31566704?include-all=true", "GET", None));
+        assert!(!rule.matches_path_request("/v2/assets", "GET", None));
+        assert!(!rule.matches_path_request("/v2/assets-other/1", "GET", None));
+        assert!(!rule.matches_path_request("/v2/assets/31566704", "POST", None));
+    }
+
+    #[test]
+    fn test_contract_rule_for_any_address() {
+        let rule = ContractMethodRule {
+            addresses: HashSet::from([ANY_ADDRESS.to_string()]),
+            identifiers: vec!["0x313ce567".to_string()],
+            ttl: MINUTE,
+        };
+        let call = |address: &str, identifier: &str| ContractCall {
+            address: address.to_string(),
+            identifier: identifier.to_string(),
+        };
+
+        assert!(rule.matches(&ChainType::Ethereum, &[call(CONTRACT, "0x313ce567")]));
+        assert!(rule.matches(&ChainType::Ethereum, &[call("0x2222222222222222222222222222222222222222", "0x313CE567")]));
+        assert!(!rule.matches(&ChainType::Ethereum, &[call(CONTRACT, "0x70a08231")]));
     }
 
     #[test]

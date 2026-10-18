@@ -25,10 +25,14 @@ impl PathRule {
         if method != self.method {
             return false;
         }
-        if let Some(prefix) = self.path.strip_suffix("/**") {
-            return path.strip_prefix(prefix).is_some_and(|rest| rest.starts_with('/'));
-        }
-        path == self.path
+        path_matches(&self.path, path)
+    }
+}
+
+pub(crate) fn path_matches(pattern: &str, path: &str) -> bool {
+    match pattern.strip_suffix("/**") {
+        Some(prefix) => path.strip_prefix(prefix).is_some_and(|rest| rest.starts_with('/')),
+        None => path == pattern,
     }
 }
 

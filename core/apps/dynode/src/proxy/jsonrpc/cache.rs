@@ -12,6 +12,8 @@ use crate::proxy::ProxyResponse;
 use crate::proxy::constants::JSON_CONTENT_TYPE;
 use crate::proxy::proxy_request::ProxyRequest;
 
+const EMPTY_HEX: &str = "0x";
+
 pub(super) fn get(call: &JsonRpcCall, request: &ProxyRequest, cache: &RequestCache) -> Option<JsonRpcResult> {
     cache.get(&request.chain, &call.cache_key(&request.host, &request.path_with_query)).and_then(|response| result(call, &response))
 }
@@ -25,6 +27,9 @@ pub(super) fn get_many(calls: &[JsonRpcCall], ttls: &[Option<Duration>], request
 }
 
 pub(super) fn set_result(call: &JsonRpcCall, result: &Value, ttl: Duration, request: &ProxyRequest, cache: &RequestCache) -> Result<(), BoxError> {
+    if is_empty_answer(result) {
+        return Ok(());
+    }
     let result = Bytes::from(serde_json::to_vec(result)?);
     let size = result.len();
     let cached = ProxyResponse::with_content_type(StatusCode::OK.as_u16(), result, JSON_CONTENT_TYPE);
@@ -57,6 +62,14 @@ pub(super) fn set_many(calls: &[JsonRpcCall], ttls: &[Option<Duration>], respons
         }
     }
     Ok(())
+}
+
+fn is_empty_answer(result: &Value) -> bool {
+    match result {
+        Value::Null => true,
+        Value::String(value) => value == EMPTY_HEX,
+        _ => false,
+    }
 }
 
 fn result(call: &JsonRpcCall, cached: &ProxyResponse) -> Option<JsonRpcResult> {
@@ -95,6 +108,22 @@ mod tests {
                 serde_json::to_value(get(&JsonRpcCall::mock(id, "eth_chainId"), &request, &cache).unwrap()).unwrap(),
                 json!({ "jsonrpc": "2.0", "result": "0x1", "id": id })
             );
+        }
+    }
+
+    #[test]
+    fn test_empty_answers_are_not_cached() {
+        let policies: ChainTypesConfig = serde_json::from_value(json!({
+            "ethereum": { "cache": [{ "rpc_method": "eth_getCode", "ttl": "30d" }] }
+        }))
+        .unwrap();
+        let cache = RequestCache::for_chains(&CacheConfig::mock(), &policies, [ChainConfig::mock(Chain::Ethereum)].iter());
+        let request = ProxyRequest::from_http(Method::POST, HeaderMap::from_iter([(HOST, HeaderValue::from_static("example.com"))]), Bytes::new(), "/ethereum", Chain::Ethereum).unwrap();
+
+        for (id, answer, cached) in [(1, json!("0x6080"), true), (2, json!("0x"), false), (3, Value::Null, false), (4, json!([]), true)] {
+            let call = JsonRpcCall::mock_with_params(id, "eth_getCode", json!([format!("0x{id:040}"), "latest"]));
+            set_result(&call, &answer, MINUTE, &request, &cache).unwrap();
+            assert_eq!(get(&call, &request, &cache).is_some(), cached, "{answer}");
         }
     }
 
