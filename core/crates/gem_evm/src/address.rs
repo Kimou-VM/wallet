@@ -77,4 +77,17 @@ mod tests {
     fn test_ethereum_address_from_topic() {
         assert_eq!(ethereum_address_from_topic("0x0000000000000000000000005615e8ab93b9d695b6d4d6545f7792aa59e1069a"), Some(VALID_ADDRESS.to_string()));
     }
+
+    #[test]
+    fn test_asset_constant_token_ids_are_checksummed() {
+        let unchecksummed = include_str!("../../primitives/src/asset_constants.rs")
+            .split('"')
+            .filter(|value| value.len() == 42 && value.starts_with("0x") && value[2..].chars().all(|character| character.is_ascii_hexdigit()))
+            .map(|address| (address, ethereum_address_checksum(address).unwrap()))
+            .filter(|(address, checksum)| address != checksum)
+            .map(|(_, checksum)| checksum)
+            .collect::<Vec<_>>();
+
+        assert_eq!(unchecksummed, Vec::<String>::new());
+    }
 }

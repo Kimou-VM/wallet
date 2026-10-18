@@ -250,7 +250,7 @@ pub const OPBNB_WETH_TOKEN_ID: &str = "0x420000000000000000000000000000000000000
 pub const POLYGON_WETH_TOKEN_ID: &str = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
 pub static POLYGON_WETH_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::from_token(Chain::Polygon, POLYGON_WETH_TOKEN_ID));
 
-pub const GNOSIS_WETH_TOKEN_ID: &str = "0x6A023CCD1ff6F2045C3309768eAd9E68F978f6e1";
+pub const GNOSIS_WETH_TOKEN_ID: &str = "0x6A023CCd1ff6F2045C3309768eAd9E68F978f6e1";
 pub static GNOSIS_WETH_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::from_token(Chain::Gnosis, GNOSIS_WETH_TOKEN_ID));
 
 pub const WORLD_WETH_TOKEN_ID: &str = "0x4200000000000000000000000000000000000006";
@@ -303,7 +303,7 @@ pub static ETHEREUM_AAVE_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId:
 pub const OPTIMISM_OP_TOKEN_ID: &str = "0x4200000000000000000000000000000000000042";
 pub static OPTIMISM_OP_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::from_token(Chain::Optimism, OPTIMISM_OP_TOKEN_ID));
 
-pub const BERACHAIN_USDT_TOKEN_ID: &str = "0x779Ded0c9e1022225f8e0630b35a9b54be713736";
+pub const BERACHAIN_USDT_TOKEN_ID: &str = "0x779Ded0c9e1022225f8E0630b35a9b54bE713736";
 pub static BERACHAIN_USDT_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::from_token(Chain::Berachain, BERACHAIN_USDT_TOKEN_ID));
 
 pub const GNOSIS_USDT_TOKEN_ID: &str = "0x4ECaBa5870353805a9F068101A40E0f32ed605C6";
@@ -316,10 +316,10 @@ pub const XRP_RLUSD_TOKEN_ID: &str = "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De";
 
 pub const XLAYER_USDC_TOKEN_ID: &str = "0xB6CEceAB302E2E4948951eE7843FC24E92933061";
 
-pub const XLAYER_USDC_E_TOKEN_ID: &str = "0x74b7f16337b8972027F6196A17a631aC6dE26d22";
+pub const XLAYER_USDC_E_TOKEN_ID: &str = "0x74b7F16337b8972027F6196A17a631aC6dE26d22";
 pub static XLAYER_USDC_E_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::from_token(Chain::XLayer, XLAYER_USDC_E_TOKEN_ID));
 
-pub const XLAYER_USDT_TOKEN_ID: &str = "0x779Ded0c9e1022225f8e0630b35a9b54be713736";
+pub const XLAYER_USDT_TOKEN_ID: &str = "0x779Ded0c9e1022225f8E0630b35a9b54bE713736";
 pub static XLAYER_USDT_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::from_token(Chain::XLayer, XLAYER_USDT_TOKEN_ID));
 
 pub const ETHEREUM_STETH_TOKEN_ID: &str = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
