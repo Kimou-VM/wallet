@@ -16,10 +16,11 @@ use crate::{
             address::native_address_to_bytes32,
             amount::{fractional_amount, gas_drop_amount, min_amount_out, optional_bps_u8, value_to_query},
             route::quote_destination_address,
-            solana::{self as solana_builder, SolanaLedgerDeposit, SolanaTransaction, append_client_swap_instructions, append_ledger_deposit_instructions, solana_error, wrap_instruction_in_cpi_proxy},
+            solana::{SolanaLedgerDeposit, append_client_swap_instructions, append_ledger_deposit_instructions, solana_error, wrap_instruction_in_cpi_proxy},
         },
         wormhole_chain::{WormholeChain, id_for_name as wormhole_chain_id},
     },
+    solana_dex::SolanaTransaction,
 };
 
 const LEDGER_ORDER_SEED: &[u8] = b"LEDGER_ORDER";
@@ -85,7 +86,7 @@ where
     C: Client + Clone + Send + Sync + Debug + 'static,
 {
     let transaction = build(client, quote, route).await?;
-    solana_builder::build_quote_data(quote, transaction, rpc_provider).await
+    transaction.quote_data(&quote.request.wallet_address, rpc_provider).await
 }
 
 async fn build<C>(client: &MayanClient<C>, quote: &Quote, route: &MayanFastMctpQuote) -> Result<SolanaTransaction, SwapperError>

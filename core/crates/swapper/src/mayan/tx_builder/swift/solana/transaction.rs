@@ -28,10 +28,11 @@ use crate::{
             amount::value_to_query,
             hypercore::hypercore_custom_payload,
             route::{quote_destination_address, swift_destination_address},
-            solana::{SolanaTransaction, append_client_swap_instructions, solana_error, wrap_instruction_in_cpi_proxy},
+            solana::{append_client_swap_instructions, solana_error, wrap_instruction_in_cpi_proxy},
             swift::{SwiftOrderFields, swift_input_contract as route_swift_input_contract, swift_random_key},
         },
     },
+    solana_dex::SolanaTransaction,
 };
 
 struct SwiftBuildContext {

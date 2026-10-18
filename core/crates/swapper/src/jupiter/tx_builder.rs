@@ -1,7 +1,7 @@
 use gem_encoding::encode_base64;
 use gem_solana::{
     AddressLookupTableAccount, Base64InstructionData, DEFAULT_SWAP_GAS_LIMIT, JUPITER_PROGRAM_ID, MAX_TRANSACTION_SIZE, Pubkey, TransactionBuilder,
-    compute_budget::{ensure_compute_unit_price, parse_compute_unit_limit_data, set_compute_unit_limit},
+    compute_budget::{parse_compute_unit_limit_data, set_compute_unit_limit, with_compute_unit_price},
     instruction_from_primitive, instructions_from_primitives,
 };
 
@@ -25,17 +25,16 @@ impl BuildResponse {
 
         let payer = Pubkey::from_base58(payer).map_err(SwapperError::transaction_error)?;
 
-        let mut compute_budget_instructions = instructions_from_primitives::<Base64InstructionData>(self.compute_budget_instructions).map_err(SwapperError::transaction_error)?;
-        compute_budget_instructions.retain(|instruction| parse_compute_unit_limit_data(&instruction.data).is_none());
-        let mut instructions = vec![set_compute_unit_limit(DEFAULT_SWAP_GAS_LIMIT)];
-        instructions.extend(compute_budget_instructions);
-        ensure_compute_unit_price(&mut instructions, 0);
-        instructions.extend(instructions_from_primitives::<Base64InstructionData>(self.setup_instructions).map_err(SwapperError::transaction_error)?);
-        instructions.push(instruction_from_primitive::<Base64InstructionData>(self.swap_instruction).map_err(SwapperError::transaction_error)?);
-        if let Some(cleanup_instruction) = self.cleanup_instruction {
-            instructions.push(instruction_from_primitive::<Base64InstructionData>(cleanup_instruction).map_err(SwapperError::transaction_error)?);
-        }
-        instructions.extend(instructions_from_primitives::<Base64InstructionData>(self.other_instructions).map_err(SwapperError::transaction_error)?);
+        let compute_budget_instructions = instructions_from_primitives::<Base64InstructionData>(self.compute_budget_instructions)
+            .map_err(SwapperError::transaction_error)?
+            .into_iter()
+            .filter(|instruction| parse_compute_unit_limit_data(&instruction.data).is_none());
+        let compute_budget = with_compute_unit_price(std::iter::once(set_compute_unit_limit(DEFAULT_SWAP_GAS_LIMIT)).chain(compute_budget_instructions).collect(), 0);
+        let setup = instructions_from_primitives::<Base64InstructionData>(self.setup_instructions).map_err(SwapperError::transaction_error)?;
+        let swap = instruction_from_primitive::<Base64InstructionData>(self.swap_instruction).map_err(SwapperError::transaction_error)?;
+        let cleanup = self.cleanup_instruction.map(instruction_from_primitive::<Base64InstructionData>).transpose().map_err(SwapperError::transaction_error)?;
+        let other = instructions_from_primitives::<Base64InstructionData>(self.other_instructions).map_err(SwapperError::transaction_error)?;
+        let instructions = [compute_budget, setup, vec![swap], cleanup.into_iter().collect(), other].concat();
 
         let lookup_tables = self
             .addresses_by_lookup_table_address

@@ -1,17 +1,48 @@
 use gem_solana::{
-    BLOCKHASH_SET_AT_SIGNING, DEFAULT_SWAP_GAS_LIMIT, Instruction, Pubkey,
+    AddressLookupTableAccount, BLOCKHASH_SET_AT_SIGNING, DEFAULT_SWAP_GAS_LIMIT, Instruction, Pubkey, SolanaAddress, SolanaClient,
     associated_token::create_associated_token_account_idempotent,
-    compute_budget::{set_compute_unit_limit, set_compute_unit_price},
+    compute_budget::{self, set_compute_unit_limit, set_compute_unit_price},
     encode_v0_transaction, system,
     token::transfer_checked_with_program_id,
     wrapped_sol,
 };
+use num_bigint::BigUint;
+use primitives::Chain;
+use std::sync::Arc;
 
 use super::{protocol::PoolSwap, token::SwapToken};
 use crate::{
-    SwapperError,
+    SwapperError, SwapperQuoteData,
+    alien::RpcProvider,
+    client_factory::create_client_with_chain,
     fees::{FeeSide, ReferralTransfer},
 };
+
+#[derive(Debug)]
+pub(crate) struct SolanaTransaction {
+    instructions: Vec<Instruction>,
+    lookup_table_addresses: Vec<String>,
+}
+
+impl SolanaTransaction {
+    pub(crate) fn new(instructions: Vec<Instruction>, lookup_table_addresses: Vec<String>) -> Self {
+        Self { instructions, lookup_table_addresses }
+    }
+
+    pub(crate) async fn quote_data(self, wallet_address: &str, rpc_provider: Arc<dyn RpcProvider>) -> Result<SwapperQuoteData, SwapperError> {
+        let client = SolanaClient::new(create_client_with_chain(rpc_provider, Chain::Solana)?);
+        let lookup_tables = client.get_address_lookup_tables(self.lookup_table_addresses.clone()).await.map_err(SwapperError::transaction_error)?;
+        self.encode(wallet_address, &lookup_tables)
+    }
+
+    pub(crate) fn encode(self, wallet_address: &str, lookup_tables: &[AddressLookupTableAccount]) -> Result<SwapperQuoteData, SwapperError> {
+        let fee_payer = SolanaAddress::parse(wallet_address).map_err(SwapperError::transaction_error)?.into();
+        let instructions = compute_budget::with_compute_unit_price(self.instructions, 0);
+        let data = encode_v0_transaction(fee_payer, BLOCKHASH_SET_AT_SIGNING, &instructions, lookup_tables).map_err(SwapperError::transaction_error)?;
+        let gas_limit = compute_budget::get_compute_unit_limit(&instructions).map(|limit| limit.to_string());
+        Ok(SwapperQuoteData::new_contract(String::new(), BigUint::ZERO, data, None, gas_limit))
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct DexTransaction<'a> {

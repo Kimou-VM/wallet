@@ -54,17 +54,15 @@ pub fn get_compute_unit_limit(instructions: &[Instruction]) -> Option<u32> {
     find_unique_compute_unit_limit(instructions.iter().filter(|instruction| instruction.program_id == compute_budget_program()).map(|instruction| instruction.data.as_slice()))
 }
 
-pub fn ensure_compute_unit_price(instructions: &mut Vec<Instruction>, micro_lamports: u64) -> bool {
+pub fn with_compute_unit_price(instructions: Vec<Instruction>, micro_lamports: u64) -> Vec<Instruction> {
     let has_price = instructions
         .iter()
         .any(|instruction| instruction.program_id == compute_budget_program() && parse_compute_unit_price_data(&instruction.data).is_some());
     if has_price {
-        return false;
+        return instructions;
     }
-
-    let insertion_index = usize::from(instructions.first().is_some_and(is_advance_nonce_account));
-    instructions.insert(insertion_index, set_compute_unit_price(micro_lamports));
-    true
+    let (nonce, rest) = instructions.split_at(usize::from(instructions.first().is_some_and(is_advance_nonce_account)));
+    [nonce, &[set_compute_unit_price(micro_lamports)], rest].concat()
 }
 
 #[cfg(test)]
@@ -114,20 +112,16 @@ mod tests {
         let payer = Pubkey::new([1; 32]);
         let recipient = Pubkey::new([2; 32]);
         let transfer = transfer(&payer, &recipient, 10);
-        let mut instructions = vec![transfer];
+        let priced = with_compute_unit_price(vec![transfer.clone()], 5_000);
 
-        assert!(ensure_compute_unit_price(&mut instructions, 5_000));
-        assert_eq!(instructions[0], set_compute_unit_price(5_000));
-        assert!(!ensure_compute_unit_price(&mut instructions, 9_999));
+        assert_eq!(priced, vec![set_compute_unit_price(5_000), transfer]);
+        assert_eq!(with_compute_unit_price(priced.clone(), 9_999), priced);
 
         let nonce = Instruction {
             program_id: system_program(),
             accounts: vec![],
             data: ADVANCE_NONCE_ACCOUNT_DISCRIMINANT.to_vec(),
         };
-        let mut instructions = vec![nonce.clone()];
-        assert!(ensure_compute_unit_price(&mut instructions, 5_000));
-        assert_eq!(instructions[0], nonce);
-        assert_eq!(instructions[1], set_compute_unit_price(5_000));
+        assert_eq!(with_compute_unit_price(vec![nonce.clone()], 5_000), vec![nonce, set_compute_unit_price(5_000)]);
     }
 }

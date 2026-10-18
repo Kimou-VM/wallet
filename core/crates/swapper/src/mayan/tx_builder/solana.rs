@@ -1,47 +1,20 @@
-use std::{fmt::Display, sync::Arc};
+use std::fmt::Display;
 
 use gem_encoding::decode_base64;
 use gem_evm::EVM_ZERO_ADDRESS;
 use gem_solana::{
-    ASSOCIATED_TOKEN_ACCOUNT_PROGRAM, AccountMeta, BLOCKHASH_SET_AT_SIGNING, Base64InstructionData, Instruction, Pubkey, SYSTEM_PROGRAM_ID, SolanaAddress, SolanaClient,
+    ASSOCIATED_TOKEN_ACCOUNT_PROGRAM, AccountMeta, Base64InstructionData, Instruction, Pubkey, SYSTEM_PROGRAM_ID, SolanaAddress,
     associated_token::{create_associated_token_account_idempotent_with_address, get_associated_token_address_with_program_id},
-    compute_budget, encode_v0_transaction, instruction_from_primitive,
+    compute_budget, instruction_from_primitive,
     instructions::program_ids,
     instructions_from_primitives, token, wrapped_sol,
 };
-use num_bigint::BigUint;
-use primitives::{Chain, SolanaInstruction};
+use primitives::SolanaInstruction;
 
 use crate::{
-    Quote, RpcProvider, SwapperError, SwapperQuoteData,
-    client_factory::create_client_with_chain,
+    SwapperError,
     mayan::{constants::MAYAN_CPI_PROXY_PROGRAM_ID, model::SolanaClientSwap},
 };
-
-#[derive(Debug)]
-pub(in crate::mayan::tx_builder) struct SolanaTransaction {
-    instructions: Vec<Instruction>,
-    lookup_table_addresses: Vec<String>,
-}
-
-impl SolanaTransaction {
-    pub(in crate::mayan::tx_builder) fn new(instructions: Vec<Instruction>, lookup_table_addresses: Vec<String>) -> Self {
-        Self { instructions, lookup_table_addresses }
-    }
-}
-
-pub(in crate::mayan::tx_builder) async fn build_quote_data(quote: &Quote, transaction: SolanaTransaction, rpc_provider: Arc<dyn RpcProvider>) -> Result<SwapperQuoteData, SwapperError> {
-    let client = create_client_with_chain(rpc_provider, Chain::Solana)?;
-    let rpc_client = SolanaClient::new(client);
-    let lookup_tables = rpc_client.get_address_lookup_tables(transaction.lookup_table_addresses).await.map_err(solana_error)?;
-    let fee_payer = SolanaAddress::parse(&quote.request.wallet_address).map_err(solana_error)?.into();
-    let mut instructions = transaction.instructions;
-    compute_budget::ensure_compute_unit_price(&mut instructions, 0);
-    let data = encode_v0_transaction(fee_payer, BLOCKHASH_SET_AT_SIGNING, &instructions, &lookup_tables).map_err(solana_error)?;
-    let gas_limit = compute_budget::get_compute_unit_limit(&instructions).map(|limit| limit.to_string());
-
-    Ok(SwapperQuoteData::new_contract(String::new(), BigUint::from(0u64), data, None, gas_limit))
-}
 
 pub(in crate::mayan::tx_builder) struct SolanaLedgerDeposit<'a> {
     pub user: &'a Pubkey,

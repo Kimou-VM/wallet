@@ -1,25 +1,17 @@
 use std::sync::Arc;
 
-use gem_solana::{AddressLookupTableAccount, BLOCKHASH_SET_AT_SIGNING, HexInstructionData, SolanaAddress, SolanaClient, compute_budget, encode_v0_transaction, instructions_from_primitives};
-use num_bigint::BigUint;
-use primitives::Chain;
+use gem_solana::{HexInstructionData, instructions_from_primitives};
 
 use super::model::SolanaStepData;
-use crate::{SwapperError, SwapperQuoteData, alien::RpcProvider, client_factory::create_client_with_chain};
+use crate::{SwapperError, SwapperQuoteData, alien::RpcProvider, solana_dex::SolanaTransaction};
 
 pub async fn build_quote_data(wallet_address: &str, step: &SolanaStepData, rpc_provider: Arc<dyn RpcProvider>) -> Result<SwapperQuoteData, SwapperError> {
-    let client = SolanaClient::new(create_client_with_chain(rpc_provider, Chain::Solana)?);
-    let lookup_tables = client.get_address_lookup_tables(step.address_lookup_table_addresses.clone()).await.map_err(SwapperError::transaction_error)?;
-    build_transaction(wallet_address, step, &lookup_tables)
+    transaction(step)?.quote_data(wallet_address, rpc_provider).await
 }
 
-fn build_transaction(wallet_address: &str, step: &SolanaStepData, lookup_tables: &[AddressLookupTableAccount]) -> Result<SwapperQuoteData, SwapperError> {
-    let mut instructions = instructions_from_primitives::<HexInstructionData>(step.instructions.clone()).map_err(SwapperError::transaction_error)?;
-    compute_budget::ensure_compute_unit_price(&mut instructions, 0);
-    let fee_payer = SolanaAddress::parse(wallet_address).map_err(SwapperError::transaction_error)?.into();
-    let data = encode_v0_transaction(fee_payer, BLOCKHASH_SET_AT_SIGNING, &instructions, lookup_tables).map_err(SwapperError::transaction_error)?;
-    let gas_limit = compute_budget::get_compute_unit_limit(&instructions).map(|limit| limit.to_string());
-    Ok(SwapperQuoteData::new_contract(String::new(), BigUint::ZERO, data, None, gas_limit))
+fn transaction(step: &SolanaStepData) -> Result<SolanaTransaction, SwapperError> {
+    let instructions = instructions_from_primitives::<HexInstructionData>(step.instructions.clone()).map_err(SwapperError::transaction_error)?;
+    Ok(SolanaTransaction::new(instructions, step.address_lookup_table_addresses.clone()))
 }
 
 #[cfg(test)]
@@ -27,6 +19,7 @@ mod tests {
     use super::*;
     use crate::relay::model::RelayQuoteResponse;
     use gem_solana::decode_transaction;
+    use num_bigint::BigUint;
     use primitives::contract_constants::SOLANA_RELAY_DEPOSITORY_PROGRAM_ID;
 
     #[test]
@@ -34,7 +27,7 @@ mod tests {
         let response: RelayQuoteResponse = serde_json::from_str(include_str!("testdata/quote_sol_to_base_usdc.json")).unwrap();
         let step = response.get_solana_step().unwrap();
 
-        let quote_data = build_transaction("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T", step, &[]).unwrap();
+        let quote_data = transaction(step).unwrap().encode("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T", &[]).unwrap();
 
         let transaction = decode_transaction(&quote_data.data).unwrap();
         assert_eq!(transaction.num_required_signatures(), 1);

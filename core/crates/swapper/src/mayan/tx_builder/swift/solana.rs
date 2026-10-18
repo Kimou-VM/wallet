@@ -2,7 +2,7 @@ mod order;
 mod payload;
 mod transaction;
 
-use crate::mayan::{client::MayanClient, model::MayanSwiftQuote, tx_builder::solana as solana_builder};
+use crate::mayan::{client::MayanClient, model::MayanSwiftQuote};
 use crate::{Quote, RpcProvider, SwapperError, SwapperQuoteData};
 use gem_client::Client;
 use std::{fmt::Debug, sync::Arc};
@@ -12,5 +12,5 @@ where
     C: Client + Clone + Send + Sync + Debug + 'static,
 {
     let transaction = transaction::build(client, quote, route).await?;
-    solana_builder::build_quote_data(quote, transaction, rpc_provider).await
+    transaction.quote_data(&quote.request.wallet_address, rpc_provider).await
 }
