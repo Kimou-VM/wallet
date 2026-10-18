@@ -161,12 +161,13 @@ where
 {
     let min_middle_amount = value_to_query(route.min_middle_amount.as_ref().ok_or(SwapperError::InvalidRoute)?)?;
     let swap: SolanaClientSwap = client
-        .get_swap_solana(GetSwapSolanaParams::swift(
+        .get_swap_solana(GetSwapSolanaParams::new(
             route,
             min_middle_amount,
             context.swift_input_contract.clone(),
             quote.request.wallet_address.clone(),
             route.effective_amount_in64.clone(),
+            "SWIFT",
             context.referrer_address.clone(),
             context.state.to_string(),
         ))

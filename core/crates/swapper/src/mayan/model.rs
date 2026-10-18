@@ -98,9 +98,15 @@ pub struct MayanQuoteCommon {
     pub deadline64: Option<String>,
     pub referrer_bps: Option<u32>,
     pub expected_amount_out_base_units: Option<String>,
+    pub max_swap_accounts: Option<u32>,
+    pub max_swap_data_length: Option<u32>,
 }
 
 impl MayanQuoteCommon {
+    pub(in crate::mayan) fn source_referrer_address(&self) -> Option<String> {
+        wormhole_chain::chain_for_name(&self.from_chain).ok().map(default_referral_address).non_empty()
+    }
+
     pub(in crate::mayan) fn expected_output_value(&self, output_decimals: u32) -> Result<BigUint, SwapperError> {
         let output_decimals = if output_decimals == 0 { self.to_token.decimals } else { output_decimals };
         if let Some(value) = &self.expected_amount_out_base_units {
@@ -145,8 +151,6 @@ pub struct MayanSwiftQuote {
     pub suggested_priority_fee: Option<u64>,
     pub gasless: Option<bool>,
     pub quote_id: Option<String>,
-    pub max_swap_accounts: Option<u32>,
-    pub max_swap_data_length: Option<u32>,
     pub memo_hex: Option<String>,
 }
 
@@ -175,8 +179,6 @@ pub struct MayanMctpQuote {
     pub solana_relayer_fee64: Option<String>,
     pub relayer: Option<String>,
     pub suggested_priority_fee: Option<u64>,
-    pub max_swap_accounts: Option<u32>,
-    pub max_swap_data_length: Option<u32>,
 }
 
 impl Deref for MayanMctpQuote {
@@ -205,8 +207,6 @@ pub struct MayanFastMctpQuote {
     pub solana_relayer_fee64: Option<String>,
     pub relayer: Option<String>,
     pub suggested_priority_fee: Option<u64>,
-    pub max_swap_accounts: Option<u32>,
-    pub max_swap_data_length: Option<u32>,
 }
 
 impl Deref for MayanFastMctpQuote {
@@ -280,33 +280,7 @@ pub struct GetSwapEvmParams {
 }
 
 impl GetSwapEvmParams {
-    pub fn swift(route: &MayanSwiftQuote, amount_in64: String, middle_token: String) -> Self {
-        Self {
-            forwarder_address: MAYAN_FORWARDER,
-            slippage_bps: route.slippage_bps,
-            referrer_address: wormhole_chain::chain_for_name(&route.from_chain).ok().map(default_referral_address).non_empty(),
-            from_token: route.from_token.contract.clone(),
-            middle_token,
-            chain_name: route.from_chain.clone(),
-            amount_in64,
-            sdk_version: SDK_VERSION,
-        }
-    }
-
-    pub fn mctp(route: &MayanMctpQuote, amount_in64: String, middle_token: String, referrer_address: Option<String>) -> Self {
-        Self {
-            forwarder_address: MAYAN_FORWARDER,
-            slippage_bps: route.slippage_bps,
-            referrer_address,
-            from_token: route.from_token.contract.clone(),
-            middle_token,
-            chain_name: route.from_chain.clone(),
-            amount_in64,
-            sdk_version: SDK_VERSION,
-        }
-    }
-
-    pub fn fast_mctp(route: &MayanFastMctpQuote, amount_in64: String, middle_token: String, referrer_address: Option<String>) -> Self {
+    pub fn new(route: &MayanQuoteCommon, amount_in64: String, middle_token: String, referrer_address: Option<String>) -> Self {
         Self {
             forwarder_address: MAYAN_FORWARDER,
             slippage_bps: route.slippage_bps,
@@ -352,47 +326,7 @@ pub struct GetSwapSolanaParams {
 }
 
 impl GetSwapSolanaParams {
-    pub fn swift(route: &MayanSwiftQuote, min_middle_amount: String, middle_token: String, user_wallet: String, amount_in64: String, referrer_address: Option<String>, user_ledger: String) -> Self {
-        Self {
-            min_middle_amount,
-            middle_token,
-            user_wallet,
-            slippage_bps: route.slippage_bps,
-            from_token: route.from_token.contract.clone(),
-            amount_in64,
-            deposit_mode: "SWIFT",
-            fill_max_accounts: false,
-            tpm_token_account: None,
-            referrer_address,
-            chain_name: route.from_chain.clone(),
-            user_ledger,
-            max_swap_accounts: route.max_swap_accounts,
-            max_swap_data_length: route.max_swap_data_length,
-            sdk_version: SDK_VERSION,
-        }
-    }
-
-    pub fn mctp(route: &MayanMctpQuote, min_middle_amount: String, middle_token: String, user_wallet: String, amount_in64: String, deposit_mode: &'static str, referrer_address: Option<String>, user_ledger: String) -> Self {
-        Self {
-            min_middle_amount,
-            middle_token,
-            user_wallet,
-            slippage_bps: route.slippage_bps,
-            from_token: route.from_token.contract.clone(),
-            amount_in64,
-            deposit_mode,
-            fill_max_accounts: false,
-            tpm_token_account: None,
-            referrer_address,
-            chain_name: route.from_chain.clone(),
-            user_ledger,
-            max_swap_accounts: route.max_swap_accounts,
-            max_swap_data_length: route.max_swap_data_length,
-            sdk_version: SDK_VERSION,
-        }
-    }
-
-    pub fn fast_mctp(route: &MayanFastMctpQuote, min_middle_amount: String, middle_token: String, user_wallet: String, amount_in64: String, deposit_mode: &'static str, referrer_address: Option<String>, user_ledger: String) -> Self {
+    pub fn new(route: &MayanQuoteCommon, min_middle_amount: String, middle_token: String, user_wallet: String, amount_in64: String, deposit_mode: &'static str, referrer_address: Option<String>, user_ledger: String) -> Self {
         Self {
             min_middle_amount,
             middle_token,
