@@ -58,11 +58,7 @@ fn build_jetton_swap(params: SwapTransactionParams<'_>, swap_body: &CellArc) -> 
 
 fn build_swap_body(params: &SwapTransactionParams<'_>) -> Result<Cell, SwapperError> {
     let ask_wallet = Address::parse(&params.simulation.ask_jetton_wallet)?;
-    let receiver_address = match params.next_swap.as_ref() {
-        Some(next_swap) if is_same_router(params, next_swap) => Address::parse(&params.simulation.router.address)?,
-        Some(next_swap) => Address::parse(&next_swap.simulation.offer_jetton_wallet)?,
-        None => params.receiver_address,
-    };
+    let receiver_address = first_hop_receiver(params)?;
     let min_ask_amount = BigUint::from_str(&params.simulation.min_ask_units)?;
     let referral_bps = if params.next_swap.is_some() { 0 } else { params.referral.bps };
     let default_deadline_seconds = if params.from_native { V2_TON_TO_JETTON_DEADLINE_SECONDS } else { V2_DEFAULT_DEADLINE_SECONDS };
@@ -82,6 +78,16 @@ fn build_swap_body(params: &SwapTransactionParams<'_>) -> Result<Cell, SwapperEr
         referral_address: params.referral.address,
         deadline,
     })
+}
+
+fn first_hop_receiver(params: &SwapTransactionParams<'_>) -> Result<Address, SwapperError> {
+    let address = match params.next_swap.as_ref() {
+        Some(next_swap) if is_same_router(params, next_swap) => &params.simulation.router.address,
+        Some(next_swap) if next_swap.through_ton => &next_swap.simulation.offer_jetton_wallet,
+        Some(next_swap) => &next_swap.simulation.router.address,
+        None => return Ok(params.receiver_address),
+    };
+    Ok(Address::parse(address)?)
 }
 
 fn build_next_swap_body(params: &SwapTransactionParams<'_>, next_swap: &NextSwapParams<'_>) -> Result<Cell, SwapperError> {
@@ -148,6 +154,7 @@ mod tests {
     use super::*;
     use crate::stonfi::{
         model::{Router, SwapSimulation},
+        testkit::TEST_TON_SENDER,
         tx_builder::{NextSwapParams, SwapTransactionParams},
     };
 
@@ -198,6 +205,7 @@ mod tests {
             next_swap: Some(NextSwapParams {
                 simulation: &swap_from_intermediary,
                 min_ask_amount: BigUint::from(694u32),
+                through_ton: true,
             }),
             ..SwapTransactionParams::mock(&swap_to_intermediary)
         })
@@ -222,6 +230,7 @@ mod tests {
             next_swap: Some(NextSwapParams {
                 simulation: &swap_from_intermediary_with_minor_mismatch,
                 min_ask_amount: BigUint::from(694u32),
+                through_ton: true,
             }),
             ..SwapTransactionParams::mock(&swap_to_intermediary)
         })
@@ -241,6 +250,7 @@ mod tests {
             next_swap: Some(NextSwapParams {
                 simulation: &swap_from_intermediary_on_other_router,
                 min_ask_amount: BigUint::from(694u32),
+                through_ton: true,
             }),
             from_native: false,
             sender_jetton_wallet: Some(TEST_SENDER_JETTON_WALLET),
@@ -256,5 +266,34 @@ mod tests {
             "te6cckECBQEAAd4AAa4Pin6lAAAAAAAAAAAw9CQIASXCgjXKjRJeZ2WRUT1SByGx/pn3ci9Mh3I85+4N+3OjAAzoUpalAaXnVm5MoiYWRZguLFzY0KxFjLv3MkRq5BXzyDk4cAEBAeFmZN4qgBJFrE+vsdt6AcnEd7YYqU7dy8PoyudDXogvCv9HxH0j8ADOhSlqUBpedWbkyiJhZFmC4sXNjQrEWMu/cyRGrkFfPgAZ0KUtSgNLzqzcmURMLIswXFi5saFYixl37mSI1cgr54AAAAAyqfiAQAIBmzA+5jgBJFrE+vsdt6AcnEd7YYqU7dy8PoyudDXogvCv9HxH0j6BycOAEAAAQAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+AMB4WZk3iqAEkQYMDTZ/VmiNvcexCcb43c5kFbdpMw6Xr9dxAln32QQAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+ABnQpS1KA0vOrNyZREwsizBcWLmxoViLGXfuZIjVyCvngAAAADKp+IBABACRICtoAGdClLUoDS86s3JlETCyLMFxYubGhWIsZd+5kiNXIK+eAAAZQAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+Jp8zgc="
         );
         assert!(BagOfCells::parse_base64(&forward_transaction.data).is_ok());
+    }
+
+    #[test]
+    fn test_first_hop_receiver() {
+        let first = SwapSimulation::mock("EQCSIMGBps_qzRG3uPYhON8bucyCtu0mYdL1-u4gSz77IBa3", "EQCSLWJ9fY7b0A5OI72wxUp27l4fRlc6GvRBeFf6PiPpH4p3", "260238", "257635");
+        let other_router = SwapSimulation {
+            router: Router {
+                address: "EQDx--jUU9PUtHltPYZX7wdzIi0SPY3KZ8nvOs0iZvQJd6Ql".to_string(),
+                ..first.router.clone()
+            },
+            ..SwapSimulation::mock("EQDwOyDlewGw8MkeXgZ_oOmPTIhJIlaJwhJmf4ffIPKv-294", "EQAZMdggoCwOcSVLlT_RyiZtLSMyjYHIttUD9QBVe_NjIHA4", "709", "702")
+        };
+        let receiver = |next: &SwapSimulation, through_ton: bool| {
+            first_hop_receiver(&SwapTransactionParams {
+                next_swap: Some(NextSwapParams {
+                    simulation: next,
+                    min_ask_amount: BigUint::from(1u32),
+                    through_ton,
+                }),
+                ..SwapTransactionParams::mock(&first)
+            })
+            .unwrap()
+        };
+        let address = |value: &str| Address::parse(value).unwrap();
+
+        assert_eq!(first_hop_receiver(&SwapTransactionParams::mock(&first)).unwrap(), address(TEST_TON_SENDER));
+        assert_eq!(receiver(&first, false), address(&first.router.address));
+        assert_eq!(receiver(&other_router, true), address(&other_router.offer_jetton_wallet));
+        assert_eq!(receiver(&other_router, false), address(&other_router.router.address));
     }
 }

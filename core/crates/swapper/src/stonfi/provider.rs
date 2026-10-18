@@ -415,6 +415,7 @@ where
                 Ok::<_, SwapperError>(NextSwapParams {
                     simulation: next_simulation,
                     min_ask_amount: scaled_next_min_ask_amount(simulation, next_simulation)?,
+                    through_ton: quote.data.routes.first().is_some_and(|route| route.output.is_native()),
                 })
             })
             .transpose()?;

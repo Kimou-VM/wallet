@@ -12,6 +12,7 @@ pub struct ReferralParams {
 pub struct NextSwapParams<'a> {
     pub simulation: &'a SwapSimulation,
     pub min_ask_amount: BigUint,
+    pub through_ton: bool,
 }
 
 #[derive(Debug, Clone)]
