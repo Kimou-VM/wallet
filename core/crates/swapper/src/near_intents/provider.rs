@@ -17,7 +17,6 @@ use async_trait::async_trait;
 use chrono::DateTime;
 use chrono::{Duration, Utc};
 use num_bigint::BigUint;
-use num_integer::Integer;
 use num_traits::Zero;
 use primitives::{
     AssetId, Chain, OptionStringExt, TransactionSwapMetadata, TransactionSwapReferralFee,
@@ -178,28 +177,16 @@ where
             QuoteResponseResult::Ok(response) => *response,
             QuoteResponseResult::Err(error) => return Err(map_quote_error(&error, from_decimals)),
         };
-        validate_minimum_amount(&quote_response.quote.amount_in, &quote_response.quote.amount_out, &quote_response.quote.min_amount_out, &quote_response.quote.withdraw_fee)?;
+        validate_minimum_output(&quote_response.quote.amount_out, &quote_response.quote.min_amount_out)?;
         Ok(quote_response)
     }
 }
 
-fn validate_minimum_amount(amount_in: &BigUint, amount_out: &BigUint, min_amount_out: &BigUint, withdrawal_fee: &BigUint) -> Result<(), SwapperError> {
-    if min_amount_out > amount_out {
-        return Err(SwapperError::ComputeQuoteError("Near Intents returned an invalid minimum output".into()));
+fn validate_minimum_output(amount_out: &BigUint, min_amount_out: &BigUint) -> Result<(), SwapperError> {
+    match min_amount_out > amount_out {
+        true => Err(SwapperError::ComputeQuoteError("Near Intents returned an invalid minimum output".into())),
+        false => Ok(()),
     }
-
-    let withdrawal_budget = amount_out - min_amount_out;
-    if withdrawal_fee <= &withdrawal_budget {
-        return Ok(());
-    }
-    if withdrawal_budget.is_zero() {
-        return Err(SwapperError::NoQuoteAvailable);
-    }
-
-    let minimum_amount = (amount_in * withdrawal_fee).div_ceil(&withdrawal_budget);
-    Err(SwapperError::InputAmountError {
-        min_amount: Some(minimum_amount.to_string()),
-    })
 }
 
 fn map_quote_error(error: &QuoteResponseError, from_decimals: u32) -> SwapperError {
@@ -525,11 +512,12 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_minimum_amount() {
-        assert_eq!(validate_minimum_amount(&100_u32.into(), &100_u32.into(), &90_u32.into(), &10_u32.into()), Ok(()));
+    fn test_validate_minimum_output() {
+        assert_eq!(validate_minimum_output(&120_978_u32.into(), &119_768_u32.into()), Ok(()));
+        assert_eq!(validate_minimum_output(&100_u32.into(), &100_u32.into()), Ok(()));
         assert_eq!(
-            validate_minimum_amount(&100_u32.into(), &100_u32.into(), &90_u32.into(), &11_u32.into()),
-            Err(SwapperError::InputAmountError { min_amount: Some("110".into()) })
+            validate_minimum_output(&100_u32.into(), &101_u32.into()),
+            Err(SwapperError::ComputeQuoteError("Near Intents returned an invalid minimum output".into()))
         );
     }
 }
