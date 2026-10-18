@@ -12,7 +12,6 @@ import uniffi.gemstone.securityReminderItems
 fun securityReminderListItems(context: Context, kind: GemWalletSecretKind): List<ListItemModel> = securityReminderItems(kind).map { item ->
     ListItemModel(
         title = context.getString(item.titleRes()),
-        titleLineLimit = 2,
         titleExtra = context.getString(item.subtitleRes()),
         image = ListItemImage.Emoji(item.emoji()),
     )
