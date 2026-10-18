@@ -70,6 +70,7 @@ pub enum SolanaRpc {
     GetInflationRate,
     GetLatestBlockhash(SolanaRpcConfig),
     GetMultipleAccounts(Vec<String>),
+    GetMultipleAccountsSlice(Vec<String>, SolanaDataSlice),
     GetProgramAccounts(String, Vec<SolanaProgramAccountsFilter>),
     GetProgramAccountsSlice(String, Vec<SolanaProgramAccountsFilter>, SolanaDataSlice),
     GetRecentPrioritizationFees(Vec<String>),
@@ -92,7 +93,7 @@ impl ToJsonRpcRequest for SolanaRpc {
             Self::GetGenesisHash => method::GET_GENESIS_HASH,
             Self::GetInflationRate => method::GET_INFLATION_RATE,
             Self::GetLatestBlockhash(_) => method::GET_LATEST_BLOCKHASH,
-            Self::GetMultipleAccounts(_) => method::GET_MULTIPLE_ACCOUNTS,
+            Self::GetMultipleAccounts(_) | Self::GetMultipleAccountsSlice(_, _) => method::GET_MULTIPLE_ACCOUNTS,
             Self::GetProgramAccounts(_, _) | Self::GetProgramAccountsSlice(_, _, _) => method::GET_PROGRAM_ACCOUNTS,
             Self::GetRecentPrioritizationFees(_) => method::GET_RECENT_PRIORITIZATION_FEES,
             Self::GetSlot(_) => method::GET_SLOT,
@@ -121,6 +122,13 @@ impl ToJsonRpcRequest for SolanaRpc {
             Self::GetEpochInfo(config) | Self::GetLatestBlockhash(config) | Self::GetSlot(config) => config.params(),
             Self::GetGenesisHash | Self::GetInflationRate => json!([]),
             Self::GetMultipleAccounts(addresses) => json!([addresses, confirmed_encoding_config(SolanaAccountEncoding::Base64)]),
+            Self::GetMultipleAccountsSlice(addresses, slice) => json!([
+                addresses,
+                confirmed_config(json!({
+                    "encoding": SolanaAccountEncoding::Base64.as_str(),
+                    "dataSlice": { "offset": slice.offset, "length": slice.length },
+                }))
+            ]),
             Self::GetProgramAccounts(program, filters) => json!([
                 program,
                 confirmed_config(json!({

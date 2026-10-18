@@ -12,4 +12,5 @@ pub struct SimulateTransactionResult {
     pub post_balances: Vec<u64>,
     pub pre_token_balances: Option<Vec<TokenBalance>>,
     pub post_token_balances: Option<Vec<TokenBalance>>,
+    pub units_consumed: Option<u64>,
 }

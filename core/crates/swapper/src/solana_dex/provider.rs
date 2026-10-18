@@ -4,7 +4,7 @@ use futures::future::try_join_all;
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
-    DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaRpc, SolanaRpcConfig,
+    DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaDataSlice, SolanaRpc, SolanaRpcConfig,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_2022_program, token_program},
     models::{AccountData, Clock, ProgramAccount, ValueResult, blockhash::SolanaBlockhashResult},
 };
@@ -19,7 +19,7 @@ use std::{
 };
 
 use super::{
-    protocol::{DexProtocol, PoolQuery, PoolSwap, QuoteAccount},
+    protocol::{DexProtocol, PoolDepth, PoolQuery, PoolSwap, QuoteAccount},
     route::{DexHop, DexRoute, preferred_fee_side},
     token::{SwapToken, decode_mint},
     transaction::DexTransaction,
@@ -58,6 +58,8 @@ type PathLookup<Pool> = (RoutePath<Pubkey>, Vec<PoolLookup<Pool>>);
 
 const SIZE_CHECK_BLOCKHASH: &str = "11111111111111111111111111111111";
 const MAX_QUERIED_POOLS: usize = 4;
+const MAX_ACCOUNTS_PER_REQUEST: usize = 100;
+const TOKEN_AMOUNT_OFFSET: usize = 64;
 
 pub(crate) struct SolanaDex<P: DexProtocol, C: Client + Clone = RpcClient> {
     provider: ProviderType,
@@ -157,12 +159,45 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             .filters
             .into_iter()
             .map(|filters| self.client.request::<Vec<ProgramAccount>, _>(SolanaRpc::GetProgramAccountsSlice(P::PROGRAM_ID.to_base58(), filters, slice)));
-        try_join_all(requests)
+        let pools = try_join_all(requests)
             .await?
             .into_iter()
             .flatten()
-            .map(|account| Ok((Pubkey::from_base58(&account.pubkey)?, pool_depth(&account.account.decoded_data()?))))
-            .collect()
+            .map(|account| Ok((Pubkey::from_base58(&account.pubkey)?, self.protocol.pool_depth(&account.account.decoded_data()?))))
+            .collect::<Result<Vec<_>, SwapperError>>()?;
+        let reserves = pools
+            .iter()
+            .flat_map(|(_, depth)| match depth {
+                PoolDepth::Reserves(reserve_a, reserve_b) => vec![*reserve_a, *reserve_b],
+                PoolDepth::Value(_) => vec![],
+            })
+            .collect::<Vec<_>>();
+        let amounts = self.fetch_token_amounts(reserves).await?;
+        let amount = |reserve: &Pubkey| u128::from(amounts.get(reserve).copied().unwrap_or_default());
+        Ok(pools
+            .into_iter()
+            .map(|(address, depth)| match depth {
+                PoolDepth::Value(value) => (address, value),
+                PoolDepth::Reserves(reserve_a, reserve_b) => (address, amount(&reserve_a) * amount(&reserve_b)),
+            })
+            .collect())
+    }
+
+    async fn fetch_token_amounts(&self, accounts: Vec<Pubkey>) -> Result<HashMap<Pubkey, u64>, SwapperError> {
+        let slice = SolanaDataSlice {
+            offset: TOKEN_AMOUNT_OFFSET,
+            length: size_of::<u64>(),
+        };
+        let requests = accounts.chunks(MAX_ACCOUNTS_PER_REQUEST).map(|chunk| async move {
+            let response: AccountsResult = self.client.request(SolanaRpc::GetMultipleAccountsSlice(chunk.iter().map(Pubkey::to_base58).collect(), slice)).await?;
+            Ok::<_, SwapperError>(chunk.iter().copied().zip(response.value).collect::<Vec<_>>())
+        });
+        Ok(try_join_all(requests)
+            .await?
+            .into_iter()
+            .flatten()
+            .filter_map(|(address, account)| Some((address, u64::from_le_bytes(account?.decoded_data().ok()?.try_into().ok()?))))
+            .collect())
     }
 
     fn pool_lookup(&self, pair: Pair) -> Result<PoolLookup<P::Pool>, SwapperError> {
@@ -373,10 +408,6 @@ impl<P: DexProtocol, C: Client + Clone> fmt::Debug for SolanaDex<P, C> {
     }
 }
 
-fn pool_depth(data: &[u8]) -> u128 {
-    data.iter().rev().fold(0, |depth, byte| depth << 8 | u128::from(*byte))
-}
-
 fn deepest_pools(pools: Vec<(Pubkey, u128)>) -> Vec<Pubkey> {
     let ranked = pools.into_iter().filter(|(_, depth)| *depth > 0).map(|(address, depth)| (Reverse(depth), address)).collect::<BTreeSet<_>>();
     ranked.into_iter().take(MAX_QUERIED_POOLS).map(|(_, address)| address).collect()
@@ -538,8 +569,10 @@ mod tests {
 
     #[test]
     fn test_pool_depth_reads_little_endian_of_any_width() {
-        assert_eq!(pool_depth(&7u64.to_le_bytes()), 7);
-        assert_eq!(pool_depth(&(u128::from(u64::MAX) + 2).to_le_bytes()), u128::from(u64::MAX) + 2);
-        assert_eq!(pool_depth(&[]), 0);
+        let depth = |slice: &[u8]| crate::meteora_damm_v2::MeteoraDammV2.pool_depth(slice);
+
+        assert_eq!(depth(&7u64.to_le_bytes()), PoolDepth::Value(7));
+        assert_eq!(depth(&(u128::from(u64::MAX) + 2).to_le_bytes()), PoolDepth::Value(u128::from(u64::MAX) + 2));
+        assert_eq!(depth(&[]), PoolDepth::Value(0));
     }
 }

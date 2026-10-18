@@ -1,8 +1,8 @@
 use crate::ranking::rank_quotes;
 use crate::{
     AssetList, FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapQuoteError, SwapQuotes, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperProviderMode, SwapperQuoteData,
-    across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, dedust, fees::max_quote_value_with_fee_reserve, hyperion, hyperliquid, jupiter, mayan, meteora_damm_v2, near_intents,
-    okx, orca, panora, provider_group::ProviderGroup, pump_swap, raydium_amm, raydium_clmm, raydium_cpmm, relay, solana_dex, squid, stonfi, swaps_xyz, thorchain, uniswap,
+    across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, dedust, fees::max_quote_value_with_fee_reserve, hyperion, hyperliquid, jupiter, mayan, meteora_damm_v2, meteora_dlmm,
+    near_intents, okx, orca, panora, provider_group::ProviderGroup, pump_swap, raydium_amm, raydium_clmm, raydium_cpmm, relay, solana_dex, squid, stonfi, swaps_xyz, thorchain, uniswap,
 };
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
@@ -93,7 +93,10 @@ impl GemSwapper {
             solana_dex::SolanaDex::new(pump_swap::PumpSwap, rpc_provider.clone()).map(Self::boxed),
             Self::group(
                 SwapperProvider::MeteoraDammV2,
-                vec![solana_dex::SolanaDex::new(meteora_damm_v2::MeteoraDammV2, rpc_provider.clone()).map(|dex| ("meteora_damm_v2", Self::boxed(dex)))],
+                vec![
+                    solana_dex::SolanaDex::new(meteora_damm_v2::MeteoraDammV2, rpc_provider.clone()).map(|dex| ("meteora_damm_v2", Self::boxed(dex))),
+                    solana_dex::SolanaDex::new(meteora_dlmm::MeteoraDlmm, rpc_provider.clone()).map(|dex| ("meteora_dlmm", Self::boxed(dex))),
+                ],
             ),
             Some(Box::new(okx::OkxProvider::new(rpc_provider.clone()))),
             Some(Box::new(across::Across::new(rpc_provider.clone()))),
@@ -532,7 +535,8 @@ mod swap_integration_tests {
 
         for (provider, request, members) in [
             (SwapperProvider::UniswapV3, ethereum, ["uniswap_v3", "uniswap_v4"].as_slice()),
-            (SwapperProvider::RaydiumClmm, solana, ["raydium_clmm", "raydium_cpmm", "raydium_amm"].as_slice()),
+            (SwapperProvider::RaydiumClmm, solana.clone(), ["raydium_clmm", "raydium_cpmm", "raydium_amm"].as_slice()),
+            (SwapperProvider::MeteoraDammV2, solana, ["meteora_damm_v2", "meteora_dlmm"].as_slice()),
         ] {
             let quote = swapper.get_quote_by_provider(&provider, &request).await.unwrap();
             println!("{provider:?} quoted by {} for {}", quote.data.provider.protocol_id, quote.to_value);

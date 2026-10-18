@@ -17,6 +17,12 @@ impl QuoteAccount {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum PoolDepth {
+    Value(u128),
+    Reserves(Pubkey, Pubkey),
+}
+
 #[derive(Debug)]
 pub(crate) struct PoolQuery {
     pub filters: Vec<Vec<SolanaProgramAccountsFilter>>,
@@ -84,6 +90,10 @@ pub(crate) trait DexProtocol: Send + Sync {
 
     fn pool_query(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Option<PoolQuery> {
         None
+    }
+
+    fn pool_depth(&self, slice: &[u8]) -> PoolDepth {
+        PoolDepth::Value(slice.iter().rev().fold(0, |depth, byte| depth << 8 | u128::from(*byte)))
     }
 
     fn quote_accounts(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError>;

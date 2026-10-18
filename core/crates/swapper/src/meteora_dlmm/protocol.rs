@@ -1,0 +1,234 @@
+use borsh::BorshDeserialize;
+use gem_solana::{
+    Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter,
+    anchor::AnchorAccount,
+    instructions::program_ids::{meteora_dlmm_program, sysvar_clock, sysvar_program},
+    models::Clock,
+};
+
+use super::{
+    bin::BinArray,
+    pair::{PAIR_ACCOUNT_LEN, Pair, RESERVES_OFFSET, TOKEN_X_MINT_OFFSET, TOKEN_Y_MINT_OFFSET},
+    swap::{SWAP_BIN_ARRAYS, swap2_instruction},
+};
+use crate::{
+    SwapperError, SwapperProvider,
+    solana_dex::{DexPool, DexProtocol, PoolDepth, PoolQuery, PoolSwap, QuoteAccount, SwapToken},
+};
+
+pub(crate) struct MeteoraDlmm;
+
+impl DexProtocol for MeteoraDlmm {
+    type Pool = Pair;
+
+    const PROVIDER: SwapperProvider = SwapperProvider::MeteoraDammV2;
+    const PROGRAM_ID: Pubkey = meteora_dlmm_program();
+    const INTERMEDIATE_TOKEN_ACCOUNT: bool = false;
+
+    fn pool_addresses(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
+        Ok(vec![])
+    }
+
+    fn decode_pool(&self, data: &[u8]) -> Result<Pair, SwapperError> {
+        Ok(Pair::decode(data)?)
+    }
+
+    fn liquidity(&self, pair: &Pair) -> u128 {
+        u128::from(pair.arrays_with_liquidity())
+    }
+
+    fn constant_accounts(&self, _pair: &Pair) -> Vec<Pubkey> {
+        vec![]
+    }
+
+    fn is_tradable(&self, pair: &Pair, timestamp: u64) -> bool {
+        pair.is_tradable(timestamp)
+    }
+
+    fn intermediate_tokens(&self) -> &'static [SwapToken] {
+        &[]
+    }
+
+    fn pool_query(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Option<PoolQuery> {
+        let filters = [(input_mint, output_mint), (output_mint, input_mint)]
+            .into_iter()
+            .map(|(token_x_mint, token_y_mint)| {
+                vec![
+                    SolanaProgramAccountsFilter::DataSize(PAIR_ACCOUNT_LEN),
+                    SolanaProgramAccountsFilter::Memcmp {
+                        offset: TOKEN_X_MINT_OFFSET,
+                        bytes: token_x_mint.to_base58(),
+                    },
+                    SolanaProgramAccountsFilter::Memcmp {
+                        offset: TOKEN_Y_MINT_OFFSET,
+                        bytes: token_y_mint.to_base58(),
+                    },
+                ]
+            })
+            .collect();
+        Some(PoolQuery {
+            filters,
+            depth: SolanaDataSlice {
+                offset: RESERVES_OFFSET,
+                length: 2 * size_of::<Pubkey>(),
+            },
+        })
+    }
+
+    fn pool_depth(&self, slice: &[u8]) -> PoolDepth {
+        match <[Pubkey; 2]>::try_from_slice(slice) {
+            Ok([reserve_x, reserve_y]) => PoolDepth::Reserves(reserve_x, reserve_y),
+            Err(_) => PoolDepth::Value(0),
+        }
+    }
+
+    fn quote_accounts(&self, address: &Pubkey, pair: &Pair, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
+        let swap_for_y = pair.is_a_to_b(input_mint)?;
+        let bin_arrays = pair
+            .arrays_for_swap(swap_for_y, SWAP_BIN_ARRAYS)
+            .into_iter()
+            .map(|index| {
+                Ok(QuoteAccount::Owned {
+                    address: BinArray::address(address, index)?,
+                    owner: Self::PROGRAM_ID,
+                })
+            })
+            .collect::<Result<Vec<_>, SwapperError>>()?;
+        let clock = QuoteAccount::Owned {
+            address: sysvar_clock(),
+            owner: sysvar_program(),
+        };
+        Ok([bin_arrays, vec![clock]].concat())
+    }
+
+    fn quote(&self, address: &Pubkey, pair: &Pair, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], _timestamp: u64) -> Result<u64, SwapperError> {
+        let swap_for_y = pair.is_a_to_b(input_mint)?;
+        let [bin_arrays @ .., Some(clock)] = accounts else {
+            return Err(SwapperError::NoQuoteAvailable);
+        };
+        let clock = Clock::try_from_slice(clock).map_err(SwapperError::compute_quote_error)?;
+        let expected = pair.arrays_for_swap(swap_for_y, SWAP_BIN_ARRAYS);
+        let bin_arrays = bin_arrays
+            .iter()
+            .zip(expected)
+            .map_while(|(data, index)| BinArray::decode(data.as_deref()?).ok().filter(|array| array.index == index && array.lb_pair == *address))
+            .collect::<Vec<_>>();
+        pair.quote(&bin_arrays, swap_for_y, amount_in, &clock).ok_or(SwapperError::NoQuoteAvailable)
+    }
+
+    fn swap_instruction(&self, address: &Pubkey, pair: &Pair, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
+        swap2_instruction(address, pair, swap)
+    }
+}
+
+#[cfg(all(test, feature = "swap_integration_tests"))]
+mod swap_integration_tests {
+    use super::*;
+    use crate::{
+        SwapperQuoteAsset,
+        solana_dex::testkit::{TEST_FUNDED_WALLET, assert_swaps_simulate},
+    };
+    use gem_solana::USDC_TOKEN_MINT;
+    use primitives::{AssetId, Chain};
+
+    #[tokio::test]
+    async fn test_meteora_dlmm_swap_simulates() -> Result<(), SwapperError> {
+        let sol = SwapperQuoteAsset {
+            decimals: 9,
+            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
+        };
+        let usdc = SwapperQuoteAsset {
+            decimals: 6,
+            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
+        };
+
+        assert_swaps_simulate(MeteoraDlmm, vec![(sol.clone(), usdc.clone(), 1_000_000_000, TEST_FUNDED_WALLET), (usdc, sol, 100_000_000, TEST_FUNDED_WALLET)]).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        FetchQuoteData, QuoteRequest, Swapper, SwapperQuoteAsset,
+        meteora_dlmm::testkit::{TEST_SOL_USDC_POOL, mock_pool_snapshot},
+        solana_dex::{
+            SolanaDex,
+            testkit::{mock_rpc_accounts, mock_rpc_client},
+        },
+        testkit::mock_quote,
+    };
+    use gem_solana::USDC_TOKEN_MINT;
+    use num_bigint::BigUint;
+    use primitives::{AssetId, Chain, testkit::signer_mock::TEST_SOLANA_SENDER};
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    #[test]
+    fn test_quote_matches_the_sdk() {
+        let snapshot = mock_pool_snapshot(TEST_SOL_USDC_POOL);
+        let (address, pair) = (snapshot.address, snapshot.pool.clone());
+        let quote = |input_mint: Pubkey, amount_in: u64| {
+            let data = snapshot.quote_data(&MeteoraDlmm.quote_accounts(&address, &pair, &input_mint).unwrap());
+            MeteoraDlmm.quote(&address, &pair, &input_mint, amount_in, &data, snapshot.timestamp)
+        };
+        let (sol, usdc) = (pair.token_x_mint, pair.token_y_mint);
+
+        assert_eq!(quote(sol, 1_000_000_000), Ok(103_478_946));
+        assert_eq!(quote(usdc, 100_000_000), Ok(966_085_679));
+        assert_eq!(quote(sol, 400_000_000_000), Ok(41_317_612_262));
+        assert_eq!(quote(sol, 450_000_000_000), Ok(46_434_836_994));
+        assert_eq!(quote(usdc, 5_000_000_000), Ok(48_297_362_721));
+        assert_eq!(quote(usdc, 15_000_000_000), Err(SwapperError::NoQuoteAvailable));
+        assert_eq!(quote(sol, 1), Err(SwapperError::NoQuoteAvailable));
+    }
+
+    #[test]
+    fn test_layout() {
+        let snapshot = mock_pool_snapshot(TEST_SOL_USDC_POOL);
+        let data = snapshot.accounts[&snapshot.address].as_ref().unwrap();
+        let at = |offset: usize, len: usize| &data[offset..offset + len];
+        let pair = snapshot.pool;
+
+        assert_eq!(u64::try_from(data.len()).unwrap(), PAIR_ACCOUNT_LEN);
+        assert_eq!(at(TOKEN_X_MINT_OFFSET, 32), pair.token_x_mint.as_bytes());
+        assert_eq!(at(TOKEN_Y_MINT_OFFSET, 32), pair.token_y_mint.as_bytes());
+        assert_eq!(MeteoraDlmm.pool_depth(at(RESERVES_OFFSET, 64)), PoolDepth::Reserves(pair.reserve_x, pair.reserve_y));
+        assert_eq!((pair.active_id, pair.bin_step), (-22_684, 1));
+        assert_eq!(pair.arrays_for_swap(true, SWAP_BIN_ARRAYS), vec![-325, -326, -327]);
+        assert_eq!(pair.arrays_for_swap(false, SWAP_BIN_ARRAYS), vec![-325, -324, -323]);
+    }
+
+    #[tokio::test]
+    async fn test_swap_requests() {
+        let requests = Arc::new(AtomicUsize::new(0));
+        let dlmm = SolanaDex::with_client(MeteoraDlmm, mock_rpc_client(mock_rpc_accounts(TEST_SOL_USDC_POOL), requests.clone()));
+        let sol = SwapperQuoteAsset {
+            decimals: 9,
+            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
+        };
+        let usdc = SwapperQuoteAsset {
+            decimals: 6,
+            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
+        };
+        let sol_to_usdc = QuoteRequest {
+            wallet_address: TEST_SOLANA_SENDER.to_string(),
+            destination_address: TEST_SOLANA_SENDER.to_string(),
+            value: BigUint::from(1_000_000_000u64),
+            ..mock_quote(sol, usdc)
+        };
+
+        let quote = dlmm.get_quote(&sol_to_usdc).await.unwrap();
+        assert_eq!(requests.load(Ordering::SeqCst), 5);
+        assert_eq!(quote.to_value, BigUint::from(102_961_551u64));
+
+        assert_eq!(dlmm.get_quote(&sol_to_usdc).await.unwrap(), quote);
+        assert_eq!(requests.load(Ordering::SeqCst), 6);
+
+        let quote_data = dlmm.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
+        assert_eq!(requests.load(Ordering::SeqCst), 7);
+        assert_eq!(quote_data.to, meteora_dlmm_program().to_base58());
+    }
+}

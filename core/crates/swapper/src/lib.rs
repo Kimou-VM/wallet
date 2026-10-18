@@ -26,6 +26,7 @@ pub mod hyperliquid;
 pub mod jupiter;
 pub mod mayan;
 mod meteora_damm_v2;
+mod meteora_dlmm;
 pub mod models;
 pub mod near_intents;
 pub mod okx;

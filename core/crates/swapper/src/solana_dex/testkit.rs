@@ -51,7 +51,7 @@ pub(crate) async fn assert_swaps_simulate<P: DexProtocol>(protocol: P, swaps: Ve
         let quote = dex.get_quote(&request).await?;
         let quote_data = dex.get_quote_data(&quote, FetchQuoteData::None).await?;
         let simulation = client.simulate_encoded_transaction(&quote_data.data).await?;
-        println!("to_value={} route={}", quote.to_value, quote.data.routes[0].route_data);
+        println!("to_value={} units={:?} route={}", quote.to_value, simulation.units_consumed, quote.data.routes[0].route_data);
 
         assert!(quote.to_value > BigUint::ZERO);
         assert_eq!(simulation.err, None);
@@ -147,7 +147,10 @@ pub(crate) fn mock_rpc_client(accounts: HashMap<String, Value>, requests: Arc<At
         "getMultipleAccounts" => {
             requests.fetch_add(1, Ordering::SeqCst);
             let addresses = params[0].as_array().unwrap();
-            Ok(json!({ "context": { "slot": 1 }, "value": addresses.iter().map(|address| accounts.get(address.as_str().unwrap()).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() }))
+            let value = addresses
+                .iter()
+                .map(|address| accounts.get(address.as_str().unwrap()).map_or(Value::Null, |account| mock_account_slice(account, &params[1]["dataSlice"])));
+            Ok(json!({ "context": { "slot": 1 }, "value": value.collect::<Vec<_>>() }))
         }
         "getProgramAccounts" => {
             requests.fetch_add(1, Ordering::SeqCst);
@@ -156,6 +159,15 @@ pub(crate) fn mock_rpc_client(accounts: HashMap<String, Value>, requests: Arc<At
         "getLatestBlockhash" => Ok(json!({ "context": { "slot": 1 }, "value": { "blockhash": "11111111111111111111111111111111", "lastValidBlockHeight": 1 } })),
         method => panic!("unexpected method {method}"),
     })
+}
+
+fn mock_account_slice(account: &Value, slice: &Value) -> Value {
+    let (Some(offset), Some(length)) = (slice["offset"].as_u64(), slice["length"].as_u64()) else {
+        return account.clone();
+    };
+    let data = decode_base64(account["data"][0].as_str().unwrap()).unwrap();
+    let range = usize::try_from(offset).unwrap()..usize::try_from(offset + length).unwrap();
+    json!({ "data": [encode_base64(&data[range]), "base64"], "owner": account["owner"] })
 }
 
 fn mock_program_account(address: &str, account: &Value, params: &Value) -> Option<Value> {

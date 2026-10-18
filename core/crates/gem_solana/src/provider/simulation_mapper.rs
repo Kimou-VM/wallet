@@ -143,6 +143,7 @@ mod tests {
                 post_balances: vec![999_995_000],
                 pre_token_balances: Some(vec![TokenBalance::mock(SOLANA_USDC_TOKEN_ID, "wallet", 20_000_000)]),
                 post_token_balances: Some(vec![TokenBalance::mock(SOLANA_USDC_TOKEN_ID, "wallet", 1_000_000)]),
+                units_consumed: None,
             },
         );
 
@@ -260,6 +261,7 @@ mod tests {
                 post_balances: vec![],
                 pre_token_balances: None,
                 post_token_balances: None,
+                units_consumed: None,
             },
         );
 
