@@ -60,7 +60,8 @@ pub(super) fn build_solana_quote_data(transaction_data: &TransactionData, owner:
     let mut transaction = VersionedTransaction::deserialize_with_version(&bytes).map_err(SwapperError::transaction_error)?;
     transaction.clear_signature(&Pubkey::from_base58(owner).map_err(SwapperError::transaction_error)?);
     let data = encode_base64(&transaction.serialize().map_err(SwapperError::transaction_error)?);
-    Ok(SwapQuoteData::new_contract(transaction_data.to.clone(), BigUint::from(0u64), data, None, None))
+    let gas_limit = transaction.get_compute_unit_limit().map(|limit| limit.to_string());
+    Ok(SwapQuoteData::new_contract(transaction_data.to.clone(), BigUint::from(0u64), data, None, gas_limit))
 }
 
 fn buffered_gas_limit(gas: &str) -> Option<String> {
@@ -79,12 +80,7 @@ async fn build_evm_approval(from_asset: &QuoteAsset, transaction_data: &Transact
     let Some(token) = from_asset.asset_id().token_id else {
         return Ok(None);
     };
-    let Some(spender) = get_spender(transaction_data.signature_data.as_deref()).or_else(|| {
-        let to = transaction_data.to.clone();
-        (!to.is_empty()).then_some(to)
-    }) else {
-        return Ok(None);
-    };
+    let spender = get_spender(transaction_data.signature_data.as_deref()).ok_or(SwapperError::InvalidRoute)?;
     let amount = U256::from_str(from_value)?;
     check_approval_erc20(owner.to_string(), token, spender, amount, rpc_provider, &chain).await
 }

@@ -66,6 +66,9 @@ where
         let response: OkxApiResponse<QuoteData> = self.client.post(PROXY_QUOTE_PATH, &params).await.map_err(SwapperError::from)?;
         let route = response.first_data("Failed to fetch OKX quote")?;
         let to_value = BigUint::from_str(&route.to_token_amount).map_err(SwapperError::compute_quote_error)?;
+        if to_value == BigUint::ZERO {
+            return Err(SwapperError::NoQuoteAvailable);
+        }
         Quote::from_route(request, &self.provider, to_value, max_slippage_bps(request), &route, None)
     }
 
@@ -122,7 +125,8 @@ mod tests {
         testkit::signer_mock::{TEST_EVM_SENDER, TEST_SOLANA_SENDER},
     };
 
-    const EVM_ROUTER: &str = "0x40aA958dd87FC8305b97f2BA922CDdCa374bcD7f";
+    const EVM_ROUTER: &str = "0x8feab81d36e7576107d5de0758c1b839be31b4f6";
+    const EVM_TOKEN_APPROVE: &str = "0x40aA958dd87FC8305b97f2BA922CDdCa374bcD7f";
     const TRON_ROUTER: &str = "TAGVH5t42MuofaAfUauPPRe4Qw3i8Z3QHM";
 
     const EVM_ZERO_ALLOWANCE: &str = r#"{"id":1,"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000"}"#;
@@ -204,7 +208,8 @@ mod tests {
         assert_eq!(quote_data.to, "proVF4pMXVaYqmy4NjniPh4pqKNfMmsihgd4wdkCX3u");
         assert_eq!(quote_data.value, BigUint::from(0u64));
         assert!(quote_data.approval.is_none());
-        assert!(quote_data.gas_limit.is_none());
+        assert_eq!(quote_data.gas_limit, unsigned.get_compute_unit_limit().map(|limit| limit.to_string()));
+        assert!(quote_data.gas_limit.is_some());
     }
 
     #[tokio::test]
@@ -232,7 +237,7 @@ mod tests {
         assert_eq!(quote_data.data, "0xabc123");
         let approval = quote_data.approval.unwrap();
         assert_eq!(approval.token, ETHEREUM_USDC_TOKEN_ID);
-        assert_eq!(approval.spender, EVM_ROUTER);
+        assert_eq!(approval.spender, EVM_TOKEN_APPROVE);
         assert_eq!(approval.value, BigUint::from(1000000u64));
         assert_eq!(quote_data.gas_limit.as_deref(), Some("300000"));
 
