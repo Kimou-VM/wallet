@@ -18,7 +18,7 @@ fn fee_token_priority(asset: &QuoteAsset) -> FeeTokenPriority {
 }
 
 fn prefer_input_as_fee_token(from_asset: &QuoteAsset, to_asset: &QuoteAsset) -> bool {
-    fee_token_priority(from_asset).rank() > fee_token_priority(to_asset).rank()
+    fee_token_priority(from_asset) > fee_token_priority(to_asset)
 }
 
 #[cfg(test)]

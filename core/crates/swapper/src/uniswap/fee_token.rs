@@ -17,7 +17,7 @@ fn fee_token_priority(base_pair: Option<&BasePair>, token: &FeeToken) -> FeeToke
 }
 
 pub(crate) fn is_input_fee_token(base_pair: Option<&BasePair>, input: &FeeToken, output: &FeeToken) -> bool {
-    fee_token_priority(base_pair, input).rank() > fee_token_priority(base_pair, output).rank()
+    fee_token_priority(base_pair, input) > fee_token_priority(base_pair, output)
 }
 
 pub(crate) fn is_quote_input_fee_token(base_pair: Option<&BasePair>, request: &QuoteRequest, token_in: Address, token_out: Address) -> bool {

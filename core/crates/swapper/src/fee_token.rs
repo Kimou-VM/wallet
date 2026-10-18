@@ -2,11 +2,11 @@ use crate::fees::is_stablecoin_symbol;
 use alloy_primitives::Address;
 use primitives::{AssetId, Chain, EVMChain, contract_constants::SOLANA_WRAPPED_SOL_TOKEN_ADDRESS};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum FeeTokenPriority {
-    Primary,
-    Stable,
     Other,
+    Stable,
+    Primary,
 }
 
 pub(crate) struct FeeToken<'a> {
@@ -29,14 +29,6 @@ impl FeeTokenPriority {
             return Self::Stable;
         }
         Self::Other
-    }
-
-    pub(crate) fn rank(self) -> u8 {
-        match self {
-            Self::Primary => 3,
-            Self::Stable => 2,
-            Self::Other => 1,
-        }
     }
 }
 
@@ -78,7 +70,7 @@ mod tests {
 
     #[test]
     fn test_fee_token_priority_ordering() {
-        assert!(FeeTokenPriority::Primary.rank() > FeeTokenPriority::Stable.rank());
-        assert!(FeeTokenPriority::Stable.rank() > FeeTokenPriority::Other.rank());
+        assert!(FeeTokenPriority::Primary > FeeTokenPriority::Stable);
+        assert!(FeeTokenPriority::Stable > FeeTokenPriority::Other);
     }
 }
