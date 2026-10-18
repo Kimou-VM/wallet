@@ -69,6 +69,7 @@ internal class SystemAuthenticator(private val activity: FragmentActivity, priva
             try {
                 activity.lifecycle.withResumed {
                     privacyCover.onPromptShown()
+                    activity.supportFragmentManager.executePendingTransactions()
                     biometricPrompt.authenticate(buildPrompt(authRequests.activeRequiresConfirmation()))
                 }
             } catch (_: LifecycleDestroyedException) {
