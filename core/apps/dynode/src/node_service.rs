@@ -6,6 +6,7 @@ use std::{
 
 use bytes::Bytes;
 use chain_providers::BroadcastProviders;
+use futures::future::join_all;
 use gem_tracing::{DurationMs, info_with_fields};
 use http_server::method_label;
 use primitives::{Chain, ResponseError, ResponseResult, response::ErrorDetail};
@@ -13,6 +14,7 @@ use reqwest::StatusCode;
 use serde_json::Value;
 use tokio::sync::RwLock;
 
+use self::batch::BatchPart;
 use self::error::NodeServiceError;
 use self::upstream::Upstream;
 use crate::BoxError;
@@ -27,6 +29,7 @@ use crate::proxy::proxy_request::ProxyRequest;
 use crate::proxy::{CacheStatus, ProxyRequestService, ProxyResponse};
 use crate::webhook::DynodeBroadcastWebhookClient;
 
+mod batch;
 mod error;
 mod upstream;
 
@@ -83,7 +86,10 @@ impl NodeService {
         let _inflight = self.metrics.track_node_inflight(chain);
         let route = self.route(request);
         let mut remote_host = None;
-        let result = self.proxy_request_to_node(request, route.as_deref(), &mut remote_host).await;
+        let result = match (route.as_deref(), self.batch_parts(request)) {
+            (Some(route), Some(parts)) => self.proxy_batch_parts(request, &parts, route).await,
+            (route, _) => self.proxy_request_to_node(request, route, &mut remote_host).await,
+        };
         if request.is_broadcast(&self.broadcast_providers) {
             self.metrics.record_transaction_broadcast(request, &result, &self.broadcast_providers, remote_host.as_deref().unwrap_or("unknown"));
         }
@@ -99,6 +105,15 @@ impl NodeService {
     fn route(&self, request: &ProxyRequest) -> Option<String> {
         let chain_config = self.get_chain_config(request).ok()?;
         self.chain_types.route(chain_config, request.request_type())
+    }
+
+    fn batch_parts(&self, request: &ProxyRequest) -> Option<Vec<BatchPart>> {
+        BatchPart::split(request, self.get_chain_config(request).ok()?)
+    }
+
+    async fn proxy_batch_parts(&self, request: &ProxyRequest, parts: &[BatchPart], route: &str) -> Result<ProxyResponse, BoxError> {
+        let responses = join_all(parts.iter().map(|part| async move { self.proxy_request_to_node(&part.request, Some(route), &mut None).await })).await;
+        BatchPart::merge(request, parts, &responses)
     }
 
     async fn proxy_request_to_node(&self, request: &ProxyRequest, route: Option<&str>, broadcast_host: &mut Option<String>) -> Result<ProxyResponse, BoxError> {
@@ -371,6 +386,7 @@ mod tests {
 
     use super::*;
     use crate::config::{AllowlistConfig, Override, RPC_ROUTE};
+    use crate::jsonrpc_types::JsonRpcCall;
 
     #[tokio::test]
     async fn test_broadcast_metrics_count_final_response_without_webhook() {
@@ -450,6 +466,61 @@ mod tests {
             };
             let result = service.proxy_request_to_node(&request, Some(RPC_ROUTE), &mut None).await;
             assert_eq!(result.is_ok_and(|response| response.status == StatusCode::OK.as_u16()), falls_back);
+        }
+    }
+
+    async fn spawn_node(tag: &'static str) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let router = axum::Router::new().fallback(move |body: String| async move {
+            let calls = serde_json::from_str::<Vec<JsonRpcCall>>(&body).unwrap();
+            serde_json::to_string(&calls.iter().map(|call| serde_json::json!({ "jsonrpc": "2.0", "result": format!("{tag}:{}", call.method), "id": call.id })).collect::<Vec<_>>()).unwrap()
+        });
+        tokio::spawn(async move { axum::serve(listener, router).await });
+        url
+    }
+
+    #[tokio::test]
+    async fn test_batch_calls_follow_their_overrides() {
+        let node = spawn_node("node").await;
+        let helius = spawn_node("override").await;
+        let config = |url: &str| ChainConfig {
+            urls: vec![Url::mock(&node)],
+            overrides: Some(vec![Override {
+                rpc_method: Some("getProgramAccounts".to_string()),
+                path: None,
+                url: url.to_string(),
+                fallback: false,
+            }]),
+            ..ChainConfig::mock(Chain::Solana)
+        };
+        let failed = NodeServiceError::UpstreamsFailed.to_string();
+
+        for (methods, override_url, expected) in [
+            (
+                vec!["getProgramAccounts", "getProgramAccounts"],
+                helius.as_str(),
+                ["1 override:getProgramAccounts", "2 override:getProgramAccounts"].map(String::from).to_vec(),
+            ),
+            (
+                vec!["getProgramAccounts", "getSlot", "getProgramAccounts"],
+                helius.as_str(),
+                ["1 override:getProgramAccounts", "2 node:getSlot", "3 override:getProgramAccounts"].map(String::from).to_vec(),
+            ),
+            (
+                vec!["getProgramAccounts", "getSlot", "getProgramAccounts"],
+                "http://127.0.0.1:9",
+                vec![format!("1 {failed}"), "2 node:getSlot".to_string(), format!("3 {failed}")],
+            ),
+        ] {
+            let response = NodeService::mock(config(override_url)).proxy_request(&ProxyRequest::mock_batch(Chain::Solana, &methods)).await.unwrap();
+            let results = serde_json::from_slice::<Vec<Value>>(&response.body).unwrap();
+            let results = results
+                .iter()
+                .map(|result| format!("{} {}", result["id"], result["result"].as_str().or(result["error"]["message"].as_str()).unwrap()))
+                .collect::<Vec<_>>();
+            assert_eq!(response.status, StatusCode::OK.as_u16());
+            assert_eq!(results, expected);
         }
     }
 

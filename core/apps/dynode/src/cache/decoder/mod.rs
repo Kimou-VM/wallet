@@ -1,4 +1,5 @@
 mod evm;
+mod solana;
 mod sui;
 
 use primitives::ChainType;
@@ -26,6 +27,7 @@ trait ContractCallDecoder {
 pub(crate) fn decode_contract_calls(chain_type: &ChainType, request: ContractRequest<'_>) -> Option<Vec<ContractCall>> {
     match chain_type {
         ChainType::Ethereum => evm::EvmContractCallDecoder.decode_contract_calls(request),
+        ChainType::Solana => solana::SolanaContractCallDecoder.decode_contract_calls(request),
         ChainType::Sui => sui::SuiContractCallDecoder.decode_contract_calls(request),
         _ => None,
     }

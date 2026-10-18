@@ -10,7 +10,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::config::path::path_without_query;
-use crate::jsonrpc_types::{JsonRpcRequest, RequestType};
+use crate::jsonrpc_types::{JsonRpcCall, JsonRpcRequest, RequestType};
 
 fn generate_request_id() -> String {
     format!("{:016x}", Uuid::new_v4().as_u128() as u64)
@@ -68,8 +68,28 @@ impl ProxyRequest {
     pub(crate) fn rpc_method(&self) -> Option<&str> {
         match self.request_type() {
             RequestType::JsonRpc(JsonRpcRequest::Single(call)) => Some(call.method.as_str()),
-            RequestType::JsonRpc(JsonRpcRequest::Batch(_)) | RequestType::Regular { .. } => None,
+            RequestType::JsonRpc(JsonRpcRequest::Batch(calls)) => {
+                let method = calls.first()?.method.as_str();
+                calls.iter().all(|call| call.method == method).then_some(method)
+            }
+            RequestType::Regular { .. } => None,
         }
+    }
+
+    pub(crate) fn with_calls(&self, calls: Vec<JsonRpcCall>) -> Result<Self, serde_json::Error> {
+        Ok(Self {
+            id: self.id.clone(),
+            method: self.method.clone(),
+            headers: self.headers.clone(),
+            body: Bytes::from(serde_json::to_vec(&calls)?),
+            path: self.path.clone(),
+            path_with_query: self.path_with_query.clone(),
+            host: self.host.clone(),
+            user_agent: self.user_agent.clone(),
+            chain: self.chain,
+            request_start: self.request_start,
+            request_type: RequestType::JsonRpc(JsonRpcRequest::Batch(calls)),
+        })
     }
 
     pub(crate) fn is_broadcast(&self, providers: &BroadcastProviders) -> bool {

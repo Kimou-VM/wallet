@@ -2591,6 +2591,7 @@ dependencies = [
  "chain_providers",
  "chain_traits",
  "config",
+ "futures",
  "gem_client",
  "gem_encoding",
  "gem_hash",

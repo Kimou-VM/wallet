@@ -164,7 +164,7 @@ impl ContractMethodRule {
 
 #[cfg(test)]
 mod tests {
-    use primitives::{Chain, MINUTE};
+    use primitives::{Chain, DAY, MINUTE};
 
     use crate::config::ChainTypesConfig;
 
@@ -237,6 +237,28 @@ mod tests {
         }))
         .unwrap();
         assert!(!broad_evm_rule.matches_rpc(ETH_CALL));
+    }
+
+    #[test]
+    fn test_solana_program_rule_matches_program_accounts() {
+        const PROGRAM: &str = "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG";
+        let config: ChainTypesConfig = serde_json::from_value(serde_json::json!({
+            "solana": {
+                "contracts": {
+                    "methods": [{
+                        "addresses": [PROGRAM],
+                        "identifiers": ["getProgramAccounts"],
+                        "ttl": "1d"
+                    }]
+                }
+            }
+        }))
+        .unwrap();
+        let rules = config.cache_rules(Chain::Solana).unwrap();
+        let call = |program: &str| JsonRpcCall::mock_with_params(1, "getProgramAccounts", serde_json::json!([program, { "encoding": "base64" }]));
+
+        assert_eq!(rules.call_ttl(&ChainType::Solana, &call(PROGRAM)), Some(DAY));
+        assert_eq!(rules.call_ttl(&ChainType::Solana, &call("whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc")), None);
     }
 
     #[test]

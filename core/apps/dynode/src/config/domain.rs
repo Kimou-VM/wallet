@@ -28,10 +28,14 @@ impl ChainConfig {
     }
 
     pub fn find_override(&self, rpc_method: Option<&str>, request_path: Option<&str>) -> Option<&Override> {
+        self.overrides.as_ref()?.get(self.override_index(rpc_method, request_path)?)
+    }
+
+    pub fn override_index(&self, rpc_method: Option<&str>, request_path: Option<&str>) -> Option<usize> {
         self.overrides
             .as_ref()?
             .iter()
-            .find(|override_config| override_config.rpc_method.as_deref().is_none_or(|method| Some(method) == rpc_method) && override_config.path.as_deref().is_none_or(|path| Some(path) == request_path))
+            .position(|override_config| override_config.rpc_method.as_deref().is_none_or(|method| Some(method) == rpc_method) && override_config.path.as_deref().is_none_or(|path| Some(path) == request_path))
     }
 }
 

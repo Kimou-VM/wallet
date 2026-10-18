@@ -8,6 +8,7 @@ use reqwest::header::HeaderMap;
 
 use crate::cache::RequestCache;
 use crate::config::HeadersConfig;
+use crate::jsonrpc_types::JsonRpcCall;
 use crate::metrics::Metrics;
 use crate::proxy::{ProxyRequest, ProxyRequestService};
 use crate::webhook::DynodeBroadcastWebhookClient;
@@ -28,6 +29,11 @@ impl ProxyRequest {
 
     pub fn mock_jsonrpc(chain: Chain, method: &str) -> Self {
         Self::mock(chain, Method::POST, "/", format!(r#"{{"jsonrpc":"2.0","method":"{method}","params":[],"id":1}}"#).as_bytes())
+    }
+
+    pub fn mock_batch(chain: Chain, methods: &[&str]) -> Self {
+        let calls = methods.iter().zip(1..).map(|(method, id)| JsonRpcCall::mock(id, method)).collect::<Vec<_>>();
+        Self::mock(chain, Method::POST, "/", &serde_json::to_vec(&calls).unwrap())
     }
 }
 
