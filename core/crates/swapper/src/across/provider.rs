@@ -1,10 +1,9 @@
-use super::{DEFAULT_FILL_TIMEOUT, asset::parse_address, config_store::TokenConfig, hubpool::HubPoolClient};
+use super::{DEFAULT_DEPOSIT_GAS_LIMIT, DEFAULT_FILL_TIMEOUT, GAS_TOKEN_DECIMALS, asset::parse_address, config_store::TokenConfig, hubpool::HubPoolClient};
 use crate::{
     SwapAmountMode, SwapResult, Swapper, SwapperError, SwapperProvider, SwapperQuoteData,
-    across::{DEFAULT_DEPOSIT_GAS_LIMIT, DEFAULT_FILL_GAS_LIMIT},
     alien::RpcProvider,
     approval::{check_approval_erc20, check_approval_trc20, get_swap_gas_limit_with_approval},
-    chainlink::ChainlinkPriceFeed,
+    chainlink::{self, ONE_DOLLAR},
     client_factory::{create_client_with_chain, create_eth_client},
     cross_chain::VaultAddresses,
     eth_address,
@@ -14,6 +13,7 @@ use crate::{
 use alloy_primitives::{Address, Bytes, U256, hex::decode as HexDecode, hex::encode_prefixed as HexEncode};
 use alloy_sol_types::{SolCall, SolValue};
 use async_trait::async_trait;
+use futures::try_join;
 use gem_evm::u256::u256_to_biguint;
 use gem_evm::{
     across::{
@@ -22,7 +22,7 @@ use gem_evm::{
             V3SpokePoolInterface::{self, V3RelayData},
             multicall_handler,
         },
-        deployment::AcrossDeployment,
+        deployment::{AcrossDeployment, FillCost, TokenPrice},
         fees::{self, LpFeeCalculator, RelayerFeeCalculator},
     },
     contracts::erc20::IERC20,
@@ -31,16 +31,15 @@ use gem_evm::{
     u256::biguint_to_u256,
     weth::WETH9,
 };
+use num_bigint::BigInt;
 use num_bigint::BigUint;
-use num_bigint::{BigInt, Sign};
 use primitives::{AssetId, Chain, EVMChain, swap::ApprovalData};
 use serde_serializers::biguint_from_hex_str;
 use std::{fmt::Debug, str::FromStr, sync::Arc};
 
-struct DestinationGas {
-    limit: U256,
-    price: U256,
-    gas_token_usd_price: Option<BigInt>,
+struct HubPoolQuote {
+    lp_fee_percent: BigInt,
+    timestamp: u32,
 }
 
 #[derive(Debug)]
@@ -67,7 +66,7 @@ impl Across {
     }
 
     fn is_supported_route(from_asset: &AssetId, to_asset: &AssetId) -> bool {
-        if to_asset.chain == Chain::Tron {
+        if AcrossDeployment::fill_cost(&to_asset.chain).is_none() {
             return false;
         }
 
@@ -98,7 +97,69 @@ impl Across {
         Self::gas_value(&gas_hex)
     }
 
-    fn message_for_multicall_handler(&self, amount: &U256, output_funding: Funding, output_token: &Address, user_address: &Address, output_chain: Chain, referral_fee: &ReferralFee) -> Result<(Vec<u8>, U256), SwapperError> {
+    async fn hub_pool_quote(&self, mainnet_token: &Address, amount: U256, input: &AssetId, output: &AssetId) -> Result<HubPoolQuote, SwapperError> {
+        let hub_pool = HubPoolClient::new();
+        let calls = vec![
+            hub_pool.paused_call3(),
+            hub_pool.sync_call3(mainnet_token),
+            hub_pool.pooled_token_call3(mainnet_token),
+            hub_pool.utilization_call3(mainnet_token, U256::ZERO),
+            hub_pool.utilization_call3(mainnet_token, amount),
+            hub_pool.get_current_time(),
+        ];
+        let requests = vec![Self::multicall_request(Chain::Ethereum, calls)?, TokenConfig::request(mainnet_token)];
+        let [multicall_response, config_response]: [String; 2] = create_client_with_chain(self.rpc_provider.clone(), Chain::Ethereum)?
+            .requests::<String, _>(requests)
+            .await?
+            .take_all()?
+            .try_into()
+            .map_err(|_| SwapperError::NoQuoteAvailable)?;
+        let results = Self::decode_multicall(multicall_response)?;
+        let [paused, _, pooled_token, utilization_before, utilization_after, current_time] = results.as_slice() else {
+            return Err(SwapperError::NoQuoteAvailable);
+        };
+
+        if hub_pool.decoded_paused_call3(paused)? {
+            return Err(SwapperError::ComputeQuoteError("Across protocol is paused".into()));
+        }
+        if amount > hub_pool.decoded_pooled_token_call3(pooled_token)?.liquidReserves {
+            return Err(SwapperError::ComputeQuoteError("Bridge amount is too large".into()));
+        }
+
+        let rate_model = TokenConfig::decode(config_response)?.rate_model(input, output)?;
+        let utilization_before = hub_pool.decoded_utilization_call3(utilization_before)?;
+        let utilization_after = hub_pool.decoded_utilization_call3(utilization_after)?;
+        Ok(HubPoolQuote {
+            lp_fee_percent: LpFeeCalculator::new(rate_model).realized_lp_fee_pct(&utilization_before, &utilization_after, false),
+            timestamp: hub_pool.decoded_current_time(current_time)?,
+        })
+    }
+
+    async fn usd_price(&self, price: TokenPrice) -> Result<U256, SwapperError> {
+        match price {
+            TokenPrice::Dollar => Ok(U256::from(ONE_DOLLAR)),
+            TokenPrice::Chainlink { chain, feed } => chainlink::latest_price(self.rpc_provider.clone(), chain, feed).await,
+        }
+    }
+
+    async fn gas_fee(&self, chain: Chain, fill_cost: FillCost, output_price: TokenPrice, decimals: u32) -> Result<U256, SwapperError> {
+        let gas_price = async { Self::gas_value(&create_client_with_chain(self.rpc_provider.clone(), chain)?.request::<String, _>(EthereumRpc::GasPrice).await?) };
+        let prices = async {
+            match fill_cost.gas_token == output_price {
+                true => Ok((U256::from(1), U256::from(1))),
+                false => try_join!(self.usd_price(fill_cost.gas_token), self.usd_price(output_price)),
+            }
+        };
+        let (gas_price, (gas_token_usd, output_usd)) = try_join!(gas_price, prices)?;
+        Ok(Self::gas_fee_in_output(U256::from(fill_cost.gas) * gas_price, gas_token_usd, output_usd, decimals))
+    }
+
+    fn gas_fee_in_output(native_fee: U256, gas_token_usd: U256, output_usd: U256, decimals: u32) -> U256 {
+        let scale = |decimals: u32| U256::from(10).pow(U256::from(decimals));
+        native_fee * gas_token_usd * scale(decimals) / (output_usd * scale(GAS_TOKEN_DECIMALS))
+    }
+
+    fn message_for_multicall_handler(amount: &U256, output_funding: Funding, output_token: &Address, user_address: &Address, output_chain: Chain, referral_fee: &ReferralFee) -> Result<(Vec<u8>, U256), SwapperError> {
         if referral_fee.bps == 0 {
             return Ok((vec![], U256::from(0)));
         }
@@ -116,7 +177,6 @@ impl Across {
     }
 
     fn unwrap_weth_calls(weth_contract: &Address, output_amount: &U256, user_address: &Address, user_amount: &U256, fee_address: &Address, fee_amount: &U256) -> Vec<multicall_handler::Call> {
-        assert!(fee_amount + user_amount == *output_amount);
         let withdraw_call = WETH9::withdrawCall { wad: *output_amount };
         vec![
             multicall_handler::Call {
@@ -155,81 +215,6 @@ impl Across {
         ]
     }
 
-    fn fill_relay_gas_request(
-        amount: &U256,
-        is_native: bool,
-        input_asset: &AssetId,
-        output_token: &Address,
-        depositor: &Address,
-        recipient: &Address,
-        message: &[u8],
-        deployment: &AcrossDeployment,
-        chain: Chain,
-    ) -> Result<(EthereumRpc, V3RelayData), SwapperError> {
-        let chain_id = deployment.chain_id;
-
-        let recipient = if message.is_empty() { *recipient } else { parse_address(chain, deployment.multicall_handler())? };
-
-        let v3_relay_data = V3RelayData {
-            depositor: *depositor,
-            recipient,
-            exclusiveRelayer: Address::ZERO,
-            inputToken: parse_address(input_asset.chain, input_asset.token_id.as_deref().ok_or(SwapperError::NotSupportedAsset)?)?,
-            outputToken: *output_token,
-            inputAmount: *amount,
-            outputAmount: U256::from(100),
-            originChainId: U256::from(chain_id),
-            depositId: u32::MAX,
-            fillDeadline: u32::MAX,
-            exclusivityDeadline: 0,
-            message: Bytes::from(message.to_vec()),
-        };
-        let value = if is_native { format!("{amount:#x}") } else { String::from("0x0") };
-        let data = V3SpokePoolInterface::fillV3RelayCall {
-            relayData: v3_relay_data.clone(),
-            repaymentChainId: U256::from(chain_id),
-        }
-        .abi_encode();
-        let tx = TransactionObject::new_call_to_value(deployment.spoke_pool, &value, data);
-        Ok((
-            EthereumRpc::EstimateGas {
-                transaction: serde_json::to_value(tx)?,
-                block: BlockParameter::Latest,
-            },
-            v3_relay_data,
-        ))
-    }
-
-    async fn get_destination_gas(&self, chain: Chain, limit_request: EthereumRpc, include_gas_token_price: bool) -> Result<DestinationGas, SwapperError> {
-        let gas_token_price_request = if include_gas_token_price {
-            Some(Self::multicall_request(chain, vec![ChainlinkPriceFeed::new(chain).latest_round_call3()])?)
-        } else {
-            None
-        };
-        let requests = vec![limit_request, EthereumRpc::GasPrice].into_iter().chain(gas_token_price_request).collect();
-        let mut results = create_client_with_chain(self.rpc_provider.clone(), chain)?.requests::<String, _>(requests).await?.into_iter();
-        let default_limit = U256::from(match chain {
-            Chain::Monad => DEFAULT_FILL_GAS_LIMIT * 3,
-            _ => DEFAULT_FILL_GAS_LIMIT,
-        });
-        let limit = results.next().ok_or(SwapperError::NoQuoteAvailable)?.take().ok().and_then(|value| Self::gas_value(&value).ok()).unwrap_or(default_limit);
-        let price = Self::gas_value(&results.next().ok_or(SwapperError::NoQuoteAvailable)?.take()?)?;
-        let gas_token_usd_price = if include_gas_token_price {
-            let response = results.next().ok_or(SwapperError::NoQuoteAvailable)?.take()?;
-            let values = Self::decode_multicall(response)?;
-            Some(ChainlinkPriceFeed::decoded_answer(values.first().ok_or(SwapperError::NoQuoteAvailable)?)?)
-        } else {
-            None
-        };
-        Ok(DestinationGas { limit, price, gas_token_usd_price })
-    }
-
-    fn calculate_fee_in_token(fee_in_wei: &U256, token_price: &BigInt, token_decimals: u32) -> U256 {
-        let fee = BigInt::from_bytes_le(Sign::Plus, &fee_in_wei.to_le_bytes::<32>());
-        let fee_in_token = fee * token_price * BigInt::from(10_u64.pow(token_decimals)) / BigInt::from(10_u64.pow(8)) / BigInt::from(10_u64.pow(18));
-        U256::from_le_slice(&fee_in_token.to_bytes_le().1)
-    }
-
     fn get_eta_in_seconds(&self, from_chain: &Chain, to_chain: &Chain) -> Option<u32> {
         let from_chain = EVMChain::from_chain(*from_chain)?;
         let to_chain = EVMChain::from_chain(*to_chain)?;
@@ -262,19 +247,20 @@ impl Swapper for Across {
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
-        if request.from_asset.chain() == request.to_asset.chain() {
+        let from_chain = request.from_asset.chain();
+        let to_chain = request.to_asset.chain();
+        if from_chain == to_chain {
             return Err(SwapperError::NoQuoteAvailable);
         }
-
-        let from_chain = request.from_asset.chain();
         if from_chain == Chain::Tron && request.from_asset.is_native() {
             return Err(SwapperError::NotSupportedAsset);
         }
         let depositor_address = parse_address(from_chain, &request.wallet_address)?;
-        let recipient_address = parse_address(request.to_asset.chain(), &request.destination_address)?;
+        let recipient_address = parse_address(to_chain, &request.destination_address)?;
 
-        AcrossDeployment::deployment_by_chain(&from_chain).ok_or(SwapperError::NotSupportedChain)?;
-        let destination_deployment = AcrossDeployment::deployment_by_chain(&request.to_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
+        let origin_deployment = AcrossDeployment::deployment_by_chain(&from_chain).ok_or(SwapperError::NotSupportedChain)?;
+        let destination_deployment = AcrossDeployment::deployment_by_chain(&to_chain).ok_or(SwapperError::NotSupportedChain)?;
+        let fill_cost = AcrossDeployment::fill_cost(&to_chain).ok_or(SwapperError::NotSupportedChain)?;
         if !Self::is_supported_route(&request.from_asset.asset_id(), &request.to_asset.asset_id()) {
             return Err(SwapperError::NoQuoteAvailable);
         }
@@ -282,128 +268,51 @@ impl Swapper for Across {
         let input = AcrossAsset::from_asset(&request.from_asset.asset_id()).ok_or(SwapperError::NotSupportedAsset)?;
         let output = AcrossAsset::from_asset(&request.to_asset.asset_id()).ok_or(SwapperError::NotSupportedAsset)?;
         let from_amount = U256::from_str(&request.value.to_string()).map_err(SwapperError::from)? / input.scale;
-        let original_output_asset = request.to_asset.asset_id();
+        let input_token = parse_address(input.asset_id.chain, input.asset_id.token_id.as_deref().ok_or(SwapperError::NotSupportedAsset)?)?;
         let output_token = parse_address(output.asset_id.chain, output.asset_id.token_id.as_deref().ok_or(SwapperError::NotSupportedAsset)?)?;
 
         let mappings = AcrossDeployment::asset_mappings();
         let asset_mapping = mappings.iter().find(|x| x.set.contains(&input.asset_id)).ok_or(SwapperError::NotSupportedAsset)?;
+        let output_price = asset_mapping.price.ok_or(SwapperError::NotSupportedAsset)?;
         let asset_mainnet = asset_mapping.set.iter().find(|x| x.chain == Chain::Ethereum).ok_or(SwapperError::NotSupportedAsset)?;
         let mainnet_token = eth_address::parse_asset_id(asset_mainnet)?;
-
-        let hubpool_client = HubPoolClient::new();
-        let include_gas_token_price = !original_output_asset.is_native() && request.to_asset.chain() != Chain::Monad;
-        let token_price_call = include_gas_token_price.then(|| ChainlinkPriceFeed::new(request.to_asset.chain()).latest_round_call3());
-        let calls = vec![
-            hubpool_client.paused_call3(),
-            hubpool_client.sync_call3(&mainnet_token),
-            hubpool_client.pooled_token_call3(&mainnet_token),
-            hubpool_client.utilization_call3(&mainnet_token, U256::from(0)),
-            hubpool_client.utilization_call3(&mainnet_token, from_amount),
-            hubpool_client.get_current_time(),
-        ]
-        .into_iter()
-        .chain(token_price_call)
-        .collect();
-        let requests = vec![Self::multicall_request(Chain::Ethereum, calls)?, TokenConfig::request(&mainnet_token)];
-        let [multicall_response, config_response]: [String; 2] = create_client_with_chain(self.rpc_provider.clone(), Chain::Ethereum)?
-            .requests::<String, _>(requests)
-            .await?
-            .take_all()?
-            .try_into()
-            .map_err(|_| SwapperError::NoQuoteAvailable)?;
-        let multicall_results = Self::decode_multicall(multicall_response)?;
-        let token_config = TokenConfig::decode(config_response)?;
-        let [
-            paused_result,
-            _,
-            pooled_token_result,
-            utilization_before_result,
-            utilization_after_result,
-            current_time_result,
-            mainnet_gas_token_price_results @ ..,
-        ] = multicall_results.as_slice()
-        else {
-            return Err(SwapperError::NoQuoteAvailable);
-        };
-        if mainnet_gas_token_price_results.len() != usize::from(include_gas_token_price) {
-            return Err(SwapperError::NoQuoteAvailable);
-        }
-
-        let is_paused = hubpool_client.decoded_paused_call3(paused_result)?;
-        if is_paused {
-            return Err(SwapperError::ComputeQuoteError("Across protocol is paused".into()));
-        }
-
-        if from_amount > hubpool_client.decoded_pooled_token_call3(pooled_token_result)?.liquidReserves {
-            return Err(SwapperError::ComputeQuoteError("Bridge amount is too large".into()));
-        }
-
-        let util_before = hubpool_client.decoded_utilization_call3(utilization_before_result)?;
-        let util_after = hubpool_client.decoded_utilization_call3(utilization_after_result)?;
-        let timestamp = hubpool_client.decoded_current_time(current_time_result)?;
-
-        let rate_model = token_config.rate_model(&input.asset_id, &output.asset_id)?;
         let cost_config = &asset_mapping.capital_cost;
 
-        let lpfee_calc = LpFeeCalculator::new(rate_model);
-        let lpfee_percent = lpfee_calc.realized_lp_fee_pct(&util_before, &util_after, false);
-        let lpfee = fees::multiply(from_amount, lpfee_percent, cost_config.decimals);
-
-        let relayer_calc = RelayerFeeCalculator::default();
-        let relayer_fee_percent = relayer_calc.capital_fee_percent(&BigInt::from_str(&from_amount.to_string())?, cost_config);
-        let relayer_fee = fees::multiply(from_amount, relayer_fee_percent, cost_config.decimals);
-
-        let referral_config = default_referral_fees().for_chain(request.to_asset.chain()).cloned().unwrap_or_default();
-
-        let remain_amount = from_amount - lpfee - relayer_fee;
-        let (message, referral_fee) = self.message_for_multicall_handler(&remain_amount, output.funding, &output_token, &recipient_address, request.to_asset.chain(), &referral_config)?;
-
-        let destination_chain = request.to_asset.chain();
-        let (gas_limit_request, v3_relay_data) = Self::fill_relay_gas_request(
-            &from_amount,
-            input.funding == Funding::Value,
-            &input.asset_id,
-            &output_token,
-            &depositor_address,
-            &recipient_address,
-            &message,
-            &destination_deployment,
-            destination_chain,
+        let (hub_pool, gas_fee) = try_join!(
+            self.hub_pool_quote(&mainnet_token, from_amount, &input.asset_id, &output.asset_id),
+            self.gas_fee(to_chain, fill_cost, output_price, cost_config.decimals),
         )?;
-        let include_destination_gas_token_price = !original_output_asset.is_native() && destination_chain == Chain::Monad;
-        let DestinationGas {
-            limit: gas_limit,
-            price: gas_price,
-            gas_token_usd_price: destination_gas_token_usd_price,
-        } = self.get_destination_gas(destination_chain, gas_limit_request, include_destination_gas_token_price).await?;
-        let gas_token_usd_price = if original_output_asset.is_native() {
-            None
-        } else if destination_chain == Chain::Monad {
-            Some(destination_gas_token_usd_price.ok_or(SwapperError::NoQuoteAvailable)?)
+
+        let lp_fee = fees::multiply(from_amount, hub_pool.lp_fee_percent, cost_config.decimals);
+        let relayer_fee_percent = RelayerFeeCalculator::default().capital_fee_percent(&BigInt::from_str(&from_amount.to_string())?, cost_config);
+        let relayer_fee = fees::multiply(from_amount, relayer_fee_percent, cost_config.decimals);
+        let output_amount = from_amount
+            .checked_sub(lp_fee + relayer_fee + gas_fee)
+            .filter(|amount| !amount.is_zero())
+            .ok_or(SwapperError::InputAmountError { min_amount: None })?;
+
+        let referral_config = default_referral_fees().for_chain(to_chain).cloned().unwrap_or_default();
+        let (message, referral_fee) = Self::message_for_multicall_handler(&output_amount, output.funding, &output_token, &recipient_address, to_chain, &referral_config)?;
+        let recipient = if message.is_empty() {
+            recipient_address
         } else {
-            Some(ChainlinkPriceFeed::decoded_answer(mainnet_gas_token_price_results.first().ok_or(SwapperError::NoQuoteAvailable)?)?)
+            parse_address(to_chain, destination_deployment.multicall_handler())?
         };
-        let native_gas_fee = gas_limit * gas_price;
-        let gas_fee = match gas_token_usd_price {
-            None => native_gas_fee / output.scale,
-            Some(price) => Self::calculate_fee_in_token(&native_gas_fee, &price, cost_config.decimals),
-        };
-
-        if remain_amount < gas_fee {
-            return Err(SwapperError::InputAmountError { min_amount: None });
-        }
-
-        let output_amount = remain_amount - gas_fee;
-        let to_value = (output_amount - referral_fee) * output.scale;
-
-        let (message, _) = self.message_for_multicall_handler(&output_amount, output.funding, &output_token, &recipient_address, request.to_asset.chain(), &referral_config)?;
-        let v3_relay_data = V3RelayData {
+        let relay_data = V3RelayData {
+            depositor: depositor_address,
+            recipient,
+            exclusiveRelayer: Address::ZERO,
+            inputToken: input_token,
+            outputToken: output_token,
+            inputAmount: from_amount,
             outputAmount: output_amount,
-            fillDeadline: timestamp + DEFAULT_FILL_TIMEOUT,
+            originChainId: U256::from(origin_deployment.chain_id),
+            depositId: u32::MAX,
+            fillDeadline: hub_pool.timestamp + DEFAULT_FILL_TIMEOUT,
+            exclusivityDeadline: 0,
             message: message.into(),
-            ..v3_relay_data
         };
-        let route_data = HexEncode(v3_relay_data.abi_encode());
+        let to_value = (output_amount - referral_fee) * output.scale;
 
         Ok(Quote {
             from_value: request.value.clone(),
@@ -415,11 +324,11 @@ impl Swapper for Across {
                 routes: vec![Route {
                     input: input.asset_id,
                     output: output.asset_id,
-                    route_data,
+                    route_data: HexEncode(relay_data.abi_encode()),
                 }],
             },
             request: request.clone(),
-            eta_in_seconds: self.get_eta_in_seconds(&request.from_asset.chain(), &request.to_asset.chain()),
+            eta_in_seconds: self.get_eta_in_seconds(&from_chain, &to_chain),
         })
     }
 
@@ -481,19 +390,18 @@ impl Swapper for Across {
             }
         };
 
-        let is_tron = from_chain == Chain::Tron;
-        let to: String = deployment.spoke_pool.into();
-        let mut gas_limit = if is_tron { None } else { get_swap_gas_limit_with_approval(&approval, None, DEFAULT_DEPOSIT_GAS_LIMIT) };
+        let gas_limit = match (from_chain, data) {
+            (Chain::Tron, _) => None,
+            (_, FetchQuoteData::EstimateGas) => {
+                let tx = TransactionObject::new_call_to_value(deployment.spoke_pool, &format!("{value:#x}"), deposit_v3_call.clone());
+                Some(self.estimate_gas_transaction(from_chain, tx).await?.to_string())
+            }
+            (_, FetchQuoteData::Permit2(_) | FetchQuoteData::None) => get_swap_gas_limit_with_approval(&approval, None, DEFAULT_DEPOSIT_GAS_LIMIT),
+        };
 
-        let should_estimate_gas = matches!(data, FetchQuoteData::EstimateGas) && !is_tron;
-        if should_estimate_gas {
-            let hex_value = format!("{value:#x}");
-            let tx = TransactionObject::new_call_to_value(&to, &hex_value, deposit_v3_call.clone());
-            gas_limit = Some(self.estimate_gas_transaction(from_chain, tx).await?.to_string());
-        }
-
-        Ok(SwapperQuoteData::new_contract(deployment.spoke_pool.into(), value, HexEncode(deposit_v3_call.clone()), approval, gas_limit))
+        Ok(SwapperQuoteData::new_contract(deployment.spoke_pool.into(), value, HexEncode(deposit_v3_call), approval, gas_limit))
     }
+
     async fn get_vault_addresses(&self, _from_timestamp: Option<u64>) -> Result<VaultAddresses, SwapperError> {
         Ok(VaultAddresses {
             deposit: AcrossDeployment::deposit_addresses(),
@@ -511,7 +419,6 @@ mod tests {
     use super::super::testkit::{TEST_FILL_DEADLINE, mock_v3_relay_data};
     use super::*;
     use crate::alien::mock::ProviderMock;
-    use gem_evm::multicall3::IMulticall3;
     use num_bigint::BigUint;
     use primitives::{asset_constants::*, contract_constants::ARC_ACROSS_SPOKE_POOL_CONTRACT, swap::SwapQuoteDataType};
 
@@ -638,17 +545,16 @@ mod tests {
     }
 
     #[test]
-    fn test_fee_in_token() {
-        let data = HexDecode("0x00000000000000000000000000000000000000000000000700000000000013430000000000000000000000000000000000000000000000000000004e17511aea00000000000000000000000000000000000000000000000000000000677e57a600000000000000000000000000000000000000000000000000000000677e57bb0000000000000000000000000000000000000000000000070000000000001343").unwrap();
-        let result = IMulticall3::Result { success: true, returnData: data.into() };
-        let price = ChainlinkPriceFeed::decoded_answer(&result).unwrap();
+    fn test_gas_fee_in_output() {
+        let gwei = |value: u64| U256::from(value) * U256::from(1_000_000_000u64);
+        let usd = |cents: u64| U256::from(cents) * U256::from(1_000_000u64);
+        let one = U256::from(1);
 
-        assert_eq!(price, BigInt::from(335398640362_u64));
-
-        let gas_fee = U256::from(1861602902696880_u64);
-        let fee_in_token = Across::calculate_fee_in_token(&gas_fee, &price, 6);
-
-        assert_eq!(fee_in_token.to_string(), "6243790");
+        assert_eq!(Across::gas_fee_in_output(U256::from(370_000) * gwei(1) / U256::from(50), usd(240_869), usd(100), 6), U256::from(17_824));
+        assert_eq!(Across::gas_fee_in_output(U256::from(190_000) * gwei(1) / U256::from(20), usd(71_953), usd(240_869), 18), U256::from(2_837_864_150_222u64));
+        assert_eq!(Across::gas_fee_in_output(U256::from(340_000) * gwei(5), usd(978), usd(100), 6), U256::from(16_626));
+        assert_eq!(Across::gas_fee_in_output(U256::from(370_000) * gwei(1) / U256::from(50), one, one, 18), U256::from(7_400_000_000_000u64));
+        assert_eq!(Across::gas_fee_in_output(U256::from(310_000) * gwei(21), one, one, 6), U256::from(6_510));
     }
 
     #[cfg(all(test, feature = "swap_integration_tests", feature = "reqwest_provider"))]
@@ -657,6 +563,45 @@ mod tests {
         use crate::{FetchQuoteData, NativeProvider, Options, QuoteRequest, SwapperError};
         use primitives::{AssetId, Chain, swap::SwapStatus};
         use std::{sync::Arc, time::SystemTime};
+
+        #[tokio::test]
+        async fn test_across_quotes_charge_relayer_costs_in_the_output_token() -> Result<(), SwapperError> {
+            let usdc = 50_000_000u64;
+            let ether = 20_000_000_000_000_000u64;
+            let routes = [
+                (ETHEREUM_USDC_ASSET_ID.clone(), AVALANCHE_USDC_ASSET_ID.clone(), usdc),
+                (ETHEREUM_USDC_ASSET_ID.clone(), POLYGON_USDC_ASSET_ID.clone(), usdc),
+                (ARBITRUM_USDC_ASSET_ID.clone(), HYPEREVM_USDC_ASSET_ID.clone(), usdc),
+                (ETHEREUM_USDC_ASSET_ID.clone(), MONAD_USDC_ASSET_ID.clone(), usdc),
+                (ETHEREUM_USDT_ASSET_ID.clone(), PLASMA_USDT_ASSET_ID.clone(), usdc),
+                (ETHEREUM_USDC_ASSET_ID.clone(), ARBITRUM_USDC_ASSET_ID.clone(), usdc),
+                (ETHEREUM_USDC_ASSET_ID.clone(), AssetId::from_chain(Chain::Arc), usdc),
+                (ETHEREUM_WETH_ASSET_ID.clone(), SMARTCHAIN_ETH_ASSET_ID.clone(), ether),
+                (ETHEREUM_WETH_ASSET_ID.clone(), POLYGON_WETH_ASSET_ID.clone(), ether),
+                (OPTIMISM_WETH_ASSET_ID.clone(), ARBITRUM_WETH_ASSET_ID.clone(), ether),
+                (AssetId::from_chain(Chain::Arbitrum), AssetId::from_chain(Chain::Base), ether),
+                (AssetId::from_chain(Chain::Ethereum), AssetId::from_chain(Chain::Linea), ether),
+                (AssetId::from_chain(Chain::Ethereum), AssetId::from_chain(Chain::Robinhood), ether),
+            ];
+            let chains = routes.iter().flat_map(|(from, to, _)| [from.chain, to.chain]).chain([Chain::Ethereum]);
+            let across = Across::new(crate::testkit::dynode_provider(chains));
+
+            for (from_asset, to_asset, value) in routes {
+                let request = QuoteRequest {
+                    value: BigUint::from(value),
+                    ..crate::testkit::mock_quote(from_asset.clone().into(), to_asset.clone().into())
+                };
+                let quote = across.get_quote(&request).await?;
+                let relay_data = V3RelayData::abi_decode(&HexDecode(&quote.data.routes[0].route_data).unwrap()).unwrap();
+                let scale = AcrossAsset::from_asset(&to_asset).unwrap().scale;
+                println!("{from_asset} -> {to_asset}: output {} to_value {}", relay_data.outputAmount, quote.to_value);
+
+                assert!(quote.to_value * BigUint::from(1000u32) >= BigUint::from(value) * u256_to_biguint(&scale) * BigUint::from(990u32), "{from_asset} -> {to_asset}");
+                assert!(relay_data.outputAmount < U256::from(value), "{from_asset} -> {to_asset}");
+            }
+
+            Ok(())
+        }
 
         #[tokio::test]
         async fn test_across_quote() -> Result<(), SwapperError> {

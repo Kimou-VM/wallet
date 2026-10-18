@@ -1,13 +1,9 @@
-use alloy_sol_types::sol;
-use num_bigint::BigInt;
-use num_traits::FromBytes;
+use alloy_primitives::U256;
+use alloy_sol_types::{SolCall, sol};
+use primitives::Chain;
+use std::sync::Arc;
 
-use crate::SwapperError;
-use gem_evm::multicall3::{IMulticall3, create_call3, decode_call3_return};
-use primitives::{
-    Chain,
-    contract_constants::{ETHEREUM_CHAINLINK_ETH_USD_FEED_CONTRACT, MONAD_CHAINLINK_USD_FEED_CONTRACT},
-};
+use crate::{SwapperError, alien::RpcProvider, client_factory::create_eth_client};
 
 sol! {
     interface AggregatorInterface {
@@ -15,27 +11,32 @@ sol! {
     }
 }
 
-pub(super) struct ChainlinkPriceFeed {
-    contract: String,
+pub(super) const ONE_DOLLAR: u64 = 100_000_000;
+
+pub(super) async fn latest_price(rpc_provider: Arc<dyn RpcProvider>, chain: Chain, feed: &str) -> Result<U256, SwapperError> {
+    let data = create_eth_client(rpc_provider, chain)?
+        .eth_call(feed, &AggregatorInterface::latestRoundDataCall {}.abi_encode())
+        .await
+        .map_err(SwapperError::compute_quote_error)?;
+    decode_price(&data)
 }
 
-impl ChainlinkPriceFeed {
-    pub(super) fn new(chain: Chain) -> Self {
-        Self {
-            contract: match chain {
-                Chain::Monad => MONAD_CHAINLINK_USD_FEED_CONTRACT,
-                _ => ETHEREUM_CHAINLINK_ETH_USD_FEED_CONTRACT,
-            }
-            .into(),
-        }
-    }
+fn decode_price(data: &[u8]) -> Result<U256, SwapperError> {
+    let round = AggregatorInterface::latestRoundDataCall::abi_decode_returns(data)?;
+    U256::try_from(round.answer).ok().filter(|price| !price.is_zero()).ok_or(SwapperError::NoQuoteAvailable)
+}
 
-    pub(super) fn latest_round_call3(&self) -> IMulticall3::Call3 {
-        create_call3(&self.contract, AggregatorInterface::latestRoundDataCall {})
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::hex;
 
-    pub(super) fn decoded_answer(result: &IMulticall3::Result) -> Result<BigInt, SwapperError> {
-        let decoded = decode_call3_return::<AggregatorInterface::latestRoundDataCall>(result).map_err(|_| SwapperError::ComputeQuoteError("failed to decode answer".into()))?;
-        Ok(BigInt::from_le_bytes(&decoded.answer.to_le_bytes::<32>()))
+    #[test]
+    fn test_decode_price() {
+        let round = |answer: &str| hex::decode(format!("{:0>64}{answer:0>64}{:0>192}", "7", "")).unwrap();
+
+        assert_eq!(decode_price(&round("4e17511aea")), Ok(U256::from(335_398_640_362u64)));
+        assert_eq!(decode_price(&round("0")), Err(SwapperError::NoQuoteAvailable));
+        assert_eq!(decode_price(&round(&"f".repeat(64))), Err(SwapperError::NoQuoteAvailable));
     }
 }

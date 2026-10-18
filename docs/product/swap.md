@@ -114,6 +114,8 @@ flowchart LR
 | The Meteora DAMM v2 and DLMM, Raydium CPMM and Raydium AMM v4 pools for a pair | `1 day` |
 | STON.fi and DeDust pool, vault and jetton wallet addresses | `30 days` |
 | Sui epoch and gas price | `10 minutes` |
+| Across rate models | `1 hour` |
+| Chainlink prices that convert Across's gas fee | `1 minute` |
 
 Anything not listed is read again for every quote.
 
@@ -166,6 +168,30 @@ Measured on 2026-10-17, one pair per provider and the same amount, on the build 
 | Hyperion, APT to USDC | 19 → 13 | 7 → 2 | 19 → 7 | 3 | under 1 KB |
 
 A repeat quote took about `110 ms` to `130 ms` on Ethereum and Sui, most of it the round trip to Dynode. Solana's carry 130 to 230 KB of pool accounts and took `170 ms` to `800 ms`. Meteora was measured on 2026-10-18: its first quote counts the two pool lookups, sent at the same time, and took about `460 ms` to `600 ms`; its repeat quote reads one pool and took `125 ms` to `345 ms`. STON.fi, DeDust and Hyperion ask one pool per request, so their repeat quotes took about `230 ms`, `220 ms` and `270 ms`; a DeDust two-hop quote asks its hops in turn and took about `500 ms`.
+
+## Across
+
+Across quotes from the chain. The hub pool on Ethereum says whether the bridge is paused, how much it can pay out and what its LP fee is; the destination network gives its gas price. A quote sends these requests at the same time, so it takes one round trip.
+
+What arrives is the amount paid minus three fees, all taken in the token bridged:
+
+| Fee | Priced from |
+|---|---|
+| LP fee | the hub pool's utilization and the route's rate model in Across's config store; a route without its own model uses the token's default one |
+| Relayer capital fee | Across's capital cost for the token, a share of the amount |
+| Relayer gas fee | the gas a relayer spends filling the deposit on the destination, at that network's gas price, converted into the token received |
+
+The gas is paid in the destination's own coin, so the fee is converted with Chainlink's USD prices whenever that coin and the token received differ (`test_gas_fee_in_output`). Stablecoins count as one dollar, and Arc pays gas in USDC, so a stablecoin sent to Arc needs no price.
+
+| Destination gas | Price from |
+|---|---|
+| ETH, on Ethereum and its rollups | ETH/USD on Ethereum |
+| AVAX, POL, BNB, HYPE, XPL, MON | that network's own feed |
+| ETH received where gas is paid in ETH | none, the fee is already in the token received |
+
+The gas a fill takes is set per network, from Across's own quotes for a deposit that carries Gem's fee. That deposit goes to Across's multicall handler, which splits it between the user and Gem, so it costs more gas than a plain one. Each figure is the most Across charged in three samples on 2026-10-18, plus `20%`. On the 13 routes measured, the amount received came out `0` to `5` basis points below Across's own quotes, never above, so relayers always earn what Across expects them to (`test_across_quotes_charge_relayer_costs_in_the_output_token`, `test_fill_cost_covers_every_destination`). Linea and HyperEVM report gas prices that swing about three-fold within minutes, so their figures are set for the low end and can cost up to about `0.2%` more on small amounts.
+
+A deposit no relayer fills is refunded once its fill deadline passes. The deadline is `2 hours` after the quote, as Across's own quotes use, so an unfilled deposit comes back sooner than the SpokePool's `6-hour` limit would allow.
 
 ## Expected results
 

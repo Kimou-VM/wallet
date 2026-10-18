@@ -11,9 +11,27 @@ pub struct AcrossDeployment {
     pub multicall_handler: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenPrice {
+    Dollar,
+    Chainlink { chain: Chain, feed: &'static str },
+}
+
+pub const ETHER_PRICE: TokenPrice = TokenPrice::Chainlink {
+    chain: Chain::Ethereum,
+    feed: ETHEREUM_CHAINLINK_ETH_USD_FEED_CONTRACT,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FillCost {
+    pub gas_token: TokenPrice,
+    pub gas: u64,
+}
+
 #[derive(Debug)]
 pub struct AssetMapping {
     pub capital_cost: CapitalCostConfig,
+    pub price: Option<TokenPrice>,
     pub set: HashSet<AssetId>,
 }
 
@@ -63,6 +81,31 @@ impl AcrossDeployment {
 
     pub fn multicall_handler(&self) -> &'static str {
         self.multicall_handler
+    }
+
+    pub fn fill_cost(chain: &Chain) -> Option<FillCost> {
+        let chainlink = |feed| TokenPrice::Chainlink { chain: *chain, feed };
+        let (gas_token, gas) = match chain {
+            Chain::Ethereum => (ETHER_PRICE, 310_000),
+            Chain::Arbitrum => (ETHER_PRICE, 380_000),
+            Chain::AvalancheC => (chainlink(AVALANCHE_CHAINLINK_AVAX_USD_FEED_CONTRACT), 360_000),
+            Chain::Base => (ETHER_PRICE, 550_000),
+            Chain::Linea => (ETHER_PRICE, 210_000),
+            Chain::Optimism => (ETHER_PRICE, 250_000),
+            Chain::Polygon => (chainlink(POLYGON_CHAINLINK_POL_USD_FEED_CONTRACT), 610_000),
+            Chain::World => (ETHER_PRICE, 370_000),
+            Chain::ZkSync => (ETHER_PRICE, 420_000),
+            Chain::Ink => (ETHER_PRICE, 250_000),
+            Chain::Unichain => (ETHER_PRICE, 280_000),
+            Chain::Monad => (chainlink(MONAD_CHAINLINK_MON_USD_FEED_CONTRACT), 530_000),
+            Chain::SmartChain => (chainlink(SMARTCHAIN_CHAINLINK_BNB_USD_FEED_CONTRACT), 200_000),
+            Chain::Hyperliquid => (chainlink(HYPEREVM_CHAINLINK_HYPE_USD_FEED_CONTRACT), 470_000),
+            Chain::Plasma => (chainlink(PLASMA_CHAINLINK_XPL_USD_FEED_CONTRACT), 240_000),
+            Chain::Robinhood => (ETHER_PRICE, 400_000),
+            Chain::Arc => (TokenPrice::Dollar, 320_000),
+            _ => return None,
+        };
+        Some(FillCost { gas_token, gas })
     }
 
     pub fn supported_assets() -> HashMap<Chain, Vec<AssetId>> {
@@ -128,6 +171,7 @@ impl AcrossDeployment {
                     cutoff: EtherConv::parse_ether("0.3"),
                     decimals: 18,
                 },
+                price: Some(ETHER_PRICE),
                 set: HashSet::from_iter([
                     ARBITRUM_WETH_ASSET_ID.clone(),
                     BASE_WETH_ASSET_ID.clone(),
@@ -150,6 +194,7 @@ impl AcrossDeployment {
                     cutoff: EtherConv::parse_ether("100000"),
                     decimals: 6,
                 },
+                price: Some(TokenPrice::Dollar),
                 set: HashSet::from_iter([
                     ARBITRUM_USDC_ASSET_ID.clone(),
                     AVALANCHE_USDC_ASSET_ID.clone(),
@@ -172,6 +217,7 @@ impl AcrossDeployment {
                     cutoff: EtherConv::parse_ether("100000"),
                     decimals: 18,
                 },
+                price: Some(TokenPrice::Dollar),
                 set: HashSet::from_iter([ETHEREUM_USDC_ASSET_ID.clone(), SMARTCHAIN_USDC_ASSET_ID.clone()]),
             },
             AssetMapping {
@@ -181,6 +227,7 @@ impl AcrossDeployment {
                     cutoff: EtherConv::parse_ether("1500000"),
                     decimals: 6,
                 },
+                price: Some(TokenPrice::Dollar),
                 set: HashSet::from_iter([
                     ARBITRUM_USDT_ASSET_ID.clone(),
                     AVALANCHE_USDT_ASSET_ID.clone(),
@@ -204,6 +251,7 @@ impl AcrossDeployment {
                     cutoff: EtherConv::parse_ether("1500000"),
                     decimals: 18,
                 },
+                price: Some(TokenPrice::Dollar),
                 set: HashSet::from_iter([ETHEREUM_USDT_ASSET_ID.clone(), SMARTCHAIN_USDT_ASSET_ID.clone()]),
             },
             AssetMapping {
@@ -213,6 +261,7 @@ impl AcrossDeployment {
                     cutoff: EtherConv::parse_ether("100000"),
                     decimals: 6,
                 },
+                price: Some(TokenPrice::Dollar),
                 set: HashSet::from_iter([
                     ARBITRUM_USDC_E_ASSET_ID.clone(),
                     BASE_USDC_E_ASSET_ID.clone(),
@@ -231,6 +280,7 @@ impl AcrossDeployment {
                     cutoff: EtherConv::parse_ether("10"),
                     decimals: 8,
                 },
+                price: None,
                 set: HashSet::from_iter([
                     ARBITRUM_WBTC_ASSET_ID.clone(),
                     ETHEREUM_WBTC_ASSET_ID.clone(),
@@ -248,6 +298,7 @@ impl AcrossDeployment {
                     cutoff: EtherConv::parse_ether("1000000"),
                     decimals: 18,
                 },
+                price: None,
                 set: HashSet::from_iter([ARBITRUM_ACX_ASSET_ID.clone(), ETHEREUM_ACX_ASSET_ID.clone(), OPTIMISM_ACX_ASSET_ID.clone(), POLYGON_ACX_ASSET_ID.clone()]),
             },
         ]
@@ -257,8 +308,9 @@ impl AcrossDeployment {
 #[cfg(test)]
 mod tests {
     use super::AcrossDeployment;
+    use crate::across::asset::AcrossAsset;
     use primitives::{
-        Chain,
+        AssetId, Chain,
         asset_constants::{ARC_USDC_TOKEN_ID, LINEA_USDC_E_ASSET_ID, LINEA_USDC_E_TOKEN_ID, ROBINHOOD_USDG_ASSET_ID, ROBINHOOD_WETH_ASSET_ID},
         contract_constants::{ARC_ACROSS_MULTICALL_HANDLER_CONTRACT, ARC_ACROSS_SPOKE_POOL_CONTRACT, ROBINHOOD_ACROSS_MULTICALL_HANDLER_CONTRACT, ROBINHOOD_ACROSS_SPOKE_POOL_CONTRACT},
     };
@@ -270,6 +322,27 @@ mod tests {
         assert_eq!(deployment.spoke_pool, ROBINHOOD_ACROSS_SPOKE_POOL_CONTRACT);
         assert_eq!(deployment.multicall_handler(), ROBINHOOD_ACROSS_MULTICALL_HANDLER_CONTRACT);
         assert_eq!(AcrossDeployment::supported_assets().get(&Chain::Robinhood), Some(&vec![ROBINHOOD_WETH_ASSET_ID.clone(), ROBINHOOD_USDG_ASSET_ID.clone()]));
+    }
+
+    #[test]
+    fn test_fill_cost_covers_every_destination() {
+        for chain in Chain::all().into_iter().filter(|chain| AcrossDeployment::deployment_by_chain(chain).is_some()) {
+            assert_eq!(AcrossDeployment::fill_cost(&chain).is_some(), chain != Chain::Tron, "{chain:?}");
+        }
+    }
+
+    #[test]
+    fn test_routed_assets_are_priced() {
+        let mappings = AcrossDeployment::asset_mappings();
+        let mapping = |asset: &AssetId| mappings.iter().find(|mapping| mapping.set.contains(asset));
+        let routed_natives = Chain::all().into_iter().filter_map(|chain| AcrossAsset::from_asset(&chain.as_asset_id())).map(|asset| asset.asset_id);
+
+        for asset in AcrossDeployment::supported_assets().into_values().flatten() {
+            assert!(mapping(&asset).and_then(|mapping| mapping.price).is_some(), "{asset}");
+        }
+        for asset in routed_natives.filter(|asset| mapping(asset).is_some()) {
+            assert!(mapping(&asset).and_then(|mapping| mapping.price).is_some(), "{asset}");
+        }
     }
 
     #[test]
