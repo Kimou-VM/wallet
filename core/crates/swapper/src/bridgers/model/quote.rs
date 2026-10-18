@@ -47,7 +47,6 @@ pub struct QuoteTxData {
     pub to_token_amount: String,
     pub deposit_min: String,
     pub deposit_max: String,
-    pub chain_fee: String,
     pub estimated_time: u32,
 }
 
@@ -70,11 +69,10 @@ impl QuoteTxData {
 
     pub fn get_to_value(&self, decimals: u32) -> Result<BigUint, SwapperError> {
         let to_amount = BigNumberFormatter::value_from_amount_biguint(&self.to_token_amount, decimals)?;
-        let chain_fee = BigNumberFormatter::value_from_amount_biguint(&self.chain_fee, decimals)?;
-        if to_amount <= chain_fee {
-            return Err(SwapperError::NoQuoteAvailable);
+        match to_amount == BigUint::ZERO {
+            true => Err(SwapperError::NoQuoteAvailable),
+            false => Ok(to_amount),
         }
-        Ok(to_amount - chain_fee)
     }
 }
 
@@ -91,16 +89,15 @@ mod tests {
     #[test]
     fn test_quote_values() {
         let quote = QuoteTxData {
-            amount_out_min: BigUint::ZERO,
-            to_token_amount: "0.599919".to_string(),
+            amount_out_min: BigUint::from(1_147_361_000u64),
+            to_token_amount: "1.147361".to_string(),
             deposit_min: "147.8".to_string(),
             deposit_max: "20000".to_string(),
-            chain_fee: "0.0001".to_string(),
             estimated_time: 10,
         };
 
         assert_eq!(quote.get_deposit_range(18).unwrap(), (BigUint::from(147_800_000_000_000_000_000u128), BigUint::from(20_000_000_000_000_000_000_000u128)));
-        assert_eq!(quote.get_to_value(8).unwrap(), BigUint::from(59_981_900u64));
-        assert_eq!(QuoteTxData { chain_fee: "1".to_string(), ..quote }.get_to_value(8).unwrap_err(), SwapperError::NoQuoteAvailable);
+        assert_eq!(quote.get_to_value(9).unwrap(), quote.amount_out_min);
+        assert_eq!(QuoteTxData { to_token_amount: "0".to_string(), ..quote }.get_to_value(9).unwrap_err(), SwapperError::NoQuoteAvailable);
     }
 }

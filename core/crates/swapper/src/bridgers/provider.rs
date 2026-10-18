@@ -138,7 +138,7 @@ mod swap_integration_tests {
         alien::reqwest_provider::NativeProvider,
         bridgers::testkit::{mock_base_usdc_to_bsc_usdt_request, mock_opbnb_to_bsc_usdt_request, mock_stable_to_bsc_usdt_request},
     };
-    use primitives::{Chain, TransactionSwapMetadata, asset_constants::ARBITRUM_USDC_ASSET_ID};
+    use primitives::{Chain, TransactionSwapMetadata, TransactionSwapReferralFee, asset_constants::ARBITRUM_USDC_ASSET_ID};
 
     #[tokio::test]
     async fn test_bridgers_quote_and_quote_data() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -165,13 +165,19 @@ mod swap_integration_tests {
             result,
             SwapResult {
                 status: SwapStatus::Completed,
-                metadata: Some(TransactionSwapMetadata::new(
-                    ARBITRUM_USDC_ASSET_ID.clone(),
-                    BigUint::from(20_000_000u64),
-                    AssetId::from_chain(Chain::OpBNB),
-                    BigUint::from(25_126_000_000_000_000u64),
-                    SwapperProvider::Bridgers,
-                )),
+                metadata: Some(
+                    TransactionSwapMetadata::new(
+                        ARBITRUM_USDC_ASSET_ID.clone(),
+                        BigUint::from(20_000_000u64),
+                        AssetId::from_chain(Chain::OpBNB),
+                        BigUint::from(25_126_000_000_000_000u64),
+                        SwapperProvider::Bridgers,
+                    )
+                    .with_referral_fee(Some(TransactionSwapReferralFee {
+                        asset_id: ARBITRUM_USDC_ASSET_ID.clone(),
+                        value: BigUint::from(100_000u64),
+                    }))
+                ),
                 eta_in_seconds: None,
             }
         );
