@@ -86,7 +86,8 @@ impl NodeService {
         let _inflight = self.metrics.track_node_inflight(chain);
         let route = self.route(request);
         let mut remote_host = None;
-        let result = match (route.as_deref(), self.batch_parts(request)) {
+        let parts = route.as_ref().and_then(|_| self.batch_parts(request));
+        let result = match (route.as_deref(), parts) {
             (Some(route), Some(parts)) => self.proxy_batch_parts(request, &parts, route).await,
             (route, _) => self.proxy_request_to_node(request, route, &mut remote_host).await,
         };
@@ -473,8 +474,11 @@ mod tests {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         let router = axum::Router::new().fallback(move |body: String| async move {
-            let calls = serde_json::from_str::<Vec<JsonRpcCall>>(&body).unwrap();
-            serde_json::to_string(&calls.iter().map(|call| serde_json::json!({ "jsonrpc": "2.0", "result": format!("{tag}:{}", call.method), "id": call.id })).collect::<Vec<_>>()).unwrap()
+            let answer = |call: &JsonRpcCall, shape: &str| serde_json::json!({ "jsonrpc": "2.0", "result": format!("{tag} {} {shape}", call.method), "id": call.id });
+            match serde_json::from_str::<Vec<JsonRpcCall>>(&body) {
+                Ok(calls) => serde_json::to_string(&calls.iter().map(|call| answer(call, "batch")).collect::<Vec<_>>()).unwrap(),
+                Err(_) => answer(&serde_json::from_str(&body).unwrap(), "single").to_string(),
+            }
         });
         tokio::spawn(async move { axum::serve(listener, router).await });
         url
@@ -484,8 +488,9 @@ mod tests {
     async fn test_batch_calls_follow_their_overrides() {
         let node = spawn_node("node").await;
         let helius = spawn_node("override").await;
-        let config = |url: &str| ChainConfig {
-            urls: vec![Url::mock(&node)],
+        let closed = "http://127.0.0.1:9";
+        let config = |node: &str, url: &str| ChainConfig {
+            urls: vec![Url::mock(node)],
             overrides: Some(vec![Override {
                 rpc_method: Some("getProgramAccounts".to_string()),
                 path: None,
@@ -496,30 +501,31 @@ mod tests {
         };
         let failed = NodeServiceError::UpstreamsFailed.to_string();
 
-        for (methods, override_url, expected) in [
+        for (methods, node, override_url, status, expected) in [
             (
                 vec!["getProgramAccounts", "getProgramAccounts"],
+                node.as_str(),
                 helius.as_str(),
-                ["1 override:getProgramAccounts", "2 override:getProgramAccounts"].map(String::from).to_vec(),
+                StatusCode::OK,
+                ["1 override getProgramAccounts batch", "2 override getProgramAccounts batch"].map(String::from).to_vec(),
             ),
             (
                 vec!["getProgramAccounts", "getSlot", "getProgramAccounts"],
+                node.as_str(),
                 helius.as_str(),
-                ["1 override:getProgramAccounts", "2 node:getSlot", "3 override:getProgramAccounts"].map(String::from).to_vec(),
+                StatusCode::OK,
+                ["1 override getProgramAccounts batch", "2 node getSlot single", "3 override getProgramAccounts batch"].map(String::from).to_vec(),
             ),
-            (
-                vec!["getProgramAccounts", "getSlot", "getProgramAccounts"],
-                "http://127.0.0.1:9",
-                vec![format!("1 {failed}"), "2 node:getSlot".to_string(), format!("3 {failed}")],
-            ),
+            (vec!["getProgramAccounts", "getSlot"], node.as_str(), closed, StatusCode::OK, vec![format!("1 {failed}"), "2 node getSlot single".to_string()]),
+            (vec!["getProgramAccounts", "getSlot"], closed, closed, StatusCode::INTERNAL_SERVER_ERROR, vec![format!("1 {failed}"), format!("2 {failed}")]),
         ] {
-            let response = NodeService::mock(config(override_url)).proxy_request(&ProxyRequest::mock_batch(Chain::Solana, &methods)).await.unwrap();
+            let response = NodeService::mock(config(node, override_url)).proxy_request(&ProxyRequest::mock_batch(Chain::Solana, &methods)).await.unwrap();
             let results = serde_json::from_slice::<Vec<Value>>(&response.body).unwrap();
             let results = results
                 .iter()
                 .map(|result| format!("{} {}", result["id"], result["result"].as_str().or(result["error"]["message"].as_str()).unwrap()))
                 .collect::<Vec<_>>();
-            assert_eq!(response.status, StatusCode::OK.as_u16());
+            assert_eq!(response.status, status.as_u16());
             assert_eq!(results, expected);
         }
     }

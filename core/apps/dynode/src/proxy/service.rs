@@ -8,7 +8,7 @@ use gem_tracing::{DurationMs, info_with_fields};
 use primitives::{Chain, ValueAccess};
 use reqwest::Client;
 use reqwest::StatusCode;
-use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
+use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
 use serde_json::Value;
 
 use crate::BoxError;
@@ -38,7 +38,7 @@ pub struct ProxyRequestService {
 
 impl ProxyRequestService {
     pub fn new(metrics: Metrics, cache: RequestCache, client: Client, headers_config: HeadersConfig, broadcast_webhook: DynodeBroadcastWebhookClient, broadcast_providers: Arc<BroadcastProviders>) -> Self {
-        let forward_headers = headers_config.forward.iter().filter_map(|name| HeaderName::from_str(name).ok()).collect();
+        let forward_headers = headers_config.forward.iter().filter_map(|name| HeaderName::from_str(name).ok()).filter(|name| *name != CONTENT_LENGTH).collect();
 
         Self {
             metrics,
@@ -236,16 +236,18 @@ mod tests {
     #[test]
     fn test_build_headers_drops_unconfigured_headers() {
         let service = ProxyRequestService::mock(HeadersConfig {
-            forward: vec![header::CONTENT_TYPE.to_string()],
+            forward: vec![header::CONTENT_TYPE.to_string(), header::CONTENT_LENGTH.to_string()],
         });
 
         let mut original = HeaderMap::new();
         original.insert(header::CONTENT_TYPE, header::HeaderValue::from_static(JSON_CONTENT_TYPE));
+        original.insert(header::CONTENT_LENGTH, header::HeaderValue::from_static("120"));
         original.insert(header::USER_AGENT, header::HeaderValue::from_static("TestAgent/1.0"));
 
         let headers = service.build_headers(&original);
 
         assert_eq!(headers.get(header::CONTENT_TYPE).unwrap(), JSON_CONTENT_TYPE);
+        assert!(headers.get(header::CONTENT_LENGTH).is_none());
         assert!(headers.get(header::USER_AGENT).is_none());
     }
 

@@ -21,7 +21,6 @@ headers:
     - accept
     - content-type
     - content-encoding
-    - content-length
     - grpc-accept-encoding
     - grpc-encoding
     - grpc-message

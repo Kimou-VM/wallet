@@ -28,38 +28,57 @@ impl BatchPart {
         if groups.len() < 2 {
             return None;
         }
-        groups
-            .into_iter()
-            .map(|group| {
-                let positions = overrides.iter().enumerate().filter(|(_, index)| *index == group).map(|(position, _)| position).collect::<Vec<_>>();
-                let part_calls = positions.iter().map(|&position| calls[position].clone()).collect::<Vec<_>>();
-                Some(Self {
-                    ids: part_calls.iter().map(|call| call.id).collect(),
-                    request: request.with_calls(part_calls).ok()?,
-                    positions,
-                })
-            })
-            .collect()
+        let parts = groups.into_iter().map(|group| {
+            let positions = overrides.iter().enumerate().filter(|(_, index)| *index == group).map(|(position, _)| position).collect::<Vec<_>>();
+            let part_calls = positions.iter().map(|&position| calls[position].clone()).collect::<Vec<_>>();
+            Self {
+                ids: part_calls.iter().map(|call| call.id).collect(),
+                request: request.with_calls(part_calls),
+                positions,
+            }
+        });
+        Some(parts.collect())
     }
 
     pub(super) fn merge(request: &ProxyRequest, parts: &[Self], responses: &[Result<ProxyResponse, BoxError>]) -> Result<ProxyResponse, BoxError> {
-        let results = parts.iter().zip(responses).flat_map(|(part, response)| part.positions.iter().copied().zip(part.results(response))).collect::<BTreeMap<_, _>>();
-        let body = Bytes::from(serde_json::to_vec(&results.into_values().collect::<Vec<_>>())?);
-        let cache_status = match responses.iter().filter(|response| response.as_ref().is_ok_and(ProxyResponse::is_from_cache)).count() {
-            0 => CacheStatus::Miss,
-            cached if cached == parts.len() => CacheStatus::Hit,
-            _ => CacheStatus::Partial,
+        let answers = parts.iter().zip(responses).map(|(part, response)| part.answers(response)).collect::<Vec<_>>();
+        let status = if answers.iter().any(Option::is_some) {
+            StatusCode::OK.as_u16()
+        } else {
+            responses
+                .iter()
+                .find_map(|response| response.as_ref().ok().map(|response| response.status))
+                .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR.as_u16())
         };
-        Ok(ProxyResponse::with_content_type(StatusCode::OK.as_u16(), body, JSON_CONTENT_TYPE).with_proxy_headers(request.id.as_str(), request.elapsed(), cache_status))
+        let results = parts
+            .iter()
+            .zip(responses)
+            .zip(answers)
+            .flat_map(|((part, response), answers)| part.positions.iter().copied().zip(answers.unwrap_or_else(|| part.errors(response))))
+            .collect::<BTreeMap<_, _>>();
+        let body = Bytes::from(serde_json::to_vec(&results.into_values().collect::<Vec<_>>())?);
+        let cache_status = responses
+            .iter()
+            .map(|response| response.as_ref().map_or(CacheStatus::Miss, ProxyResponse::cache_status))
+            .reduce(|status, other| if status == other { status } else { CacheStatus::Partial })
+            .unwrap_or(CacheStatus::Miss);
+        Ok(ProxyResponse::with_content_type(status, body, JSON_CONTENT_TYPE).with_proxy_headers(request.id.as_str(), request.elapsed(), cache_status))
     }
 
-    fn results(&self, response: &Result<ProxyResponse, BoxError>) -> Vec<Value> {
-        let body = response.as_ref().ok().map(|response| &response.body);
-        if let Some(results) = body.and_then(|body| serde_json::from_slice::<Vec<Value>>(body).ok()).filter(|results| results.len() == self.ids.len()) {
-            return results;
-        }
-        let error = body
-            .and_then(|body| serde_json::from_slice::<JsonRpcErrorResponse>(body).ok())
+    fn answers(&self, response: &Result<ProxyResponse, BoxError>) -> Option<Vec<Value>> {
+        let results = match serde_json::from_slice::<Value>(&response.as_ref().ok()?.body).ok()? {
+            Value::Array(results) => results,
+            result @ Value::Object(_) if result.get("id").and_then(Value::as_u64) == self.ids.first().copied() => vec![result],
+            _ => return None,
+        };
+        (results.len() == self.ids.len()).then_some(results)
+    }
+
+    fn errors(&self, response: &Result<ProxyResponse, BoxError>) -> Vec<Value> {
+        let error = response
+            .as_ref()
+            .ok()
+            .and_then(|response| serde_json::from_slice::<JsonRpcErrorResponse>(&response.body).ok())
             .unwrap_or_else(|| JsonRpcErrorResponse::new(&NodeServiceError::UpstreamsFailed.to_string()));
         self.ids.iter().map(|&id| serde_json::to_value(JsonRpcErrorResponse { id: Some(id), ..error.clone() }).unwrap_or_default()).collect()
     }

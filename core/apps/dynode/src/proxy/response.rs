@@ -61,6 +61,14 @@ impl ProxyResponse {
     pub(crate) fn is_from_cache(&self) -> bool {
         self.from_cache
     }
+
+    pub(crate) fn cache_status(&self) -> CacheStatus {
+        match self.headers.get(X_CACHE).and_then(|value| value.to_str().ok()) {
+            Some("HIT") => CacheStatus::Hit,
+            Some("PARTIAL") => CacheStatus::Partial,
+            _ => CacheStatus::Miss,
+        }
+    }
 }
 
 #[cfg(test)]

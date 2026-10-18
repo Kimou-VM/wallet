@@ -76,20 +76,24 @@ impl ProxyRequest {
         }
     }
 
-    pub(crate) fn with_calls(&self, calls: Vec<JsonRpcCall>) -> Result<Self, serde_json::Error> {
-        Ok(Self {
+    pub(crate) fn with_calls(&self, calls: Vec<JsonRpcCall>) -> Self {
+        let (body, rpc_request) = match <[JsonRpcCall; 1]>::try_from(calls) {
+            Ok([call]) => (serde_json::to_vec(&call), JsonRpcRequest::Single(call)),
+            Err(calls) => (serde_json::to_vec(&calls), JsonRpcRequest::Batch(calls)),
+        };
+        Self {
             id: self.id.clone(),
             method: self.method.clone(),
             headers: self.headers.clone(),
-            body: Bytes::from(serde_json::to_vec(&calls)?),
+            body: Bytes::from(body.unwrap_or_default()),
             path: self.path.clone(),
             path_with_query: self.path_with_query.clone(),
             host: self.host.clone(),
             user_agent: self.user_agent.clone(),
             chain: self.chain,
             request_start: self.request_start,
-            request_type: RequestType::JsonRpc(JsonRpcRequest::Batch(calls)),
-        })
+            request_type: RequestType::JsonRpc(rpc_request),
+        }
     }
 
     pub(crate) fn is_broadcast(&self, providers: &BroadcastProviders) -> bool {
