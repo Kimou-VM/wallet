@@ -178,19 +178,21 @@ mod tests {
     }
 
     #[test]
-    fn test_orca_is_preferred_within_10_bps_of_the_best_quote() {
+    fn test_solana_pools_are_preferred_within_5_bps_of_the_best_quote() {
         let solana = request(AssetId::from_chain(Chain::Solana), false);
-        let rank = |orca_out: &str| {
+        let rank = |provider: SwapperProvider, out: &str| {
             providers(rank_quotes(
                 &solana,
-                vec![quote(&solana, SwapperProvider::Jupiter, "10000"), quote(&solana, SwapperProvider::Orca, orca_out), quote(&solana, SwapperProvider::Okx, "9995")],
+                vec![quote(&solana, SwapperProvider::Jupiter, "10000"), quote(&solana, provider, out), quote(&solana, SwapperProvider::Okx, "9990")],
                 &quote_preferences(),
                 deposit_only_near_intents,
             ))
         };
 
-        assert_eq!(rank("9990"), vec![SwapperProvider::Orca, SwapperProvider::Jupiter, SwapperProvider::Okx]);
-        assert_eq!(rank("9989"), vec![SwapperProvider::Jupiter, SwapperProvider::Okx, SwapperProvider::Orca], "further than 10 bps, the best quote wins");
+        for provider in [SwapperProvider::Orca, SwapperProvider::RaydiumClmm, SwapperProvider::PumpSwap, SwapperProvider::MeteoraDammV2] {
+            assert_eq!(rank(provider, "9995"), vec![provider, SwapperProvider::Jupiter, SwapperProvider::Okx]);
+            assert_eq!(rank(provider, "9994"), vec![SwapperProvider::Jupiter, provider, SwapperProvider::Okx], "further than 5 bps, the best quote wins");
+        }
     }
 
     #[test]
