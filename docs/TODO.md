@@ -13,7 +13,7 @@ Pick one item by its stable id and use the screen map to find its current owner.
 
 Keep the implementation plan in the task update: the existing owner to change, the app path to delete, any real prerequisite and the exact relevant checks. Do not create a new planning artifact, service, session, cache or framework unless the current contract requires it. If a pure projection or existing record answers the question, use it. Preserve examples in the docs and correct them in place when signatures change. Check related ids before changing a shared owner: reuse one contract change and its regression fixtures rather than implementing competing fixes. Items that name each other ("land with …") share a record; land them in one change or in dependency order.
 
-Use [Task Workflow](../skills/task-workflow.md) for execution and [Quality Checks](../skills/quality-checks.md) for verification. Implement ready work autonomously; an item that says "needs a decision" waits for the owner, and [Blocked upstream](#blocked-upstream) records external prerequisites. Shared infrastructure work gates only the consumers that need it; unrelated ready items need not wait.
+Use [Task Workflow](../skills/task-workflow.md) for execution and [Quality Checks](../skills/quality-checks.md) for verification. Implement ready work autonomously; an item under [Needs review](#needs-review) or one that says "needs a decision" waits for the owner, and [Blocked upstream](#blocked-upstream) records external prerequisites. Shared infrastructure work gates only the consumers that need it; unrelated ready items need not wait.
 
 ## Ready next
 
@@ -21,7 +21,7 @@ These need no further answer; work them in this order, one family per change.
 
 1. **App models to Core records:** VM269 to VM287 (second round) area by area as grouped in section 5, then VM294 (scenes) in the same way.
 
-Waiting on the owner: BD29 (server), VM79, VM296 (review first), VM181, VM183, D175 (on hold), X171, CLN455. Waiting on a date or a release: X168, X169, X170, X163, X172, X173, X174, X176.
+Waiting on the owner: BD29 (server), VM79, VM296 (review first), VM181, VM183, D175 (on hold), X171, CLN455, and everything under [Needs review](#needs-review). Waiting on a date or a release: X168, X169, X170, X163, X172, X173, X174, X176.
 
 ## Screen coverage and existing infrastructure
 
@@ -174,6 +174,45 @@ A feature module is one product area, and both apps give it the same name. iOS g
 **The standard, for every item below.** Names and packages follow [Cross-Platform Awareness rule 7](../skills/cross-platform-awareness.md); on Android that means no `views`, `navigation` or `details` package roots and no singular `viewmodel`. A move renames the Gradle path in `settings.gradle.kts`, every `project(":features:…")` dependency and the imports, and changes no behaviour. One module per change. Verify with `cd android && ./gradlew assembleGoogleDebug test` for an Android move, `cd ios && just build` and `just test-package <Package>` for an iOS rename.
 
 **Names, for every item below.** Each item renames one feature's types to [ARCHITECTURE § Names](ARCHITECTURE.md#names): the base name follows iOS, each app keeps its own form (Android `XScreen` binds the view model and `XScene` is stateless, iOS screen view models are `XSceneViewModel`), a file is named after its main type, and tests, TestKit mocks, routes and factory methods follow the type they name. Renames only, no behaviour change; verify both apps (`just test` on iOS, `./gradlew testDebugUnitTest assembleGoogleDebug` on Android) and `just check-docs`. Each list was checked against the code on 2026-09-26; re-check a name before renaming it.
+
+## Needs review
+
+Findings from reviewing commits that nobody has accepted yet, and not all of them are worth doing. Nobody works an item from this section: the owner keeps one by moving its line to its area section above, or drops it by deleting the line. The commit-review routine adds what it finds and doesn't fix here; a security weakness stays out of this public file. Worst first.
+
+- **AUD493** **S** **Swap routes for four tokens never quote.** `XLAYER_USDT_TOKEN_ID`, `BERACHAIN_USDT_TOKEN_ID`, `XLAYER_USDC_E_TOKEN_ID` and `GNOSIS_WETH_TOKEN_ID` in [`asset_constants.rs`](../core/crates/primitives/src/asset_constants.rs) are not EIP-55 checksummed, so the swapper's route lists never match them (096abc873d).
+- **AUD494** **S** **Ink's Uniswap paths go through the old USDT.** `EVMChain::Ink => INK_USDT_TOKEN_ID` in [`path.rs`](../core/crates/gem_evm/src/uniswap/path.rs) is the contract whose asset id d7415a5659 removed; the wallet's Ink USDT is USDT0 (`INK_USDT0_TOKEN_ID`) (feec5ce82f).
+- **AUD495** **S** **Hyperliquid fills can show twice.** ad324b340e changed fill row ids from `<hash>` to `<hash>:<oid>` in [`transactions_mapper.rs`](../core/crates/gem_hypercore/src/provider/transactions_mapper.rs) without renaming stored rows, so a full refetch, and apps from before the change, list each fill twice.
+- **AUD496** **S** **Removed default nodes stay selected after an upgrade.** 400c609e9f and 6bc78f94dd removed or replaced default nodes in [`node_config.rs`](../core/crates/primitives/src/node_config.rs); a user who had one selected keeps it as a custom, selected node.
+- **AUD497** **S** **A fiat provider's 4xx answers 200.** Since 1a047834de and fcb9b66b1c a provider 4xx becomes `ApiError::ok` ([`error.rs`](../core/apps/api/src/error.rs)), so a Transak webhook whose token refresh gets a 4xx returns 200 and Transak never retries it.
+- **AUD498** **S** **`GET /v1/config` fails when the country is unknown.** Without Cloudflare's country header, a failed IP lookup fails the whole response, not just its features ([`config_client.rs`](../core/crates/services/src/app/config_client.rs), 1c48adc169, 7891a02533), and the required `features` field breaks the cached config older apps decode.
+- **AUD499** **S** **Confirm re-sends a transaction that already went out.** Since e31e2bd7ea a failed send returns to Ready and Confirm runs the same load again ([`screen.rs`](../core/gemstone/src/services/confirm/screen.rs)). After a partial multi-transaction send (approval broadcast, swap rejected) the next tap re-signs and re-broadcasts the approval, which the node rejects, until the 60 s refresh reloads; before, a tap reloaded first. Wallet-critical.
+- **AUD500** **S** **Relay and Bridgers swaps may never be tracked.** 0fcbb73b8a and b4de9c5fcd cache deposit ids only on `/v1/swaps/providers/…`, while the swapper calls `/proxy/swap/relay` and `/proxy/swap/bridgers` ([`config.rs`](../core/crates/swapper/src/config.rs)). Unverified against the deployed proxy.
+- **AUD501** **S** **THORChain vault addresses fail on one bad Zcash TEX address.** `get_vault_addresses` ([`swapper.rs`](../core/crates/swapper/src/swapper.rs)) fails as a whole when one TEX address doesn't parse (d1c16e81aa). Wallet-critical.
+- **AUD502** **S** **The server's Polkadot URL is still the relay sidecar.** `chains.polkadot.url` in [`Settings.yaml`](../core/Settings.yaml), left behind by 400c609e9f.
+- **AUD503** **S** **Dynode metric labels take any JSON-RPC method name.** Method names outside the allowlist become metric labels, so their number is unbounded ([`allowlist.rs`](../core/apps/dynode/src/config/allowlist.rs), 1a75af5143).
+- **AUD504** **S** **HyperCore latency checks may log `latest_block` errors.** 39b12245f4 ([`rpc/client.rs`](../core/crates/gem_hypercore/src/rpc/client.rs)). Unverified.
+- **AUD505** **S** **iOS wallet import may lose view state when the secret kind changes.** `detectScreenshots(kind:)` ([`ScreenshotDetectionModifier.swift`](../ios/Packages/PrimitivesComponents/Sources/Components/ScreenshotDetectionModifier.swift)) is a `@ViewBuilder if let`, so `ImportWalletScene` changes view identity when the kind goes between nil and a value (cbd237c201). Not reproduced.
+- **AUD506** **S** **Android Rewards writes a route argument off the main thread.** `savedStateHandle[RouteArgument.Code.key] = null` in [`RewardsViewModel.kt`](../android/features/rewards/viewmodels/src/main/kotlin/com/gemwallet/android/features/rewards/viewmodels/RewardsViewModel.kt) runs on the IO dispatcher (9ee385ab3a).
+- **AUD507** **S** **Android's security reminder titles stay on one line.** `securityReminderListItems` sets `titleLineLimit = 2`, but `SecurityReminderItem` in [`SecurityReminderScene.kt`](../android/features/onboarding/presents/src/main/kotlin/com/gemwallet/android/features/onboarding/presents/create_wallet/SecurityReminderScene.kt) draws its own `Text` and ignores it (913b0a8fa0).
+- **BD508** **S** **Perpetual chart markers differ in colour** (477993aef7).
+  - **iOS:** [`CandlestickCanvas.swift`](../ios/Features/Perpetuals/Sources/Views/CandlestickCanvas.swift) draws the ring and arrow in `Colors.white`.
+  - **Android:** [`GemCandlestickChart.kt`](../android/ui/src/main/kotlin/com/gemwallet/android/ui/components/chart/GemCandlestickChart.kt) draws the ring in `colorScheme.surface`.
+  - **Expected:** needs a decision (design).
+- **CLN509** **S** **The stake claim action has a different test id per app.** No Maestro flow uses it yet (6ec5c85b0c).
+  - **iOS:** `claimRewards_action` ([`StakeScene.swift`](../ios/Features/Stake/Sources/Scenes/StakeScene.swift)).
+  - **Android:** `claim_rewards_action` ([`StakeActions.kt`](../android/features/stake/presents/src/main/kotlin/com/gemwallet/android/features/stake/presents/components/StakeActions.kt)).
+  - **Expected:** one id.
+- **CLN510** **S** **Orca and Raydium each build their swap instruction.** `whirlpool_instruction` ([`orca/swap.rs`](../core/crates/swapper/src/orca/swap.rs)) and `raydium_instruction` ([`raydium_clmm/swap.rs`](../core/crates/swapper/src/raydium_clmm/swap.rs)) are the same body over a different program id (68d9dfe937, f22d437b75). Wallet-critical.
+- **CLN511** **S** **iOS `ShowSecretDataScene` re-derives the secret kind.** Its private `kind` repeats `GemWalletSecret.kind` in `Gemstone+Localized.swift` (cbd237c201). Wallet-critical.
+- **CLN512** **S** **Fiat session spells out a constant it imports.** [`session.rs`](../core/gemstone/src/services/fiat/session.rs) imports `FIAT_QUOTE_CURRENCY`, then writes `crate::constants::FIAT_QUOTE_CURRENCY` twice (57d1ee0dfa).
+- **CLN513** **S** **The Samsung store version check never runs.** `VersionUpdater::stores()` ([`version_updater.rs`](../core/crates/services/src/system/version_updater.rs)) leaves out `PlatformStore::SamsungStore`, so `StoreTarget::SamsungDetail` is unreachable (8a6531b876). Add the store or delete the target.
+- **CLN514** **S** **`SignedPath` derives an unused `PartialEq`** ([`middleware.rs`](../core/apps/api/src/auth/device/middleware.rs), b471b4a443). Device auth.
+- **CLN515** **S** **PRODUCT.md's balance-required row may not match the sheets.** The number-format table 92e6ccbe54 added describes how the Balance or Network Fee required sheet cuts amounts; compare it with what ccff1a1646 shows and fix the wording.
+- **CLN516** **S** **The api contract tests cover only the deprecated swap aliases.** They call `/v1/swaps/near_intents` and `/v1/swaps/swaps_xyz`, which X175 removes, not `/v1/swaps/providers/{provider}/…` (69a177c664).
+- **CLN517** **S** **Blocked-upstream ids collide.** Two items carry X174, and X175 reuses 175 from D175. The JNA X174 item also cites JNA 5.18.1 while the app ships 5.19.1 ([`build.gradle.kts`](../android/gemstone/build.gradle.kts)); recheck it against 5.19.1 when renumbering.
+- **CLN518** **S** **`just check-boundaries` needs Python 3.11.** [`check-boundaries.py`](../scripts/check-boundaries.py) imports `tomllib`; the justfile calls `python3`, which is 3.9.6 on a stock Mac, while CI uses 3.12 (df79a1a987).
+- **CLN519** **S** **Dependabot's Swift job fails every day.** [`dependabot.yml`](../.github/dependabot.yml) points `swift` at `/ios`, which has no `Package.swift` or `Package.resolved`, so iOS packages get no update or advisory checks.
+- **CLN520** **S** **ktlint drift.** ktlint flags the files from afdaa4e373 and cf49cf3cc9, `app/build.gradle.kts` and `ScreenshotsCapture.kt`; decide whether to run `format-all` once.
 
 ## Blocked upstream
 
