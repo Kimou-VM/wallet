@@ -27,7 +27,7 @@ flowchart LR
 
 | When | Expected | Why |
 |---|---|---|
-| The wallet is not Multi-Coin or has no Hyperliquid account, or the user has not switched Perpetuals on | Perpetuals are not offered | |
+| The wallet is not Multi-Coin or has no Hyperliquid account, or the user has not switched Perpetuals on | Perpetuals are not offered, and a Perpetuals link leaves the app where it is | a link opens only what the wallet screen shows |
 | The user switches Perpetuals off | the markets, positions and every wallet's perpetual recents are removed | search must not offer a market the app no longer has |
 | The user switches Perpetuals on | the markets load before the Hyperliquid socket subscribes; if they cannot load, the next launch or return to the foreground tries again | a position is stored against its market, so the first account snapshot needs the markets |
 | The app launches, returns to the foreground or switches wallet | cached positions show immediately, then the Hyperliquid socket replaces them with its current account snapshot; neither the REST position refresh, the account mode lookup, a markets refresh nor the wallet's balance setup delays opening the socket | only the account subscriptions need the mode, so the lookup runs during the socket handshake; stored markets refresh when Perpetuals opens |

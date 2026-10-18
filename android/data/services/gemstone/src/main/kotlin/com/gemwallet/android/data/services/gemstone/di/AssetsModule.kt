@@ -235,7 +235,8 @@ object AssetsModule {
 
     @Provides
     @Singleton
-    fun provideGemNavigationService(assets: GemAssetsService, balance: GemBalanceService, session: GemWalletSessionService): GemNavigationService = GemNavigationService(assets, balance, session)
+    fun provideGemNavigationService(assets: GemAssetsService, balance: GemBalanceService, preferences: GemPreferencesService, session: GemWalletSessionService): GemNavigationService =
+        GemNavigationService(assets, balance, preferences, session)
 
     @Provides
     fun provideGemNavigationServiceInterface(service: GemNavigationService): GemNavigationServiceInterface = service
