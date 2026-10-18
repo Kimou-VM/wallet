@@ -10,6 +10,8 @@ use super::{
     decode::{decode_eip712_approval, decode_evm_approval},
 };
 
+const EIP7702_DELEGATION_PREFIX: [u8; 3] = [0xef, 0x01, 0x00];
+
 pub struct SimulationClient<'a, C: Client + Clone> {
     ethereum_client: &'a EthereumClient<C>,
 }
@@ -49,7 +51,7 @@ impl<'a, C: Client + Clone> SimulationClient<'a, C> {
     async fn spender_is_externally_owned(&self, spender_address: &str) -> Result<bool, Box<dyn Error + Send + Sync>> {
         let code = self.ethereum_client.get_code(spender_address).await?;
         let bytecode = hex::decode_hex(&code)?;
-        Ok(bytecode.is_empty() || bytecode.iter().all(|byte| *byte == 0))
+        Ok(bytecode.is_empty() || bytecode.iter().all(|byte| *byte == 0) || bytecode.starts_with(&EIP7702_DELEGATION_PREFIX))
     }
 }
 
@@ -75,6 +77,22 @@ mod tests {
 
         assert_eq!(result.warnings.len(), 1);
         assert_eq!(result.warnings.first(), Some(&SimulationWarning::new(SimulationSeverity::Warning, SimulationWarningType::ExternallyOwnedSpender, None,)));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn erc20_approve_with_delegated_account_spender_adds_warning() -> Result<(), Box<dyn Error + Send + Sync>> {
+        let calldata = gem_evm::contracts::IERC20::approveCall {
+            spender: address!("3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD"),
+            value: U256::from(1000u64),
+        }
+        .abi_encode();
+
+        let client = EthereumClient::mock_with_code("0xef010063c0c19a282a1b52b07dd5a65b58948a07dae32b");
+        let result = SimulationClient::new(&client).simulate_evm_calldata(Chain::Ethereum, &calldata, ETHEREUM_USDC_TOKEN_ID).await?;
+
+        assert_eq!(result.warnings.first().map(|warning| &warning.warning), Some(&SimulationWarningType::ExternallyOwnedSpender));
 
         Ok(())
     }
