@@ -35,6 +35,7 @@ pub mod permit2_data;
 mod pump_swap;
 mod raydium_amm;
 mod raydium_clmm;
+mod raydium_cpmm;
 pub mod relay;
 mod route_cache;
 mod route_path;

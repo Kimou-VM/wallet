@@ -68,7 +68,7 @@ The quote that gives the most wins. A provider that runs on-chain, with no third
 |---|---|
 | Across | the deposit goes straight to its SpokePool contract on the paying network and settles in seconds |
 | Orca | the quote is read from the Whirlpool accounts and the swap goes straight to the pool |
-| Raydium | the quote is read from the CLMM or AMM v4 pool accounts and the swap goes straight to the pool |
+| Raydium | the quote is read from the CLMM, CPMM or AMM v4 pool accounts and the swap goes straight to the pool |
 | PumpSwap | the quote is read from the pool, its token vaults and pump.fun's fee schedule, and the swap goes straight to the pool |
 | Meteora | the quote is read from the DAMM v2 pool account and the swap goes straight to the pool |
 | THORChain | the quote comes from THORChain's own node and the deposit goes straight to its vault |
@@ -78,7 +78,7 @@ Uniswap, Raydium and Meteora each show as one provider. A provider like this ask
 | Provider | Pool types |
 |---|---|
 | Uniswap | v3, v4 |
-| Raydium | CLMM, AMM v4 |
+| Raydium | CLMM, CPMM, AMM v4 |
 | Meteora | DAMM v2 |
 
 ## On-chain quotes
@@ -99,7 +99,7 @@ flowchart LR
 |---|---|
 | A pool exists: its address, tokens and fee tier, and the version Cetus needs to trade with it | `7 days` |
 | DeDust pool and vault addresses | `7 days` |
-| The Meteora and Raydium AMM v4 pools found for a pair | `1 day`; Dynode keeps the lookup a day too, so a drained pool or a new one is noticed within about two days |
+| The Meteora, Raydium CPMM and Raydium AMM v4 pools found for a pair | `1 day`; Dynode keeps the lookup a day too, so a drained pool or a new one is noticed within about two days |
 | No pool exists at a fee tier, or Meteora has none for a pair | `1 day` |
 | A pool cannot trade: no liquidity at its price, or swaps paused or not open yet on Orca and Raydium, or a cashback coin on PumpSwap, or disabled on Meteora, or locked on STON.fi | `1 hour`, then it is checked again |
 | A pool or route that gave more than `3%` less than the best, or failed while another succeeded | `5 minutes`, skipped only when the same pair is quoted for the same amount |
@@ -111,7 +111,7 @@ flowchart LR
 | Uniswap v3, PancakeSwap, Aerodrome, Oku and Wagmi pool lookups | `1 day` |
 | Uniswap v4 pool lookups | `1 day` |
 | Cetus pool lookups | `1 day` |
-| The Meteora and Raydium AMM v4 pools for a pair | `1 day` |
+| The Meteora, Raydium CPMM and Raydium AMM v4 pools for a pair | `1 day` |
 | STON.fi and DeDust pool, vault and jetton wallet addresses | `30 days` |
 | Sui epoch and gas price | `10 minutes` |
 
@@ -123,6 +123,8 @@ A Meteora DAMM v2 pool address depends on a config the pool does not store, so i
 
 A Raydium AMM v4 pool address depends on the order book market it was created with, so its pools are found the same way, once per token order, and the `4` with the largest LP supply are kept: LP supply is the only depth the pool account holds, and it always ranks a pair's main pool first. A quote reads each pool and its two token vaults, and the swap goes to the pool with the 8-account instruction that skips the order book. A pair's first quote reads the pools before it knows their vaults, so it takes one more request than a repeat quote.
 
+A Raydium CPMM pool can live at any address its creator signs for, so its pools are found the same way; the program stores the two tokens in byte order, so one lookup per pair finds them all. A quote reads each pool, its fee config, kept for a day, and its two vaults, and prices the trade and creator fees as the program does.
+
 ### Skipping pools that lose
 
 Every quote compares candidates and keeps the best. A candidate that gave more than `3%` less than the best, or that failed while another succeeded, is not asked again for the next `5 minutes` when the same pair is quoted for the same amount, as the 30-second refresh and the confirmation screen do. Any other amount asks every candidate again: a pool too shallow for a large trade can still be the best for a small one, and a deep pool that lost to a small pool's better price can win a larger trade. Failing means the quote reverted, the pool ran out of liquidity for the amount, or the pool could not pay the output; a network error never counts. When every candidate fails or gives nothing, as for a dust amount, none is marked. If every candidate still asked fails, the skipped ones are asked before the quote fails (`test_outpriced_cache`, `test_get_best_quote_skips_outpriced_paths`, `test_route_failing_alone_is_asked_again`, `test_find_route_skips_outpriced_pools`).
@@ -132,7 +134,7 @@ Every quote compares candidates and keeps the best. A candidate that gave more t
 | Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi | each path: one pool at a fee tier, or two pools through a base token unless both sides are base tokens |
 | Orca, Raydium | each route: one pool, or two pools through an intermediate token; a skipped pool's accounts are left out of the request |
 | Meteora | each of the pair's `4` pools with the most liquidity; a skipped pool is left out of the request |
-| Raydium AMM v4 | each of the pair's `4` pools with the largest LP supply; a skipped pool is left out of the request |
+| Raydium CPMM, Raydium AMM v4 | each of the pair's `4` pools with the largest LP supply; a skipped pool is left out of the request |
 | STON.fi | each path, and each pool within a hop |
 | DeDust | each path: one pool, or two pools through TON or USDT |
 | Hyperion | each path, and each pool within a hop |
