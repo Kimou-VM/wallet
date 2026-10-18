@@ -58,12 +58,7 @@ where
     }
 
     fn map_quote_error(&self, error: SwapperError, decimals: u32) -> SwapperError {
-        match error {
-            SwapperError::InputAmountError { min_amount: Some(min) } => SwapperError::InputAmountError {
-                min_amount: Some(value_to(&min, decimals).to_string()),
-            },
-            other => other,
-        }
+        error.map_min_amount(|min| Some(value_to(min, decimals).to_string()))
     }
 }
 

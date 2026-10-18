@@ -227,12 +227,7 @@ where
 }
 
 fn map_quote_error(error: SwapperError, decimals: u32) -> SwapperError {
-    match error {
-        SwapperError::InputAmountError { min_amount: Some(min_amount) } => SwapperError::InputAmountError {
-            min_amount: amount_to_value(&min_amount, decimals),
-        },
-        other => other,
-    }
+    error.map_min_amount(|min_amount| amount_to_value(min_amount, decimals))
 }
 
 #[cfg(test)]

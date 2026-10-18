@@ -53,6 +53,13 @@ impl SwapperError {
         Self::ComputeQuoteError(error.to_string())
     }
 
+    pub fn map_min_amount(self, map: impl FnOnce(&str) -> Option<String>) -> Self {
+        match self {
+            Self::InputAmountError { min_amount: Some(min_amount) } => Self::InputAmountError { min_amount: map(&min_amount) },
+            other => other,
+        }
+    }
+
     pub fn transaction_error(error: impl std::fmt::Display) -> Self {
         Self::TransactionError(error.to_string())
     }

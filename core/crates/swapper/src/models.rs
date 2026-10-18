@@ -192,6 +192,13 @@ impl Quote {
         })
     }
 
+    pub fn with_provider(&self, provider: ProviderType) -> Self {
+        Self {
+            data: ProviderData { provider, ..self.data.clone() },
+            ..self.clone()
+        }
+    }
+
     pub fn route_data<T: DeserializeOwned>(&self) -> Result<T, SwapperError> {
         let route = self.data.routes.first().ok_or(SwapperError::InvalidRoute)?;
         serde_json::from_str(&route.route_data).map_err(|_| SwapperError::InvalidRoute)

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use futures::future::{join_all, try_join_all};
 use primitives::{AssetId, Chain};
 
-use crate::{FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData, cross_chain::VaultAddresses};
+use crate::{FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData, cross_chain::VaultAddresses};
 
 #[derive(Debug)]
 pub(crate) struct ProviderGroup {
@@ -60,27 +60,14 @@ impl Swapper for ProviderGroup {
             .filter_map(|result| result.as_ref().ok())
             .reduce(|best, candidate| if candidate.1.to_value > best.1.to_value { candidate } else { best });
         match best {
-            Some((protocol_id, quote)) => Ok(Quote {
-                data: ProviderData {
-                    provider: self.quote_provider(protocol_id),
-                    ..quote.data.clone()
-                },
-                ..quote.clone()
-            }),
+            Some((protocol_id, quote)) => Ok(quote.with_provider(self.quote_provider(protocol_id))),
             None => Err(SwapperError::combined(results.into_iter().filter_map(Result::err).collect())),
         }
     }
 
     async fn get_quote_data(&self, quote: &Quote, data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
         let (_, member) = self.members.iter().find(|(protocol_id, _)| *protocol_id == quote.data.provider.protocol_id).ok_or(SwapperError::InvalidRoute)?;
-        let quote = Quote {
-            data: ProviderData {
-                provider: member.provider().clone(),
-                ..quote.data.clone()
-            },
-            ..quote.clone()
-        };
-        member.get_quote_data(&quote, data).await
+        member.get_quote_data(&quote.with_provider(member.provider().clone()), data).await
     }
 
     async fn get_vault_addresses(&self, from_timestamp: Option<u64>) -> Result<VaultAddresses, SwapperError> {
@@ -130,13 +117,7 @@ mod tests {
         group.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
         assert_eq!((low_builds.lock().unwrap().len(), high_builds.lock().unwrap().len()), (0, 1));
 
-        let unknown = Quote {
-            data: ProviderData {
-                provider: group.quote_provider("unknown"),
-                ..quote.data.clone()
-            },
-            ..quote
-        };
+        let unknown = quote.with_provider(group.quote_provider("unknown"));
         assert_eq!(group.get_quote_data(&unknown, FetchQuoteData::None).await.err(), Some(SwapperError::InvalidRoute));
     }
 
