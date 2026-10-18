@@ -12,7 +12,7 @@ use http_body_util::LengthLimitError;
 use super::{DEVICE_ID_LENGTH, DeviceAuthConfig, DeviceError};
 use crate::error::ApiError;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy)]
 pub enum SignedPath {
     PathOnly,
     PathAndQuery,
