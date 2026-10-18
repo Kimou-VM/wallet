@@ -185,7 +185,7 @@ where
 
         let approval: Option<ApprovalData> = {
             if from_asset.use_evm_router() {
-                let router_address = route_data.router_address.clone().ok_or(SwapperError::InvalidRoute)?;
+                let router_address = route_data.router_address.clone().filter(|router| self.network.is_router(from_asset.chain.chain(), router)).ok_or(SwapperError::InvalidRoute)?;
                 let from_amount: U256 = value.to_string().parse().map_err(SwapperError::from)?;
                 let token_id = from_asset.token_id.clone().ok_or(SwapperError::NotSupportedAsset)?;
                 check_approval_erc20(quote.request.wallet_address.clone(), token_id, router_address, from_amount, self.rpc_provider.clone(), &from_asset.chain.chain()).await?
@@ -221,7 +221,7 @@ mod tests {
     use super::*;
     use crate::{Options, ProviderData, Route, SwapperQuoteAsset, alien::mock::ProviderMock, testkit::mock_bitcoin_max_quote, testkit::mock_quote};
     use gem_client::testkit::MockClient;
-    use primitives::asset_constants::{ARBITRUM_USDC_ASSET_ID, THORCHAIN_TCY_ASSET_ID};
+    use primitives::asset_constants::{ARBITRUM_USDC_ASSET_ID, ETHEREUM_USDC_TOKEN_ID, THORCHAIN_TCY_ASSET_ID};
 
     #[test]
     fn test_map_quote_error() {
@@ -372,6 +372,41 @@ mod tests {
         assert_eq!(data.to, "t1Ku2KLyndDPsR32jwnrTMd3yvi9tfFP8ML");
         assert_eq!(data.value, BigUint::from(10000000u64));
         assert_eq!(data.memo, Some("=:b:bc1qdestination:0/1/0:g1:50".to_string()));
+    }
+
+    #[test]
+    fn test_is_router() {
+        assert!(THORChainNetwork::Thorchain.is_router(Chain::SmartChain, "0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b"));
+        assert!(!THORChainNetwork::Thorchain.is_router(Chain::Ethereum, "0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b"));
+        assert!(!THORChainNetwork::Mayachain.is_router(Chain::Ethereum, "0xD37BbE5744D730a1d98d8DC97c42F0Ca46aD7146"));
+    }
+
+    #[tokio::test]
+    async fn test_get_quote_data_rejects_unknown_router() {
+        let swapper = ThorChain::new(Arc::new(ProviderMock::new(String::new()))).unwrap();
+        let usdc = AssetId::from_token(Chain::Ethereum, ETHEREUM_USDC_TOKEN_ID);
+        let route_data = RouteData {
+            router_address: Some("0x0000000000000000000000000000000000000001".to_string()),
+            inbound_address: "0x1234567890123456789012345678901234567890".to_string(),
+        };
+        let quote = Quote {
+            from_value: BigUint::from(10_000_000u64),
+            min_from_value: None,
+            to_value: BigUint::from(1u64),
+            data: ProviderData {
+                provider: swapper.provider().clone(),
+                routes: vec![Route {
+                    input: usdc.clone(),
+                    output: Chain::Bitcoin.as_asset_id(),
+                    route_data: serde_json::to_string(&route_data).unwrap(),
+                }],
+                slippage_bps: 50,
+            },
+            request: mock_quote(SwapperQuoteAsset::from(usdc), SwapperQuoteAsset::from(Chain::Bitcoin.as_asset_id())),
+            eta_in_seconds: None,
+        };
+
+        assert_eq!(swapper.get_quote_data(&quote, FetchQuoteData::None).await, Err(SwapperError::InvalidRoute));
     }
 
     #[tokio::test]
