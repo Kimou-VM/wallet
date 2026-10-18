@@ -21,7 +21,7 @@ chain_integration_tests = ["rpc", "reqwest", "primitives/testkit", "settings/tes
 hex = { workspace = true }
 crc = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
 chrono = { workspace = true, features = ["serde"] }
 primitives = { path = "../primitives" }
 num-bigint = { workspace = true }

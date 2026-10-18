@@ -190,8 +190,8 @@ fn map_referral_fee(trace: &Trace, sender: &str, to_asset: &AssetId) -> Option<T
 
 fn stonfi_vault_referral_fee(trace: &Trace, asset_id: &AssetId) -> Option<TransactionSwapReferralFee> {
     trace.transactions.values().find_map(|transaction| {
-        let decoded = transaction.in_msg.as_ref()?.message_content.as_ref()?.decoded.clone()?;
-        let vault: StonfiPayVault = serde_json::from_value(decoded).ok()?;
+        let decoded = transaction.in_msg.as_ref()?.message_content.as_ref()?.decoded.as_ref()?;
+        let vault: StonfiPayVault = serde_json::from_str(decoded.get()).ok()?;
         let is_referral = vault.body_type == STONFI_PAY_VAULT_V2 && parse_address(&vault.owner.raw()).as_deref() == Some(TON_REFERRAL_ADDRESS);
         is_referral.then(|| TransactionSwapReferralFee {
             asset_id: asset_id.clone(),
@@ -302,7 +302,7 @@ fn extract_memo(message: &OutMessage) -> Option<String> {
         }
     }
 
-    message.message_content.as_ref()?.text_comment().filter(|comment| !comment.is_empty()).map(str::to_string)
+    message.message_content.as_ref()?.text_comment().filter(|comment| !comment.is_empty())
 }
 
 #[cfg(test)]

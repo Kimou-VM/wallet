@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use num_bigint::BigUint;
 use primitives::{SwapProvider, TransactionState};
 use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 use serde_serializers::{deserialize_biguint_from_str, deserialize_option_biguint_from_str};
 
 use crate::address::Address;
@@ -200,21 +201,20 @@ pub struct OutMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageContent {
-    pub decoded: Option<DecodedMessageContent>,
+    pub decoded: Option<Box<RawValue>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DecodedMessageContent {
+#[derive(Deserialize)]
+struct TextComment {
     #[serde(rename = "type")]
-    pub body_type: Option<String>,
-    pub comment: Option<String>,
+    body_type: String,
+    comment: String,
 }
 
 impl MessageContent {
-    pub fn text_comment(&self) -> Option<&str> {
-        let decoded = self.decoded.as_ref()?;
-        (decoded.body_type.as_deref()? == "text_comment").then_some(())?;
-        decoded.comment.as_deref()
+    pub fn text_comment(&self) -> Option<String> {
+        let decoded: TextComment = serde_json::from_str(self.decoded.as_ref()?.get()).ok()?;
+        (decoded.body_type == "text_comment").then_some(decoded.comment)
     }
 }
 
@@ -226,13 +226,7 @@ pub struct TransactionInMessage {
     #[serde(default, deserialize_with = "deserialize_option_biguint_from_str")]
     pub value: Option<BigUint>,
     pub opcode: Option<String>,
-    #[serde(default)]
-    pub message_content: Option<InMessageContent>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InMessageContent {
-    pub decoded: Option<serde_json::Value>,
+    pub message_content: Option<MessageContent>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -302,11 +296,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_text_comment_skips_contract_payload() {
-        let content = format!(r#"{{"decoded":{{"type":"wallet_v5_signed_request","text":{}null{}}}}}"#, "[".repeat(148), "]".repeat(148));
-        let content: MessageContent = serde_json::from_str(&content).unwrap();
+    fn test_text_comment() {
+        for (response, expected) in [
+            (r#"{"decoded":{"type":"text_comment","comment":"memo\n\u2764"}}"#, Some("memo\n❤")),
+            (r#"{"decoded":{"type":"binary_comment","comment":"not a memo"}}"#, None),
+            (r#"{"decoded":{"@type":"scaled_ui_display_multiplier_changed","comment":{"@type":"nothing_from_maybe"}}}"#, None),
+            (r#"{"decoded":{"type":"contract_call","comment":{"value":"not a memo"}}}"#, None),
+            (r#"{"decoded":{"type":"text_comment","comment":null}}"#, None),
+            (r#"{"decoded":null}"#, None),
+            (r#"{}"#, None),
+        ] {
+            let content: MessageContent = serde_json::from_str(response).unwrap();
+            assert_eq!(content.text_comment().as_deref(), expected);
+        }
+    }
 
-        assert_eq!(content.text_comment(), None);
-        assert_eq!(content.decoded.unwrap().body_type.as_deref(), Some("wallet_v5_signed_request"));
+    #[test]
+    fn test_text_comment_skips_contract_payload() {
+        let nested = format!("{}null{}", "[".repeat(148), "]".repeat(148));
+        for (response, expected) in [
+            (format!(r#"{{"decoded":{{"@type":"wallet_v5_signed_request","text":{nested},"comment":{nested}}}}}"#), None),
+            (format!(r#"{{"decoded":{{"type":"text_comment","comment":"memo","payload":{nested}}}}}"#), Some("memo")),
+        ] {
+            let content: MessageContent = serde_json::from_str(&response).unwrap();
+            assert_eq!(content.text_comment().as_deref(), expected);
+        }
     }
 }
