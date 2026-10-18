@@ -5,7 +5,7 @@ use std::io::{Error, ErrorKind, Read};
 use crate::clmm::Q64_RESOLUTION;
 
 const MAX_BASIS_POINT: u64 = 10_000;
-const ONE_Q64: u128 = 1 << 64;
+const ONE_Q64: u128 = 1 << Q64_RESOLUTION;
 const VARIABLE_FEE_SCALE: u128 = 100_000_000_000;
 const TIME_SCHEDULER_LINEAR: u8 = 0;
 const TIME_SCHEDULER_EXPONENTIAL: u8 = 1;
