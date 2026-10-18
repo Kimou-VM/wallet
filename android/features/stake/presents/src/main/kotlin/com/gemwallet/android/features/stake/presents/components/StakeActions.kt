@@ -38,7 +38,7 @@ internal fun LazyListScope.stakeActions(actions: List<GemStakeActionItem>, onOpe
         ListItem(
             model = model,
             listPosition = position,
-            modifier = Modifier.clickable(enabled = onClick != null) { onClick?.invoke() }.testTag("${item.kind.name.lowercase()}_action"),
+            modifier = Modifier.clickable(enabled = onClick != null) { onClick?.invoke() }.testTag("${item.kind.name.lowercase().replace("_", "")}_action"),
             accessory = { DataBadgeChevron() },
         )
         model.info?.let { if (showInfo) InfoBottomSheet(it) { showInfo = false } }

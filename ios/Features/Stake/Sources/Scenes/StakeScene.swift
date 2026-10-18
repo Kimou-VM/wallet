@@ -59,7 +59,7 @@ extension StakeScene {
         case .manage:
             ForEach(state.actions, id: \.action) { item in
                 actionLink(item)
-                    .accessibilityIdentifier("\(item.kind)_action")
+                    .accessibilityIdentifier("\(item.kind)_action".lowercased())
             }
         case .resources:
             ForEach(state.resourceRows, id: \.self) { row in
