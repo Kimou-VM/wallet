@@ -17,14 +17,18 @@ pub fn create_client_with_chain(provider: Arc<dyn RpcProvider>, chain: Chain) ->
     alien::create_client(provider, chain).map_err(|_| SwapperError::NotSupportedChain)
 }
 
+pub fn create_rpc_client(provider: Arc<dyn RpcProvider>, chain: Chain) -> Result<RpcClient, SwapperError> {
+    let endpoint = provider.get_endpoint(chain).map_err(|_| SwapperError::NotSupportedChain)?;
+    Ok(RpcClient::new(endpoint, provider))
+}
+
 pub fn create_sui_client(provider: Arc<dyn RpcProvider>) -> Result<SuiClient, SwapperError> {
     let endpoint = provider.get_endpoint(Chain::Sui).map_err(|_| SwapperError::NotSupportedChain)?;
     Ok(SuiClient::new_with_transport(endpoint, Arc::new(AlienGrpcTransport::new(provider))))
 }
 
 pub fn create_aptos_client(provider: Arc<dyn RpcProvider>) -> Result<AptosClient<RpcClient>, SwapperError> {
-    let endpoint = provider.get_endpoint(Chain::Aptos).map_err(|_| SwapperError::NotSupportedChain)?;
-    Ok(AptosClient::new(RpcClient::new(endpoint, provider)))
+    Ok(AptosClient::new(create_rpc_client(provider, Chain::Aptos)?))
 }
 
 pub fn create_eth_client(provider: Arc<dyn RpcProvider>, chain: Chain) -> Result<EthereumClient<RpcClient>, SwapperError> {
@@ -32,15 +36,11 @@ pub fn create_eth_client(provider: Arc<dyn RpcProvider>, chain: Chain) -> Result
 }
 
 pub fn create_tron_client(provider: Arc<dyn RpcProvider>) -> Result<TronClient<RpcClient>, SwapperError> {
-    let endpoint = provider.get_endpoint(Chain::Tron).map_err(|_| SwapperError::NotSupportedChain)?;
-    let client = RpcClient::new(endpoint, provider);
-    Ok(TronClient::new(client))
+    Ok(TronClient::new(create_rpc_client(provider, Chain::Tron)?))
 }
 
 pub fn create_ton_client(provider: Arc<dyn RpcProvider>) -> Result<TonClient<RpcClient>, SwapperError> {
-    let endpoint = provider.get_endpoint(Chain::Ton).map_err(|_| SwapperError::NotSupportedChain)?;
-    let client = RpcClient::new(endpoint, provider);
-    Ok(TonClient::new(client))
+    Ok(TonClient::new(create_rpc_client(provider, Chain::Ton)?))
 }
 
 #[cfg(all(test, feature = "reqwest_provider", feature = "swap_integration_tests"))]

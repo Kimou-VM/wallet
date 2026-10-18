@@ -7,6 +7,7 @@ use super::{
 };
 use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
+    client_factory::create_ton_client,
     fees::{ReferralFee, default_referral_fees, subtract_bps},
     models::nonzero_swap_value,
     route_cache::{DiscoveryCache, OutpricedCache, amount_key, quote_outcome},
@@ -34,8 +35,7 @@ where
 
 impl Stonfi<RpcClient> {
     pub fn new(rpc_provider: Arc<dyn RpcProvider>) -> Option<Self> {
-        let endpoint = rpc_provider.get_endpoint(Chain::Ton).ok()?;
-        Some(Self::new_with_client(TonClient::new(RpcClient::new(endpoint, rpc_provider))))
+        create_ton_client(rpc_provider).ok().map(Self::new_with_client)
     }
 }
 

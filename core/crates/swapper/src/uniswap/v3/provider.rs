@@ -2,6 +2,7 @@ use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperError, SwapperQuoteData,
     alien::RpcProvider,
     approval::check_permit2_approvals,
+    client_factory::create_client_with_chain,
     fees::{default_referral_fees, subtract_bps},
     models::*,
     uniswap::{
@@ -20,7 +21,6 @@ use gem_evm::{
     constants::DEFAULT_SWAP_GAS_LIMIT,
     uniswap::command::{Permit2Permit, encode_commands},
 };
-use gem_jsonrpc::alien::create_client;
 use num_bigint::BigUint;
 use primitives::{AssetId, Chain, EVMChain};
 use std::{fmt, str::FromStr, sync::Arc};
@@ -60,7 +60,7 @@ impl UniswapV3 {
         let deployment = self.provider.get_deployment_by_chain(&chain).ok_or(SwapperError::NotSupportedChain)?;
         let evm_chain = EVMChain::from_chain(chain).ok_or(SwapperError::NotSupportedChain)?;
         let base_pair = base_pair(evm_chain, PROTOCOL).ok_or_else(|| SwapperError::ComputeQuoteError("base pair not found".into()))?;
-        let client = create_client(self.rpc_provider.clone(), chain)?;
+        let client = create_client_with_chain(self.rpc_provider.clone(), chain)?;
         let fee_tiers = self.provider.get_tiers();
         let pairs = candidate_pairs(token_in, token_out, crate::uniswap::swap_route::get_intermediaries(&token_in, &token_out, &base_pair));
         let pools = self.pool_discovery.missing_pools(chain, &pairs, &fee_tiers);
@@ -106,7 +106,7 @@ impl Swapper for UniswapV3 {
         let (evm_chain, input, output, from_value) = Self::routed_request(request)?;
         let (token_in, token_out) = (input.address, output.address);
 
-        let client = create_client(self.rpc_provider.clone(), from_chain)?;
+        let client = create_client_with_chain(self.rpc_provider.clone(), from_chain)?;
 
         let fee_tiers = self.provider.get_tiers();
         let base_pair = base_pair(evm_chain, PROTOCOL).ok_or_else(|| SwapperError::ComputeQuoteError("base pair not found".into()))?;
@@ -142,7 +142,7 @@ impl Swapper for UniswapV3 {
         let (evm_chain, input, output, amount_in) = Self::routed_request(request)?;
         let deployment = self.provider.get_deployment_by_chain(&from_chain).ok_or(SwapperError::NotSupportedChain)?;
 
-        let client = create_client(self.rpc_provider.clone(), from_chain)?;
+        let client = create_client_with_chain(self.rpc_provider.clone(), from_chain)?;
 
         let route_data: RouteData = quote.route_data()?;
         let to_amount = U256::from_str(&route_data.min_amount_out).map_err(SwapperError::from)?;

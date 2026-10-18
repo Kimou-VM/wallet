@@ -20,6 +20,7 @@ use primitives::{
 use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
     alien::{RpcClient, RpcProvider},
+    client_factory::create_rpc_client,
     error::INVALID_AMOUNT,
     route_cache::Cache,
 };
@@ -55,8 +56,7 @@ impl HyperCoreSpot {
     }
 
     fn client(&self) -> Result<HyperCoreClient<RpcClient>, SwapperError> {
-        let endpoint = self.rpc_provider.get_endpoint(Chain::HyperCore)?;
-        Ok(HyperCoreClient::new(RpcClient::new(endpoint, self.rpc_provider.clone())))
+        Ok(HyperCoreClient::new(create_rpc_client(self.rpc_provider.clone(), Chain::HyperCore)?))
     }
 
     async fn get_spot_meta(&self, client: &HyperCoreClient<RpcClient>) -> Result<SpotMeta, SwapperError> {

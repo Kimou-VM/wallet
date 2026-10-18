@@ -9,6 +9,7 @@ use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     alien::RpcProvider,
     approval::check_permit2_approvals,
+    client_factory::create_client_with_chain,
     fees::{default_referral_fees, subtract_bps},
     uniswap::{
         deadline::get_sig_deadline,
@@ -26,7 +27,6 @@ use gem_evm::uniswap::{
     path::BasePair,
 };
 use gem_hash::keccak::keccak256;
-use gem_jsonrpc::alien::create_client;
 use primitives::{AssetId, Chain, EVMChain};
 
 use super::{
@@ -74,7 +74,7 @@ impl UniswapV4 {
         let deployment = get_uniswap_deployment_by_chain(&chain).ok_or(SwapperError::NotSupportedChain)?;
         let evm_chain = EVMChain::from_chain(chain).ok_or(SwapperError::NotSupportedChain)?;
         let base_pair = base_pair(evm_chain, PROTOCOL).ok_or_else(|| SwapperError::ComputeQuoteError("base pair not found".into()))?;
-        let client = create_client(self.rpc_provider.clone(), chain)?;
+        let client = create_client_with_chain(self.rpc_provider.clone(), chain)?;
         let fee_tiers = self.get_tiers();
         let pairs = candidate_pairs(token_in, token_out, route_intermediaries(&token_in, &token_out, &base_pair));
         let pools = self
@@ -150,7 +150,7 @@ impl Swapper for UniswapV4 {
             .into_iter()
             .map(|(pairs, params)| (pairs, build_quote_exact_request(deployment.quoter, &params)));
         let paths = direct_paths.chain(multi_hop_paths).filter(|(pairs, _)| self.pool_discovery.path_may_exist(from_chain, pairs)).collect();
-        let client = create_client(self.rpc_provider.clone(), from_chain)?;
+        let client = create_client_with_chain(self.rpc_provider.clone(), from_chain)?;
         let quote_result = get_best_quote(&client, &self.outpriced_paths, (from_chain, token_in), (from_chain, token_out), quote_amount_in, paths, super::quoter::decode_quoter_response).await?;
 
         Ok(quote_result.into_quote(request, self.provider().clone(), fee_token_is_input, output.scale))
@@ -164,7 +164,7 @@ impl Swapper for UniswapV4 {
         let route_data: RouteData = quote.route_data()?;
         let to_amount = u128::from_str(&route_data.min_amount_out).map_err(SwapperError::from)?;
 
-        let client = create_client(self.rpc_provider.clone(), from_asset.chain)?;
+        let client = create_client_with_chain(self.rpc_provider.clone(), from_asset.chain)?;
         let permit = data.permit2_data().map(Permit2Permit::try_from).transpose()?;
 
         let (approval, permit2) = match input.funding {

@@ -17,7 +17,7 @@ use super::{
 };
 use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData, approval::check_approval_erc20,
-    cross_chain::VaultAddresses, fees::default_referral_fees, route_cache::Cache, thorchain::client::ThorChainSwapClient,
+    client_factory::create_rpc_client, cross_chain::VaultAddresses, fees::default_referral_fees, route_cache::Cache, thorchain::client::ThorChainSwapClient,
 };
 
 const INBOUND_ADDRESS_CACHE_TTL: Duration = MINUTE.saturating_mul(5);
@@ -69,20 +69,16 @@ where
 
 impl ThorChain<RpcClient> {
     pub fn new(rpc_provider: Arc<dyn RpcProvider>) -> Option<Self> {
-        let network = THORChainNetwork::Thorchain;
-        let endpoint = rpc_provider.get_endpoint(network.chain()).ok()?;
-        Some(Self::with_endpoint(endpoint, rpc_provider, network))
+        Self::for_network(rpc_provider, THORChainNetwork::Thorchain)
     }
 
     pub fn new_mayachain(rpc_provider: Arc<dyn RpcProvider>) -> Option<Self> {
-        let network = THORChainNetwork::Mayachain;
-        let endpoint = rpc_provider.get_endpoint(network.chain()).ok()?;
-        Some(Self::with_endpoint(endpoint, rpc_provider, network))
+        Self::for_network(rpc_provider, THORChainNetwork::Mayachain)
     }
 
-    fn with_endpoint(endpoint: String, rpc_provider: Arc<dyn RpcProvider>, network: THORChainNetwork) -> Self {
-        let swap_client = ThorChainSwapClient::new(RpcClient::new(endpoint, rpc_provider.clone()), network);
-        Self::with_client(swap_client, rpc_provider, network)
+    fn for_network(rpc_provider: Arc<dyn RpcProvider>, network: THORChainNetwork) -> Option<Self> {
+        let swap_client = ThorChainSwapClient::new(create_rpc_client(rpc_provider.clone(), network.chain()).ok()?, network);
+        Some(Self::with_client(swap_client, rpc_provider, network))
     }
 }
 
@@ -311,7 +307,7 @@ mod tests {
     }
     #[test]
     fn test_amount_mode_fixed_for_evm_flexible_for_deposit_chains() {
-        let provider = ThorChain::with_endpoint("http://localhost".into(), Arc::new(ProviderMock::new(String::new())), THORChainNetwork::Thorchain);
+        let provider = ThorChain::for_network(Arc::new(ProviderMock::new(String::new())), THORChainNetwork::Thorchain).unwrap();
 
         let bitcoin_request = mock_bitcoin_max_quote(SwapperQuoteAsset::from(Chain::Solana.as_asset_id()));
         assert_eq!(provider.amount_mode(&bitcoin_request), SwapAmountMode::Flexible);
