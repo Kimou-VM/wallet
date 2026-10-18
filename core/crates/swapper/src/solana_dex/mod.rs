@@ -8,4 +8,4 @@ mod transaction;
 
 pub(crate) use protocol::{DexPool, DexProtocol, PoolDepth, PoolQuery, PoolSwap, QuoteAccount};
 pub(crate) use provider::SolanaDex;
-pub(crate) use token::SwapToken;
+pub(crate) use token::{SwapToken, USDC_MINT};

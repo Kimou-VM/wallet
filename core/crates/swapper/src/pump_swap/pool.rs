@@ -1,10 +1,13 @@
 use borsh::BorshDeserialize;
-use gem_solana::{Pubkey, USDC_TOKEN_MINT, anchor::AnchorAccount, find_program_address, instructions::program_ids::pump_amm_program, wrapped_sol::wrapped_sol_mint};
+use gem_solana::{Pubkey, anchor::AnchorAccount, find_program_address, instructions::program_ids::pump_amm_program, wrapped_sol::wrapped_sol_mint};
 use hex_lit::hex;
 use std::iter::repeat;
 
 use super::fee_config::{FeeConfig, Fees};
-use crate::{SwapperError, solana_dex::DexPool};
+use crate::{
+    SwapperError,
+    solana_dex::{DexPool, USDC_MINT},
+};
 
 const PUMP_PROGRAM: Pubkey = Pubkey::new(hex!("0156e0f693665acf44db1568bf175baa5189cb97f5d2ff3b655d2bb6fd6d18b0"));
 const CANONICAL_POOL_INDEX: u16 = 0;
@@ -54,7 +57,7 @@ impl DexPool for Pool {
 
 impl Pool {
     pub fn addresses(mint_a: &Pubkey, mint_b: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
-        let quote_mints = [wrapped_sol_mint(), Pubkey::from_base58(USDC_TOKEN_MINT)?];
+        let quote_mints = [wrapped_sol_mint(), USDC_MINT];
         [(mint_a, mint_b), (mint_b, mint_a)]
             .into_iter()
             .filter(|(base_mint, quote_mint)| quote_mints.contains(quote_mint) && !quote_mints.contains(base_mint))
@@ -113,7 +116,7 @@ mod tests {
     fn test_addresses() {
         let key = |address: &str| Pubkey::from_base58(address).unwrap();
         let tos = key(TEST_TOS_MINT);
-        let usdc = key(USDC_TOKEN_MINT);
+        let usdc = USDC_MINT;
         let sol_pool = key("9htNhHVtWrPiRdcSyBZoAhtLRZ4NKxxNE8qdkDCZx57f");
 
         assert_eq!(Pool::addresses(&tos, &wrapped_sol_mint()).unwrap(), vec![sol_pool]);

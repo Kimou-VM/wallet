@@ -12,6 +12,8 @@ pub(crate) struct SwapToken {
     pub is_native: bool,
 }
 
+pub(crate) const USDC_MINT: Pubkey = Pubkey::new(hex!("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61"));
+
 pub(crate) static INTERMEDIATE_TOKENS: [SwapToken; 2] = [
     SwapToken {
         mint: wrapped_sol_mint(),
@@ -20,7 +22,7 @@ pub(crate) static INTERMEDIATE_TOKENS: [SwapToken; 2] = [
         is_native: false,
     },
     SwapToken {
-        mint: Pubkey::new(hex!("c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61")),
+        mint: USDC_MINT,
         token_program: token_program(),
         decimals: 6,
         is_native: false,
