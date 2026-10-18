@@ -196,9 +196,7 @@ where
                 let router_address = route_data.router_address.clone().ok_or(SwapperError::InvalidRoute)?;
                 let from_amount: U256 = value.to_string().parse().map_err(SwapperError::from)?;
                 let token_id = from_asset.token_id.clone().ok_or(SwapperError::NotSupportedAsset)?;
-                check_approval_erc20(quote.request.wallet_address.clone(), token_id, router_address, from_amount, self.rpc_provider.clone(), &from_asset.chain.chain())
-                    .await?
-                    .approval_data()
+                check_approval_erc20(quote.request.wallet_address.clone(), token_id, router_address, from_amount, self.rpc_provider.clone(), &from_asset.chain.chain()).await?
             } else {
                 None
             }

@@ -2,7 +2,7 @@ use super::{DEFAULT_DEPOSIT_GAS_LIMIT, DEFAULT_FILL_TIMEOUT, GAS_TOKEN_DECIMALS,
 use crate::{
     SwapAmountMode, SwapResult, Swapper, SwapperError, SwapperProvider, SwapperQuoteData,
     alien::RpcProvider,
-    approval::{check_approval_erc20, check_approval_trc20, get_swap_gas_limit_with_approval},
+    approval::{check_token_approval, get_swap_gas_limit_with_approval},
     chainlink::{self, ONE_DOLLAR},
     client_factory::{create_client_with_chain, create_eth_client},
     cross_chain::VaultAddresses,
@@ -33,7 +33,7 @@ use gem_evm::{
 };
 use num_bigint::BigInt;
 use num_bigint::BigUint;
-use primitives::{AssetId, Chain, EVMChain, swap::ApprovalData};
+use primitives::{AssetId, Chain, EVMChain};
 use serde_serializers::biguint_from_hex_str;
 use std::{fmt::Debug, str::FromStr, sync::Arc};
 
@@ -363,30 +363,14 @@ impl Swapper for Across {
             Funding::Token => BigUint::ZERO,
         };
 
-        let approval: Option<ApprovalData> = {
-            if input.funding == Funding::Value {
-                None
-            } else if from_chain == Chain::Tron {
-                check_approval_trc20(
-                    quote.request.wallet_address.clone(),
-                    quote.request.from_asset.asset_id().token_id.ok_or(SwapperError::NotSupportedAsset)?,
-                    deployment.spoke_pool.into(),
-                    v3_relay_data.inputAmount,
-                    self.rpc_provider.clone(),
-                )
-                .await?
-                .approval_data()
-            } else {
-                check_approval_erc20(
-                    quote.request.wallet_address.clone(),
-                    v3_relay_data.inputToken.to_string(),
-                    deployment.spoke_pool.into(),
-                    v3_relay_data.inputAmount,
-                    self.rpc_provider.clone(),
-                    &from_chain,
-                )
-                .await?
-                .approval_data()
+        let approval = match input.funding {
+            Funding::Value => None,
+            Funding::Token => {
+                let token = match from_chain {
+                    Chain::Tron => quote.request.from_asset.asset_id().token_id.ok_or(SwapperError::NotSupportedAsset)?,
+                    _ => v3_relay_data.inputToken.to_string(),
+                };
+                check_token_approval(quote.request.wallet_address.clone(), token, deployment.spoke_pool.into(), v3_relay_data.inputAmount, self.rpc_provider.clone(), from_chain).await?
             }
         };
 
@@ -420,7 +404,11 @@ mod tests {
     use super::*;
     use crate::alien::mock::ProviderMock;
     use num_bigint::BigUint;
-    use primitives::{asset_constants::*, contract_constants::ARC_ACROSS_SPOKE_POOL_CONTRACT, swap::SwapQuoteDataType};
+    use primitives::{
+        asset_constants::*,
+        contract_constants::ARC_ACROSS_SPOKE_POOL_CONTRACT,
+        swap::{ApprovalData, SwapQuoteDataType},
+    };
 
     #[test]
     fn test_is_supported_route() {

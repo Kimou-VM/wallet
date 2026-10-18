@@ -8,7 +8,7 @@ use std::{fmt, str::FromStr, sync::Arc, vec};
 use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     alien::RpcProvider,
-    approval::evm::{check_approval_erc20_with_client, check_approval_permit2_with_client},
+    approval::check_permit2_approvals,
     fees::{default_referral_fees, subtract_bps},
     uniswap::{
         deadline::get_sig_deadline,
@@ -167,26 +167,12 @@ impl Swapper for UniswapV4 {
         let client = create_client(self.rpc_provider.clone(), from_asset.chain)?;
         let permit = data.permit2_data().map(Permit2Permit::try_from).transpose()?;
 
-        let (approval, permit2) = if input.funding == Funding::Permit2 {
-            let approval = check_approval_erc20_with_client(request.wallet_address.clone(), input.address.to_string(), deployment.permit2.to_string(), U256::from(amount_in), &client)
-                .await?
-                .approval_data();
-            let permit2 = match permit {
-                Some(_) => None,
-                None => check_approval_permit2_with_client(
-                    deployment.permit2,
-                    request.wallet_address.clone(),
-                    input.address.to_string(),
-                    deployment.universal_router.to_string(),
-                    U256::from(amount_in),
-                    &client,
-                )
-                .await?
-                .permit2_data(),
-            };
-            (approval, permit2)
-        } else {
-            (None, None)
+        let (approval, permit2) = match input.funding {
+            Funding::Permit2 => {
+                let spenders = (deployment.permit2, deployment.universal_router);
+                check_permit2_approvals(&client, &request.wallet_address, &input.address.to_checksum(None), U256::from(amount_in), spenders, permit.is_some()).await?
+            }
+            Funding::Value | Funding::RouterBalance => (None, None),
         };
         let swap_gas_limit = match from_asset.chain {
             Chain::Tempo => TEMPO_SWAP_GAS_LIMIT,

@@ -55,9 +55,7 @@ impl Bridgers {
             return Ok(None);
         };
         let amount = biguint_to_u256(&swap.quote.from_token_amount).ok_or(SwapperError::InvalidRoute)?;
-        Ok(check_approval_erc20(swap.from_address.clone(), token_id.clone(), router.to_string(), amount, self.rpc_provider.clone(), &network.chain)
-            .await?
-            .approval_data())
+        check_approval_erc20(swap.from_address.clone(), token_id.clone(), router.to_string(), amount, self.rpc_provider.clone(), &network.chain).await
     }
 }
 

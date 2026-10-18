@@ -1,11 +1,4 @@
-use crate::{
-    SwapperError,
-    alien::RpcProvider,
-    client_factory::create_client_with_chain,
-    error::INVALID_ADDRESS,
-    eth_address,
-    models::{ApprovalType, Permit2ApprovalData},
-};
+use crate::{SwapperError, alien::RpcProvider, client_factory::create_client_with_chain, error::INVALID_ADDRESS, eth_address, models::Permit2ApprovalData};
 use gem_client::Client;
 use gem_evm::u256::u256_to_biguint;
 use gem_jsonrpc::client::JsonRpcClient;
@@ -24,7 +17,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-pub async fn check_approval_erc20_with_client<C>(owner: String, token: String, spender: String, amount: U256, client: &JsonRpcClient<C>) -> Result<ApprovalType, SwapperError>
+pub async fn check_approval_erc20_with_client<C>(owner: String, token: String, spender: String, amount: U256, client: &JsonRpcClient<C>) -> Result<Option<ApprovalData>, SwapperError>
 where
     C: Client + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
@@ -42,23 +35,20 @@ where
 
     let allowance = IERC20::allowanceCall::abi_decode_returns(&decoded).map_err(SwapperError::from)?;
 
-    if allowance < amount {
-        return Ok(ApprovalType::Approve(ApprovalData {
-            token: token.clone(),
-            spender: spender.to_string(),
-            value: u256_to_biguint(&amount),
-            is_unlimited: true,
-        }));
-    }
-    Ok(ApprovalType::None)
+    Ok((allowance < amount).then(|| ApprovalData {
+        token,
+        spender: spender.to_string(),
+        value: u256_to_biguint(&amount),
+        is_unlimited: true,
+    }))
 }
 
-pub async fn check_approval_erc20(owner: String, token: String, spender: String, amount: U256, provider: Arc<dyn RpcProvider>, chain: &Chain) -> Result<ApprovalType, SwapperError> {
+pub async fn check_approval_erc20(owner: String, token: String, spender: String, amount: U256, provider: Arc<dyn RpcProvider>, chain: &Chain) -> Result<Option<ApprovalData>, SwapperError> {
     let client = create_client_with_chain(provider.clone(), *chain)?;
     check_approval_erc20_with_client(owner, token, spender, amount, &client).await
 }
 
-pub async fn check_approval_permit2_with_client<C>(permit2_contract: &str, owner: String, token: String, spender: String, amount: U256, client: &JsonRpcClient<C>) -> Result<ApprovalType, SwapperError>
+pub async fn check_approval_permit2_with_client<C>(permit2_contract: &str, owner: String, token: String, spender: String, amount: U256, client: &JsonRpcClient<C>) -> Result<Option<Permit2ApprovalData>, SwapperError>
 where
     C: Client + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
@@ -83,7 +73,7 @@ where
     let expiration: u64 = allowance_return._1.try_into().map_err(|_| SwapperError::TransactionError("failed to convert expiration to u64".into()))?;
 
     if U256::from(allowance_return._0) < amount || expiration < timestamp {
-        return Ok(ApprovalType::Permit2(Permit2ApprovalData {
+        return Ok(Some(Permit2ApprovalData {
             token,
             spender,
             value: u256_to_biguint(&amount),
@@ -92,7 +82,28 @@ where
         }));
     }
 
-    Ok(ApprovalType::None)
+    Ok(None)
+}
+
+pub async fn check_permit2_approvals<C>(
+    client: &JsonRpcClient<C>,
+    owner: &str,
+    token: &str,
+    amount: U256,
+    (permit2_contract, router): (&str, &str),
+    signed_permit: bool,
+) -> Result<(Option<ApprovalData>, Option<Permit2ApprovalData>), SwapperError>
+where
+    C: Client + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+    let approval = check_approval_erc20_with_client(owner.to_string(), token.to_string(), permit2_contract.to_string(), amount, client);
+    let permit2 = async {
+        match signed_permit {
+            true => Ok(None),
+            false => check_approval_permit2_with_client(permit2_contract, owner.to_string(), token.to_string(), router.to_string(), amount, client).await,
+        }
+    };
+    futures::try_join!(approval, permit2)
 }
 
 #[cfg(test)]
@@ -131,18 +142,16 @@ mod tests {
         let client = create_client_with_chain(provider.clone(), chain).unwrap();
         let permit2_result = check_approval_permit2_with_client(&permit2_contract, owner.clone(), token.clone(), spender.clone(), amount, &client).await?;
 
+        assert_eq!(erc20_result, Some(ApprovalData::make(&token, &permit2_contract, u256_to_biguint(&amount), true)));
         assert_eq!(
-            vec![erc20_result, permit2_result],
-            vec![
-                ApprovalType::Approve(ApprovalData::make(&token, &permit2_contract, u256_to_biguint(&amount), true)),
-                ApprovalType::Permit2(Permit2ApprovalData {
-                    token: token.clone(),
-                    spender: spender.clone(),
-                    value: u256_to_biguint(&amount),
-                    permit2_contract,
-                    permit2_nonce: 0,
-                }),
-            ]
+            permit2_result,
+            Some(Permit2ApprovalData {
+                token: token.clone(),
+                spender: spender.clone(),
+                value: u256_to_biguint(&amount),
+                permit2_contract,
+                permit2_nonce: 0,
+            })
         );
         Ok(())
     }

@@ -6,7 +6,7 @@ pub use primitives::swap::Permit2ApprovalData;
 pub use primitives::swap::{SwapResult, SwapResultRequest};
 use primitives::{
     AssetId, Chain,
-    swap::{ApprovalData, SlippageMode, SwapProviderMode},
+    swap::{SlippageMode, SwapProviderMode},
 };
 use serde::{Serialize, de::DeserializeOwned};
 use serde_serializers::serialize_display;
@@ -221,28 +221,6 @@ pub struct SwapQuoteError {
 impl SwapQuoteError {
     pub fn new(provider: Option<String>, error: SwapperError) -> Self {
         Self { provider, error }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ApprovalType {
-    Approve(ApprovalData),
-    Permit2(Permit2ApprovalData),
-    None,
-}
-
-impl ApprovalType {
-    pub fn approval_data(&self) -> Option<ApprovalData> {
-        match self {
-            Self::Approve(data) => Some(data.clone()),
-            _ => None,
-        }
-    }
-    pub fn permit2_data(&self) -> Option<Permit2ApprovalData> {
-        match self {
-            Self::Permit2(data) => Some(data.clone()),
-            _ => None,
-        }
     }
 }
 

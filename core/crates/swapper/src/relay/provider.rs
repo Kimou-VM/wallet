@@ -21,7 +21,7 @@ use super::{
 };
 use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
-    approval::{check_approval_erc20, check_approval_trc20},
+    approval::check_token_approval,
     client_factory::create_ton_client,
     config::get_swap_proxy_url,
     cross_chain::VaultAddresses,
@@ -204,16 +204,11 @@ where
 
         let spender = quote_response.router_address().ok_or(SwapperError::InvalidRoute)?;
         let amount = U256::from_str(&quote.from_value.to_string()).map_err(SwapperError::from)?;
-        let approval = match chain {
-            RelayChain::Evm(_) => check_approval_erc20(quote.request.wallet_address.clone(), token, spender, amount, self.rpc_provider.clone(), &from_asset_id.chain).await?,
-            RelayChain::Tron => {
-                let spender = TronAddress::parse_hex_or_base58(&spender).map_err(|_| SwapperError::InvalidRoute)?.to_string();
-                check_approval_trc20(quote.request.wallet_address.clone(), token, spender, amount, self.rpc_provider.clone()).await?
-            }
-            RelayChain::Bitcoin | RelayChain::Solana | RelayChain::Ton => return Ok(None),
+        let spender = match chain {
+            RelayChain::Tron => TronAddress::parse_hex_or_base58(&spender).map_err(|_| SwapperError::InvalidRoute)?.to_string(),
+            RelayChain::Evm(_) | RelayChain::Bitcoin | RelayChain::Solana | RelayChain::Ton => spender,
         };
-
-        Ok(approval.approval_data())
+        check_token_approval(quote.request.wallet_address.clone(), token, spender, amount, self.rpc_provider.clone(), from_asset_id.chain).await
     }
 }
 

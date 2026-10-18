@@ -318,8 +318,10 @@ where
                     None => (input_amount, None),
                     Some(token_id) => {
                         let approval_amount = biguint_to_u256(&input_amount).ok_or_else(|| SwapperError::compute_quote_error("swap amount is too large"))?;
-                        let approval = check_approval_erc20(quote.request.wallet_address.clone(), token_id, response.to.clone(), approval_amount, self.rpc_provider.clone(), &from_asset.chain).await?;
-                        (BigUint::ZERO, approval.approval_data())
+                        (
+                            BigUint::ZERO,
+                            check_approval_erc20(quote.request.wallet_address.clone(), token_id, response.to.clone(), approval_amount, self.rpc_provider.clone(), &from_asset.chain).await?,
+                        )
                     }
                 };
                 let gas_limit = get_swap_gas_limit_with_approval(&approval, None, DEFAULT_SWAP_ERC20_GAS_LIMIT);

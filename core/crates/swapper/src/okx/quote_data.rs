@@ -6,7 +6,6 @@ use crate::{
     SwapperError,
     alien::RpcProvider,
     approval::{check_approval_erc20, check_approval_trc20, get_swap_gas_limit_with_approval},
-    models::ApprovalType,
 };
 use alloy_primitives::U256;
 use gem_encoding::encode_base64;
@@ -73,10 +72,7 @@ async fn build_tron_approval(from_asset: &QuoteAsset, from_value: &str, owner: &
         return Ok(None);
     };
     let amount = U256::from_str(from_value)?;
-    match check_approval_trc20(owner.to_string(), token, TRON_DEX_TOKEN_APPROVE_ADDRESS.to_string(), amount, rpc_provider).await? {
-        ApprovalType::Approve(data) => Ok(Some(data)),
-        _ => Ok(None),
-    }
+    check_approval_trc20(owner.to_string(), token, TRON_DEX_TOKEN_APPROVE_ADDRESS.to_string(), amount, rpc_provider).await
 }
 
 async fn build_evm_approval(from_asset: &QuoteAsset, transaction_data: &TransactionData, from_value: &str, chain: Chain, owner: &str, rpc_provider: Arc<dyn RpcProvider>) -> Result<Option<ApprovalData>, SwapperError> {
@@ -90,10 +86,7 @@ async fn build_evm_approval(from_asset: &QuoteAsset, transaction_data: &Transact
         return Ok(None);
     };
     let amount = U256::from_str(from_value)?;
-    match check_approval_erc20(owner.to_string(), token, spender, amount, rpc_provider, &chain).await? {
-        ApprovalType::Approve(data) => Ok(Some(data)),
-        _ => Ok(None),
-    }
+    check_approval_erc20(owner.to_string(), token, spender, amount, rpc_provider, &chain).await
 }
 
 fn get_spender(signature_data: Option<&[String]>) -> Option<String> {

@@ -162,5 +162,5 @@ async fn approval_data(wallet_address: String, asset: AssetId, spender: &str, am
         return Ok(None);
     }
     let token = asset.token_id.ok_or(SwapperError::NotSupportedAsset)?;
-    Ok(check_approval_erc20(wallet_address, token, spender.to_string(), amount, rpc_provider, &asset.chain).await?.approval_data())
+    check_approval_erc20(wallet_address, token, spender.to_string(), amount, rpc_provider, &asset.chain).await
 }

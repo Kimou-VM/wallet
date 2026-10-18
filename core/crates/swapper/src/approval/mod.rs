@@ -2,12 +2,23 @@ pub mod evm;
 pub mod tron;
 
 pub use evm::*;
-use primitives::swap::ApprovalData;
+use primitives::{Chain, swap::ApprovalData};
 pub use tron::*;
+
+use crate::{SwapperError, alien::RpcProvider};
+use alloy_primitives::U256;
+use std::sync::Arc;
 
 pub const DEFAULT_EVM_SWAP_GAS_LIMIT: u64 = 750_000;
 
 pub const DEFAULT_TRON_SWAP_ENERGY_LIMIT: u64 = 130_000;
+
+pub async fn check_token_approval(owner: String, token: String, spender: String, amount: U256, provider: Arc<dyn RpcProvider>, chain: Chain) -> Result<Option<ApprovalData>, SwapperError> {
+    match chain {
+        Chain::Tron => check_approval_trc20(owner, token, spender, amount, provider).await,
+        _ => check_approval_erc20(owner, token, spender, amount, provider, &chain).await,
+    }
+}
 
 /// Returns the swap transaction gas limit only when a separate approval transaction is required.
 pub fn get_swap_gas_limit_with_approval(approval: &Option<ApprovalData>, swap_gas_limit: Option<String>, default_swap_gas_limit: u64) -> Option<String> {
