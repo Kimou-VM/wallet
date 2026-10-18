@@ -4,7 +4,6 @@ use crate::{
     across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, dedust, fees::max_quote_value_with_fee_reserve, hyperion, hyperliquid, jupiter, mayan, meteora_damm_v2, meteora_dlmm,
     near_intents, okx, orca, panora, provider_group::ProviderGroup, pump_swap, raydium_amm, raydium_clmm, raydium_cpmm, relay, solana_dex, squid, stonfi, swaps_xyz, thorchain, uniswap,
 };
-use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use primitives::{AssetId, Chain, EVMChain};
 use std::{
@@ -174,7 +173,7 @@ impl GemSwapper {
     pub async fn get_quote(&self, request: &QuoteRequest) -> Result<Vec<Quote>, SwapperError> {
         let SwapQuotes { quotes, errors } = self.get_quotes(request).await?;
         if quotes.is_empty() {
-            return Err(Self::quote_error(errors));
+            return Err(SwapperError::combined(errors.into_iter().map(|error| error.error).collect()));
         }
         Ok(quotes)
     }
@@ -204,24 +203,6 @@ impl GemSwapper {
 
         let quotes = rank_quotes(request, quotes, &quote_preferences(), |quote| self.amount_mode(quote));
         Ok(SwapQuotes { quotes, errors })
-    }
-
-    fn quote_error(errors: Vec<SwapQuoteError>) -> SwapperError {
-        if !errors.is_empty() && errors.iter().all(|error| error.error == SwapperError::Offline) {
-            return SwapperError::Offline;
-        }
-        let min_amounts: Vec<Option<BigInt>> = errors
-            .into_iter()
-            .filter_map(|error| match error.error {
-                SwapperError::InputAmountError { min_amount } => Some(min_amount.and_then(|amount| amount.parse().ok())),
-                _ => None,
-            })
-            .collect();
-        if min_amounts.is_empty() {
-            return SwapperError::NoQuoteAvailable;
-        }
-        let min_amount = min_amounts.into_iter().collect::<Option<Vec<BigInt>>>().and_then(|amounts| amounts.into_iter().min()).map(|amount| amount.to_string());
-        SwapperError::InputAmountError { min_amount }
     }
 
     fn quote_request_for_mode(mode: SwapAmountMode, request: &QuoteRequest) -> Result<QuoteRequest, SwapperError> {
@@ -519,7 +500,7 @@ mod swap_integration_tests {
 
     #[tokio::test]
     async fn test_grouped_providers_build_with_the_member_that_quoted() {
-        let swapper = GemSwapper::new(Arc::new(NativeProvider::new().set_debug(false)));
+        let swapper = GemSwapper::new(crate::testkit::dynode_provider([Chain::Ethereum, Chain::Solana]));
         let ethereum = QuoteRequest {
             wallet_address: "0xBA4D1d35bCe0e8F28E5a3403e7a0b996c5d50AC4".into(),
             destination_address: "0xBA4D1d35bCe0e8F28E5a3403e7a0b996c5d50AC4".into(),

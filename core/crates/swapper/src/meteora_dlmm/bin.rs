@@ -26,9 +26,12 @@ pub(crate) struct Bin {
     amount_y: u64,
     price: u128,
     _liquidity_supply: u128,
-    _fulfilled_order_amounts: [u64; 2],
-    _limit_order_fees: [u64; 2],
-    _fee_amounts_per_token_stored: [u128; 2],
+    _fulfilled_order_amount_x: u64,
+    _fulfilled_order_amount_y: u64,
+    _limit_order_fee_ask_side: u64,
+    _limit_order_fee_bid_side: u64,
+    _fee_amount_x_per_token_stored: u128,
+    _fee_amount_y_per_token_stored: u128,
     open_order_amount: u64,
     _total_processing_order_amount: u64,
     processed_order_remaining_amount: u64,
@@ -151,6 +154,9 @@ impl Bin {
     pub fn fill(&self, amount: u64, price: u128, swap_for_y: bool, has_limit_orders: bool) -> Option<(u64, u64)> {
         let (processed, open) = self.limit_orders(swap_for_y, has_limit_orders);
         [self.market_maker_amount(swap_for_y), processed, open].into_iter().try_fold((amount, 0u64), |(left, out), max_out| {
+            if left == 0 {
+                return Some((left, out));
+            }
             let (left, filled) = fill(left, max_out, price, swap_for_y)?;
             Some((left, out.checked_add(filled)?))
         })

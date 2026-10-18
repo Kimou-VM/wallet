@@ -9,7 +9,7 @@ use super::{
 use crate::{
     SwapperError, SwapperProvider,
     clmm::{StaticFee, quote_exact_in},
-    solana_dex::{DexPool, DexProtocol, PoolSwap, QuoteAccount, SwapToken},
+    solana_dex::{DexPool, DexProtocol, INTERMEDIATE_TOKENS, PoolSwap, QuoteAccount, SwapToken},
 };
 
 pub(crate) struct RaydiumClmm;
@@ -39,6 +39,10 @@ impl DexProtocol for RaydiumClmm {
 
     fn is_tradable(&self, pool: &PoolState, timestamp: u64) -> bool {
         pool.is_tradable(timestamp)
+    }
+
+    fn intermediate_tokens(&self) -> &'static [SwapToken] {
+        &INTERMEDIATE_TOKENS
     }
 
     fn quote_accounts(&self, address: &Pubkey, pool: &PoolState, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
@@ -72,35 +76,35 @@ mod swap_integration_tests {
     use super::*;
     use crate::{
         SwapperQuoteAsset,
-        solana_dex::testkit::{TEST_FUNDED_WALLET, assert_swaps_simulate},
+        solana_dex::testkit::{TEST_FUNDED_WALLET, assert_swaps_simulate, mock_solana_asset},
     };
     use gem_solana::{USDC_TOKEN_MINT, USDT_TOKEN_MINT};
-    use primitives::{AssetId, AssetType, Chain};
+    use primitives::AssetType;
 
     const TEST_XDC_MINT: &str = "4TaFLLV3uhgu3HUTgbyLTuumBKwJ3DufyuLLnVN8YLwp";
     const TEST_NVDAX_MINT: &str = "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh";
 
     #[tokio::test]
     async fn test_raydium_clmm_swap_simulates() -> Result<(), SwapperError> {
-        let token = |mint: &str, decimals: u32, asset_type: AssetType| SwapperQuoteAsset {
-            decimals,
-            asset_type,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, mint))
-        };
-        let sol = SwapperQuoteAsset {
-            decimals: 9,
-            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
-        };
-        let usdc = token(USDC_TOKEN_MINT, 6, AssetType::SPL);
-        let usdt = token(USDT_TOKEN_MINT, 6, AssetType::SPL);
+        let sol = mock_solana_asset(None, 9);
+        let usdc = mock_solana_asset(Some(USDC_TOKEN_MINT), 6);
+        let usdt = mock_solana_asset(Some(USDT_TOKEN_MINT), 6);
 
         assert_swaps_simulate(
             RaydiumClmm,
             vec![
                 (sol.clone(), usdc.clone(), 1_000_000_000, TEST_FUNDED_WALLET),
                 (usdc.clone(), sol, 100_000_000, TEST_FUNDED_WALLET),
-                (usdc, token(TEST_XDC_MINT, 8, AssetType::SPL), 100_000_000, TEST_FUNDED_WALLET),
-                (usdt, token(TEST_NVDAX_MINT, 8, AssetType::SPL2022), 100_000_000, TEST_FUNDED_WALLET),
+                (usdc, mock_solana_asset(Some(TEST_XDC_MINT), 8), 100_000_000, TEST_FUNDED_WALLET),
+                (
+                    usdt,
+                    SwapperQuoteAsset {
+                        asset_type: AssetType::SPL2022,
+                        ..mock_solana_asset(Some(TEST_NVDAX_MINT), 8)
+                    },
+                    100_000_000,
+                    TEST_FUNDED_WALLET,
+                ),
             ],
         )
         .await

@@ -1,9 +1,4 @@
-use gem_solana::{
-    Instruction, Pubkey,
-    anchor::AnchorAccount,
-    instructions::program_ids::pump_amm_program,
-    models::{Mint, TokenAccount},
-};
+use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::pump_amm_program, models::Mint};
 
 use super::{
     fee_config::{FEE_CONFIG, FeeConfig, PUMP_FEES_PROGRAM},
@@ -12,7 +7,7 @@ use super::{
 };
 use crate::{
     SwapperError, SwapperProvider,
-    solana_dex::{DexPool, DexProtocol, PoolSwap, QuoteAccount, SwapToken},
+    solana_dex::{DexPool, DexProtocol, PoolSwap, QuoteAccount, account_data, token_amount},
 };
 
 pub(crate) struct PumpSwap;
@@ -22,7 +17,6 @@ impl DexProtocol for PumpSwap {
 
     const PROVIDER: SwapperProvider = SwapperProvider::PumpSwap;
     const PROGRAM_ID: Pubkey = pump_amm_program();
-    const INTERMEDIATE_TOKEN_ACCOUNT: bool = false;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         Pool::addresses(input_mint, output_mint)
@@ -44,10 +38,6 @@ impl DexProtocol for PumpSwap {
         self.liquidity(pool) > 0 && !pool.is_cashback_coin
     }
 
-    fn intermediate_tokens(&self) -> &'static [SwapToken] {
-        &[]
-    }
-
     fn quote_accounts(&self, _address: &Pubkey, pool: &Pool, _input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
         Ok(vec![
             QuoteAccount::Owned {
@@ -66,9 +56,7 @@ impl DexProtocol for PumpSwap {
             return Err(SwapperError::NoQuoteAvailable);
         };
         let fee_config = FeeConfig::decode(account_data(fee_config)?)?;
-        let reserves = pool
-            .reserves(TokenAccount::decode(account_data(base_vault)?)?.amount, TokenAccount::decode(account_data(quote_vault)?)?.amount)
-            .ok_or(SwapperError::NoQuoteAvailable)?;
+        let reserves = pool.reserves(token_amount(base_vault)?, token_amount(quote_vault)?).ok_or(SwapperError::NoQuoteAvailable)?;
         let fees = pool.fees(&fee_config, Mint::decode(account_data(base_mint)?)?.supply, &reserves).ok_or(SwapperError::NoQuoteAvailable)?;
         let output_value = if sells_base { reserves.sell(amount_in, &fees) } else { reserves.buy(amount_in, &fees) };
         output_value.ok_or(SwapperError::NoQuoteAvailable)
@@ -79,30 +67,15 @@ impl DexProtocol for PumpSwap {
     }
 }
 
-fn account_data(account: &Option<Vec<u8>>) -> Result<&[u8], SwapperError> {
-    account.as_deref().ok_or(SwapperError::NoQuoteAvailable)
-}
-
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
-    use crate::{
-        SwapperQuoteAsset,
-        solana_dex::testkit::{TEST_FUNDED_WALLET, TEST_TOS_HOLDER, TEST_TOS_MINT, assert_swaps_simulate},
-    };
-    use primitives::{AssetId, AssetType, Chain};
+    use crate::solana_dex::testkit::{TEST_FUNDED_WALLET, TEST_TOS_HOLDER, TEST_TOS_MINT, assert_swaps_simulate, mock_solana_asset};
 
     #[tokio::test]
     async fn test_pump_swap_simulates() -> Result<(), SwapperError> {
-        let sol = SwapperQuoteAsset {
-            decimals: 9,
-            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
-        };
-        let tos = SwapperQuoteAsset {
-            decimals: 6,
-            asset_type: AssetType::SPL,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_TOS_MINT))
-        };
+        let sol = mock_solana_asset(None, 9);
+        let tos = mock_solana_asset(Some(TEST_TOS_MINT), 6);
 
         assert_swaps_simulate(PumpSwap, vec![(sol.clone(), tos.clone(), 10_000_000, TEST_FUNDED_WALLET), (tos, sol, 10_000_000, TEST_TOS_HOLDER)]).await
     }
@@ -116,13 +89,13 @@ mod tests {
         pump_swap::testkit::{TEST_CASHBACK_POOL, TEST_MAYHEM_POOL, TEST_SOL_POOL, TEST_TOKEN_2022_MINT, TEST_USDC_POOL, mock_pool_snapshot},
         solana_dex::{
             SolanaDex,
-            testkit::{TEST_TOS_MINT, mock_rpc_accounts, mock_rpc_client},
+            testkit::{TEST_TOS_MINT, mock_rpc_accounts, mock_rpc_client, mock_solana_asset},
         },
         testkit::mock_quote,
     };
     use gem_solana::USDC_TOKEN_MINT;
     use num_bigint::BigUint;
-    use primitives::{AssetId, AssetType, Chain, testkit::signer_mock::TEST_SOLANA_SENDER};
+    use primitives::{AssetType, testkit::signer_mock::TEST_SOLANA_SENDER};
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -161,22 +134,12 @@ mod tests {
         let requests = Arc::new(AtomicUsize::new(0));
         let accounts = mock_rpc_accounts(TEST_SOL_POOL).into_iter().chain(mock_rpc_accounts(TEST_USDC_POOL)).collect();
         let pump_swap = SolanaDex::with_client(PumpSwap, mock_rpc_client(accounts, requests.clone()));
-        let sol = SwapperQuoteAsset {
-            decimals: 9,
-            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
-        };
-        let usdc = SwapperQuoteAsset {
-            decimals: 6,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
-        };
-        let tos = SwapperQuoteAsset {
-            decimals: 6,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_TOS_MINT))
-        };
+        let sol = mock_solana_asset(None, 9);
+        let usdc = mock_solana_asset(Some(USDC_TOKEN_MINT), 6);
+        let tos = mock_solana_asset(Some(TEST_TOS_MINT), 6);
         let coin = SwapperQuoteAsset {
-            decimals: 6,
             asset_type: AssetType::SPL2022,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_TOKEN_2022_MINT))
+            ..mock_solana_asset(Some(TEST_TOKEN_2022_MINT), 6)
         };
         let sol_to_tos = QuoteRequest {
             wallet_address: TEST_SOLANA_SENDER.to_string(),

@@ -111,8 +111,8 @@ impl Quote {
 }
 
 #[cfg(feature = "swap_integration_tests")]
-pub fn dynode_provider(chain: Chain) -> Arc<crate::NativeProvider> {
-    Arc::new(crate::NativeProvider::new_with_endpoints(std::collections::HashMap::from([(chain, format!("https://gemnodes.com/{}", chain.as_ref()))])))
+pub fn dynode_provider(chains: impl IntoIterator<Item = Chain>) -> Arc<crate::NativeProvider> {
+    Arc::new(crate::NativeProvider::new_with_endpoints(chains.into_iter().map(|chain| (chain, format!("https://gemnodes.com/{}", chain.as_ref()))).collect()))
 }
 
 pub fn mock_quote(from_asset: SwapperQuoteAsset, to_asset: SwapperQuoteAsset) -> QuoteRequest {

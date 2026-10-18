@@ -1,17 +1,18 @@
 use alloy_primitives::U256;
 use borsh::BorshDeserialize;
-use gem_solana::{Pubkey, anchor::AnchorAccount, models::Clock};
+use gem_solana::{Pubkey, SolanaDataSlice, anchor::AnchorAccount, models::Clock};
 
 use super::fee::{BaseFee, DynamicFee, FeePoint};
 use crate::{
-    clmm::{divide, fee_amount},
-    solana_dex::DexPool,
+    clmm::{constant_product_output, divide, fee_amount},
+    solana_dex::{DexPool, PoolLayout},
 };
 
-pub(super) const POOL_ACCOUNT_LEN: u64 = 1112;
-pub(super) const TOKEN_A_MINT_OFFSET: usize = 168;
-pub(super) const TOKEN_B_MINT_OFFSET: usize = 200;
-pub(super) const LIQUIDITY_OFFSET: usize = 360;
+pub(super) const LAYOUT: PoolLayout = PoolLayout {
+    account_len: 1112,
+    mint_offsets: [168, 200],
+    depth: SolanaDataSlice { offset: 360, length: size_of::<u128>() },
+};
 const FEE_DENOMINATOR: u32 = 1_000_000_000;
 const ACTIVATION_SLOT: u8 = 0;
 const ACTIVATION_TIMESTAMP: u8 = 1;
@@ -22,35 +23,60 @@ const COMPOUNDING: u8 = 2;
 const Q128_RESOLUTION: usize = 128;
 
 #[derive(Debug, Clone, PartialEq, BorshDeserialize)]
-pub(crate) struct Pool {
+struct PoolFees {
     base_fee: BaseFee,
-    _base_fee_padding: u64,
-    _fee_percents: [u8; 8],
+    _base_fee_padding_1: u64,
+    _protocol_fee_percent: u8,
+    _padding_0: u8,
+    _referral_fee_percent: u8,
+    _padding_1: [u8; 3],
+    _compounding_fee_bps: u16,
     dynamic_fee: DynamicFee,
     init_sqrt_price: u128,
+}
+
+#[derive(Debug, Clone, PartialEq, BorshDeserialize)]
+struct PoolMetrics {
+    _total_lp_a_fee: u128,
+    _total_lp_b_fee: u128,
+    _total_protocol_a_fee: u64,
+    _total_protocol_b_fee: u64,
+    _padding_0: [u64; 2],
+    _total_position: u64,
+    _padding: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, BorshDeserialize)]
+pub(crate) struct Pool {
+    pool_fees: PoolFees,
     pub token_a_mint: Pubkey,
     pub token_b_mint: Pubkey,
     pub token_a_vault: Pubkey,
     pub token_b_vault: Pubkey,
     _whitelisted_vault: Pubkey,
-    _partner: Pubkey,
+    _padding_0: [u8; 32],
     pub liquidity: u128,
     _padding_1: u128,
-    _protocol_fees: [u8; 32],
+    _protocol_a_fee: u64,
+    _protocol_b_fee: u64,
+    _dead_liquidity_fee_checkpoint: u64,
+    _padding_2: [u8; 8],
     sqrt_min_price: u128,
     sqrt_max_price: u128,
     sqrt_price: u128,
     activation_point: u64,
     activation_type: u8,
     pool_status: u8,
-    _token_flags: [u8; 2],
+    _token_a_flag: u8,
+    _token_b_flag: u8,
     collect_fee_mode: u8,
     _pool_type: u8,
     fee_version: u8,
     _padding_3: u8,
-    _fees_per_liquidity: [u8; 64],
+    _fee_a_per_liquidity: [u8; 32],
+    _fee_b_per_liquidity: [u8; 32],
     _permanent_lock_liquidity: u128,
-    _metrics: [u8; 80],
+    _metrics: PoolMetrics,
     _creator: Pubkey,
     token_a_amount: u64,
     token_b_amount: u64,
@@ -105,17 +131,17 @@ impl Pool {
             current,
             activation: self.activation_point,
             a_to_b,
-            init_sqrt_price: self.init_sqrt_price,
+            init_sqrt_price: self.pool_fees.init_sqrt_price,
             sqrt_price: self.sqrt_price,
         };
-        let total = self.dynamic_fee.variable_fee()?.checked_add(u128::from(self.base_fee.numerator(&point)?))?;
+        let total = self.pool_fees.dynamic_fee.variable_fee()?.checked_add(u128::from(self.pool_fees.base_fee.numerator(&point)?))?;
         Some(u32::try_from(total).map_or(max_fee_rate, |total| total.min(max_fee_rate)))
     }
 
     fn swap_output(&self, a_to_b: bool, amount_in: u64) -> Option<u64> {
         if self.collect_fee_mode == COMPOUNDING {
             let (reserve_in, reserve_out) = if a_to_b { (self.token_a_amount, self.token_b_amount) } else { (self.token_b_amount, self.token_a_amount) };
-            let output = (u128::from(reserve_out) * u128::from(amount_in)).checked_div(u128::from(reserve_in.checked_add(amount_in)?))?;
+            let output = constant_product_output(u128::from(reserve_in), u128::from(reserve_out), u128::from(amount_in))?;
             return Some(u64::try_from(output).unwrap_or_default());
         }
         let (liquidity, sqrt_price) = (U256::from(self.liquidity), U256::from(self.sqrt_price));
@@ -186,9 +212,9 @@ mod tests {
         let data = snapshot.accounts[&snapshot.address].as_ref().unwrap();
         let at = |offset: usize, len: usize| &data[offset..offset + len];
 
-        assert_eq!(u64::try_from(data.len()).unwrap(), POOL_ACCOUNT_LEN);
-        assert_eq!(at(TOKEN_A_MINT_OFFSET, 32), snapshot.pool.token_a_mint.as_bytes());
-        assert_eq!(at(TOKEN_B_MINT_OFFSET, 32), snapshot.pool.token_b_mint.as_bytes());
-        assert_eq!(at(LIQUIDITY_OFFSET, 16), snapshot.pool.liquidity.to_le_bytes());
+        assert_eq!(u64::try_from(data.len()).unwrap(), LAYOUT.account_len);
+        assert_eq!(at(LAYOUT.mint_offsets[0], 32), snapshot.pool.token_a_mint.as_bytes());
+        assert_eq!(at(LAYOUT.mint_offsets[1], 32), snapshot.pool.token_b_mint.as_bytes());
+        assert_eq!(at(LAYOUT.depth.offset, LAYOUT.depth.length), snapshot.pool.liquidity.to_le_bytes());
     }
 }

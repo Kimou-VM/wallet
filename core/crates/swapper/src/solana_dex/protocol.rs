@@ -1,6 +1,6 @@
-use gem_solana::{Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter};
+use gem_solana::{Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter, models::TokenAccount};
 
-use super::token::{INTERMEDIATE_TOKENS, SwapToken};
+use super::token::SwapToken;
 use crate::{SwapperError, SwapperProvider};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -17,6 +17,14 @@ impl QuoteAccount {
     }
 }
 
+pub(crate) fn account_data(account: &Option<Vec<u8>>) -> Result<&[u8], SwapperError> {
+    account.as_deref().ok_or(SwapperError::NoQuoteAvailable)
+}
+
+pub(crate) fn token_amount(account: &Option<Vec<u8>>) -> Result<u64, SwapperError> {
+    Ok(TokenAccount::decode(account_data(account)?)?.amount)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum PoolDepth {
     Value(u128),
@@ -27,6 +35,38 @@ pub(crate) enum PoolDepth {
 pub(crate) struct PoolQuery {
     pub filters: Vec<Vec<SolanaProgramAccountsFilter>>,
     pub depth: SolanaDataSlice,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct PoolLayout {
+    pub account_len: u64,
+    pub mint_offsets: [usize; 2],
+    pub depth: SolanaDataSlice,
+}
+
+impl PoolLayout {
+    pub fn query(&self, mint_a: &Pubkey, mint_b: &Pubkey) -> PoolQuery {
+        self.query_mints([(mint_a, mint_b), (mint_b, mint_a)])
+    }
+
+    pub fn sorted_query(&self, mint_a: &Pubkey, mint_b: &Pubkey) -> PoolQuery {
+        self.query_mints([if mint_a.as_bytes() <= mint_b.as_bytes() { (mint_a, mint_b) } else { (mint_b, mint_a) }])
+    }
+
+    fn query_mints<'a>(&self, mints: impl IntoIterator<Item = (&'a Pubkey, &'a Pubkey)>) -> PoolQuery {
+        let [offset_a, offset_b] = self.mint_offsets;
+        let filters = mints.into_iter().map(|(mint_a, mint_b)| {
+            vec![
+                SolanaProgramAccountsFilter::DataSize(self.account_len),
+                SolanaProgramAccountsFilter::Memcmp { offset: offset_a, bytes: mint_a.to_base58() },
+                SolanaProgramAccountsFilter::Memcmp { offset: offset_b, bytes: mint_b.to_base58() },
+            ]
+        });
+        PoolQuery {
+            filters: filters.collect(),
+            depth: self.depth,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -73,19 +113,25 @@ pub(crate) trait DexProtocol: Send + Sync {
 
     const PROVIDER: SwapperProvider;
     const PROGRAM_ID: Pubkey;
-    const INTERMEDIATE_TOKEN_ACCOUNT: bool;
+    const INTERMEDIATE_TOKEN_ACCOUNT: bool = false;
 
-    fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError>;
     fn decode_pool(&self, data: &[u8]) -> Result<Self::Pool, SwapperError>;
     fn liquidity(&self, pool: &Self::Pool) -> u128;
-    fn constant_accounts(&self, pool: &Self::Pool) -> Vec<Pubkey>;
+
+    fn pool_addresses(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
+        Ok(vec![])
+    }
+
+    fn constant_accounts(&self, _pool: &Self::Pool) -> Vec<Pubkey> {
+        vec![]
+    }
 
     fn is_tradable(&self, pool: &Self::Pool, _timestamp: u64) -> bool {
         self.liquidity(pool) > 0
     }
 
     fn intermediate_tokens(&self) -> &'static [SwapToken] {
-        &INTERMEDIATE_TOKENS
+        &[]
     }
 
     fn pool_query(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Option<PoolQuery> {

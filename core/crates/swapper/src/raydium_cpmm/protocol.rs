@@ -1,12 +1,12 @@
-use gem_solana::{Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter, anchor::AnchorAccount, instructions::program_ids::raydium_cpmm_program, models::TokenAccount};
+use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::raydium_cpmm_program};
 
 use super::{
-    pool::{AmmConfig, LP_SUPPLY_OFFSET, POOL_ACCOUNT_LEN, Pool, TOKEN_0_MINT_OFFSET, TOKEN_1_MINT_OFFSET},
+    pool::{AmmConfig, LAYOUT, Pool},
     swap::swap_base_input_instruction,
 };
 use crate::{
     SwapperError, SwapperProvider,
-    solana_dex::{DexPool, DexProtocol, PoolQuery, PoolSwap, QuoteAccount, SwapToken},
+    solana_dex::{DexPool, DexProtocol, PoolQuery, PoolSwap, QuoteAccount, account_data, token_amount},
 };
 
 pub(crate) struct RaydiumCpmm;
@@ -16,11 +16,6 @@ impl DexProtocol for RaydiumCpmm {
 
     const PROVIDER: SwapperProvider = SwapperProvider::RaydiumClmm;
     const PROGRAM_ID: Pubkey = raydium_cpmm_program();
-    const INTERMEDIATE_TOKEN_ACCOUNT: bool = false;
-
-    fn pool_addresses(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
-        Ok(vec![])
-    }
 
     fn decode_pool(&self, data: &[u8]) -> Result<Pool, SwapperError> {
         Ok(Pool::decode(data)?)
@@ -38,29 +33,8 @@ impl DexProtocol for RaydiumCpmm {
         pool.is_tradable(timestamp)
     }
 
-    fn intermediate_tokens(&self) -> &'static [SwapToken] {
-        &[]
-    }
-
     fn pool_query(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Option<PoolQuery> {
-        let (token_0_mint, token_1_mint) = if input_mint.as_bytes() <= output_mint.as_bytes() { (input_mint, output_mint) } else { (output_mint, input_mint) };
-        Some(PoolQuery {
-            filters: vec![vec![
-                SolanaProgramAccountsFilter::DataSize(POOL_ACCOUNT_LEN),
-                SolanaProgramAccountsFilter::Memcmp {
-                    offset: TOKEN_0_MINT_OFFSET,
-                    bytes: token_0_mint.to_base58(),
-                },
-                SolanaProgramAccountsFilter::Memcmp {
-                    offset: TOKEN_1_MINT_OFFSET,
-                    bytes: token_1_mint.to_base58(),
-                },
-            ]],
-            depth: SolanaDataSlice {
-                offset: LP_SUPPLY_OFFSET,
-                length: size_of::<u64>(),
-            },
-        })
+        Some(LAYOUT.sorted_query(input_mint, output_mint))
     }
 
     fn quote_accounts(&self, _address: &Pubkey, pool: &Pool, _input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
@@ -76,12 +50,11 @@ impl DexProtocol for RaydiumCpmm {
 
     fn quote(&self, _address: &Pubkey, pool: &Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], _timestamp: u64) -> Result<u64, SwapperError> {
         let zero_for_one = pool.is_a_to_b(input_mint)?;
-        let [Some(config), Some(vault_0), Some(vault_1)] = accounts else {
+        let [config, vault_0, vault_1] = accounts else {
             return Err(SwapperError::NoQuoteAvailable);
         };
-        let config = AmmConfig::decode(config)?;
-        let (vault_0, vault_1) = (TokenAccount::decode(vault_0)?.amount, TokenAccount::decode(vault_1)?.amount);
-        pool.quote(&config, zero_for_one, amount_in, vault_0, vault_1).ok_or(SwapperError::NoQuoteAvailable)
+        let config = AmmConfig::decode(account_data(config)?)?;
+        pool.quote(&config, zero_for_one, amount_in, token_amount(vault_0)?, token_amount(vault_1)?).ok_or(SwapperError::NoQuoteAvailable)
     }
 
     fn swap_instruction(&self, address: &Pubkey, pool: &Pool, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
@@ -92,24 +65,14 @@ impl DexProtocol for RaydiumCpmm {
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
-    use crate::{
-        SwapperQuoteAsset,
-        solana_dex::testkit::{TEST_FUNDED_WALLET, assert_swaps_simulate},
-    };
-    use primitives::{AssetId, Chain};
+    use crate::solana_dex::testkit::{TEST_FUNDED_WALLET, assert_swaps_simulate, mock_solana_asset};
 
     const TEST_JUP_MINT: &str = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
 
     #[tokio::test]
     async fn test_raydium_cpmm_swap_simulates() -> Result<(), SwapperError> {
-        let sol = SwapperQuoteAsset {
-            decimals: 9,
-            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
-        };
-        let jup = SwapperQuoteAsset {
-            decimals: 6,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_JUP_MINT))
-        };
+        let sol = mock_solana_asset(None, 9);
+        let jup = mock_solana_asset(Some(TEST_JUP_MINT), 6);
 
         assert_swaps_simulate(RaydiumCpmm, vec![(sol, jup, 10_000_000, TEST_FUNDED_WALLET)]).await
     }
@@ -119,16 +82,16 @@ mod swap_integration_tests {
 mod tests {
     use super::*;
     use crate::{
-        FetchQuoteData, QuoteRequest, Swapper, SwapperQuoteAsset,
+        FetchQuoteData, QuoteRequest, Swapper,
         raydium_cpmm::testkit::TEST_JUP_SOL_POOL,
         solana_dex::{
             SolanaDex,
-            testkit::{mock_rpc_accounts, mock_rpc_client},
+            testkit::{mock_rpc_accounts, mock_rpc_client, mock_solana_asset},
         },
         testkit::mock_quote,
     };
     use num_bigint::BigUint;
-    use primitives::{AssetId, Chain, testkit::signer_mock::TEST_SOLANA_SENDER};
+    use primitives::testkit::signer_mock::TEST_SOLANA_SENDER;
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -138,14 +101,8 @@ mod tests {
     async fn test_swap_requests() {
         let requests = Arc::new(AtomicUsize::new(0));
         let cpmm = SolanaDex::with_client(RaydiumCpmm, mock_rpc_client(mock_rpc_accounts(TEST_JUP_SOL_POOL), requests.clone()));
-        let sol = SwapperQuoteAsset {
-            decimals: 9,
-            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
-        };
-        let jup = SwapperQuoteAsset {
-            decimals: 6,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"))
-        };
+        let sol = mock_solana_asset(None, 9);
+        let jup = mock_solana_asset(Some("JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"), 6);
         let sol_to_jup = QuoteRequest {
             wallet_address: TEST_SOLANA_SENDER.to_string(),
             destination_address: TEST_SOLANA_SENDER.to_string(),

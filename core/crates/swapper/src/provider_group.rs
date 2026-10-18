@@ -40,14 +40,12 @@ impl Swapper for ProviderGroup {
     }
 
     fn supported_assets(&self) -> Vec<SwapperChainAsset> {
-        self.members.iter().flat_map(|(_, member)| member.supported_assets()).fold(vec![], |assets, asset| match assets.contains(&asset) {
-            true => assets,
-            false => [assets, vec![asset]].concat(),
-        })
+        let assets = self.members.iter().flat_map(|(_, member)| member.supported_assets()).collect::<Vec<_>>();
+        assets.iter().enumerate().filter(|(index, asset)| !assets[..*index].contains(asset)).map(|(_, asset)| asset.clone()).collect()
     }
 
     fn amount_mode(&self, request: &QuoteRequest) -> SwapAmountMode {
-        self.members.first().map_or(SwapAmountMode::Fixed, |(_, member)| member.amount_mode(request))
+        self.members_for(request.from_asset.asset_id().chain).next().map_or(SwapAmountMode::Fixed, |(_, member)| member.amount_mode(request))
     }
 
     async fn preload_routes(&self, from_asset: &AssetId, to_asset: &AssetId) {
@@ -69,7 +67,7 @@ impl Swapper for ProviderGroup {
                 },
                 ..quote.clone()
             }),
-            None => Err(results.into_iter().filter_map(Result::err).find(|error| *error != SwapperError::NoQuoteAvailable).unwrap_or(SwapperError::NoQuoteAvailable)),
+            None => Err(SwapperError::combined(results.into_iter().filter_map(Result::err).collect())),
         }
     }
 
@@ -150,11 +148,11 @@ mod tests {
 
         assert_eq!(group.supported_assets(), vec![SwapperChainAsset::All(Chain::Ethereum), SwapperChainAsset::All(Chain::Solana)]);
         assert_eq!(group.get_quote(&QuoteRequest::mock(Chain::Ethereum, None)).await.unwrap().data.provider.protocol_id, "uniswap_v3");
-        assert_eq!(group.get_quote(&QuoteRequest::mock(Chain::Solana, None)).await, Err(SwapperError::NotSupportedChain));
+        assert_eq!(group.get_quote(&QuoteRequest::mock(Chain::Solana, None)).await, Err(SwapperError::NoQuoteAvailable));
     }
 
     #[tokio::test]
-    async fn test_group_reports_the_most_specific_error() {
+    async fn test_group_reports_errors_like_the_swapper() {
         let request = QuoteRequest::mock(Chain::Ethereum, None);
         let none = || MockSwapper::new(SwapperProvider::Orca, |_| Err(SwapperError::NoQuoteAvailable));
         let minimum = MockSwapper::new(SwapperProvider::Orca, |_| Err(SwapperError::InputAmountError { min_amount: Some("10".into()) }));

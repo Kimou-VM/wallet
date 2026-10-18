@@ -143,7 +143,7 @@ mod swap_integration_tests {
 
     #[tokio::test]
     async fn test_dedust_quotes_and_quote_data() -> Result<(), SwapperError> {
-        let provider = Dedust::new(dynode_provider(Chain::Ton)).unwrap();
+        let provider = Dedust::new(dynode_provider([Chain::Ton])).unwrap();
         for (from, to, value) in [(ton(), usdt(), 1_000_000_000u64), (usdt(), ton(), 5_000_000), (usdt(), not(), 5_000_000)] {
             let quote = provider.get_quote(&mock_request(from, to, value)).await?;
             let data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;

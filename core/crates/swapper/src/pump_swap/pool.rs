@@ -6,6 +6,7 @@ use std::iter::repeat;
 use super::fee_config::{FeeConfig, Fees};
 use crate::{
     SwapperError,
+    clmm::constant_product_output,
     solana_dex::{DexPool, USDC_MINT},
 };
 
@@ -93,14 +94,14 @@ impl Pool {
 impl Reserves {
     pub fn sell(&self, base_in: u64, fees: &Fees) -> Option<u64> {
         let base_in = u128::from(base_in);
-        let quote_out = self.quote.checked_mul(base_in)?.checked_div(self.base.checked_add(base_in)?)?;
+        let quote_out = constant_product_output(self.base, self.quote, base_in)?;
         let without_lp_fee = quote_out.checked_sub(fees.lp_fee(quote_out)).filter(|value| *value <= self.real_quote)?;
         u64::try_from(without_lp_fee.checked_sub(fees.protocol_and_creator_fees(quote_out))?).ok()
     }
 
     pub fn buy(&self, quote_in: u64, fees: &Fees) -> Option<u64> {
         let input = fees.quote_after_fees(u128::from(quote_in))?.checked_sub(1)?;
-        u64::try_from(self.base.checked_mul(input)?.checked_div(self.quote.checked_add(input)?)?).ok()
+        u64::try_from(constant_product_output(self.quote, self.base, input)?).ok()
     }
 }
 

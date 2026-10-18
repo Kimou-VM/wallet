@@ -1,12 +1,16 @@
 use borsh::BorshDeserialize;
-use gem_solana::{Pubkey, anchor::AnchorAccount};
+use gem_solana::{Pubkey, SolanaDataSlice, anchor::AnchorAccount};
 
-use crate::{clmm::fee_amount, solana_dex::DexPool};
+use crate::{
+    clmm::{constant_product_output, fee_amount},
+    solana_dex::{DexPool, PoolLayout},
+};
 
-pub(super) const POOL_ACCOUNT_LEN: u64 = 637;
-pub(super) const TOKEN_0_MINT_OFFSET: usize = 168;
-pub(super) const TOKEN_1_MINT_OFFSET: usize = 200;
-pub(super) const LP_SUPPLY_OFFSET: usize = 333;
+pub(super) const LAYOUT: PoolLayout = PoolLayout {
+    account_len: 637,
+    mint_offsets: [168, 200],
+    depth: SolanaDataSlice { offset: 333, length: size_of::<u64>() },
+};
 const FEE_RATE_DENOMINATOR: u32 = 1_000_000;
 const SWAP_DISABLED: u8 = 1 << 2;
 const LOCKED_LP_SUPPLY: u64 = 100;
@@ -28,7 +32,9 @@ pub(crate) struct Pool {
     pub observation_key: Pubkey,
     _auth_bump: u8,
     status: u8,
-    _decimals: [u8; 3],
+    _lp_mint_decimals: u8,
+    _mint_0_decimals: u8,
+    _mint_1_decimals: u8,
     pub lp_supply: u64,
     protocol_fees_token_0: u64,
     protocol_fees_token_1: u64,
@@ -38,7 +44,7 @@ pub(crate) struct Pool {
     _recent_epoch: u64,
     creator_fee_on: u8,
     enable_creator_fee: u8,
-    _padding: [u8; 6],
+    _padding1: [u8; 6],
     creator_fees_token_0: u64,
     creator_fees_token_1: u64,
 }
@@ -98,7 +104,7 @@ impl Pool {
             trade_fee_rate
         };
         let swap_in = u128::from(amount_in.checked_sub(fee_amount(amount_in, input_fee_rate, FEE_RATE_DENOMINATOR))?);
-        let swapped = u64::try_from((swap_in * u128::from(reserve_out)).checked_div(u128::from(reserve_in) + swap_in)?).ok()?;
+        let swapped = u64::try_from(constant_product_output(u128::from(reserve_in), u128::from(reserve_out), swap_in)?).ok()?;
         let output = if creator_fee_on_input {
             swapped
         } else {
@@ -127,10 +133,10 @@ mod tests {
         let at = |offset: usize, len: usize| &data[offset..offset + len];
         let config = config(&snapshot);
 
-        assert_eq!(u64::try_from(data.len()).unwrap(), POOL_ACCOUNT_LEN);
-        assert_eq!(at(TOKEN_0_MINT_OFFSET, 32), Pubkey::from_base58(TEST_JUP_MINT).unwrap().as_bytes());
-        assert_eq!(at(TOKEN_1_MINT_OFFSET, 32), wrapped_sol_mint().as_bytes());
-        assert_eq!(at(LP_SUPPLY_OFFSET, 8), snapshot.pool.lp_supply.to_le_bytes());
+        assert_eq!(u64::try_from(data.len()).unwrap(), LAYOUT.account_len);
+        assert_eq!(at(LAYOUT.mint_offsets[0], 32), Pubkey::from_base58(TEST_JUP_MINT).unwrap().as_bytes());
+        assert_eq!(at(LAYOUT.mint_offsets[1], 32), wrapped_sol_mint().as_bytes());
+        assert_eq!(at(LAYOUT.depth.offset, LAYOUT.depth.length), snapshot.pool.lp_supply.to_le_bytes());
         assert_eq!((config.trade_fee_rate, config.creator_fee_rate), (2_500, 500));
     }
 

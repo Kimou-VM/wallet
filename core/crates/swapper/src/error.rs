@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use gem_client::ClientError;
 use gem_jsonrpc::types::JsonRpcError;
+use num_bigint::BigInt;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::alien::AlienError;
@@ -54,6 +55,24 @@ impl SwapperError {
 
     pub fn transaction_error(error: impl std::fmt::Display) -> Self {
         Self::TransactionError(error.to_string())
+    }
+
+    pub(crate) fn combined(errors: Vec<SwapperError>) -> Self {
+        if !errors.is_empty() && errors.iter().all(|error| *error == SwapperError::Offline) {
+            return SwapperError::Offline;
+        }
+        let min_amounts = errors
+            .into_iter()
+            .filter_map(|error| match error {
+                SwapperError::InputAmountError { min_amount } => Some(min_amount.and_then(|amount| amount.parse::<BigInt>().ok())),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if min_amounts.is_empty() {
+            return SwapperError::NoQuoteAvailable;
+        }
+        let min_amount = min_amounts.into_iter().collect::<Option<Vec<BigInt>>>().and_then(|amounts| amounts.into_iter().min()).map(|amount| amount.to_string());
+        SwapperError::InputAmountError { min_amount }
     }
 }
 

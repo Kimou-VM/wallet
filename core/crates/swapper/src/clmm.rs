@@ -277,6 +277,10 @@ pub(crate) fn swap_step(remaining: u64, fee_rate: u32, liquidity: u128, sqrt_pri
     })
 }
 
+pub(crate) fn constant_product_output(reserve_in: u128, reserve_out: u128, amount_in: u128) -> Option<u128> {
+    reserve_out.checked_mul(amount_in)?.checked_div(reserve_in.checked_add(amount_in)?)
+}
+
 pub(crate) fn fee_amount(amount: u64, fee_rate: u32, denominator: u32) -> u64 {
     u64::try_from((u128::from(amount) * u128::from(fee_rate)).div_ceil(u128::from(denominator))).unwrap_or_default()
 }

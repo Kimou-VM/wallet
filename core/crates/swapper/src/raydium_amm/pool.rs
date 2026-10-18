@@ -1,40 +1,82 @@
 use borsh::BorshDeserialize;
-use gem_solana::Pubkey;
+use gem_solana::{Pubkey, SolanaDataSlice};
 
-use crate::{SwapperError, solana_dex::DexPool};
+use crate::{
+    SwapperError,
+    clmm::{constant_product_output, fee_amount},
+    solana_dex::{DexPool, PoolLayout},
+};
 
-pub(super) const POOL_ACCOUNT_LEN: u64 = 752;
-pub(super) const COIN_MINT_OFFSET: usize = 400;
-pub(super) const PC_MINT_OFFSET: usize = 432;
-pub(super) const LP_AMOUNT_OFFSET: usize = 720;
+pub(super) const LAYOUT: PoolLayout = PoolLayout {
+    account_len: 752,
+    mint_offsets: [400, 432],
+    depth: SolanaDataSlice { offset: 720, length: size_of::<u64>() },
+};
 const SWAP_STATUSES: [u64; 3] = [1, 6, 7];
 const WAITING_TRADE: u64 = 7;
 pub(super) const AUTHORITY_NONCE: u64 = 254;
 
 #[derive(Debug, Clone, PartialEq, BorshDeserialize)]
+struct Fees {
+    _min_separate_numerator: u64,
+    _min_separate_denominator: u64,
+    _trade_fee_numerator: u64,
+    _trade_fee_denominator: u64,
+    _pnl_numerator: u64,
+    _pnl_denominator: u64,
+    swap_fee_numerator: u64,
+    swap_fee_denominator: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, BorshDeserialize)]
+struct StateData {
+    need_take_pnl_coin: u64,
+    need_take_pnl_pc: u64,
+    _total_pnl_pc: u64,
+    _total_pnl_coin: u64,
+    pool_open_time: u64,
+    _padding: [u64; 2],
+    _orderbook_to_init_time: u64,
+    _swap_coin_in_amount: u128,
+    _swap_pc_out_amount: u128,
+    _swap_acc_pc_fee: u64,
+    _swap_pc_in_amount: u128,
+    _swap_coin_out_amount: u128,
+    _swap_acc_coin_fee: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, BorshDeserialize)]
 pub(crate) struct Pool {
     status: u64,
     nonce: u64,
-    _order_book_settings: [u64; 14],
-    _order_book_fees: [u64; 6],
-    swap_fee_numerator: u64,
-    swap_fee_denominator: u64,
-    need_take_pnl_coin: u64,
-    need_take_pnl_pc: u64,
-    _total_pnl: [u64; 2],
-    pool_open_time: u64,
-    _deprecated_state: [u8; 104],
+    _order_num: u64,
+    _depth: u64,
+    _coin_decimals: u64,
+    _pc_decimals: u64,
+    _state: u64,
+    _reset_flag: u64,
+    _min_size: u64,
+    _vol_max_cut_ratio: u64,
+    _amount_wave: u64,
+    _coin_lot_size: u64,
+    _pc_lot_size: u64,
+    _min_price_multiplier: u64,
+    _max_price_multiplier: u64,
+    _sys_decimal_value: u64,
+    fees: Fees,
+    state_data: StateData,
     pub coin_vault: Pubkey,
     pub pc_vault: Pubkey,
     pub coin_mint: Pubkey,
     pub pc_mint: Pubkey,
     _lp_mint: Pubkey,
-    _order_book_accounts: [Pubkey; 4],
-    _padding: [u64; 8],
+    _open_orders: Pubkey,
+    _market: Pubkey,
+    _market_program: Pubkey,
+    _target_orders: Pubkey,
+    _padding1: [u64; 8],
     _amm_owner: Pubkey,
     pub lp_amount: u64,
-    _client_order_id: u64,
-    _recent_epoch_and_padding: [u64; 2],
 }
 
 impl DexPool for Pool {
@@ -49,22 +91,20 @@ impl DexPool for Pool {
 
 impl Pool {
     pub fn decode(data: &[u8]) -> Result<Self, SwapperError> {
-        Self::try_from_slice(data).map_err(SwapperError::compute_quote_error)
+        Self::deserialize(&mut &data[..]).map_err(SwapperError::compute_quote_error)
     }
 
     pub fn is_tradable(&self, timestamp: u64) -> bool {
-        SWAP_STATUSES.contains(&self.status) && (self.status != WAITING_TRADE || timestamp >= self.pool_open_time) && self.coin_mint != self.pc_mint && self.lp_amount > 0 && self.nonce == AUTHORITY_NONCE
+        SWAP_STATUSES.contains(&self.status) && (self.status != WAITING_TRADE || timestamp >= self.state_data.pool_open_time) && self.coin_mint != self.pc_mint && self.lp_amount > 0 && self.nonce == AUTHORITY_NONCE
     }
 
     pub fn quote(&self, coin_to_pc: bool, amount_in: u64, coin_vault: u64, pc_vault: u64) -> Option<u64> {
-        let coin = u128::from(coin_vault.checked_sub(self.need_take_pnl_coin)?);
-        let pc = u128::from(pc_vault.checked_sub(self.need_take_pnl_pc)?);
+        let coin = u128::from(coin_vault.checked_sub(self.state_data.need_take_pnl_coin)?);
+        let pc = u128::from(pc_vault.checked_sub(self.state_data.need_take_pnl_pc)?);
         let (reserve_in, reserve_out) = if coin_to_pc { (coin, pc) } else { (pc, coin) };
-        let amount_in = u128::from(amount_in);
-        let denominator = u128::from(self.swap_fee_denominator);
-        let fee = (amount_in * u128::from(self.swap_fee_numerator)).checked_add(denominator.checked_sub(1)?)?.checked_div(denominator)?;
-        let swap_in = amount_in.checked_sub(fee)?;
-        let output = (reserve_out * swap_in).checked_div(reserve_in.checked_add(swap_in)?)?;
+        let denominator = u32::try_from(self.fees.swap_fee_denominator).ok().filter(|denominator| *denominator > 0)?;
+        let fee = fee_amount(amount_in, u32::try_from(self.fees.swap_fee_numerator).ok()?, denominator);
+        let output = constant_product_output(reserve_in, reserve_out, u128::from(amount_in.checked_sub(fee)?))?;
         u64::try_from(output).ok().filter(|output| *output > 0 && u128::from(*output) < reserve_out)
     }
 }
@@ -81,12 +121,12 @@ mod tests {
         let data = snapshot.accounts[&snapshot.address].as_ref().unwrap();
         let at = |offset: usize, len: usize| &data[offset..offset + len];
 
-        assert_eq!(u64::try_from(data.len()).unwrap(), POOL_ACCOUNT_LEN);
-        assert_eq!(at(COIN_MINT_OFFSET, 32), wrapped_sol_mint().as_bytes());
-        assert_eq!(at(PC_MINT_OFFSET, 32), Pubkey::from_base58(USDC_TOKEN_MINT).unwrap().as_bytes());
-        assert_eq!(at(LP_AMOUNT_OFFSET, 8), snapshot.pool.lp_amount.to_le_bytes());
+        assert_eq!(u64::try_from(data.len()).unwrap(), LAYOUT.account_len);
+        assert_eq!(at(LAYOUT.mint_offsets[0], 32), wrapped_sol_mint().as_bytes());
+        assert_eq!(at(LAYOUT.mint_offsets[1], 32), Pubkey::from_base58(USDC_TOKEN_MINT).unwrap().as_bytes());
+        assert_eq!(at(LAYOUT.depth.offset, LAYOUT.depth.length), snapshot.pool.lp_amount.to_le_bytes());
         assert_eq!(
-            (snapshot.pool.status, snapshot.pool.nonce, snapshot.pool.swap_fee_numerator, snapshot.pool.swap_fee_denominator),
+            (snapshot.pool.status, snapshot.pool.nonce, snapshot.pool.fees.swap_fee_numerator, snapshot.pool.fees.swap_fee_denominator),
             (6, AUTHORITY_NONCE, 25, 10_000)
         );
     }
@@ -106,14 +146,38 @@ mod tests {
         assert_eq!(quote(false, 1_000_000), Some(9_646_791));
         assert_eq!(pool.quote(true, 220_644_943, 105_543_926_999_285, 10_916_154_684_359), Some(22_763_676));
         assert_eq!(quote(true, 0), None);
-        assert_eq!(Pool { need_take_pnl_pc: pc + 1, ..pool.clone() }.quote(true, 1_000_000_000, coin, pc), None);
-        assert_eq!(Pool { swap_fee_denominator: 0, ..pool }.quote(true, 1_000_000_000, coin, pc), None);
+        assert_eq!(
+            Pool {
+                state_data: StateData {
+                    need_take_pnl_pc: pc + 1,
+                    ..pool.state_data.clone()
+                },
+                ..pool.clone()
+            }
+            .quote(true, 1_000_000_000, coin, pc),
+            None
+        );
+        assert_eq!(
+            Pool {
+                fees: Fees {
+                    swap_fee_denominator: 0,
+                    ..pool.fees.clone()
+                },
+                ..pool
+            }
+            .quote(true, 1_000_000_000, coin, pc),
+            None
+        );
     }
 
     #[test]
     fn test_is_tradable() {
         let pool = mock_pool_snapshot(TEST_SOL_USDC_POOL).pool;
-        let opens_at = |status: u64, pool_open_time: u64| Pool { status, pool_open_time, ..pool.clone() };
+        let opens_at = |status: u64, pool_open_time: u64| Pool {
+            status,
+            state_data: StateData { pool_open_time, ..pool.state_data.clone() },
+            ..pool.clone()
+        };
 
         assert!(pool.is_tradable(0));
         assert!(opens_at(1, 0).is_tradable(0));

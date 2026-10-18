@@ -9,7 +9,7 @@ use super::{
 use crate::{
     SwapperError, SwapperProvider,
     clmm::{StaticFee, quote_exact_in},
-    solana_dex::{DexPool, DexProtocol, PoolSwap, QuoteAccount, SwapToken},
+    solana_dex::{DexPool, DexProtocol, INTERMEDIATE_TOKENS, PoolSwap, QuoteAccount, SwapToken},
 };
 
 pub(crate) struct Orca;
@@ -19,7 +19,6 @@ impl DexProtocol for Orca {
 
     const PROVIDER: SwapperProvider = SwapperProvider::Orca;
     const PROGRAM_ID: Pubkey = orca_whirlpool_program();
-    const INTERMEDIATE_TOKEN_ACCOUNT: bool = false;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         Whirlpool::addresses(input_mint, output_mint)
@@ -33,8 +32,8 @@ impl DexProtocol for Orca {
         pool.liquidity
     }
 
-    fn constant_accounts(&self, _pool: &Whirlpool) -> Vec<Pubkey> {
-        vec![]
+    fn intermediate_tokens(&self) -> &'static [SwapToken] {
+        &INTERMEDIATE_TOKENS
     }
 
     fn quote_accounts(&self, address: &Pubkey, pool: &Whirlpool, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
@@ -75,32 +74,22 @@ mod swap_integration_tests {
     use crate::{
         SwapperQuoteAsset,
         orca::testkit::TEST_PUMP_MINT,
-        solana_dex::testkit::{TEST_FUNDED_WALLET, assert_swaps_simulate},
+        solana_dex::testkit::{TEST_FUNDED_WALLET, assert_swaps_simulate, mock_solana_asset},
     };
     use gem_solana::USDC_TOKEN_MINT;
-    use primitives::{AssetId, AssetType, Chain};
+    use primitives::AssetType;
 
     const TEST_JUP_MINT: &str = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
 
     #[tokio::test]
     async fn test_orca_swap_simulates() -> Result<(), SwapperError> {
-        let sol = SwapperQuoteAsset {
-            decimals: 9,
-            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
-        };
-        let usdc = SwapperQuoteAsset {
-            decimals: 6,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
-        };
+        let sol = mock_solana_asset(None, 9);
+        let usdc = mock_solana_asset(Some(USDC_TOKEN_MINT), 6);
         let pump = SwapperQuoteAsset {
-            decimals: 6,
             asset_type: AssetType::SPL2022,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_PUMP_MINT))
+            ..mock_solana_asset(Some(TEST_PUMP_MINT), 6)
         };
-        let jup = SwapperQuoteAsset {
-            decimals: 6,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_JUP_MINT))
-        };
+        let jup = mock_solana_asset(Some(TEST_JUP_MINT), 6);
 
         assert_swaps_simulate(
             Orca,
@@ -123,14 +112,14 @@ mod tests {
         orca::testkit::{TEST_AQUA_MINT, TEST_PUMP_MINT, TEST_PUMP_SNAPSHOT, TEST_PUMP_WHIRLPOOL, TEST_TOKEN_2022_SNAPSHOT, TEST_WHIRLPOOL, mock_adaptive_snapshot, mock_snapshot_rpc_accounts, mock_tick_array_accounts},
         solana_dex::{
             SolanaDex,
-            testkit::{mock_rpc_accounts, mock_rpc_client},
+            testkit::{mock_rpc_accounts, mock_rpc_client, mock_solana_asset},
         },
         testkit::mock_quote,
     };
     use gem_encoding::{decode_base64, encode_base64};
     use gem_solana::{USDC_TOKEN_MINT, USDT_TOKEN_MINT};
     use num_bigint::BigUint;
-    use primitives::{AssetId, AssetType, Chain, testkit::signer_mock::TEST_SOLANA_SENDER};
+    use primitives::{AssetType, testkit::signer_mock::TEST_SOLANA_SENDER};
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -141,17 +130,7 @@ mod tests {
             wallet_address: TEST_SOLANA_SENDER.to_string(),
             destination_address: TEST_SOLANA_SENDER.to_string(),
             value: BigUint::from(value),
-            ..mock_quote(
-                SwapperQuoteAsset {
-                    decimals: 9,
-                    ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
-                },
-                SwapperQuoteAsset {
-                    decimals: 6,
-                    asset_type: AssetType::SPL,
-                    ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
-                },
-            )
+            ..mock_quote(mock_solana_asset(None, 9), mock_solana_asset(Some(USDC_TOKEN_MINT), 6))
         }
     }
 
@@ -169,11 +148,7 @@ mod tests {
         assert_eq!(requests.load(Ordering::SeqCst), 3);
 
         let unsupported = QuoteRequest {
-            to_asset: SwapperQuoteAsset {
-                decimals: 6,
-                asset_type: AssetType::SPL,
-                ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDT_TOKEN_MINT))
-            },
+            to_asset: mock_solana_asset(Some(USDT_TOKEN_MINT), 6),
             ..request.clone()
         };
         assert_eq!(orca.get_quote(&unsupported).await, Err(SwapperError::NoQuoteAvailable));
@@ -242,14 +217,10 @@ mod tests {
         let fee_mint = mock_rpc_accounts(TEST_TOKEN_2022_SNAPSHOT)[TEST_AQUA_MINT].clone();
         let accounts = mock_snapshot_rpc_accounts().into_iter().chain([(USDC_TOKEN_MINT.to_string(), fee_mint)]).collect();
         let orca = SolanaDex::with_client(Orca, mock_rpc_client(accounts, Arc::default()));
-        let sol = SwapperQuoteAsset {
-            decimals: 9,
-            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
-        };
+        let sol = mock_solana_asset(None, 9);
         let aqua = SwapperQuoteAsset {
-            decimals: 6,
             asset_type: AssetType::SPL2022,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
+            ..mock_solana_asset(Some(USDC_TOKEN_MINT), 6)
         };
         let request = |from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset| QuoteRequest {
             wallet_address: TEST_SOLANA_SENDER.to_string(),
@@ -274,15 +245,10 @@ mod tests {
             destination_address: TEST_SOLANA_SENDER.to_string(),
             value: BigUint::from(100_000_000u64),
             ..mock_quote(
+                mock_solana_asset(Some(USDC_TOKEN_MINT), 6),
                 SwapperQuoteAsset {
-                    decimals: 6,
-                    asset_type: AssetType::SPL,
-                    ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
-                },
-                SwapperQuoteAsset {
-                    decimals: 6,
                     asset_type: AssetType::SPL2022,
-                    ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_PUMP_MINT))
+                    ..mock_solana_asset(Some(TEST_PUMP_MINT), 6)
                 },
             )
         };

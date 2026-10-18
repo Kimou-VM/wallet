@@ -7,7 +7,7 @@ use gem_solana::{
     instructions::program_ids::{sysvar_clock, token_program},
     models::Clock,
 };
-use primitives::swap::SOLANA_REFERRAL_ADDRESS;
+use primitives::{AssetId, Chain, swap::SOLANA_REFERRAL_ADDRESS};
 use serde_json::{Value, json};
 use std::{
     collections::HashMap,
@@ -22,7 +22,17 @@ use super::{
     token::SwapToken,
     transaction::DexTransaction,
 };
-use crate::fees::{FeeSide, ReferralTransfer};
+use crate::{
+    SwapperQuoteAsset,
+    fees::{FeeSide, ReferralTransfer},
+};
+
+pub(crate) fn mock_solana_asset(token_id: Option<&str>, decimals: u32) -> SwapperQuoteAsset {
+    SwapperQuoteAsset {
+        decimals,
+        ..SwapperQuoteAsset::from(AssetId::from(Chain::Solana, token_id.map(str::to_string)))
+    }
+}
 
 pub(crate) const TEST_AUTHORITY: &str = "7g2rVN8fAAQdPh1mkajpvELqYa3gWvFXJsBLnKfEQfqy";
 pub(crate) const TEST_FUNDED_WALLET: &str = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
@@ -30,13 +40,12 @@ pub(crate) const TEST_TOS_MINT: &str = "HmjCoarLh5duURfJ333DwfFiPyTCgFT35pRSAoP8
 pub(crate) const TEST_TOS_HOLDER: &str = "2keyaLG5fUBEGFAboUZ7LajhpGygXSxKJBovHyTbJ9KB";
 
 #[cfg(feature = "swap_integration_tests")]
-pub(crate) async fn assert_swaps_simulate<P: DexProtocol>(protocol: P, swaps: Vec<(crate::SwapperQuoteAsset, crate::SwapperQuoteAsset, u64, &str)>) -> Result<(), crate::SwapperError> {
-    use crate::{FetchQuoteData, NativeProvider, QuoteRequest, Swapper, client_factory::create_client_with_chain, models::Options, solana_dex::SolanaDex};
+pub(crate) async fn assert_swaps_simulate<P: DexProtocol>(protocol: P, swaps: Vec<(SwapperQuoteAsset, SwapperQuoteAsset, u64, &str)>) -> Result<(), crate::SwapperError> {
+    use crate::{FetchQuoteData, QuoteRequest, Swapper, client_factory::create_client_with_chain, models::Options, solana_dex::SolanaDex};
     use gem_solana::SolanaClient;
     use num_bigint::BigUint;
-    use primitives::Chain;
 
-    let rpc_provider = Arc::new(NativeProvider::default());
+    let rpc_provider = crate::testkit::dynode_provider([Chain::Solana]);
     let dex = SolanaDex::new(protocol, rpc_provider.clone()).unwrap();
     let client = SolanaClient::new(create_client_with_chain(rpc_provider, Chain::Solana)?);
     for (from_asset, to_asset, value, wallet) in swaps {

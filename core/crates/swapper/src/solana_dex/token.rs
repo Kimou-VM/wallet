@@ -57,15 +57,13 @@ pub(crate) fn decode_mint(data: Option<Vec<u8>>) -> Result<Mint, SwapperError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::solana_dex::testkit::mock_solana_asset;
     use gem_solana::{USDC_TOKEN_MINT, instructions::program_ids::token_2022_program};
     use primitives::{AssetId, AssetType, Chain};
 
     #[test]
     fn test_from_asset() {
-        let usdc = SwapperQuoteAsset {
-            decimals: 6,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
-        };
+        let usdc = mock_solana_asset(Some(USDC_TOKEN_MINT), 6);
         let sol = SwapToken::from_asset(&SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))).unwrap();
 
         assert_eq!((sol.mint, sol.token_program, sol.is_native), (wrapped_sol_mint(), token_program(), true));

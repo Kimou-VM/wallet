@@ -1,18 +1,18 @@
 use borsh::BorshDeserialize;
 use gem_solana::{
-    Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter,
+    Instruction, Pubkey,
     anchor::AnchorAccount,
     instructions::program_ids::{meteora_damm_v2_program, sysvar_clock, sysvar_program},
     models::Clock,
 };
 
 use super::{
-    pool::{LIQUIDITY_OFFSET, POOL_ACCOUNT_LEN, Pool, TOKEN_A_MINT_OFFSET, TOKEN_B_MINT_OFFSET},
+    pool::{LAYOUT, Pool},
     swap::swap_instruction,
 };
 use crate::{
     SwapperError, SwapperProvider,
-    solana_dex::{DexPool, DexProtocol, PoolQuery, PoolSwap, QuoteAccount, SwapToken},
+    solana_dex::{DexPool, DexProtocol, PoolQuery, PoolSwap, QuoteAccount},
 };
 
 pub(crate) struct MeteoraDammV2;
@@ -22,11 +22,6 @@ impl DexProtocol for MeteoraDammV2 {
 
     const PROVIDER: SwapperProvider = SwapperProvider::MeteoraDammV2;
     const PROGRAM_ID: Pubkey = meteora_damm_v2_program();
-    const INTERMEDIATE_TOKEN_ACCOUNT: bool = false;
-
-    fn pool_addresses(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
-        Ok(vec![])
-    }
 
     fn decode_pool(&self, data: &[u8]) -> Result<Pool, SwapperError> {
         Ok(Pool::decode(data)?)
@@ -36,42 +31,12 @@ impl DexProtocol for MeteoraDammV2 {
         pool.liquidity
     }
 
-    fn constant_accounts(&self, _pool: &Pool) -> Vec<Pubkey> {
-        vec![]
-    }
-
     fn is_tradable(&self, pool: &Pool, _timestamp: u64) -> bool {
         pool.is_tradable()
     }
 
-    fn intermediate_tokens(&self) -> &'static [SwapToken] {
-        &[]
-    }
-
     fn pool_query(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Option<PoolQuery> {
-        let filters = [(input_mint, output_mint), (output_mint, input_mint)]
-            .into_iter()
-            .map(|(mint_a, mint_b)| {
-                vec![
-                    SolanaProgramAccountsFilter::DataSize(POOL_ACCOUNT_LEN),
-                    SolanaProgramAccountsFilter::Memcmp {
-                        offset: TOKEN_A_MINT_OFFSET,
-                        bytes: mint_a.to_base58(),
-                    },
-                    SolanaProgramAccountsFilter::Memcmp {
-                        offset: TOKEN_B_MINT_OFFSET,
-                        bytes: mint_b.to_base58(),
-                    },
-                ]
-            })
-            .collect();
-        Some(PoolQuery {
-            filters,
-            depth: SolanaDataSlice {
-                offset: LIQUIDITY_OFFSET,
-                length: size_of::<u128>(),
-            },
-        })
+        Some(LAYOUT.query(input_mint, output_mint))
     }
 
     fn quote_accounts(&self, _address: &Pubkey, _pool: &Pool, _input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
@@ -98,23 +63,12 @@ impl DexProtocol for MeteoraDammV2 {
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
-    use crate::{
-        SwapperQuoteAsset,
-        solana_dex::testkit::{TEST_FUNDED_WALLET, TEST_TOS_HOLDER, TEST_TOS_MINT, assert_swaps_simulate},
-    };
-    use primitives::{AssetId, AssetType, Chain};
+    use crate::solana_dex::testkit::{TEST_FUNDED_WALLET, TEST_TOS_HOLDER, TEST_TOS_MINT, assert_swaps_simulate, mock_solana_asset};
 
     #[tokio::test]
     async fn test_meteora_damm_v2_simulates() -> Result<(), SwapperError> {
-        let sol = SwapperQuoteAsset {
-            decimals: 9,
-            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
-        };
-        let tos = SwapperQuoteAsset {
-            decimals: 6,
-            asset_type: AssetType::SPL,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_TOS_MINT))
-        };
+        let sol = mock_solana_asset(None, 9);
+        let tos = mock_solana_asset(Some(TEST_TOS_MINT), 6);
 
         assert_swaps_simulate(MeteoraDammV2, vec![(tos.clone(), sol.clone(), 326_754_966, TEST_TOS_HOLDER), (sol, tos, 10_000_000, TEST_FUNDED_WALLET)]).await
     }
@@ -124,16 +78,16 @@ mod swap_integration_tests {
 mod tests {
     use super::*;
     use crate::{
-        FetchQuoteData, QuoteRequest, Swapper, SwapperQuoteAsset,
+        FetchQuoteData, QuoteRequest, Swapper,
         meteora_damm_v2::testkit::{TEST_BOTH_TOKEN_POOL, TEST_COMPOUNDING_POOL, TEST_MARKET_CAP_SCHEDULER_POOL, TEST_TIME_SCHEDULER_POOL, mock_pool_snapshot},
         solana_dex::{
             SolanaDex,
-            testkit::{TEST_TOS_MINT, mock_rpc_accounts, mock_rpc_client},
+            testkit::{TEST_TOS_MINT, mock_rpc_accounts, mock_rpc_client, mock_solana_asset},
         },
         testkit::mock_quote,
     };
     use num_bigint::BigUint;
-    use primitives::{AssetId, Chain, testkit::signer_mock::TEST_SOLANA_SENDER};
+    use primitives::testkit::signer_mock::TEST_SOLANA_SENDER;
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -162,14 +116,8 @@ mod tests {
         let requests = Arc::new(AtomicUsize::new(0));
         let accounts = [TEST_BOTH_TOKEN_POOL, TEST_COMPOUNDING_POOL].into_iter().flat_map(mock_rpc_accounts).collect();
         let damm = SolanaDex::with_client(MeteoraDammV2, mock_rpc_client(accounts, requests.clone()));
-        let sol = SwapperQuoteAsset {
-            decimals: 9,
-            ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
-        };
-        let tos = SwapperQuoteAsset {
-            decimals: 6,
-            ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_TOS_MINT))
-        };
+        let sol = mock_solana_asset(None, 9);
+        let tos = mock_solana_asset(Some(TEST_TOS_MINT), 6);
         let tos_to_sol = QuoteRequest {
             wallet_address: TEST_SOLANA_SENDER.to_string(),
             destination_address: TEST_SOLANA_SENDER.to_string(),
@@ -194,7 +142,7 @@ mod tests {
         assert_eq!(requests.load(Ordering::SeqCst), 5);
 
         let sol_to_usdc = QuoteRequest {
-            to_asset: SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, gem_solana::USDC_TOKEN_MINT)),
+            to_asset: mock_solana_asset(Some(gem_solana::USDC_TOKEN_MINT), 6),
             ..sol_to_tos
         };
         assert_eq!(damm.get_quote(&sol_to_usdc).await, Err(SwapperError::NoQuoteAvailable));

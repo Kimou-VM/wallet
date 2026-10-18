@@ -782,7 +782,7 @@ mod swap_integration_tests {
     use primitives::{AssetId, asset_constants::TON_USDT_ASSET_ID, testkit::signer_mock::TEST_TON_SENDER};
 
     fn dynode_stonfi() -> Stonfi<RpcClient> {
-        Stonfi::new(dynode_provider(Chain::Ton)).unwrap()
+        Stonfi::new(dynode_provider([Chain::Ton])).unwrap()
     }
 
     #[tokio::test]

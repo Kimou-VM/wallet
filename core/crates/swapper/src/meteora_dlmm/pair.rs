@@ -1,18 +1,25 @@
 use borsh::BorshDeserialize;
 use gem_solana::{
-    Pubkey,
+    Pubkey, SolanaDataSlice,
     anchor::AnchorAccount,
     instructions::program_ids::{token_2022_program, token_program},
     models::Clock,
 };
 
 use super::bin::{BinArray, array_index};
-use crate::solana_dex::DexPool;
+use crate::{
+    clmm::{accumulated_volatility, decayed_volatility, fee_amount},
+    solana_dex::{DexPool, PoolLayout},
+};
 
-pub(super) const PAIR_ACCOUNT_LEN: u64 = 904;
-pub(super) const TOKEN_X_MINT_OFFSET: usize = 88;
-pub(super) const TOKEN_Y_MINT_OFFSET: usize = 120;
-pub(super) const RESERVES_OFFSET: usize = 152;
+pub(super) const LAYOUT: PoolLayout = PoolLayout {
+    account_len: 904,
+    mint_offsets: [88, 120],
+    depth: SolanaDataSlice {
+        offset: 152,
+        length: 2 * size_of::<Pubkey>(),
+    },
+};
 const BITMAP_ARRAYS: i64 = 512;
 const ENABLED: u8 = 0;
 const PERMISSION: u8 = 1;
@@ -23,8 +30,7 @@ const LIQUIDITY_MINING: u8 = 1;
 const LIMIT_ORDER: u8 = 2;
 const FEE_ONLY_Y: u8 = 1;
 const TOKEN_2022: u8 = 1;
-const BASIS_POINT_MAX: u64 = 10_000;
-const FEE_PRECISION: u128 = 1_000_000_000;
+const FEE_PRECISION: u32 = 1_000_000_000;
 const MAX_FEE_RATE: u128 = 100_000_000;
 const VARIABLE_FEE_PRECISION: u128 = 100_000_000_000;
 
@@ -36,7 +42,8 @@ struct StaticParameters {
     reduction_factor: u16,
     variable_fee_control: u32,
     max_volatility_accumulator: u32,
-    _bin_id_range: [i32; 2],
+    _min_bin_id: i32,
+    _max_bin_id: i32,
     _protocol_share: u16,
     base_fee_power_factor: u8,
     function_type: u8,
@@ -57,26 +64,35 @@ struct VariableParameters {
 #[derive(Debug, Clone, PartialEq, BorshDeserialize)]
 struct RewardInfo {
     mint: Pubkey,
-    _state: [u8; 112],
+    _vault: Pubkey,
+    _funder: Pubkey,
+    _reward_duration: u64,
+    _reward_duration_end: u64,
+    _reward_rate: u128,
+    _last_update_time: u64,
+    _cumulative_seconds_with_empty_liquidity_reward: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, BorshDeserialize)]
 pub(crate) struct Pair {
     parameters: StaticParameters,
     v_parameters: VariableParameters,
-    _seeds: [u8; 3],
+    _bump_seed: [u8; 1],
+    _bin_step_seed: [u8; 2],
     pair_type: u8,
     pub active_id: i32,
     pub bin_step: u16,
     status: u8,
-    _base_factor_seeds: [u8; 3],
+    _require_base_factor_seed: u8,
+    _base_factor_seed: [u8; 2],
     activation_type: u8,
     _creator_pool_on_off_control: u8,
     pub token_x_mint: Pubkey,
     pub token_y_mint: Pubkey,
     pub reserve_x: Pubkey,
     pub reserve_y: Pubkey,
-    _protocol_fee: [u64; 2],
+    _protocol_fee_amount_x: u64,
+    _protocol_fee_amount_y: u64,
     _padding_1: [u8; 32],
     reward_infos: [RewardInfo; 2],
     pub oracle: Pubkey,
@@ -87,7 +103,8 @@ pub(crate) struct Pair {
     _base_key: Pubkey,
     activation_point: u64,
     _pre_activation_duration: u64,
-    _padding_3: [u8; 16],
+    _padding_3: [u8; 8],
+    _padding_4: u64,
     _creator: Pubkey,
     token_mint_x_program_flag: u8,
     token_mint_y_program_flag: u8,
@@ -177,23 +194,19 @@ impl Pair {
             };
         }
         let reference = match elapsed < i64::from(self.parameters.decay_period) {
-            true => u64::from(self.v_parameters.volatility_accumulator) * u64::from(self.parameters.reduction_factor) / BASIS_POINT_MAX,
+            true => decayed_volatility(self.v_parameters.volatility_accumulator, self.parameters.reduction_factor),
             false => 0,
         };
-        Volatility {
-            reference: u32::try_from(reference).unwrap_or(u32::MAX),
-            index_reference: self.active_id,
-        }
+        Volatility { reference, index_reference: self.active_id }
     }
 
-    fn fee_rate(&self, volatility: Volatility, bin_id: i32) -> Option<u128> {
+    fn fee_rate(&self, volatility: Volatility, bin_id: i32) -> Option<u32> {
         let parameters = &self.parameters;
-        let crossed = u64::from(volatility.index_reference.abs_diff(bin_id)) * BASIS_POINT_MAX;
-        let accumulator = (u64::from(volatility.reference) + crossed).min(u64::from(parameters.max_volatility_accumulator));
+        let accumulator = accumulated_volatility(volatility.reference, volatility.index_reference, bin_id, parameters.max_volatility_accumulator);
         let base_fee = u128::from(parameters.base_factor) * u128::from(self.bin_step) * 10 * 10u128.checked_pow(u32::from(parameters.base_fee_power_factor))?;
         let volatility_step = u128::from(accumulator) * u128::from(self.bin_step);
         let variable_fee = (u128::from(parameters.variable_fee_control) * volatility_step.checked_mul(volatility_step)?).div_ceil(VARIABLE_FEE_PRECISION);
-        Some((base_fee + variable_fee).min(MAX_FEE_RATE))
+        Some(u32::try_from((base_fee + variable_fee).min(MAX_FEE_RATE)).unwrap_or_default())
     }
 
     pub fn quote(&self, arrays: &[BinArray], swap_for_y: bool, amount_in: u64, clock: &Clock) -> Option<u64> {
@@ -211,24 +224,16 @@ impl Pair {
                 return Some((left, output));
             }
             let rate = self.fee_rate(volatility, bin_id)?;
-            let fee = if fee_on_input { fee_from_amount(left, rate) } else { 0 };
+            let fee = if fee_on_input { fee_amount(left, rate, FEE_PRECISION) } else { 0 };
             let (unfilled, filled) = bin.fill(left - fee, bin.price(bin_id, self.bin_step)?, swap_for_y, has_limit_orders)?;
             let used = match (unfilled, fee_on_input) {
                 (0, _) => left,
-                (unfilled, true) => (left - fee - unfilled).checked_add(fee_on_net(left - fee - unfilled, rate)?)?,
+                (unfilled, true) => (left - fee - unfilled) + fee_amount(left - fee - unfilled, rate, FEE_PRECISION - rate),
                 (unfilled, false) => left - unfilled,
             };
-            let received = if fee_on_input { filled } else { filled - fee_from_amount(filled, rate) };
+            let received = if fee_on_input { filled } else { filled - fee_amount(filled, rate, FEE_PRECISION) };
             Some((left.checked_sub(used)?, output.checked_add(received)?))
         })?;
         (left == 0 && output > 0).then_some(output)
     }
-}
-
-fn fee_from_amount(amount: u64, rate: u128) -> u64 {
-    u64::try_from((u128::from(amount) * rate).div_ceil(FEE_PRECISION)).unwrap_or_default()
-}
-
-fn fee_on_net(amount: u64, rate: u128) -> Option<u64> {
-    u64::try_from((u128::from(amount) * rate).div_ceil(FEE_PRECISION.checked_sub(rate)?)).ok()
 }
