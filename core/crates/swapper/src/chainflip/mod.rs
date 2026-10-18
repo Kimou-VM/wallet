@@ -1,6 +1,7 @@
 pub mod broker;
 pub mod chain;
 pub mod client;
+mod contracts;
 pub mod default;
 pub mod model;
 pub mod price;
