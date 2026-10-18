@@ -244,11 +244,7 @@ mod tests {
             metadata: None,
             eta_in_seconds: Some(120),
         });
-        let missing = in_transit_swap_update(SwapResult {
-            status: SwapStatus::Pending,
-            metadata: None,
-            eta_in_seconds: None,
-        });
+        let missing = in_transit_swap_update(SwapResult::pending());
         assert_eq!(completed.state, TransactionState::Confirmed);
         assert!(completed.changes.contains(&TransactionChange::Metadata(TransactionMetadata::Swap(metadata))));
         assert_eq!(pending.state, TransactionState::InTransit);

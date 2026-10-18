@@ -9,7 +9,7 @@ use super::{
 use crate::{
     SwapperError, SwapperProvider,
     clmm::{StaticFee, quote_exact_in},
-    solana_dex::{DexPool, DexProtocol, INTERMEDIATE_TOKENS, PoolSwap, QuoteAccount, SwapToken},
+    solana_dex::{DexPool, DexProtocol, INTERMEDIATE_TOKENS, PoolSwap, QuoteAccount, SwapToken, account_data},
 };
 
 pub(crate) struct RaydiumClmm;
@@ -53,7 +53,7 @@ impl DexProtocol for RaydiumClmm {
     fn quote(&self, address: &Pubkey, pool: &PoolState, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError> {
         let zero_for_one = pool.is_a_to_b(input_mint)?;
         let (config, tick_arrays) = accounts.split_first().ok_or(SwapperError::NoQuoteAvailable)?;
-        let config = AmmConfig::decode(config.as_ref().ok_or(SwapperError::NoQuoteAvailable)?)?;
+        let config = AmmConfig::decode(account_data(config)?)?;
         let ticks = swap_ticks(address, pool, zero_for_one, tick_arrays)?;
         let swap = pool.clmm_swap(zero_for_one);
         match pool.dynamic_fee()? {

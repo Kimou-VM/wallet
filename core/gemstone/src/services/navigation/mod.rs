@@ -8,6 +8,7 @@ use crate::services::assets::{GemAssetAction, GemAssetsService};
 use crate::services::balance::GemBalanceService;
 use crate::services::error::{GemServiceError, required_account};
 use crate::services::error_text::GemErrorText;
+use crate::services::fiat::rules::quote_action;
 use crate::services::preferences::GemPreferencesService;
 use crate::services::push_notification::GemPushNotification;
 use crate::services::wallet_session::GemWalletSessionService;
@@ -176,11 +177,7 @@ impl GemNavigationService {
     }
 
     async fn fiat(&self, asset_id: AssetId, amount: Option<i32>, quote_type: FiatQuoteType) -> Result<GemNavigationTarget, GemServiceError> {
-        let action = match quote_type {
-            FiatQuoteType::Buy => GemAssetAction::Buy,
-            FiatQuoteType::Sell => GemAssetAction::Sell,
-        };
-        Ok(match self.offered_asset(asset_id, action).await? {
+        Ok(match self.offered_asset(asset_id, quote_action(&quote_type)).await? {
             Some(asset) => GemNavigationTarget::Fiat { asset, amount, quote_type },
             None => GemNavigationTarget::None,
         })

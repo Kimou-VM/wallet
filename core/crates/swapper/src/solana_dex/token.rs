@@ -67,15 +67,7 @@ mod tests {
         let sol = SwapToken::from_asset(&SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))).unwrap();
 
         assert_eq!((sol.mint, sol.token_program, sol.is_native), (wrapped_sol_mint(), token_program(), true));
-        assert_eq!(
-            SwapToken::from_asset(&usdc).unwrap(),
-            SwapToken {
-                mint: Pubkey::from_base58(USDC_TOKEN_MINT).unwrap(),
-                token_program: token_program(),
-                decimals: 6,
-                is_native: false,
-            }
-        );
+        assert_eq!(SwapToken::from_asset(&usdc).unwrap(), SwapToken::mock());
         assert_eq!(
             SwapToken::from_asset(&SwapperQuoteAsset {
                 asset_type: AssetType::SPL2022,
