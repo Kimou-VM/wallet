@@ -160,7 +160,7 @@ where
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
-        let source = SwapsXyzChain::from_source_chain(request.from_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
+        let source = SwapsXyzChain::from_chain(request.from_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
         let destination = SwapsXyzChain::from_chain(request.to_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
         let action_request = Self::build_action_request(request, source, destination)?;
         let (paths, response) = futures::join!(self.client.get_paths(source.id, destination.id), self.client.get_action(&action_request));

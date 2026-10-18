@@ -66,27 +66,11 @@ impl SwapsXyzChain {
         Self::ALL.iter().copied().find(|value| value.chain == chain)
     }
 
-    pub(super) fn from_source_chain(chain: Chain) -> Option<Self> {
-        Self::from_chain(chain).filter(|value| value.chain != Chain::Ton)
-    }
-
     pub(super) fn from_id(id: u64) -> Option<Self> {
         Self::ALL.iter().copied().find(|value| value.id == id)
     }
 
     pub(super) fn decimals(self) -> u32 {
         Asset::from_chain(self.chain).decimals
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_from_source_chain() {
-        assert_eq!(SwapsXyzChain::from_source_chain(Chain::Sui).map(|value| value.chain), Some(Chain::Sui));
-        assert_eq!(SwapsXyzChain::from_source_chain(Chain::Ton), None);
-        assert_eq!(SwapsXyzChain::from_chain(Chain::Ton).map(|value| value.chain), Some(Chain::Ton));
     }
 }
