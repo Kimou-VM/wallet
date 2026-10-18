@@ -1,7 +1,7 @@
 use num_traits::ToPrimitive;
 use number_formatter::{BigNumberFormatter, NumberFormatterError};
 
-pub use gem_evm::slippage::{BasisPointConvert, bps_of, subtract_bps};
+pub use gem_evm::slippage::{bps_of, subtract_bps};
 
 const BPS_PER_PERCENT_DECIMALS: i32 = 2;
 

@@ -3,10 +3,10 @@ use primitives::Chain;
 use crate::{SwapperProvider, SwapperSlippage, SwapperSlippageMode};
 
 pub const DEFAULT_SLIPPAGE_BPS: u32 = 100;
-pub const MIN_SLIPPAGE_BPS: u32 = 10;
-pub const MAX_SLIPPAGE_BPS: u32 = 2_000;
-pub const SLIPPAGE_SUGGESTIONS_BPS: [u32; 3] = [30, 50, 300];
-pub const AMOUNT_PERCENT_PRESETS: [u32; 3] = [25, 50, 100];
+const MIN_SLIPPAGE_BPS: u32 = 10;
+const MAX_SLIPPAGE_BPS: u32 = 2_000;
+const SLIPPAGE_SUGGESTIONS_BPS: [u32; 3] = [30, 50, 300];
+const AMOUNT_PERCENT_PRESETS: [u32; 3] = [25, 50, 100];
 
 pub const API_BASE_URL: &str = "https://api.gemwallet.com";
 
