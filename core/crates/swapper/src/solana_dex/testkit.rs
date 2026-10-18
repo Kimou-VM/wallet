@@ -94,11 +94,11 @@ impl<'a> DexTransaction<'a> {
             },
             referral: Pubkey::from_base58(SOLANA_REFERRAL_ADDRESS).unwrap(),
             fee: ReferralTransfer { side: FeeSide::Output, value: 5_000 },
-            swap_instruction: Instruction {
+            swap_instructions: vec![Instruction {
                 program_id: Pubkey::new([9; 32]),
                 accounts: vec![],
                 data: vec![],
-            },
+            }],
             intermediate_token_account: false,
         }
     }

@@ -1,6 +1,6 @@
 use gem_solana::{Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter, models::TokenAccount};
 
-use super::token::SwapToken;
+use super::token::{INTERMEDIATE_TOKENS, SwapToken};
 use crate::{SwapperError, SwapperProvider};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -114,6 +114,7 @@ pub(crate) trait DexProtocol: Send + Sync {
     const PROVIDER: SwapperProvider;
     const PROGRAM_ID: Pubkey;
     const INTERMEDIATE_TOKEN_ACCOUNT: bool = false;
+    const NATIVE_TWO_HOP: bool = false;
 
     fn decode_pool(&self, data: &[u8]) -> Result<Self::Pool, SwapperError>;
     fn liquidity(&self, pool: &Self::Pool) -> u128;
@@ -131,7 +132,7 @@ pub(crate) trait DexProtocol: Send + Sync {
     }
 
     fn intermediate_tokens(&self) -> &'static [SwapToken] {
-        &[]
+        &INTERMEDIATE_TOKENS[..1]
     }
 
     fn pool_query(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Option<PoolQuery> {

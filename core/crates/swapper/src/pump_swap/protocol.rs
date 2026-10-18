@@ -70,14 +70,32 @@ impl DexProtocol for PumpSwap {
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
-    use crate::solana_dex::testkit::{TEST_FUNDED_WALLET, TEST_TOS_HOLDER, TEST_TOS_MINT, assert_swaps_simulate, mock_solana_asset};
+    use crate::{
+        SwapperQuoteAsset,
+        solana_dex::testkit::{TEST_FUNDED_WALLET, TEST_TOS_HOLDER, TEST_TOS_MINT, assert_swaps_simulate, mock_solana_asset},
+    };
+    use primitives::AssetType;
+
+    const TEST_CVNT_MINT: &str = "2mNVZ6aEjrGwiUVCfz7XGWpiXuWzgBDoznwE579upump";
 
     #[tokio::test]
     async fn test_pump_swap_simulates() -> Result<(), SwapperError> {
         let sol = mock_solana_asset(None, 9);
         let tos = mock_solana_asset(Some(TEST_TOS_MINT), 6);
+        let cvnt = SwapperQuoteAsset {
+            asset_type: AssetType::SPL2022,
+            ..mock_solana_asset(Some(TEST_CVNT_MINT), 6)
+        };
 
-        assert_swaps_simulate(PumpSwap, vec![(sol.clone(), tos.clone(), 10_000_000, TEST_FUNDED_WALLET), (tos, sol, 10_000_000, TEST_TOS_HOLDER)]).await
+        assert_swaps_simulate(
+            PumpSwap,
+            vec![
+                (sol.clone(), tos.clone(), 10_000_000, TEST_FUNDED_WALLET),
+                (tos.clone(), sol, 10_000_000, TEST_TOS_HOLDER),
+                (tos, cvnt, 10_000_000, TEST_TOS_HOLDER),
+            ],
+        )
+        .await
     }
 }
 
@@ -86,15 +104,18 @@ mod tests {
     use super::*;
     use crate::{
         FetchQuoteData, QuoteRequest, Swapper, SwapperQuoteAsset,
+        fees::subtract_bps,
         pump_swap::testkit::{TEST_CASHBACK_POOL, TEST_MAYHEM_POOL, TEST_SOL_POOL, TEST_TOKEN_2022_MINT, TEST_USDC_POOL, mock_pool_snapshot},
         solana_dex::{
             SolanaDex,
             testkit::{TEST_TOS_MINT, mock_rpc_accounts, mock_rpc_client, mock_solana_asset},
         },
+        solana_dex::{SwapToken, testkit::PoolSnapshot},
         testkit::mock_quote,
     };
-    use gem_solana::USDC_TOKEN_MINT;
+    use gem_solana::{USDC_TOKEN_MINT, decode_transaction, instructions::program_ids::token_program, wrapped_sol::wrapped_sol_mint};
     use num_bigint::BigUint;
+    use primitives::swap::SOLANA_REFERRAL_ADDRESS;
     use primitives::{AssetType, testkit::signer_mock::TEST_SOLANA_SENDER};
     use std::sync::{
         Arc,
@@ -127,6 +148,47 @@ mod tests {
     fn test_is_tradable() {
         assert!(PumpSwap.is_tradable(&mock_pool_snapshot(TEST_SOL_POOL).pool, 0));
         assert!(!PumpSwap.is_tradable(&mock_pool_snapshot(TEST_CASHBACK_POOL).pool, 0));
+    }
+
+    #[tokio::test]
+    async fn test_two_hop_through_sol_spends_the_first_hop_minimum() {
+        let tos_pool = mock_pool_snapshot(TEST_SOL_POOL);
+        let coin_pool = mock_pool_snapshot(TEST_MAYHEM_POOL);
+        let tos = mock_solana_asset(Some(TEST_TOS_MINT), 6);
+        let coin = SwapperQuoteAsset {
+            asset_type: AssetType::SPL2022,
+            ..mock_solana_asset(Some(&coin_pool.pool.base_mint.to_base58()), 6)
+        };
+        let referral = Pubkey::from_base58(SOLANA_REFERRAL_ADDRESS).unwrap();
+        let referral_account = (
+            SwapToken::from_asset(&tos).unwrap().account(&referral).unwrap().to_base58(),
+            serde_json::json!({ "data": ["", "base64"], "owner": token_program().to_base58() }),
+        );
+        let accounts = mock_rpc_accounts(TEST_SOL_POOL).into_iter().chain(mock_rpc_accounts(TEST_MAYHEM_POOL)).chain([referral_account]).collect();
+        let pump_swap = SolanaDex::with_client(PumpSwap, mock_rpc_client(accounts, Arc::default()));
+        let request = QuoteRequest {
+            wallet_address: TEST_SOLANA_SENDER.to_string(),
+            destination_address: TEST_SOLANA_SENDER.to_string(),
+            value: BigUint::from(1_000_000_000u64),
+            ..mock_quote(tos, coin)
+        };
+        let quote = |snapshot: &PoolSnapshot<Pool>, input_mint: &Pubkey, amount: u64| {
+            let data = snapshot.quote_data(&PumpSwap.quote_accounts(&snapshot.address, &snapshot.pool, input_mint).unwrap());
+            PumpSwap.quote(&snapshot.address, &snapshot.pool, input_mint, amount, &data, snapshot.timestamp).unwrap()
+        };
+
+        let result = pump_swap.get_quote(&request).await.unwrap();
+        let route: serde_json::Value = serde_json::from_str(&result.data.routes[0].route_data).unwrap();
+        let swap_value = route["swap_value"].as_u64().unwrap();
+        let intermediate = u64::try_from(subtract_bps(&u128::from(quote(&tos_pool, &tos_pool.pool.base_mint, swap_value)), request.options.slippage.bps)).unwrap();
+
+        assert_eq!([&route["hops"][0]["pool"], &route["hops"][1]["pool"]], [&tos_pool.address.to_base58(), &coin_pool.address.to_base58()]);
+        assert_eq!(route["intermediate_value"], intermediate);
+        assert_eq!(route["output_value"], quote(&coin_pool, &wrapped_sol_mint(), intermediate));
+
+        let transaction = decode_transaction(&pump_swap.get_quote_data(&result, FetchQuoteData::None).await.unwrap().data).unwrap();
+        let programs = transaction.instructions().iter().map(|instruction| transaction.account_keys()[usize::from(instruction.program_id_index)]).collect::<Vec<_>>();
+        assert_eq!(programs.iter().filter(|program| **program == pump_amm_program()).count(), 2);
     }
 
     #[tokio::test]

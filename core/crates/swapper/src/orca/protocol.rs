@@ -19,6 +19,7 @@ impl DexProtocol for Orca {
 
     const PROVIDER: SwapperProvider = SwapperProvider::Orca;
     const PROGRAM_ID: Pubkey = orca_whirlpool_program();
+    const NATIVE_TWO_HOP: bool = true;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         Whirlpool::addresses(input_mint, output_mint)

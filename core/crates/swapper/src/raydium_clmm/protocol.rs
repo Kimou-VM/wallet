@@ -20,6 +20,7 @@ impl DexProtocol for RaydiumClmm {
     const PROVIDER: SwapperProvider = SwapperProvider::RaydiumClmm;
     const PROGRAM_ID: Pubkey = raydium_clmm_program();
     const INTERMEDIATE_TOKEN_ACCOUNT: bool = true;
+    const NATIVE_TWO_HOP: bool = true;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         PoolState::addresses(input_mint, output_mint)

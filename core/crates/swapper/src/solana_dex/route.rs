@@ -20,6 +20,8 @@ pub(crate) struct DexRoute {
     pub swap_value: u64,
     pub output_value: u64,
     pub fee: ReferralTransfer,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub intermediate_value: Option<u64>,
 }
 
 impl DexRoute {
@@ -42,12 +44,16 @@ impl DexRoute {
     }
 
     pub fn minimum_output(&self, slippage_bps: u32) -> u64 {
-        let minimum_received = u64::try_from(subtract_bps(&u128::from(self.received_value()), slippage_bps)).unwrap_or_default();
+        let minimum_received = minimum_value(self.received_value(), slippage_bps);
         match self.fee.side {
             FeeSide::Input => minimum_received,
             FeeSide::Output => minimum_received.saturating_add(self.fee.value),
         }
     }
+}
+
+pub(crate) fn minimum_value(value: u64, slippage_bps: u32) -> u64 {
+    u64::try_from(subtract_bps(&u128::from(value), slippage_bps)).unwrap_or_default()
 }
 
 pub(crate) fn preferred_fee_side(input_mint: &Pubkey, output_mint: &Pubkey) -> Option<FeeSide> {
@@ -88,6 +94,7 @@ mod tests {
             swap_value: 1,
             output_value: 1,
             fee: ReferralTransfer { side: FeeSide::Input, value: 0 },
+            intermediate_value: None,
         };
 
         assert_eq!(route(vec![hop(bonk, sol)]).intermediate(&bonk, &sol), Ok(None));
@@ -109,6 +116,7 @@ mod tests {
             swap_value: 995_000,
             output_value: 1_000_000,
             fee: ReferralTransfer { side: FeeSide::Input, value: 5_000 },
+            intermediate_value: None,
         };
         let output_fee = DexRoute {
             fee: ReferralTransfer { side: FeeSide::Output, value: 5_000 },
@@ -117,5 +125,26 @@ mod tests {
 
         assert_eq!(route.minimum_output(100), 990_000);
         assert_eq!(output_fee.minimum_output(100), 990_050);
+    }
+
+    #[test]
+    fn test_intermediate_value_is_kept_only_for_chained_hops() {
+        let route = DexRoute {
+            hops: vec![],
+            swap_value: 1,
+            output_value: 1,
+            fee: ReferralTransfer { side: FeeSide::Input, value: 0 },
+            intermediate_value: None,
+        };
+        let chained = DexRoute {
+            intermediate_value: Some(7),
+            ..route.clone()
+        };
+        let json = |route: &DexRoute| serde_json::to_value(route).unwrap();
+
+        assert_eq!(json(&route).get("intermediate_value"), None);
+        assert_eq!(json(&chained)["intermediate_value"], 7);
+        assert_eq!(serde_json::from_value::<DexRoute>(json(&route)).unwrap(), route);
+        assert_eq!(serde_json::from_value::<DexRoute>(json(&chained)).unwrap(), chained);
     }
 }

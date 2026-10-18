@@ -90,14 +90,26 @@ impl DexProtocol for MeteoraDlmm {
 mod swap_integration_tests {
     use super::*;
     use crate::solana_dex::testkit::{TEST_FUNDED_WALLET, assert_swaps_simulate, mock_solana_asset};
-    use gem_solana::USDC_TOKEN_MINT;
+    use gem_solana::{USDC_TOKEN_MINT, USDT_TOKEN_MINT};
+
+    const TEST_JUP_MINT: &str = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
 
     #[tokio::test]
     async fn test_meteora_dlmm_swap_simulates() -> Result<(), SwapperError> {
         let sol = mock_solana_asset(None, 9);
         let usdc = mock_solana_asset(Some(USDC_TOKEN_MINT), 6);
+        let usdt = mock_solana_asset(Some(USDT_TOKEN_MINT), 6);
+        let jup = mock_solana_asset(Some(TEST_JUP_MINT), 6);
 
-        assert_swaps_simulate(MeteoraDlmm, vec![(sol.clone(), usdc.clone(), 1_000_000_000, TEST_FUNDED_WALLET), (usdc, sol, 100_000_000, TEST_FUNDED_WALLET)]).await
+        assert_swaps_simulate(
+            MeteoraDlmm,
+            vec![
+                (sol.clone(), usdc.clone(), 1_000_000_000, TEST_FUNDED_WALLET),
+                (usdc.clone(), sol, 100_000_000, TEST_FUNDED_WALLET),
+                (usdt, jup, 7_000_000_000, TEST_FUNDED_WALLET),
+            ],
+        )
+        .await
     }
 }
 

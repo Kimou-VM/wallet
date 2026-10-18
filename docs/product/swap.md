@@ -134,6 +134,16 @@ A Raydium CPMM pool can live at any address its creator signs for, so its pools 
 
 A Meteora DLMM pair holds no figure for its depth, and SOL/USDC alone has `140` pairs, many of them empty. So the lookup returns only each pair's two reserve accounts, the wallet reads those reserves' balances, `100` at a time, and keeps the `4` pairs whose reserves multiply to the most, which does not depend on the trade's direction. A quote reads each pair and the `3` bin arrays its price would move through in the trade's direction, found from the pair's own bitmap, and walks the bins with the same fees, volatility and limit orders as Meteora's SDK (`test_quote_matches_the_sdk`). A trade that would need a fourth bin array gets no Meteora quote. A pair's first quote takes four round trips: the lookups, the reserves, the pairs and their bin arrays; a repeat quote takes one.
 
+PumpSwap, Meteora DAMM v2 and DLMM, and Raydium CPMM and AMM v4 have no instruction that passes one pool's output into the next, so a trade between two tokens that needs SOL in the middle goes as two swaps in one transaction. The second swap spends what the first is guaranteed to give at the trade's slippage; whatever the first gives beyond that is wrapped SOL that comes back as SOL when the transaction closes the wrapped-SOL account. The quote is priced the same way, so a two-pool route is up to the slippage below one that chains exact amounts, and the minimum received is still the quote less the slippage (`test_two_hop_through_sol_spends_the_first_hop_minimum`). These routes go only through SOL, so nothing is left behind in another token. Every pairing of the two legs' pools is priced, at most `16`, because these lookups keep at most `4` pools a pair; picking each leg's pool by its depth alone chose a USDT/SOL pair that could not fill the trade. A route whose transaction would not fit Solana's 1,232-byte limit is not offered: two PumpSwap swaps take about `1,056` bytes and two DLMM swaps about `1,196`. Orca and Raydium CLMM chain their two pools in one instruction, as before.
+
+Measured on 2026-10-18 at each pair's typical size:
+
+| Pair | Route | Below Jupiter | Before |
+|---|---|---|---|
+| TOS to $CVNT | PumpSwap through SOL | `0.5%` | no on-chain quote |
+| CATE to USDT | Meteora DLMM through SOL | `1.1%` | Raydium, `71%` below |
+| USDT to JUP | Meteora DLMM through SOL | `2.3%` | Orca, `20%` below |
+
 ### Skipping pools that lose
 
 Every quote compares candidates and keeps the best. A candidate that gave more than `3%` less than the best, or that failed while another succeeded, is not asked again for the next `5 minutes` when the same pair is quoted for the same amount, as the 30-second refresh and the confirmation screen do. Any other amount asks every candidate again: a pool too shallow for a large trade can still be the best for a small one, and a deep pool that lost to a small pool's better price can win a larger trade. Failing means the quote reverted, the pool ran out of liquidity for the amount, or the pool could not pay the output; a network error never counts. When every candidate fails or gives nothing, as for a dust amount, none is marked. If every candidate still asked fails, the skipped ones are asked before the quote fails (`test_outpriced_cache`, `test_get_best_quote_skips_outpriced_paths`, `test_route_failing_alone_is_asked_again`, `test_find_route_skips_outpriced_pools`).
@@ -142,14 +152,15 @@ Every quote compares candidates and keeps the best. A candidate that gave more t
 |---|---|
 | Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi | each path: one pool at a fee tier, or two pools through a base token unless both sides are base tokens |
 | Orca, Raydium | each route: one pool, or two pools through an intermediate token; a skipped pool's accounts are left out of the request |
-| Meteora | each of the pair's `4` pools with the most liquidity; a skipped pool is left out of the request |
-| Raydium CPMM, Raydium AMM v4 | each of the pair's `4` pools with the largest LP supply; a skipped pool is left out of the request |
-| Meteora DLMM | each of the pair's `4` pairs with the deepest reserves; a skipped pair is left out of the request |
+| Meteora | each of the pair's `4` pools with the most liquidity, or two of them through SOL; a skipped pool is left out of the request |
+| Raydium CPMM, Raydium AMM v4 | each of the pair's `4` pools with the largest LP supply, or two of them through SOL; a skipped pool is left out of the request |
+| Meteora DLMM | each of the pair's `4` pairs with the deepest reserves, or two of them through SOL; a skipped pair is left out of the request |
+| PumpSwap | the coin's pool, or two coins' pools through SOL |
 | STON.fi | each path, and each pool within a hop |
 | DeDust | each path: one pool, or two pools through TON or USDT; each hop asks its volatile and stable pool at the same time and takes the one that pays more |
 | Hyperion | each path, and each pool within a hop |
 
-Cetus prices all its direct pools in one dry run and all its two-pool routes in another, sent at the same time, and PumpSwap has one pool per pair, so neither has anything to skip. `3%` keeps close rivals: two fee tiers on a busy pair are often within `1%` and trade places as prices move, so both stay. In the measured pairs, every pool that lost was `6%` to `99%` worse than the best, or failed.
+Cetus prices all its direct pools in one dry run and all its two-pool routes in another, sent at the same time, so it has nothing to skip. `3%` keeps close rivals: two fee tiers on a busy pair are often within `1%` and trade places as prices move, so both stay. In the measured pairs, every pool that lost was `6%` to `99%` worse than the best, or failed.
 
 ### Requests per quote
 

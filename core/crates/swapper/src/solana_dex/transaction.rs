@@ -49,7 +49,7 @@ pub(crate) struct DexTransaction<'a> {
     pub swap: PoolSwap<'a>,
     pub referral: Pubkey,
     pub fee: ReferralTransfer,
-    pub swap_instruction: Instruction,
+    pub swap_instructions: Vec<Instruction>,
     pub intermediate_token_account: bool,
 }
 
@@ -91,7 +91,7 @@ impl DexTransaction<'_> {
             input_fee,
             wrap,
             token_accounts,
-            vec![self.swap_instruction.clone()],
+            self.swap_instructions.clone(),
             unwrap,
             output_fee,
         ]
