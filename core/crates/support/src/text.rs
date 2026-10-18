@@ -54,6 +54,9 @@ pub fn parse_support_message_display_content(markdown: &str) -> SupportMessageDi
         match SupportMessageLink::new(Some(title), url) {
             Some(link) => {
                 append_text_and_labeled_links(text_before_link, &mut text, &mut links);
+                if label_prefix.is_none() && !link_stands_alone(&markdown[..title_start], &markdown[next_index..]) {
+                    text.push_str(title);
+                }
                 links.push(link);
             }
             None => text.push_str(&markdown[current_index..next_index]),
@@ -64,9 +67,28 @@ pub fn parse_support_message_display_content(markdown: &str) -> SupportMessageDi
     append_text_and_labeled_links(&markdown[current_index..], &mut text, &mut links);
 
     SupportMessageDisplayContent {
-        text: if links.is_empty() { markdown.to_string() } else { collapse_whitespace(&text, " ").trim().to_string() },
+        text: if links.is_empty() { markdown.to_string() } else { display_lines(&text) },
         links,
     }
+}
+
+fn link_stands_alone(markdown_before: &str, markdown_after: &str) -> bool {
+    let line_before = markdown_plain_text(markdown_before.rsplit('\n').next().unwrap_or_default());
+    let line_after = markdown_after.split('\n').next().unwrap_or_default().trim();
+    (line_before.is_empty() || line_before.ends_with(':')) && line_after.chars().all(|character| character.is_ascii_punctuation())
+}
+
+fn display_lines(text: &str) -> String {
+    let mut lines: Vec<String> = Vec::new();
+    for line in text.lines().map(|line| line.split_whitespace().collect::<Vec<_>>().join(" ")) {
+        if !line.is_empty() || lines.last().is_some_and(|last| !last.is_empty()) {
+            lines.push(line);
+        }
+    }
+    while lines.last().is_some_and(String::is_empty) {
+        lines.pop();
+    }
+    lines.join("\n")
 }
 
 impl SupportMessageLink {
@@ -261,7 +283,7 @@ mod tests {
                 "#
             ),
             SupportMessageDisplayContent {
-                text: "Here's the Gem Wallet docs homepage:".to_string(),
+                text: "Here's the Gem Wallet docs\nhomepage:".to_string(),
                 links: vec![SupportMessageLink::mock("Docs", "https://docs.gemwallet.com", Some("docs.gemwallet.com"))],
             }
         );
@@ -284,7 +306,7 @@ mod tests {
                 "#
             ),
             SupportMessageDisplayContent {
-                text: "Here are the links: Which docs article were you looking for specifically?".to_string(),
+                text: "Here are the links:\n\nWhich docs article were you looking for specifically?".to_string(),
                 links: vec![
                     SupportMessageLink::mock("Docs", "https://docs.gemwallet.com", Some("docs.gemwallet.com")),
                     SupportMessageLink::mock(
@@ -318,7 +340,7 @@ mod tests {
                 "#
             ),
             SupportMessageDisplayContent {
-                text: "Here are the links: Which docs article were you looking for specifically?".to_string(),
+                text: "Here are the links:\n\nWhich docs article were you looking for specifically?".to_string(),
                 links: vec![
                     SupportMessageLink::mock("Docs", "https://docs.gemwallet.com/", Some("docs.gemwallet.com")),
                     SupportMessageLink::mock(
@@ -327,6 +349,31 @@ mod tests {
                         Some("gemwallet.com"),
                     ),
                 ],
+            }
+        );
+        assert_eq!(
+            parse_support_message_display_content(
+                r#"
+                Open [Perpetuals](https://gemwallet.com/perpetuals) in the app, then:
+                1. Turn on Perpetuals and fund the account with USDC.
+                2. Choose **Long** when you expect the price to rise.
+
+                Full guide: https://docs.gemwallet.com/defi/perps/manage-perpetual-position
+                "#
+            ),
+            SupportMessageDisplayContent {
+                text: "Open Perpetuals in the app, then:\n1. Turn on Perpetuals and fund the account with USDC.\n2. Choose **Long** when you expect the price to rise.".to_string(),
+                links: vec![
+                    SupportMessageLink::mock("Perpetuals", "https://gemwallet.com/perpetuals", None),
+                    SupportMessageLink::mock("Full guide", "https://docs.gemwallet.com/defi/perps/manage-perpetual-position", Some("docs.gemwallet.com")),
+                ],
+            }
+        );
+        assert_eq!(
+            parse_support_message_display_content("You can check the live price anytime on the [Solana screen](gem://tokens/solana)."),
+            SupportMessageDisplayContent {
+                text: "You can check the live price anytime on the Solana screen.".to_string(),
+                links: vec![SupportMessageLink::mock("Solana screen", "gem://tokens/solana", None)],
             }
         );
         let inline_text = "Read [the guide](javascript:alert(1)) before continuing.";
@@ -344,7 +391,7 @@ mod tests {
         assert_eq!(
             parse_support_message_display_content("Open [Bitcoin](<https://gemwallet.com/tokens/bitcoin>)"),
             SupportMessageDisplayContent {
-                text: "Open".to_string(),
+                text: "Open Bitcoin".to_string(),
                 links: vec![SupportMessageLink::mock("Bitcoin", "https://gemwallet.com/tokens/bitcoin", None)],
             }
         );
