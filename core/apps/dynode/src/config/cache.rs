@@ -1,13 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
+use gem_evm::method::ETH_CALL;
 use primitives::ChainType;
 use serde::Deserialize;
 use serde_json::Value;
 use serde_serializers::{duration, size};
 
 use super::path::path_without_query;
-use crate::cache::decoder::{ContractCall, ContractRequest, ETH_CALL, decode_contract_calls};
+use crate::cache::decoder::{ContractCall, ContractRequest, decode_contract_calls};
 use crate::jsonrpc_types::JsonRpcCall;
 
 #[derive(Debug, Default, Clone, Deserialize)]

@@ -1,6 +1,6 @@
-use super::{ContractCall, ContractCallDecoder, ContractRequest};
+use gem_solana::method::GET_PROGRAM_ACCOUNTS;
 
-const GET_PROGRAM_ACCOUNTS: &str = "getProgramAccounts";
+use super::{ContractCall, ContractCallDecoder, ContractRequest};
 
 pub(super) struct SolanaContractCallDecoder;
 

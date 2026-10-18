@@ -6,8 +6,6 @@ use primitives::ChainType;
 
 use crate::jsonrpc_types::JsonRpcCall;
 
-pub(crate) use evm::ETH_CALL;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ContractCall {
     pub(crate) address: String,

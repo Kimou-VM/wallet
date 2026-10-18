@@ -1,8 +1,8 @@
 use serde_json::{Value, json};
 
-use crate::cache::decoder::ETH_CALL;
 use crate::jsonrpc_types::{JsonRpcCall, RequestType};
 use bytes::Bytes;
+use gem_evm::method::ETH_CALL;
 
 impl JsonRpcCall {
     pub fn mock(id: u64, method: &str) -> Self {

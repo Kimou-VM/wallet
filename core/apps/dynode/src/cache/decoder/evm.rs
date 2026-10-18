@@ -1,8 +1,7 @@
+use gem_evm::method::ETH_CALL;
 use serde_json::Value;
 
 use super::{ContractCall, ContractCallDecoder, ContractRequest};
-
-pub(crate) const ETH_CALL: &str = "eth_call";
 
 pub(super) struct EvmContractCallDecoder;
 
