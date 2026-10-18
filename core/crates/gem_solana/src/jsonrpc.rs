@@ -34,7 +34,7 @@ impl SolanaTokenAccountsFilter {
 
 #[derive(Clone, Debug)]
 pub enum SolanaProgramAccountsFilter {
-    Memcmp { offset: u8, bytes: String },
+    Memcmp { offset: usize, bytes: String },
     DataSize(u64),
 }
 
