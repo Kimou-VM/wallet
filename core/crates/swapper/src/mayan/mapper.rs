@@ -6,7 +6,7 @@ use primitives::{
     swap::{EVM_REFERRAL_ADDRESS, HUNDRED_PERCENT_IN_BPS, SOLANA_REFERRAL_ADDRESS, SUI_REFERRAL_ADDRESS},
 };
 
-use crate::{SwapResult, SwapperProvider};
+use crate::{SwapResult, SwapperProvider, fees::bps_of};
 
 const MAYAN_SWIFT_V1_SERVICE: &str = "SWIFT_SWAP";
 const MAX_TOKEN_DECIMALS: u32 = 36;
@@ -59,7 +59,7 @@ impl MayanTransactionResult {
                 let net_bps = HUNDRED_PERCENT_IN_BPS.checked_sub(referrer_bps + self.mayan_bps.unwrap_or_default())?;
                 (to_asset.clone(), to_value * referrer_bps / net_bps)
             }
-            _ => (from_asset.clone(), from_value * referrer_bps / HUNDRED_PERCENT_IN_BPS),
+            _ => (from_asset.clone(), bps_of(from_value, referrer_bps)),
         };
         Some(TransactionSwapReferralFee { asset_id, value })
     }

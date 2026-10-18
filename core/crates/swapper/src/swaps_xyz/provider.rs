@@ -6,11 +6,7 @@ use gem_encoding::decode_base64;
 use gem_ton::rpc::client::TonClient;
 use num_bigint::BigUint;
 use number_formatter::BigNumberFormatter;
-use primitives::{
-    AssetId, Chain, OptionStringExt, TransactionSwapMetadata, TransactionSwapReferralFee,
-    contract_constants::EVM_ZERO_ADDRESS,
-    swap::{HUNDRED_PERCENT_IN_BPS, SwapStatus},
-};
+use primitives::{AssetId, Chain, OptionStringExt, TransactionSwapMetadata, TransactionSwapReferralFee, contract_constants::EVM_ZERO_ADDRESS, swap::SwapStatus};
 
 use super::{
     chain::SwapsXyzChain,
@@ -18,8 +14,10 @@ use super::{
     model::{ActionRequest, ActionResponse, AmountLimits, AppFee, StatusResponse},
 };
 use crate::{
-    FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData, client_factory::create_ton_client,
-    config::get_swap_provider_url, fees::default_referral_fees,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
+    client_factory::create_ton_client,
+    config::get_swap_provider_url,
+    fees::{bps_of, default_referral_fees},
 };
 
 const APP_ID: &str = "0xcf511a8a";
@@ -105,7 +103,7 @@ where
     fn validate_response(response: &ActionResponse, request: &QuoteRequest, source: SwapsXyzChain, destination: SwapsXyzChain) -> Result<(), SwapperError> {
         let fee = default_referral_fees().evm;
         let input = request.value.clone();
-        let expected_fee = &input * BigUint::from(fee.bps) / BigUint::from(HUNDRED_PERCENT_IN_BPS);
+        let expected_fee = bps_of(&input, fee.bps);
         let valid = response.vm_id == "alt-vm"
             && !response.tx.to.is_empty()
             && response.tx.value == input

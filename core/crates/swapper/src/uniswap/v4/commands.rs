@@ -1,6 +1,6 @@
 use crate::{
     QuoteRequest, Route, SwapperError, eth_address,
-    fees::default_referral_fees,
+    fees::{bps_of, default_referral_fees},
     uniswap::routed_asset::{Funding, RoutedAsset},
 };
 use alloy_primitives::{Address, U256};
@@ -42,7 +42,7 @@ pub fn build_commands(
 
     if pay_fees {
         if fee_token_is_input {
-            let fee = amount_in * (fee_options.bps as u128) / 10000_u128;
+            let fee = bps_of(&amount_in, fee_options.bps);
             let fee_transfer = Transfer {
                 token: token_in,
                 recipient: eth_address::parse_str(&fee_options.address)?,

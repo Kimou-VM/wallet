@@ -1,6 +1,6 @@
 use crate::{
     SwapperError, eth_address,
-    fees::default_referral_fees,
+    fees::{bps_of, default_referral_fees},
     models::*,
     uniswap::routed_asset::{Funding, RoutedAsset},
 };
@@ -49,7 +49,7 @@ pub fn build_commands(
 
     if pay_fees {
         if fee_token_is_input {
-            let fee = amount_in * U256::from(fee_options.bps) / U256::from(10000);
+            let fee = bps_of(&amount_in, fee_options.bps);
             let fee_transfer = Transfer {
                 token: token_in,
                 recipient: eth_address::parse_str(&fee_options.address)?,

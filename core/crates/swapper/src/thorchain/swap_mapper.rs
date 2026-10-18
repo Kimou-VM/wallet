@@ -1,14 +1,14 @@
 use num_bigint::BigUint;
 use primitives::{
     AssetId, TransactionSwapMetadata, TransactionSwapReferralFee,
-    swap::{HUNDRED_PERCENT_IN_BPS, SwapStatus, THORCHAIN_REFERRAL_ADDRESS},
+    swap::{SwapStatus, THORCHAIN_REFERRAL_ADDRESS},
 };
 
 use super::THORChainNetwork;
 use super::chain::ChainName;
 use super::memo::ThorchainMemo;
 use super::model::TransactionStatus;
-use crate::SwapResult;
+use crate::{SwapResult, fees::bps_of};
 
 pub fn map_swap_result(response: &TransactionStatus, network: THORChainNetwork) -> SwapResult {
     let status = response.swap_status();
@@ -60,7 +60,7 @@ fn map_referral_fee(response: &TransactionStatus, memo: &str, network: THORChain
         }),
         None if response.swap_status() == SwapStatus::Completed => Some(TransactionSwapReferralFee {
             asset_id: from_asset.clone(),
-            value: from_value * memo.affiliate_bps.filter(|bps| *bps > 0)? / HUNDRED_PERCENT_IN_BPS,
+            value: bps_of(from_value, memo.affiliate_bps.filter(|bps| *bps > 0)?),
         }),
         None => None,
     }

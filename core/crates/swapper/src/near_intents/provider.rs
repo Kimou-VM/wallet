@@ -8,8 +8,8 @@ use super::{
 use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData, amount_to_value,
     cross_chain::VaultAddresses,
-    fees::DEFAULT_REFERRER,
     fees::default_referral_fees,
+    fees::{DEFAULT_REFERRER, bps_of},
     near_intents::client::{base_url, explorer_url},
 };
 use async_trait::async_trait;
@@ -21,7 +21,7 @@ use num_integer::Integer;
 use num_traits::Zero;
 use primitives::{
     AssetId, Chain, OptionStringExt, TransactionSwapMetadata, TransactionSwapReferralFee,
-    swap::{HUNDRED_PERCENT_IN_BPS, NEAR_REFERRAL_ADDRESS, SwapStatus},
+    swap::{NEAR_REFERRAL_ADDRESS, SwapStatus},
 };
 use std::str::FromStr;
 use std::{fmt::Debug, sync::Arc};
@@ -141,7 +141,7 @@ where
         let app_fee = transaction.app_fees.iter().find(|app_fee| app_fee.recipient.eq_ignore_ascii_case(NEAR_REFERRAL_ADDRESS) && app_fee.fee > 0)?;
         Some(TransactionSwapReferralFee {
             asset_id: from_asset.clone(),
-            value: from_value * app_fee.fee / HUNDRED_PERCENT_IN_BPS,
+            value: bps_of(from_value, app_fee.fee),
         })
     }
 

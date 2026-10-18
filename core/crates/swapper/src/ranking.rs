@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 
 use crate::config::QuotePreference;
-use crate::fees::max_amount_spends_all_but_fee;
+use crate::fees::{max_amount_spends_all_but_fee, subtract_bps};
 use crate::{Quote, QuoteRequest, SwapAmountMode};
 
 pub(crate) fn rank_quotes(request: &QuoteRequest, mut quotes: Vec<Quote>, preferences: &[QuotePreference], amount_mode: impl Fn(&Quote) -> Option<SwapAmountMode>) -> Vec<Quote> {
@@ -30,7 +30,7 @@ fn leaves_no_dust(quote: &Quote, amount_mode: Option<SwapAmountMode>) -> bool {
 }
 
 fn prefer(quotes: &mut Vec<Quote>, best: &BigUint, tolerance_bps: u32, is_preferred: impl Fn(&Quote) -> bool) {
-    let floor = best * BigUint::from(10_000 - tolerance_bps.min(10_000)) / BigUint::from(10_000u32);
+    let floor = subtract_bps(best, tolerance_bps);
     if let Some(index) = quotes.iter().position(|quote| is_preferred(quote) && quote.to_value >= floor) {
         let preferred = quotes.remove(index);
         quotes.insert(0, preferred);

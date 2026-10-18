@@ -16,7 +16,7 @@ use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     config::get_swap_proxy_url,
     cross_chain::VaultAddresses,
-    fees::{DEFAULT_SWAP_FEE_BPS, default_referral_fees},
+    fees::{DEFAULT_SWAP_FEE_BPS, bps_of, default_referral_fees},
 };
 
 #[derive(Debug)]
@@ -99,7 +99,7 @@ where
     async fn get_route(&self, request: &QuoteRequest, from_value: &str, quote_only: bool) -> Result<(SquidRouteResponse, u128, Option<String>), SwapperError> {
         let fee_address = Self::get_fee_address(request);
         let value: u128 = from_value.parse().unwrap_or(0);
-        let fee = if fee_address.is_some() { value * DEFAULT_SWAP_FEE_BPS as u128 / 10_000 } else { 0 };
+        let fee = if fee_address.is_some() { bps_of(&value, DEFAULT_SWAP_FEE_BPS) } else { 0 };
         let swap_value = (value - fee).to_string();
         let squid_request = Self::build_route_request(request, &swap_value, quote_only)?;
         let response = self.client.get_route(&squid_request).await?;

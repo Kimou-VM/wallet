@@ -1,16 +1,13 @@
 use std::str::FromStr;
 
 use num_bigint::BigUint;
-use primitives::{
-    AssetId, TransactionSwapMetadata, TransactionSwapReferralFee,
-    swap::{HUNDRED_PERCENT_IN_BPS, SwapStatus},
-};
+use primitives::{AssetId, TransactionSwapMetadata, TransactionSwapReferralFee, swap::SwapStatus};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     SwapperProvider,
     bridgers::asset::get_asset_id,
-    fees::{DEFAULT_REFERRER, DEFAULT_SWAP_FEE_BPS},
+    fees::{DEFAULT_REFERRER, DEFAULT_SWAP_FEE_BPS, bps_of},
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -67,7 +64,7 @@ impl Record {
         let is_charged = self.status == RecordStatus::ReceiveComplete && self.source.as_deref() == Some(DEFAULT_REFERRER);
         is_charged.then(|| TransactionSwapReferralFee {
             asset_id: from_asset.clone(),
-            value: from_value * DEFAULT_SWAP_FEE_BPS / HUNDRED_PERCENT_IN_BPS,
+            value: bps_of(from_value, DEFAULT_SWAP_FEE_BPS),
         })
     }
 }

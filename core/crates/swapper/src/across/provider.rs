@@ -7,7 +7,7 @@ use crate::{
     client_factory::{create_client_with_chain, create_eth_client},
     cross_chain::VaultAddresses,
     eth_address,
-    fees::{ReferralFee, default_referral_fees},
+    fees::{ReferralFee, bps_of, default_referral_fees},
     models::*,
 };
 use alloy_primitives::{Address, Bytes, U256, hex::decode as HexDecode, hex::encode_prefixed as HexEncode};
@@ -164,7 +164,7 @@ impl Across {
             return Ok((vec![], U256::from(0)));
         }
         let fee_address = parse_address(output_chain, &referral_fee.address)?;
-        let fee_amount = amount * U256::from(referral_fee.bps) / U256::from(10000);
+        let fee_amount = bps_of(amount, referral_fee.bps);
         let user_amount = amount - fee_amount;
 
         let calls = match output_funding {

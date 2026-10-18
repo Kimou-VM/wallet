@@ -1,10 +1,11 @@
 use super::DEFAULT_SWAP_FEE_BPS;
+use crate::fees::bps_of;
 use gem_solana::{USDC_TOKEN_MINT, USDS_TOKEN_MINT, USDT_TOKEN_MINT, WSOL_TOKEN_ADDRESS};
 use primitives::{
     Chain, ChainType,
     swap::{
-        APTOS_REFERRAL_ADDRESS, COSMOS_REFERRAL_ADDRESS, EVM_REFERRAL_ADDRESS, HUNDRED_PERCENT_IN_BPS, INJECTIVE_REFERRAL_ADDRESS, NEAR_REFERRAL_ADDRESS, SOLANA_REFERRAL_ADDRESS, SUI_REFERRAL_ADDRESS, THORCHAIN_REFERRAL_ADDRESS,
-        TON_REFERRAL_ADDRESS, TRON_REFERRAL_ADDRESS,
+        APTOS_REFERRAL_ADDRESS, COSMOS_REFERRAL_ADDRESS, EVM_REFERRAL_ADDRESS, INJECTIVE_REFERRAL_ADDRESS, NEAR_REFERRAL_ADDRESS, SOLANA_REFERRAL_ADDRESS, SUI_REFERRAL_ADDRESS, THORCHAIN_REFERRAL_ADDRESS, TON_REFERRAL_ADDRESS,
+        TRON_REFERRAL_ADDRESS,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -60,7 +61,7 @@ impl FeeSide {
 
 impl ReferralFee {
     fn fee_value(&self, value: u64) -> u64 {
-        u64::try_from(u128::from(value) * u128::from(self.bps) / u128::from(HUNDRED_PERCENT_IN_BPS)).unwrap_or_default()
+        u64::try_from(bps_of(&u128::from(value), self.bps)).unwrap_or_default()
     }
 
     pub fn swap_value(&self, side: FeeSide, value: u64) -> u64 {
