@@ -1,7 +1,7 @@
 use borsh::BorshSerialize;
 use gem_solana::{
     AccountMeta, Instruction, Pubkey,
-    anchor::global_discriminator,
+    anchor::instruction_data,
     find_program_address,
     instructions::program_ids::{pump_amm_program, system_program},
 };
@@ -56,7 +56,7 @@ pub(super) fn swap_v2_instruction(address: &Pubkey, pool: &Pool, swap: &PoolSwap
     Ok(Instruction {
         program_id: pump_amm_program(),
         accounts,
-        data: [global_discriminator(name).to_vec(), borsh::to_vec(&args).map_err(SwapperError::transaction_error)?].concat(),
+        data: instruction_data(name, &args),
     })
 }
 

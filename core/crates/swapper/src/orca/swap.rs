@@ -1,7 +1,7 @@
 use borsh::BorshSerialize;
 use gem_solana::{
     AccountMeta, Instruction, Pubkey,
-    anchor::global_discriminator,
+    anchor::instruction_data,
     instructions::program_ids::{memo_program, orca_whirlpool_program},
 };
 use std::iter::repeat;
@@ -138,7 +138,7 @@ fn whirlpool_instruction(name: &str, args: &impl BorshSerialize, accounts: Vec<A
     Ok(Instruction {
         program_id: orca_whirlpool_program(),
         accounts,
-        data: [global_discriminator(name).to_vec(), borsh::to_vec(args).map_err(SwapperError::transaction_error)?].concat(),
+        data: instruction_data(name, args),
     })
 }
 
@@ -163,10 +163,7 @@ mod tests {
             }]),
         };
 
-        assert_eq!(
-            [global_discriminator(SWAP_V2).to_vec(), borsh::to_vec(&args).unwrap()].concat(),
-            hex!("2b04ed0b1ac91e621038120000000000abcf96000000000000000000000000000000000000000000010001010000000602")
-        );
+        assert_eq!(instruction_data(SWAP_V2, &args), hex!("2b04ed0b1ac91e621038120000000000abcf96000000000000000000000000000000000000000000010001010000000602"));
     }
 
     #[test]
@@ -232,7 +229,7 @@ mod tests {
         };
 
         assert_eq!(
-            [global_discriminator(TWO_HOP_SWAP_V2).to_vec(), borsh::to_vec(&args).unwrap()].concat(),
+            instruction_data(TWO_HOP_SWAP_V2, &args),
             hex!("ba8fd11dfe02c27540420f0000000000a0bb0d0000000000010000000000000000000000000000000000000000000000000000000000000000000000")
         );
     }

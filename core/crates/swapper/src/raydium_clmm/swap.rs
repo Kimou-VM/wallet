@@ -1,7 +1,7 @@
 use borsh::BorshSerialize;
 use gem_solana::{
     AccountMeta, Instruction, Pubkey,
-    anchor::global_discriminator,
+    anchor::instruction_data,
     instructions::program_ids::{memo_program, raydium_clmm_program, token_2022_program, token_program},
 };
 
@@ -114,7 +114,7 @@ fn raydium_instruction(name: &str, args: &impl BorshSerialize, accounts: Vec<Acc
     Ok(Instruction {
         program_id: raydium_clmm_program(),
         accounts,
-        data: [global_discriminator(name).to_vec(), borsh::to_vec(args).map_err(SwapperError::transaction_error)?].concat(),
+        data: instruction_data(name, args),
     })
 }
 
@@ -123,10 +123,6 @@ mod tests {
     use super::*;
     use crate::raydium_clmm::testkit::{TEST_EXTENSION_POOL, TEST_LIMIT_ORDER_POOL, mock_pool_snapshot};
     use hex_lit::hex;
-
-    fn instruction_data(name: &str, args: &impl BorshSerialize) -> Vec<u8> {
-        [global_discriminator(name).to_vec(), borsh::to_vec(args).unwrap()].concat()
-    }
 
     #[test]
     fn test_instruction_data() {

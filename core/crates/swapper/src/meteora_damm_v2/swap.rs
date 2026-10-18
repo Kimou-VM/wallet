@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use gem_solana::{AccountMeta, Instruction, Pubkey, anchor::global_discriminator, instructions::program_ids::meteora_damm_v2_program};
+use gem_solana::{AccountMeta, Instruction, Pubkey, anchor::instruction_data, instructions::program_ids::meteora_damm_v2_program};
 use hex_lit::hex;
 
 use super::pool::Pool;
@@ -44,7 +44,7 @@ pub(super) fn swap_instruction(address: &Pubkey, pool: &Pool, swap: &PoolSwap) -
     Ok(Instruction {
         program_id: meteora_damm_v2_program(),
         accounts,
-        data: [global_discriminator(SWAP).to_vec(), borsh::to_vec(&parameters).map_err(SwapperError::transaction_error)?].concat(),
+        data: instruction_data(SWAP, &parameters),
     })
 }
 

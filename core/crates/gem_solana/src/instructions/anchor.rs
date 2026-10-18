@@ -1,4 +1,4 @@
-use borsh::BorshDeserialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use sha2::{Digest, Sha256};
 
 use crate::{Result, SolanaError};
@@ -18,6 +18,10 @@ fn namespaced_discriminator(namespace: &str, name: &str) -> [u8; 8] {
 
 pub fn global_discriminator(name: &str) -> [u8; 8] {
     namespaced_discriminator("global", name)
+}
+
+pub fn instruction_data(name: &str, args: &impl BorshSerialize) -> Vec<u8> {
+    [global_discriminator(name).to_vec(), borsh::to_vec(args).unwrap_or_default()].concat()
 }
 
 pub trait AnchorAccount: BorshDeserialize {

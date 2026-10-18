@@ -1,7 +1,7 @@
 use borsh::BorshSerialize;
 use gem_solana::{
     AccountMeta, Instruction, Pubkey,
-    anchor::global_discriminator,
+    anchor::instruction_data,
     instructions::program_ids::{memo_program, meteora_dlmm_program},
 };
 use hex_lit::hex;
@@ -61,7 +61,7 @@ pub(super) fn swap2_instruction(address: &Pubkey, pair: &Pair, swap: &PoolSwap) 
     Ok(Instruction {
         program_id: meteora_dlmm_program(),
         accounts,
-        data: [global_discriminator(SWAP2).to_vec(), borsh::to_vec(&parameters).map_err(SwapperError::transaction_error)?].concat(),
+        data: instruction_data(SWAP2, &parameters),
     })
 }
 
@@ -72,7 +72,7 @@ mod tests {
         meteora_dlmm::testkit::{TEST_SOL_USDC_POOL, mock_pool_snapshot},
         solana_dex::SwapToken,
     };
-    use gem_solana::{find_program_address, instructions::program_ids::token_program, wrapped_sol::wrapped_sol_mint};
+    use gem_solana::{anchor::global_discriminator, find_program_address, instructions::program_ids::token_program, wrapped_sol::wrapped_sol_mint};
 
     #[test]
     fn test_program_addresses() {

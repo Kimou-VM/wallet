@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use gem_solana::{AccountMeta, Instruction, Pubkey, anchor::global_discriminator, instructions::program_ids::raydium_cpmm_program};
+use gem_solana::{AccountMeta, Instruction, Pubkey, anchor::instruction_data, instructions::program_ids::raydium_cpmm_program};
 use hex_lit::hex;
 
 use super::pool::Pool;
@@ -41,7 +41,7 @@ pub(super) fn swap_base_input_instruction(address: &Pubkey, pool: &Pool, swap: &
     Ok(Instruction {
         program_id: raydium_cpmm_program(),
         accounts,
-        data: [global_discriminator(SWAP_BASE_INPUT).to_vec(), borsh::to_vec(&parameters).map_err(SwapperError::transaction_error)?].concat(),
+        data: instruction_data(SWAP_BASE_INPUT, &parameters),
     })
 }
 
@@ -52,7 +52,7 @@ mod tests {
         raydium_cpmm::testkit::{TEST_JUP_SOL_POOL, mock_pool_snapshot},
         solana_dex::SwapToken,
     };
-    use gem_solana::{find_program_address, wrapped_sol::wrapped_sol_mint};
+    use gem_solana::{anchor::global_discriminator, find_program_address, wrapped_sol::wrapped_sol_mint};
     use hex_lit::hex;
 
     #[test]
