@@ -1,4 +1,4 @@
-use gem_solana::{Instruction, Pubkey};
+use gem_solana::{Instruction, Pubkey, SolanaProgramAccountsFilter};
 
 use super::token::{INTERMEDIATE_TOKENS, SwapToken};
 use crate::{SwapperError, SwapperProvider};
@@ -15,6 +15,12 @@ impl QuoteAccount {
             Self::Owned { address, .. } | Self::Token(address) => *address,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct PoolQuery {
+    pub filters: Vec<SolanaProgramAccountsFilter>,
+    pub depth_offset: usize,
 }
 
 #[derive(Debug)]
@@ -74,6 +80,10 @@ pub(crate) trait DexProtocol: Send + Sync {
 
     fn intermediate_tokens(&self) -> &'static [SwapToken] {
         &INTERMEDIATE_TOKENS
+    }
+
+    fn pool_queries(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Vec<PoolQuery> {
+        vec![]
     }
 
     fn quote_accounts(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError>;

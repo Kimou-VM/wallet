@@ -30,4 +30,5 @@ public enum SwapProvider: String, Codable, Equatable, Hashable, Sendable {
 	case raydiumClmm = "raydium_clmm"
 	case dedust
 	case pumpSwap = "pump_swap"
+	case meteoraDammV2 = "meteora_damm_v2"
 }

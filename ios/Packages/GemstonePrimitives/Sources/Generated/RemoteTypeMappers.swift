@@ -1108,6 +1108,7 @@ public extension Gemstone.SwapProvider {
         case .raydiumClmm: .raydiumClmm
         case .dedust: .dedust
         case .pumpSwap: .pumpSwap
+        case .meteoraDammV2: .meteoraDammV2
         }
     }
 }
@@ -1142,6 +1143,7 @@ public extension Primitives.SwapProvider {
         case .raydiumClmm: .raydiumClmm
         case .dedust: .dedust
         case .pumpSwap: .pumpSwap
+        case .meteoraDammV2: .meteoraDammV2
         }
     }
 }

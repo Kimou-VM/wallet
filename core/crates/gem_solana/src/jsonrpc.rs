@@ -35,14 +35,22 @@ impl SolanaTokenAccountsFilter {
 #[derive(Clone, Debug)]
 pub enum SolanaProgramAccountsFilter {
     Memcmp { offset: u8, bytes: String },
+    DataSize(u64),
 }
 
 impl SolanaProgramAccountsFilter {
     fn value(&self) -> Value {
         match self {
             Self::Memcmp { offset, bytes } => json!({ "memcmp": { "offset": offset, "bytes": bytes } }),
+            Self::DataSize(size) => json!({ "dataSize": size }),
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SolanaDataSlice {
+    pub offset: usize,
+    pub length: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -63,6 +71,7 @@ pub enum SolanaRpc {
     GetLatestBlockhash(SolanaRpcConfig),
     GetMultipleAccounts(Vec<String>),
     GetProgramAccounts(String, Vec<SolanaProgramAccountsFilter>),
+    GetProgramAccountsSlice(String, Vec<SolanaProgramAccountsFilter>, SolanaDataSlice),
     GetRecentPrioritizationFees(Vec<String>),
     GetSlot(SolanaRpcConfig),
     GetSupply,
@@ -84,7 +93,7 @@ impl ToJsonRpcRequest for SolanaRpc {
             Self::GetInflationRate => method::GET_INFLATION_RATE,
             Self::GetLatestBlockhash(_) => method::GET_LATEST_BLOCKHASH,
             Self::GetMultipleAccounts(_) => method::GET_MULTIPLE_ACCOUNTS,
-            Self::GetProgramAccounts(_, _) => method::GET_PROGRAM_ACCOUNTS,
+            Self::GetProgramAccounts(_, _) | Self::GetProgramAccountsSlice(_, _, _) => method::GET_PROGRAM_ACCOUNTS,
             Self::GetRecentPrioritizationFees(_) => method::GET_RECENT_PRIORITIZATION_FEES,
             Self::GetSlot(_) => method::GET_SLOT,
             Self::GetSupply => method::GET_SUPPLY,
@@ -116,6 +125,14 @@ impl ToJsonRpcRequest for SolanaRpc {
                 program,
                 confirmed_config(json!({
                     "encoding": SolanaAccountEncoding::JsonParsed.as_str(),
+                    "filters": filters.iter().map(SolanaProgramAccountsFilter::value).collect::<Vec<_>>(),
+                }))
+            ]),
+            Self::GetProgramAccountsSlice(program, filters, slice) => json!([
+                program,
+                confirmed_config(json!({
+                    "encoding": SolanaAccountEncoding::Base64.as_str(),
+                    "dataSlice": { "offset": slice.offset, "length": slice.length },
                     "filters": filters.iter().map(SolanaProgramAccountsFilter::value).collect::<Vec<_>>(),
                 }))
             ]),
@@ -237,6 +254,24 @@ mod tests {
                 "commitment": "confirmed",
                 "encoding": "jsonParsed",
                 "filters": [{"memcmp": {"offset": 12, "bytes": "owner"}}]
+            }]),
+        );
+    }
+
+    #[test]
+    fn builds_program_accounts_slice_request() {
+        assert_request(
+            SolanaRpc::GetProgramAccountsSlice(
+                "program".into(),
+                vec![SolanaProgramAccountsFilter::DataSize(1112), SolanaProgramAccountsFilter::Memcmp { offset: 168, bytes: "mint".into() }],
+                SolanaDataSlice { offset: 680, length: 8 },
+            ),
+            method::GET_PROGRAM_ACCOUNTS,
+            json!(["program", {
+                "commitment": "confirmed",
+                "encoding": "base64",
+                "dataSlice": {"offset": 680, "length": 8},
+                "filters": [{"dataSize": 1112}, {"memcmp": {"offset": 168, "bytes": "mint"}}]
             }]),
         );
     }

@@ -1,6 +1,6 @@
 use borsh::BorshDeserialize;
 use gem_client::testkit::MockClient;
-use gem_encoding::decode_base64;
+use gem_encoding::{decode_base64, encode_base64};
 use gem_jsonrpc::{client::JsonRpcClient, testkit::mock_jsonrpc_client};
 use gem_solana::{
     Instruction, Pubkey, USDC_TOKEN_MINT,
@@ -116,7 +116,29 @@ pub(crate) fn mock_rpc_client(accounts: HashMap<String, Value>, requests: Arc<At
             let addresses = params[0].as_array().unwrap();
             Ok(json!({ "context": { "slot": 1 }, "value": addresses.iter().map(|address| accounts.get(address.as_str().unwrap()).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() }))
         }
+        "getProgramAccounts" => {
+            requests.fetch_add(1, Ordering::SeqCst);
+            Ok(Value::Array(accounts.iter().filter_map(|(address, account)| mock_program_account(address, account, params)).collect()))
+        }
         "getLatestBlockhash" => Ok(json!({ "context": { "slot": 1 }, "value": { "blockhash": "11111111111111111111111111111111", "lastValidBlockHeight": 1 } })),
         method => panic!("unexpected method {method}"),
     })
+}
+
+fn mock_program_account(address: &str, account: &Value, params: &Value) -> Option<Value> {
+    let data = decode_base64(account["data"][0].as_str()?).ok()?;
+    let config = &params[1];
+    let number = |value: &Value| usize::try_from(value.as_u64().unwrap()).unwrap();
+    let matches = config["filters"].as_array().unwrap().iter().all(|filter| match (filter.get("dataSize"), filter.get("memcmp")) {
+        (Some(size), _) => data.len() == number(size),
+        (_, Some(memcmp)) => {
+            let bytes = Pubkey::from_base58(memcmp["bytes"].as_str().unwrap()).unwrap();
+            let start = number(&memcmp["offset"]);
+            data.get(start..start + bytes.as_bytes().len()) == Some(bytes.as_bytes())
+        }
+        _ => false,
+    });
+    let slice_start = number(&config["dataSlice"]["offset"]);
+    let slice = data.get(slice_start..slice_start + number(&config["dataSlice"]["length"]))?;
+    (account["owner"] == params[0] && matches).then(|| json!({ "pubkey": address, "account": { "data": [encode_base64(slice), "base64"], "owner": account["owner"] } }))
 }

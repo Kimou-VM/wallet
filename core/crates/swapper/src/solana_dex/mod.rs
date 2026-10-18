@@ -6,6 +6,6 @@ pub(crate) mod testkit;
 mod token;
 mod transaction;
 
-pub(crate) use protocol::{DexPool, DexProtocol, PoolSwap, QuoteAccount};
+pub(crate) use protocol::{DexPool, DexProtocol, PoolQuery, PoolSwap, QuoteAccount};
 pub(crate) use provider::SolanaDex;
 pub(crate) use token::SwapToken;

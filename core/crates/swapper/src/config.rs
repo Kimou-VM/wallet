@@ -40,7 +40,14 @@ pub enum QuotePreference {
 pub fn quote_preferences() -> Vec<QuotePreference> {
     vec![
         QuotePreference::Providers {
-            providers: vec![SwapperProvider::Across, SwapperProvider::Orca, SwapperProvider::RaydiumClmm, SwapperProvider::PumpSwap, SwapperProvider::Thorchain],
+            providers: vec![
+                SwapperProvider::Across,
+                SwapperProvider::Orca,
+                SwapperProvider::RaydiumClmm,
+                SwapperProvider::PumpSwap,
+                SwapperProvider::MeteoraDammV2,
+                SwapperProvider::Thorchain,
+            ],
             tolerance_bps: 10,
         },
         QuotePreference::DustFreeMaxAmount { tolerance_bps: 25 },

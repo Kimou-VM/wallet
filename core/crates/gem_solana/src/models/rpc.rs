@@ -26,6 +26,12 @@ pub struct Info<T> {
 
 pub type AccountData = ValueData<Vec<String>>;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgramAccount {
+    pub pubkey: String,
+    pub account: AccountData,
+}
+
 impl AccountData {
     pub fn decoded_data(&self) -> Result<Vec<u8>> {
         let data = self.data.first().ok_or_else(|| SolanaError::invalid_input("Missing Solana account data"))?;

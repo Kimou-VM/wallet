@@ -70,11 +70,12 @@ The quote that gives the most wins. A provider that runs on-chain, with no third
 | Orca | the quote is read from the Whirlpool accounts and the swap goes straight to the pool |
 | Raydium | the quote is read from the CLMM pool accounts and the swap goes straight to the pool |
 | PumpSwap | the quote is read from the pool, its token vaults and pump.fun's fee schedule, and the swap goes straight to the pool |
+| Meteora | the quote is read from the DAMM v2 pool account and the swap goes straight to the pool |
 | THORChain | the quote comes from THORChain's own node and the deposit goes straight to its vault |
 
 ## On-chain quotes
 
-Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, PumpSwap, Cetus, STON.fi, DeDust and Hyperion quote straight from the chain. What a pool is never changes once it exists: its address, its tokens, its fee tier. What it holds changes with every trade: its price, liquidity and reserves. The wallet keeps the first and reads the second again for every quote, so a quote is always priced on live state while the lookups that never change are not repeated. Dynode, the node proxy every wallet talks to, keeps the same unchanging lookups for all users ([how Dynode caches](../DYNODE.md#caching)).
+Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, PumpSwap, Meteora, Cetus, STON.fi, DeDust and Hyperion quote straight from the chain. What a pool is never changes once it exists: its address, its tokens, its fee tier. What it holds changes with every trade: its price, liquidity and reserves. The wallet keeps the first and reads the second again for every quote, so a quote is always priced on live state while the lookups that never change are not repeated. Dynode, the node proxy every wallet talks to, keeps the same unchanging lookups for all users ([how Dynode caches](../DYNODE.md#caching)).
 
 ```mermaid
 flowchart LR
@@ -90,8 +91,9 @@ flowchart LR
 |---|---|
 | A pool exists: its address, tokens and fee tier, and the version Cetus needs to trade with it | `7 days` |
 | DeDust pool and vault addresses | `7 days` |
-| No pool exists at a fee tier | `1 day` |
-| A pool cannot trade: no liquidity at its price, or swaps paused or not open yet on Orca and Raydium, or a cashback coin on PumpSwap, or locked on STON.fi | `1 hour`, then it is checked again |
+| The Meteora pools found for a pair | `7 days` |
+| No pool exists at a fee tier, or Meteora has none for a pair | `1 day` |
+| A pool cannot trade: no liquidity at its price, or swaps paused or not open yet on Orca and Raydium, or a cashback coin on PumpSwap, or disabled on Meteora, or locked on STON.fi | `1 hour`, then it is checked again |
 | A pool or route that gave more than `3%` less than the best, or failed while another succeeded | `5 minutes`, skipped only when the same pair is quoted for the same amount |
 | On Solana: the token mints, Gem's fee accounts, Raydium's fee configs and pump.fun's fee schedule | `1 day` |
 | Cetus's four main SUI/USDC pools | always; they ship with the app |
@@ -108,6 +110,8 @@ Anything not listed is read again for every quote.
 
 Solana, Uniswap v4 and Hyperion pool addresses are computed on the device from the two tokens and the fee tier, so finding a pool only checks that it exists. On Solana a quote reads every account it needs in one request. Orca and Raydium each look up their `8` most-used fee tiers, which hold about `92%` and `94%` of the liquidity in their 200 largest pools. With 8 tiers, a token-to-token pair needs at most `93` accounts, which fits Solana's `100`-account limit, so a quote never splits into a second request. PumpSwap looks up the one pool pump.fun creates when a coin graduates, against SOL or USDC, and trades it directly; its fee depends on the coin's market cap, read from the same request.
 
+A Meteora DAMM v2 pool address depends on a config the pool does not store, so it cannot be computed from the two tokens. When a pair is picked, or on its first quote, the wallet asks the node for the program's pools that hold both tokens, once per token order. The two lookups go out at the same time as separate requests, because Dynode sends program lookups to a node that answers them in about `60 ms` only when they are not batched; batched, they reached a node that took up to `14 s` or refused them. Each lookup returns only the pool addresses and each pool's reserve of the token being sold, and the wallet keeps the `4` deepest pools that hold any: SOL/USDC alone has `463` pools, most of them empty. A Meteora pool carries its whole fee schedule, so a quote then reads only those pools, the mints and the clock, in one request, and trades the best one directly.
+
 ### Skipping pools that lose
 
 Every quote compares candidates and keeps the best. A candidate that gave more than `3%` less than the best, or that failed while another succeeded, is not asked again for the next `5 minutes` when the same pair is quoted for the same amount, as the 30-second refresh and the confirmation screen do. Any other amount asks every candidate again: a pool too shallow for a large trade can still be the best for a small one, and a deep pool that lost to a small pool's better price can win a larger trade. Failing means the quote reverted, the pool ran out of liquidity for the amount, or the pool could not pay the output; a network error never counts. When every candidate fails or gives nothing, as for a dust amount, none is marked. If every candidate still asked fails, the skipped ones are asked before the quote fails (`test_outpriced_cache`, `test_get_best_quote_skips_outpriced_paths`, `test_route_failing_alone_is_asked_again`, `test_find_route_skips_outpriced_pools`).
@@ -116,6 +120,7 @@ Every quote compares candidates and keeps the best. A candidate that gave more t
 |---|---|
 | Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi | each path: one pool at a fee tier, or two pools through a base token unless both sides are base tokens |
 | Orca, Raydium | each route: one pool, or two pools through an intermediate token; a skipped pool's accounts are left out of the request |
+| Meteora | each of the pair's `4` deepest pools; a skipped pool is left out of the request |
 | STON.fi | each path, and each pool within a hop |
 | DeDust | each path: one pool, or two pools through TON or USDT |
 | Hyperion | each path, and each pool within a hop |
@@ -136,13 +141,14 @@ Measured on 2026-10-17, one pair per provider and the same amount, on the build 
 | Orca, JUP to USDC | 2 | 2 → 1 | 2 → 1 | 1 | 337 → 213 KB |
 | Raydium, JUP to USDC | 2 | 2 → 1 | 2 → 1 | 1 | 193 → 127 KB |
 | PumpSwap, SOL to TOS | 2 | 1 | 1 | 1 | 2 KB |
+| Meteora, SOL to TOS | 3 | 1 | 1 | 1 | 2 KB |
 | Cetus, SUI to USDC | 7 | 1 | 7 → 1 | 6 | 3 KB |
 | STON.fi, TON to USDT | 10 | 4 → 2 | 10 → 4 | 0 | 2 → 1 KB |
 | DeDust, TON to USDT | 2 | 1 | 2 → 1 | 1 | under 1 KB |
 | DeDust, USDT to NOT | 6 | 3 → 2 | 6 → 3 | 2 | under 1 KB |
 | Hyperion, APT to USDC | 19 → 13 | 7 → 2 | 19 → 7 | 3 | under 1 KB |
 
-A repeat quote took about `110 ms` to `130 ms` on Ethereum and Sui, most of it the round trip to Dynode. Solana's carry 130 to 230 KB of pool accounts and took `170 ms` to `800 ms`. STON.fi, DeDust and Hyperion ask one pool per request, so their repeat quotes took about `230 ms`, `220 ms` and `270 ms`; a DeDust two-hop quote asks its hops in turn and took about `500 ms`.
+A repeat quote took about `110 ms` to `130 ms` on Ethereum and Sui, most of it the round trip to Dynode. Solana's carry 130 to 230 KB of pool accounts and took `170 ms` to `800 ms`. Meteora was measured on 2026-10-18: its first quote counts the two pool lookups, sent at the same time, and took about `460 ms` to `600 ms`; its repeat quote reads one pool and took `125 ms` to `345 ms`. STON.fi, DeDust and Hyperion ask one pool per request, so their repeat quotes took about `230 ms`, `220 ms` and `270 ms`; a DeDust two-hop quote asks its hops in turn and took about `500 ms`.
 
 ## Expected results
 

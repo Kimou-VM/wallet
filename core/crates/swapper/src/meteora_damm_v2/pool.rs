@@ -1,0 +1,196 @@
+use alloy_primitives::U256;
+use borsh::BorshDeserialize;
+use gem_solana::{Pubkey, anchor::AnchorAccount, models::Clock};
+
+use super::fee::{BaseFee, DynamicFee, FeePoint};
+use crate::{
+    clmm::{divide, fee_amount},
+    solana_dex::DexPool,
+};
+
+pub(super) const POOL_ACCOUNT_LEN: u64 = 1112;
+pub(super) const TOKEN_A_MINT_OFFSET: u8 = 168;
+pub(super) const TOKEN_B_MINT_OFFSET: u8 = 200;
+pub(super) const TOKEN_A_AMOUNT_OFFSET: usize = 680;
+pub(super) const TOKEN_B_AMOUNT_OFFSET: usize = 688;
+const FEE_DENOMINATOR: u32 = 1_000_000_000;
+const ACTIVATION_SLOT: u8 = 0;
+const ACTIVATION_TIMESTAMP: u8 = 1;
+const POOL_ENABLED: u8 = 0;
+const BOTH_TOKEN: u8 = 0;
+const ONLY_B: u8 = 1;
+const COMPOUNDING: u8 = 2;
+const Q128_RESOLUTION: usize = 128;
+
+#[derive(Debug, Clone, PartialEq, BorshDeserialize)]
+pub(crate) struct Pool {
+    base_fee: BaseFee,
+    _base_fee_padding: u64,
+    _fee_shares: [u8; 8],
+    dynamic_fee: DynamicFee,
+    init_sqrt_price: u128,
+    pub token_a_mint: Pubkey,
+    pub token_b_mint: Pubkey,
+    pub token_a_vault: Pubkey,
+    pub token_b_vault: Pubkey,
+    _whitelisted_vault: Pubkey,
+    _padding_0: [u8; 32],
+    pub liquidity: u128,
+    _padding_1: u128,
+    _protocol_fees: [u8; 32],
+    sqrt_min_price: u128,
+    sqrt_max_price: u128,
+    sqrt_price: u128,
+    activation_point: u64,
+    activation_type: u8,
+    pool_status: u8,
+    _token_flags: [u8; 2],
+    collect_fee_mode: u8,
+    _pool_type: u8,
+    fee_version: u8,
+    _padding_3: u8,
+    _fees_per_liquidity: [u8; 64],
+    _permanent_lock_liquidity: u128,
+    _metrics: [u8; 80],
+    _creator: Pubkey,
+    token_a_amount: u64,
+    token_b_amount: u64,
+}
+
+impl AnchorAccount for Pool {
+    const NAME: &'static str = "Pool";
+}
+
+impl DexPool for Pool {
+    fn mints(&self) -> (Pubkey, Pubkey) {
+        (self.token_a_mint, self.token_b_mint)
+    }
+
+    fn token_vaults(&self) -> (Pubkey, Pubkey) {
+        (self.token_a_vault, self.token_b_vault)
+    }
+}
+
+impl Pool {
+    pub fn is_tradable(&self) -> bool {
+        self.liquidity > 0 && self.sqrt_price > 0 && self.pool_status == POOL_ENABLED
+    }
+
+    pub fn quote(&self, a_to_b: bool, amount_in: u64, clock: &Clock) -> Option<u64> {
+        let current = match self.activation_type {
+            ACTIVATION_SLOT => clock.slot,
+            ACTIVATION_TIMESTAMP => u64::try_from(clock.unix_timestamp).unwrap_or_default(),
+            _ => return None,
+        };
+        if !self.is_tradable() || current < self.activation_point {
+            return None;
+        }
+        let fee_rate = self.fee_rate(current, a_to_b)?;
+        let fee_on_input = match (self.collect_fee_mode, a_to_b) {
+            (BOTH_TOKEN | ONLY_B | COMPOUNDING, true) | (BOTH_TOKEN, false) => false,
+            (ONLY_B | COMPOUNDING, false) => true,
+            _ => return None,
+        };
+        let swap_in = if fee_on_input { amount_in - fee_amount(amount_in, fee_rate, FEE_DENOMINATOR) } else { amount_in };
+        let swap_out = self.swap_output(a_to_b, swap_in)?;
+        Some(if fee_on_input { swap_out } else { swap_out - fee_amount(swap_out, fee_rate, FEE_DENOMINATOR) })
+    }
+
+    fn fee_rate(&self, current: u64, a_to_b: bool) -> Option<u32> {
+        let max_fee_rate: u32 = match self.fee_version {
+            0 => 500_000_000,
+            1 => 990_000_000,
+            _ => return None,
+        };
+        let point = FeePoint {
+            current,
+            activation: self.activation_point,
+            a_to_b,
+            init_sqrt_price: self.init_sqrt_price,
+            sqrt_price: self.sqrt_price,
+        };
+        let total = u64::try_from(self.dynamic_fee.variable_fee()?.checked_add(u128::from(self.base_fee.numerator(&point)?))?).ok()?;
+        Some(u32::try_from(total).map_or(max_fee_rate, |total| total.min(max_fee_rate)))
+    }
+
+    fn swap_output(&self, a_to_b: bool, amount_in: u64) -> Option<u64> {
+        if self.collect_fee_mode == COMPOUNDING {
+            let (reserve_in, reserve_out) = if a_to_b { (self.token_a_amount, self.token_b_amount) } else { (self.token_b_amount, self.token_a_amount) };
+            let output = (u128::from(reserve_out) * u128::from(amount_in)).checked_div(u128::from(reserve_in.checked_add(amount_in)?))?;
+            return Some(u64::try_from(output).unwrap_or_default());
+        }
+        let (liquidity, sqrt_price) = (U256::from(self.liquidity), U256::from(self.sqrt_price));
+        let output = if a_to_b {
+            let next_sqrt_price = divide(liquidity * sqrt_price, liquidity + U256::from(amount_in) * sqrt_price, true);
+            if next_sqrt_price < U256::from(self.sqrt_min_price) {
+                return None;
+            }
+            (liquidity * (sqrt_price - next_sqrt_price)) >> Q128_RESOLUTION
+        } else {
+            let next_sqrt_price = sqrt_price + (U256::from(amount_in) << Q128_RESOLUTION) / liquidity;
+            if next_sqrt_price > U256::from(self.sqrt_max_price) {
+                return None;
+            }
+            divide(liquidity * (next_sqrt_price - sqrt_price), sqrt_price * next_sqrt_price, false)
+        };
+        u64::try_from(output).ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::meteora_damm_v2::testkit::{TEST_BOTH_TOKEN_POOL, mock_pool_snapshot};
+    use borsh::BorshDeserialize;
+    use gem_solana::instructions::program_ids::sysvar_clock;
+
+    #[test]
+    fn test_quote_pool_state() {
+        let snapshot = mock_pool_snapshot(TEST_BOTH_TOKEN_POOL);
+        let pool = snapshot.pool;
+        let clock = Clock::try_from_slice(snapshot.accounts[&sysvar_clock()].as_ref().unwrap()).unwrap();
+        let timestamp = u64::try_from(clock.unix_timestamp).unwrap();
+
+        assert_eq!(pool.quote(true, 326_754_966, &clock), Some(9_936_136));
+        assert_eq!(Pool { pool_status: 1, ..pool.clone() }.quote(true, 326_754_966, &clock), None);
+        assert_eq!(
+            Pool {
+                activation_point: timestamp + 1,
+                ..pool.clone()
+            }
+            .quote(true, 326_754_966, &clock),
+            None
+        );
+        assert_eq!(Pool { activation_point: timestamp, ..pool.clone() }.quote(true, 326_754_966, &clock), Some(9_936_136));
+        assert_eq!(
+            Pool {
+                sqrt_max_price: pool.sqrt_price + 1,
+                ..pool.clone()
+            }
+            .quote(false, 10_000_000, &clock),
+            None
+        );
+        assert_eq!(
+            Pool {
+                sqrt_min_price: pool.sqrt_price,
+                ..pool.clone()
+            }
+            .quote(true, 326_754_966, &clock),
+            None
+        );
+        assert_eq!(Pool { liquidity: 0, ..pool }.quote(false, 10_000_000, &clock), None);
+    }
+
+    #[test]
+    fn test_layout_offsets() {
+        let snapshot = mock_pool_snapshot(TEST_BOTH_TOKEN_POOL);
+        let data = snapshot.accounts[&snapshot.address].as_ref().unwrap();
+        let at = |offset: usize, len: usize| &data[offset..offset + len];
+
+        assert_eq!(u64::try_from(data.len()).unwrap(), POOL_ACCOUNT_LEN);
+        assert_eq!(at(usize::from(TOKEN_A_MINT_OFFSET), 32), snapshot.pool.token_a_mint.as_bytes());
+        assert_eq!(at(usize::from(TOKEN_B_MINT_OFFSET), 32), snapshot.pool.token_b_mint.as_bytes());
+        assert_eq!(at(TOKEN_A_AMOUNT_OFFSET, 8), snapshot.pool.token_a_amount.to_le_bytes());
+        assert_eq!(at(TOKEN_B_AMOUNT_OFFSET, 8), snapshot.pool.token_b_amount.to_le_bytes());
+    }
+}

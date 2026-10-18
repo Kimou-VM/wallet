@@ -736,6 +736,7 @@ public extension SwapProvider {
         case .raydiumClmm: Images.SwapProviders.raydium
         case .dedust: Images.SwapProviders.dedust
         case .pumpSwap: Images.SwapProviders.pumpswap
+        case .meteoraDammV2: Images.SwapProviders.meteora
         }
     }
 }
