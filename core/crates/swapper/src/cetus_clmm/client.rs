@@ -1,5 +1,5 @@
 use super::{
-    constants::{CETUS_ALL_TICK_SPACINGS, CETUS_PRIMARY_TICK_SPACINGS, KNOWN_POOLS},
+    constants::{CETUS_TICK_SPACINGS, KNOWN_POOLS},
     model::{DiscoveredPool, Hop, INTERMEDIATE_COIN_TYPES},
     tx_builder,
 };
@@ -17,17 +17,14 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Debug, Clone)]
 pub(super) struct QuoteResult {
     pub amount_out: u64,
-    pub current_sqrt_price: u128,
     pub after_sqrt_price: u128,
     pub is_exceed: bool,
 }
 
-const DIRECT_PRICE_IMPACT_THRESHOLD_BPS: u32 = 50;
-
-#[derive(Debug, Default)]
-struct PhaseResult {
-    acceptable_direct: Option<(Vec<Hop>, u32)>,
-    best_route: Option<(Vec<Hop>, u32)>,
+impl QuoteResult {
+    fn is_tradable(&self) -> bool {
+        self.amount_out > 0 && !self.is_exceed
+    }
 }
 
 pub struct CetusClmm {
@@ -65,62 +62,31 @@ impl CetusClmm {
     }
 
     pub(super) async fn find_route_hops(&self, from: &str, to: &str, swap_amount: u64) -> Result<Vec<Hop>, SwapperError> {
-        let discovery_complete = self.route_discovery_complete(from, to);
-        let initial_ticks = if discovery_complete { CETUS_ALL_TICK_SPACINGS } else { CETUS_PRIMARY_TICK_SPACINGS };
-        let PhaseResult { acceptable_direct, best_route } = self.try_route_with_ticks(from, to, swap_amount, initial_ticks).await;
-        if let Some((hops, _)) = acceptable_direct {
-            return Ok(hops);
-        }
-        if discovery_complete {
-            return best_route.map(|(hops, _)| hops).ok_or(SwapperError::NoQuoteAvailable);
-        }
-        match best_route {
-            Some((hops, impact)) if impact <= DIRECT_PRICE_IMPACT_THRESHOLD_BPS => Ok(hops),
-            best_route => {
-                let expanded = self.try_route_with_ticks(from, to, swap_amount, CETUS_ALL_TICK_SPACINGS).await;
-                expanded.acceptable_direct.or(expanded.best_route).or(best_route).map(|(hops, _)| hops).ok_or(SwapperError::NoQuoteAvailable)
-            }
-        }
+        let (direct, multi_hop) = futures::future::join(self.discover_direct_pools(from, to), self.multi_hop_candidates(from, to)).await;
+        let (direct_quotes, multi_hop_quotes) = futures::future::join(self.quote_direct_batched(direct, from, swap_amount), self.quote_multi_hop_fused(multi_hop, from, swap_amount)).await;
+        direct_quotes
+            .into_iter()
+            .chain(multi_hop_quotes)
+            .flatten()
+            .max_by_key(|hops| hops.last().map(|hop| hop.amount_out).unwrap_or_default())
+            .ok_or(SwapperError::NoQuoteAvailable)
     }
 
     pub(super) async fn preload_pair(&self, from: &str, to: &str) {
-        let discoveries = discovery_pairs(from, to)
-            .into_iter()
-            .map(|(pair_from, pair_to)| async move { self.discover_direct_pools(&pair_from, &pair_to, CETUS_ALL_TICK_SPACINGS).await });
+        let discoveries = discovery_pairs(from, to).into_iter().map(|(pair_from, pair_to)| async move { self.discover_direct_pools(&pair_from, &pair_to).await });
         futures::future::join_all(discoveries).await;
     }
 
-    async fn try_route_with_ticks(&self, from: &str, to: &str, swap_amount: u64, ticks: &[u32]) -> PhaseResult {
-        let direct_candidates: Vec<Vec<DiscoveredPool>> = self.discover_direct_pools(from, to, ticks).await.into_iter().map(|pool| vec![pool]).collect();
-        let direct_quotes = self.quote_candidates_batched(direct_candidates, from, swap_amount).await;
-        let acceptable_direct = direct_quotes
-            .iter()
-            .filter_map(|q| q.as_ref())
-            .filter(|(_, impact)| *impact < DIRECT_PRICE_IMPACT_THRESHOLD_BPS)
-            .max_by_key(|(hops, _)| hops.last().map(|h| h.amount_out).unwrap_or_default())
-            .cloned();
-        if acceptable_direct.is_some() {
-            return PhaseResult { acceptable_direct, best_route: None };
-        }
-
-        let multi_hop_discoveries = route_paths(from, to).into_iter().filter_map(|path| match path {
+    async fn multi_hop_candidates(&self, from: &str, to: &str) -> Vec<(DiscoveredPool, DiscoveredPool)> {
+        let discoveries = route_paths(from, to).into_iter().filter_map(|path| match path {
             RoutePath::Direct => None,
-            RoutePath::Intermediary(intermediate) => Some(async move { futures::future::join(self.discover_direct_pools(from, &intermediate, ticks), self.discover_direct_pools(&intermediate, to, ticks)).await }),
+            RoutePath::Intermediary(intermediate) => Some(async move { futures::future::join(self.discover_direct_pools(from, &intermediate), self.discover_direct_pools(&intermediate, to)).await }),
         });
-        let multi_hop_candidates = futures::future::join_all(multi_hop_discoveries)
+        futures::future::join_all(discoveries)
             .await
             .into_iter()
-            .flat_map(|(firsts, seconds)| firsts.into_iter().flat_map(move |first| seconds.clone().into_iter().map(move |second| vec![first.clone(), second])))
-            .collect();
-        let multi_hop_quotes = self.quote_candidates_batched(multi_hop_candidates, from, swap_amount).await;
-        let best_route = direct_quotes.into_iter().chain(multi_hop_quotes).flatten().max_by_key(|(hops, _)| hops.last().map(|h| h.amount_out).unwrap_or_default());
-        PhaseResult { acceptable_direct: None, best_route }
-    }
-
-    fn route_discovery_complete(&self, from: &str, to: &str) -> bool {
-        discovery_pairs(from, to)
-            .into_iter()
-            .all(|(pair_from, pair_to)| self.discovery_cache.missing_probes(pair_from, pair_to, CETUS_ALL_TICK_SPACINGS).is_empty())
+            .flat_map(|(firsts, seconds)| firsts.into_iter().flat_map(move |first| seconds.clone().into_iter().map(move |second| (first.clone(), second))))
+            .collect()
     }
 
     fn known_pools(from: &str, to: &str) -> Vec<DiscoveredPool> {
@@ -136,13 +102,14 @@ impl CetusClmm {
             .collect()
     }
 
-    async fn discover_direct_pools(&self, from: &str, to: &str, ticks: &[u32]) -> Vec<DiscoveredPool> {
-        let missing = self.discovery_cache.missing_probes(from, to, ticks);
+    async fn discover_direct_pools(&self, from: &str, to: &str) -> Vec<DiscoveredPool> {
+        let missing = self.discovery_cache.missing_probes(from, to, CETUS_TICK_SPACINGS);
         if !missing.is_empty() {
             let discoveries = self.query_direct_pools(from, to, &missing).await;
             self.discovery_cache.record_discovery(from, to, discoveries);
         }
-        self.discovery_cache.candidates_with(from, to, ticks, Self::known_pools(from, to), |known, cached| known.pool_id == cached.pool_id)
+        self.discovery_cache
+            .candidates_with(from, to, CETUS_TICK_SPACINGS, Self::known_pools(from, to), |known, cached| known.pool_id == cached.pool_id)
     }
 
     async fn query_direct_pools(&self, from: &str, to: &str, ticks: &[u32]) -> Vec<(u32, Option<DiscoveredPool>)> {
@@ -182,66 +149,43 @@ impl CetusClmm {
             .collect()
     }
 
-    async fn quote_candidates_batched(&self, candidates: Vec<Vec<DiscoveredPool>>, from: &str, swap_amount: u64) -> Vec<Option<(Vec<Hop>, u32)>> {
-        if candidates.is_empty() {
-            return Vec::new();
-        }
-        if candidates[0].len() == 1 {
-            self.quote_direct_batched(candidates, from, swap_amount).await
-        } else {
-            self.quote_multi_hop_fused(candidates, from, swap_amount).await
-        }
-    }
-
-    async fn quote_direct_batched(&self, candidates: Vec<Vec<DiscoveredPool>>, from: &str, swap_amount: u64) -> Vec<Option<(Vec<Hop>, u32)>> {
-        let hops: Vec<Hop> = candidates.iter().map(|pools| pools[0].clone().into_hop(from, swap_amount)).collect();
+    async fn quote_direct_batched(&self, candidates: Vec<DiscoveredPool>, from: &str, swap_amount: u64) -> Vec<Option<Vec<Hop>>> {
+        let hops: Vec<Hop> = candidates.into_iter().map(|pool| pool.into_hop(from, swap_amount)).collect();
         let inputs: Vec<(&Hop, u64)> = hops.iter().map(|hop| (hop, swap_amount)).collect();
-        let quote_results = self.inspect_batch_quotes(&inputs).await.unwrap_or_else(|_| vec![None; candidates.len()]);
+        let quote_results = self.inspect_batch_quotes(&inputs).await.unwrap_or_else(|_| vec![None; hops.len()]);
 
         hops.into_iter()
             .zip(quote_results)
             .map(|(hop, quote)| {
-                let q = quote?;
-                if q.amount_out == 0 || q.is_exceed {
-                    return None;
-                }
-                let impact = price_impact_bps(q.current_sqrt_price, q.after_sqrt_price);
-                let hop = Hop {
-                    amount_out: q.amount_out,
-                    after_sqrt_price: q.after_sqrt_price,
+                let quote = quote.filter(QuoteResult::is_tradable)?;
+                Some(vec![Hop {
+                    amount_out: quote.amount_out,
+                    after_sqrt_price: quote.after_sqrt_price,
                     ..hop
-                };
-                Some((vec![hop], impact))
+                }])
             })
             .collect()
     }
 
-    async fn quote_multi_hop_fused(&self, candidates: Vec<Vec<DiscoveredPool>>, from: &str, swap_amount: u64) -> Vec<Option<(Vec<Hop>, u32)>> {
+    async fn quote_multi_hop_fused(&self, candidates: Vec<(DiscoveredPool, DiscoveredPool)>, from: &str, swap_amount: u64) -> Vec<Option<Vec<Hop>>> {
         let hop_pairs: Vec<(Hop, Hop)> = candidates
-            .iter()
-            .map(|pools| {
-                let hop1 = pools[0].clone().into_hop(from, swap_amount);
+            .into_iter()
+            .map(|(first, second)| {
+                let hop1 = first.into_hop(from, swap_amount);
                 let intermediate = hop1.output_coin_type().to_string();
-                let hop2 = pools[1].clone().into_hop(&intermediate, 0);
+                let hop2 = second.into_hop(&intermediate, 0);
                 (hop1, hop2)
             })
             .collect();
         let inputs: Vec<(&Hop, &Hop, u64)> = hop_pairs.iter().map(|(h1, h2)| (h1, h2, swap_amount)).collect();
-        let fused_results = self.inspect_batch_multi_hop_quotes(&inputs).await.unwrap_or_else(|_| vec![(None, None); candidates.len()]);
+        let fused_results = self.inspect_batch_multi_hop_quotes(&inputs).await.unwrap_or_else(|_| vec![(None, None); hop_pairs.len()]);
 
         hop_pairs
             .into_iter()
             .zip(fused_results)
             .map(|((hop1, hop2), (q1, q2))| {
-                let q1 = q1?;
-                if q1.amount_out == 0 || q1.is_exceed {
-                    return None;
-                }
-                let q2 = q2?;
-                if q2.amount_out == 0 || q2.is_exceed {
-                    return None;
-                }
-                let max_impact = price_impact_bps(q1.current_sqrt_price, q1.after_sqrt_price).max(price_impact_bps(q2.current_sqrt_price, q2.after_sqrt_price));
+                let q1 = q1.filter(QuoteResult::is_tradable)?;
+                let q2 = q2.filter(QuoteResult::is_tradable)?;
                 let hop1 = Hop {
                     amount_out: q1.amount_out,
                     after_sqrt_price: q1.after_sqrt_price,
@@ -253,7 +197,7 @@ impl CetusClmm {
                     after_sqrt_price: q2.after_sqrt_price,
                     ..hop2
                 };
-                Some((vec![hop1, hop2], max_impact))
+                Some(vec![hop1, hop2])
             })
             .collect()
     }
@@ -331,27 +275,7 @@ fn decode_quote_result_bytes(bytes: &[u8]) -> Result<QuoteResult, SwapperError> 
     let amount_out = u64::from_le_bytes(bytes[8..16].try_into().map_err(|_| SwapperError::ComputeQuoteError("Cetus CLMM amount_out decode failed".into()))?);
     let after_sqrt_price = u128::from_le_bytes(bytes[32..48].try_into().map_err(|_| SwapperError::ComputeQuoteError("Cetus CLMM after_sqrt_price decode failed".into()))?);
     let is_exceed = bytes[48] != 0;
-    let current_sqrt_price = u128::from_le_bytes(bytes[50..66].try_into().map_err(|_| SwapperError::ComputeQuoteError("Cetus CLMM current_sqrt_price decode failed".into()))?);
-    Ok(QuoteResult {
-        amount_out,
-        current_sqrt_price,
-        after_sqrt_price,
-        is_exceed,
-    })
-}
-
-fn price_impact_bps(current_sqrt_price: u128, after_sqrt_price: u128) -> u32 {
-    if current_sqrt_price == 0 {
-        return u32::MAX;
-    }
-    let (high, low) = if current_sqrt_price >= after_sqrt_price {
-        (current_sqrt_price, after_sqrt_price)
-    } else {
-        (after_sqrt_price, current_sqrt_price)
-    };
-    let delta = high - low;
-    let bps = delta.saturating_mul(20_000) / current_sqrt_price;
-    u32::try_from(bps).unwrap_or(u32::MAX)
+    Ok(QuoteResult { amount_out, after_sqrt_price, is_exceed })
 }
 
 fn quote_result_at(result: &InspectResult, cmd_idx: usize) -> Option<QuoteResult> {
@@ -377,15 +301,6 @@ mod tests {
         bytes.push(1);
         bytes.extend_from_slice(&current_sqrt.to_le_bytes());
         bytes
-    }
-
-    #[test]
-    fn test_price_impact_bps() {
-        assert_eq!(price_impact_bps(1_000_000, 1_000_000), 0);
-        assert_eq!(price_impact_bps(1_000_000, 995_000), 100);
-        assert_eq!(price_impact_bps(995_000, 1_000_000), 100);
-        assert_eq!(price_impact_bps(1_000_000, 990_000), 200);
-        assert_eq!(price_impact_bps(0, 1_000_000), u32::MAX);
     }
 
     #[test]
@@ -418,15 +333,13 @@ mod tests {
     async fn test_known_pools_do_not_suppress_discovery() {
         let provider = CetusClmm::new(Arc::new(ProviderMock::new(String::new()))).unwrap();
 
-        assert!(!provider.route_discovery_complete(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL));
+        assert_eq!(provider.discovery_cache.missing_probes(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL, CETUS_TICK_SPACINGS), CETUS_TICK_SPACINGS);
 
-        provider
-            .discovery_cache
-            .record_discovery(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL, CETUS_ALL_TICK_SPACINGS.iter().map(|tick| (*tick, None)));
+        provider.discovery_cache.record_discovery(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL, CETUS_TICK_SPACINGS.iter().map(|tick| (*tick, None)));
 
-        assert!(provider.route_discovery_complete(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL));
+        assert!(provider.discovery_cache.missing_probes(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL, CETUS_TICK_SPACINGS).is_empty());
         assert_eq!(
-            provider.discover_direct_pools(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL, CETUS_ALL_TICK_SPACINGS).await,
+            provider.discover_direct_pools(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL).await,
             CetusClmm::known_pools(SUI_USDC_TOKEN_ID, gem_sui::SUI_COIN_TYPE_FULL)
         );
     }

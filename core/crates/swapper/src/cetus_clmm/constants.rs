@@ -22,8 +22,7 @@ pub(super) const FUNCTION_NEW_POOL_KEY: &str = "new_pool_key";
 pub(super) const FUNCTION_POOL_SIMPLE_INFO: &str = "pool_simple_info";
 pub(super) const FUNCTION_POOL_ID: &str = "pool_id";
 
-pub(super) const CETUS_PRIMARY_TICK_SPACINGS: &[u32] = &[60, 200];
-pub(super) const CETUS_ALL_TICK_SPACINGS: &[u32] = &[60, 200, 10, 2, 40];
+pub(super) const CETUS_TICK_SPACINGS: &[u32] = &[1, 2, 10, 20, 40, 60, 200];
 
 pub(super) struct KnownPool {
     pub coin_a: &'static str,

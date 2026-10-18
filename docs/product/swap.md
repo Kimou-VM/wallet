@@ -119,6 +119,8 @@ flowchart LR
 
 Anything not listed is read again for every quote.
 
+Cetus looks up all seven of its fee tiers, tick spacings `1`, `2`, `10`, `20`, `40`, `60` and `200`, at the same time on a pair's first quote, and every quote ranks its direct pools and its routes through SUI or USDC by what they pay alone. On 2026-10-18, 1,000 USDC to suiUSDT was priced at `1.0012` suiUSDT per USDC through the tick spacing `1` pool, against `1.00003` before, and 10,000 USDC, which used to route through SUI for `3,731` suiUSDT, received `9,962`.
+
 Solana, Uniswap v4 and Hyperion pool addresses are computed on the device from the two tokens and the fee tier, so finding a pool only checks that it exists. On Solana a quote reads every account it needs in one request. Orca and Raydium each look up their `8` most-used fee tiers, which hold about `92%` and `94%` of the liquidity in their 200 largest pools. With 8 tiers, a token-to-token pair needs at most `93` accounts, which fits Solana's `100`-account limit, so a quote never splits into a second request. PumpSwap looks up the one pool pump.fun creates when a coin graduates, against SOL or USDC, and trades it directly; its fee depends on the coin's market cap, read from the same request.
 
 Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku and Wagmi route through a base token by pairing any fee tier on the first pool with any fee tier on the second, among the pools that exist, and the swap is built with each pool's own tier (`test_two_hop_routes_keep_each_hop_fee_tier`). A token traded against USDC can then go through its `0.3%` pool against ETH and ETH's `0.01%` pool against USDC: on 2026-10-18, 1 billion PEPE to USDC on Ethereum received `11.7` basis points more than the best route that used one tier for both pools. Every combination is quoted in the same single request, so once the pools are known the quote still takes about `0.2 s`.
@@ -146,7 +148,7 @@ Every quote compares candidates and keeps the best. A candidate that gave more t
 | DeDust | each path: one pool, or two pools through TON or USDT; each hop asks its volatile and stable pool at the same time and takes the one that pays more |
 | Hyperion | each path, and each pool within a hop |
 
-Cetus prices all its pools in one dry run, and PumpSwap has one pool per pair, so neither has anything to skip. `3%` keeps close rivals: two fee tiers on a busy pair are often within `1%` and trade places as prices move, so both stay. In the measured pairs, every pool that lost was `6%` to `99%` worse than the best, or failed.
+Cetus prices all its direct pools in one dry run and all its two-pool routes in another, sent at the same time, and PumpSwap has one pool per pair, so neither has anything to skip. `3%` keeps close rivals: two fee tiers on a busy pair are often within `1%` and trade places as prices move, so both stay. In the measured pairs, every pool that lost was `6%` to `99%` worse than the best, or failed.
 
 ### Requests per quote
 
