@@ -1,5 +1,5 @@
 use super::ActionResponse;
-use crate::{Options, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapperProvider, SwapperQuoteAsset};
+use crate::{Options, ProviderType, Quote, QuoteRequest, SwapperProvider, SwapperQuoteAsset};
 use num_bigint::BigUint;
 use primitives::{AssetId, Chain};
 
@@ -41,19 +41,7 @@ impl Quote {
     pub fn mock_swaps_xyz(request: QuoteRequest, response: ActionResponse) -> Self {
         Quote {
             from_value: response.amount_in.amount.clone(),
-            min_from_value: None,
-            to_value: response.amount_out.amount.clone(),
-            data: ProviderData {
-                provider: ProviderType::new(SwapperProvider::SwapsXyz),
-                slippage_bps: request.options.slippage.bps,
-                routes: vec![Route {
-                    input: request.from_asset.asset_id(),
-                    output: request.to_asset.asset_id(),
-                    route_data: serde_json::to_string(&response).unwrap(),
-                }],
-            },
-            request,
-            eta_in_seconds: None,
+            ..Quote::from_route(&request, &ProviderType::new(SwapperProvider::SwapsXyz), response.amount_out.amount.clone(), request.options.slippage.bps, &response, None).unwrap()
         }
     }
 }

@@ -484,7 +484,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         } else {
             self.quote_paths(request, &input, &output, paths).await
         }?;
-        Quote::from_route(request, &self.provider, BigUint::from(route.received_value()), &route, None)
+        Quote::from_route(request, &self.provider, BigUint::from(route.received_value()), request.options.slippage.bps, &route, None)
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {

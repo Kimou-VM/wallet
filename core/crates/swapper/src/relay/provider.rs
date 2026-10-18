@@ -20,7 +20,7 @@ use super::{
     solana, ton,
 };
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     approval::check_token_approval,
     client_factory::create_ton_client,
     config::get_swap_proxy_url,
@@ -117,24 +117,11 @@ where
 
         let to_value = BigUint::from_str(&response.details.currency_out.amount).map_err(SwapperError::compute_quote_error)?;
 
-        let quote = Quote {
+        let slippage_bps = response.details.slippage_bps().unwrap_or(request.options.slippage.bps);
+        Ok(Quote {
             from_value,
-            min_from_value: None,
-            to_value,
-            data: ProviderData {
-                provider: self.provider().clone(),
-                routes: vec![Route {
-                    input: from_asset_id,
-                    output: to_asset_id,
-                    route_data: serde_json::to_string(&response).map_err(SwapperError::compute_quote_error)?,
-                }],
-                slippage_bps: response.details.slippage_bps().unwrap_or(request.options.slippage.bps),
-            },
-            request: request.clone(),
-            eta_in_seconds: response.details.eta_in_seconds(),
-        };
-
-        Ok(quote)
+            ..Quote::from_route(request, self.provider(), to_value, slippage_bps, &response, response.details.eta_in_seconds())?
+        })
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
@@ -215,7 +202,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{SwapperQuoteAsset, alien::mock::ProviderMock, approval::DEFAULT_TRON_SWAP_ENERGY_LIMIT, relay::model::Step};
+    use crate::{Route, SwapperQuoteAsset, alien::mock::ProviderMock, approval::DEFAULT_TRON_SWAP_ENERGY_LIMIT, relay::model::Step};
     use gem_client::{ClientError, testkit::MockClient};
     use primitives::Chain;
     use primitives::{

@@ -21,7 +21,7 @@ use super::{
     tx_builder,
 };
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     alien::RpcProvider,
     approval::{check_approval_erc20, get_swap_gas_limit_with_approval},
     cross_chain::VaultAddresses,
@@ -241,18 +241,7 @@ where
         Ok(Quote {
             min_from_value: Some(minimum_amount),
             from_value: quote_request.amount,
-            to_value: egress_amount,
-            data: ProviderData {
-                provider: self.provider.clone(),
-                slippage_bps,
-                routes: vec![Route {
-                    input: request.from_asset.asset_id(),
-                    output: request.to_asset.asset_id(),
-                    route_data: serde_json::to_string(&route_data)?,
-                }],
-            },
-            eta_in_seconds: Some(eta_in_seconds),
-            request: request.clone(),
+            ..Quote::from_route(request, &self.provider, egress_amount, slippage_bps, &route_data, Some(eta_in_seconds))?
         })
     }
 

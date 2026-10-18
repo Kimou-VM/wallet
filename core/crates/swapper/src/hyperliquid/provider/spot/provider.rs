@@ -18,7 +18,7 @@ use primitives::{
 };
 
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
     alien::{RpcClient, RpcProvider},
     error::INVALID_AMOUNT,
     route_cache::Cache,
@@ -186,35 +186,21 @@ impl Swapper for HyperCoreSpot {
 
         let from_value = actual_from_value.unwrap_or_else(|| request.value.clone());
 
-        let quote = Quote {
+        let order = make_market_order(
+            asset_index,
+            side.is_buy(),
+            &limit_price,
+            &order_size,
+            false,
+            Some(Builder {
+                builder_address: client.config.builder_address.clone(),
+                fee: client.config.max_builder_fee_bps,
+            }),
+        );
+        Ok(Quote {
             from_value,
-            min_from_value: None,
-            to_value,
-            data: ProviderData {
-                provider: self.provider.clone(),
-                slippage_bps: request.options.slippage.bps,
-                routes: vec![Route {
-                    input: request.from_asset.asset_id(),
-                    output: request.to_asset.asset_id(),
-                    route_data: serde_json::to_string(&make_market_order(
-                        asset_index,
-                        side.is_buy(),
-                        &limit_price,
-                        &order_size,
-                        false,
-                        Some(Builder {
-                            builder_address: client.config.builder_address.clone(),
-                            fee: client.config.max_builder_fee_bps,
-                        }),
-                    ))
-                    .map_err(SwapperError::compute_quote_error)?,
-                }],
-            },
-            request: request.clone(),
-            eta_in_seconds: None,
-        };
-
-        Ok(quote)
+            ..Quote::from_route(request, &self.provider, to_value, request.options.slippage.bps, &order, None)?
+        })
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
@@ -229,7 +215,10 @@ impl Swapper for HyperCoreSpot {
 mod unit_tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use crate::alien::mock::{MockFn, ProviderMock};
+    use crate::{
+        Route,
+        alien::mock::{MockFn, ProviderMock},
+    };
 
     use super::*;
 

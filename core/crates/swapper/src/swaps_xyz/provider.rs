@@ -18,8 +18,8 @@ use super::{
     model::{ActionRequest, ActionResponse, AmountLimits, AppFee, StatusResponse},
 };
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
-    client_factory::create_ton_client, config::get_swap_provider_url, fees::default_referral_fees,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData, client_factory::create_ton_client,
+    config::get_swap_provider_url, fees::default_referral_fees,
 };
 
 const APP_ID: &str = "0xcf511a8a";
@@ -181,19 +181,7 @@ where
         };
         Ok(Quote {
             from_value: response.amount_in.amount.clone(),
-            min_from_value: None,
-            to_value: response.amount_out.amount.clone(),
-            data: ProviderData {
-                provider: self.provider.clone(),
-                routes: vec![Route {
-                    input: request.from_asset.asset_id(),
-                    output: request.to_asset.asset_id(),
-                    route_data: serde_json::to_string(&response)?,
-                }],
-                slippage_bps: request.options.slippage.bps,
-            },
-            request: request.clone(),
-            eta_in_seconds,
+            ..Quote::from_route(request, &self.provider, response.amount_out.amount.clone(), request.options.slippage.bps, &response, eta_in_seconds)?
         })
     }
 

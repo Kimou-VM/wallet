@@ -52,7 +52,7 @@ impl Swapper for CetusClmm {
             fee: referral_fee.transfer(fee_side, amount, gross_amount_out),
         };
 
-        Quote::from_route(request, self.provider(), BigUint::from(route.net_amount_out()), &route, Some(0))
+        Quote::from_route(request, self.provider(), BigUint::from(route.net_amount_out()), request.options.slippage.bps, &route, Some(0))
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {

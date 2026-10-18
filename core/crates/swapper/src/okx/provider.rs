@@ -5,7 +5,7 @@ use super::{
     quote_data::build_swap_quote_data,
 };
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, Swapper, SwapperError, SwapperProvider, SwapperQuoteData,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperError, SwapperProvider, SwapperQuoteData,
     alien::{RpcClient, RpcProvider},
     config::get_swap_provider_url,
     models::SwapperChainAsset,
@@ -65,24 +65,8 @@ where
         let params = build_quote_params(request)?;
         let response: OkxApiResponse<QuoteData> = self.client.post(PROXY_QUOTE_PATH, &params).await.map_err(SwapperError::from)?;
         let route = response.first_data("Failed to fetch OKX quote")?;
-        let route_data = serde_json::to_string(&route)?;
-
-        Ok(Quote {
-            from_value: request.value.clone(),
-            min_from_value: None,
-            to_value: BigUint::from_str(&route.to_token_amount).map_err(SwapperError::compute_quote_error)?,
-            data: ProviderData {
-                provider: self.provider.clone(),
-                routes: vec![Route {
-                    input: request.from_asset.asset_id(),
-                    output: request.to_asset.asset_id(),
-                    route_data,
-                }],
-                slippage_bps: max_slippage_bps(request),
-            },
-            request: request.clone(),
-            eta_in_seconds: None,
-        })
+        let to_value = BigUint::from_str(&route.to_token_amount).map_err(SwapperError::compute_quote_error)?;
+        Quote::from_route(request, &self.provider, to_value, max_slippage_bps(request), &route, None)
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {

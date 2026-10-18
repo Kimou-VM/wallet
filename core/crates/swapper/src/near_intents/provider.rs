@@ -6,8 +6,7 @@ use super::{
     supported_assets,
 };
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset,
-    SwapperQuoteData, amount_to_value,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData, amount_to_value,
     cross_chain::VaultAddresses,
     fees::DEFAULT_REFERRER,
     fees::default_referral_fees,
@@ -261,26 +260,13 @@ where
         let eta = response.quote.time_estimate;
         let min_amount_in = BigUint::from_str(&response.quote.min_amount_in.to_string()).map_err(SwapperError::compute_quote_error)?;
         let amount_out = BigUint::from_str(&response.quote.amount_out.to_string()).map_err(SwapperError::compute_quote_error)?;
-        let route_data = serde_json::to_string(&quote_request)?;
-
         Ok(Quote {
             from_value: match quote_request.swap_type {
                 SwapType::ExactInput => response.quote.amount_in,
                 SwapType::FlexInput => request.value.clone(),
             },
             min_from_value: Some(min_amount_in),
-            to_value: amount_out,
-            data: ProviderData {
-                provider: self.provider.clone(),
-                slippage_bps: request.options.slippage.bps,
-                routes: vec![Route {
-                    input: request.from_asset.asset_id(),
-                    output: request.to_asset.asset_id(),
-                    route_data,
-                }],
-            },
-            request: request.clone(),
-            eta_in_seconds: Some(eta),
+            ..Quote::from_route(request, &self.provider, amount_out, request.options.slippage.bps, &quote_request, Some(eta))?
         })
     }
 

@@ -168,7 +168,7 @@ impl Quote {
         swap_value_u64(&self.from_value)
     }
 
-    pub fn from_route(request: &QuoteRequest, provider: &ProviderType, to_value: BigUint, route: &impl Serialize, eta_in_seconds: Option<u32>) -> Result<Self, SwapperError> {
+    pub fn from_route(request: &QuoteRequest, provider: &ProviderType, to_value: BigUint, slippage_bps: u32, route: &impl Serialize, eta_in_seconds: Option<u32>) -> Result<Self, SwapperError> {
         Ok(Self {
             from_value: request.value.clone(),
             min_from_value: None,
@@ -180,7 +180,7 @@ impl Quote {
                     output: request.to_asset.asset_id(),
                     route_data: serde_json::to_string(route)?,
                 }],
-                slippage_bps: request.options.slippage.bps,
+                slippage_bps,
             },
             request: request.clone(),
             eta_in_seconds,

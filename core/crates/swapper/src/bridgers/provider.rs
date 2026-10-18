@@ -94,7 +94,7 @@ impl Swapper for Bridgers {
 
         Ok(Quote {
             min_from_value: Some(min_value),
-            ..Quote::from_route(request, &self.provider, to_value, &route_data, eta_in_seconds)?
+            ..Quote::from_route(request, &self.provider, to_value, request.options.slippage.bps, &route_data, eta_in_seconds)?
         })
     }
 

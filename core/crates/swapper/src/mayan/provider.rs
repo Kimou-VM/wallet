@@ -10,7 +10,7 @@ use super::{
 use crate::amount_to_value;
 use crate::client_factory::create_eth_client;
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     config::get_swap_proxy_url,
     cross_chain::VaultAddresses,
     fees::{default_referral_address, default_referral_fees},
@@ -140,19 +140,7 @@ where
 
         Ok(Quote {
             from_value,
-            min_from_value: None,
-            to_value,
-            data: ProviderData {
-                provider: self.provider().clone(),
-                routes: vec![Route {
-                    input: from_asset,
-                    output: to_asset,
-                    route_data: serde_json::to_string(route)?,
-                }],
-                slippage_bps: route.common().slippage_bps,
-            },
-            request: request.clone(),
-            eta_in_seconds: Some(route.common().eta_seconds),
+            ..Quote::from_route(request, self.provider(), to_value, route.common().slippage_bps, route, Some(route.common().eta_seconds))?
         })
     }
 

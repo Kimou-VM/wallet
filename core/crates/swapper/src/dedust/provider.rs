@@ -116,7 +116,7 @@ where
         let swap_value = subtract_bps(&request.value, Self::referral_fee().bps);
         let (pools, value_out) = self.find_route(&from, &to, nonzero_swap_value(&swap_value)?).await?;
 
-        Quote::from_route(&request, self.provider(), value_out, &PoolRoute::new(&pools), None)
+        Quote::from_route(&request, self.provider(), value_out, request.options.slippage.bps, &PoolRoute::new(&pools), None)
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
