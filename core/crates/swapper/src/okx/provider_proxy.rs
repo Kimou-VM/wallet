@@ -1,12 +1,14 @@
 use super::{
-    client::OkxDexClient,
+    auth::build_headers,
     model::{OkxClientConfig, QuoteParams, SwapParams},
+    target::OkxTarget,
 };
 use crate::{
     SwapperError,
     alien::{RpcClient, RpcProvider},
 };
-use gem_client::Client;
+use chrono::{SecondsFormat, Utc};
+use gem_client::{Client, ClientExt, Target};
 use std::{fmt::Debug, sync::Arc};
 
 pub fn error_response(error: SwapperError) -> serde_json::Value {
@@ -15,7 +17,8 @@ pub fn error_response(error: SwapperError) -> serde_json::Value {
 
 #[derive(Debug)]
 pub struct OkxProviderProxy<C> {
-    client: OkxDexClient<C>,
+    client: C,
+    config: OkxClientConfig,
 }
 
 impl OkxProviderProxy<RpcClient> {
@@ -29,14 +32,21 @@ where
     C: Client + Clone + Send + Sync + Debug + 'static,
 {
     pub fn new_with_client(client: C, config: OkxClientConfig) -> Self {
-        Self { client: OkxDexClient::new(client, config) }
+        Self { client, config }
     }
 
     pub async fn get_quote(&self, params: QuoteParams) -> Result<serde_json::Value, SwapperError> {
-        self.client.quote(&params).await
+        self.signed_get(OkxTarget::Quote { params }).await
     }
 
     pub async fn get_swap(&self, params: SwapParams) -> Result<serde_json::Value, SwapperError> {
-        self.client.swap(&params).await
+        self.signed_get(OkxTarget::Swap { params }).await
+    }
+
+    async fn signed_get(&self, target: OkxTarget) -> Result<serde_json::Value, SwapperError> {
+        let path = target.path();
+        let timestamp = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        let headers = build_headers(&self.config, &timestamp, &path);
+        self.client.get(&path).headers(headers).await.map_err(SwapperError::from)
     }
 }

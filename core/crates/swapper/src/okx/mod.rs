@@ -1,5 +1,4 @@
 mod auth;
-mod client;
 mod constants;
 mod model;
 mod params;
