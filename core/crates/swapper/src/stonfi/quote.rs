@@ -1,13 +1,12 @@
 use super::{
     constants::{RouterInfo, STATIC_POOLS, StaticPool},
-    model::{Router, SwapSimulation},
+    model::Router,
 };
 use crate::{SwapperError, SwapperQuoteAsset};
 use gem_ton::{address::Address, constants::TON_PROXY_JETTON_ADDRESS};
 use num_bigint::BigUint;
 use num_integer::Integer;
 use primitives::swap::HUNDRED_PERCENT_IN_BPS;
-use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct DiscoveredPool {
@@ -103,16 +102,6 @@ pub(super) fn compute_amount_out(pool: &PoolData, offer_wallet: &str, amount: &B
     Ok(if base_out > fees_out { &base_out - fees_out } else { BigUint::ZERO })
 }
 
-pub(super) fn scaled_next_min_ask_amount(first: &SwapSimulation, next: &SwapSimulation) -> Result<BigUint, SwapperError> {
-    let first_ask = BigUint::from_str(&first.ask_units)?;
-    if first_ask == BigUint::from(0u8) {
-        return Err(SwapperError::InvalidRoute);
-    }
-    let first_min = BigUint::from_str(&first.min_ask_units)?;
-    let next_min = BigUint::from_str(&next.min_ask_units)?;
-    Ok((next_min * first_min) / first_ask)
-}
-
 #[cfg(test)]
 mod tests {
     use super::super::constants::DISCOVERY_ROUTERS;
@@ -186,13 +175,5 @@ mod tests {
             Address::parse(pool.token0_wallet).unwrap();
             Address::parse(pool.token1_wallet).unwrap();
         }
-    }
-
-    #[test]
-    fn test_scaled_next_min_ask_amount() {
-        let first = SwapSimulation::mock("", "", "260238", "257635");
-        let next = SwapSimulation::mock("", "", "709", "702");
-
-        assert_eq!(scaled_next_min_ask_amount(&first, &next).unwrap(), BigUint::from(694u32));
     }
 }

@@ -216,6 +216,7 @@ A deposit no relayer fills is refunded once its fill deadline passes. The deadli
 | Slippage is Auto, including Solana's `3%` | no warning | |
 | Slippage is Auto and the provider picks its own: OKX, Squid, Chainflip | Minimum Receive is priced with the most OKX may take, and with the slippage Squid or Chainflip recommended | the minimum shown is one the trade keeps |
 | The user picks a Slippage and the provider is Chainflip | the swap's minimum price uses that slippage, not Chainflip's recommendation (`test_quote_slippage_bps`) | the chosen limit is the one enforced |
+| A STON.fi swap goes through two pools | the slippage is taken once, from what the second pool returns, and that is the minimum the swap enforces | the limit shown covers the whole trade, not each pool in turn |
 | The user changes Slippage | the choice is kept for later swaps | |
 | The price impact is `10%` or more | "High Price Impact" asks first | |
 | The swap needs a spending approval | the approval is signed together with the swap, with one fee for both | |
@@ -238,4 +239,5 @@ A deposit no relayer fills is refunded once its fill deadline passes. The deadli
 - The Slippage row reads Auto on both screens until the user picks a value.
 - A wallet's first PumpSwap trade creates its pump.fun volume account, so that trade costs about `0.0018 SOL` of rent on top of the network fee; later trades do not.
 - DeDust has no fee field, so the `0.5%` fee is taken from the amount paid and sent as a second message in the same wallet transaction (`test_native_messages`, `test_jetton_messages`). TON runs the two messages independently: when DeDust rejects the swap because the price moved past the slippage limit, the swap amount comes back but the fee stays paid. The swap carries no deadline, so time spent on the confirmation screen cannot get it rejected.
+- A STON.fi swap must reach its pool within `15 minutes` of the confirmation screen preparing it, TON swaps included, so a user who reads the screen before confirming is not refunded.
 - Near Intents serves HyperCore spot USDC as a source only. HyperCore destinations are excluded because the provider pays USDC into perps, which is separate from the wallet's spot asset (`test_supports_destination`). HyperCore deposits use an exact input quote and send its returned input amount from spot with `sendAsset`, since unified accounts reject `spotSend`; the provider deducts its deposit fee from that amount (`test_swap_type`, `test_hypercore_quote_data`).

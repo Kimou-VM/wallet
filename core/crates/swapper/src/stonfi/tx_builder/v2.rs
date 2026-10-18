@@ -15,7 +15,6 @@ const V2_JETTON_SWAP_GAS: u64 = 300_000_000;
 const V2_JETTON_SWAP_FORWARD_GAS: u64 = 240_000_000;
 const V2_TON_TO_JETTON_FORWARD_GAS: u64 = 300_000_000;
 const V2_DEFAULT_DEADLINE_SECONDS: u64 = 15 * 60;
-const V2_TON_TO_JETTON_DEADLINE_SECONDS: u64 = 60;
 const PTON_V2_TON_TRANSFER_OPCODE: u32 = 0x01F3835D;
 const PTON_V2_TON_TRANSFER_GAS: u64 = 10_000_000;
 pub(super) const TON_TO_JETTON_ATTACHMENT: u64 = V2_TON_TO_JETTON_FORWARD_GAS + PTON_V2_TON_TRANSFER_GAS;
@@ -61,8 +60,7 @@ fn build_swap_body(params: &SwapTransactionParams<'_>) -> Result<Cell, SwapperEr
     let receiver_address = first_hop_receiver(params)?;
     let min_ask_amount = BigUint::from_str(&params.simulation.min_ask_units)?;
     let referral_bps = if params.next_swap.is_some() { 0 } else { params.referral.bps };
-    let default_deadline_seconds = if params.from_native { V2_TON_TO_JETTON_DEADLINE_SECONDS } else { V2_DEFAULT_DEADLINE_SECONDS };
-    let deadline = params.deadline.unwrap_or_else(|| unix_timestamp() + default_deadline_seconds);
+    let deadline = params.deadline.unwrap_or_else(|| unix_timestamp() + V2_DEFAULT_DEADLINE_SECONDS);
 
     let next_payload = params.next_swap.as_ref().map(|next_swap| build_next_swap_body(params, next_swap)).transpose()?.map(Cell::into_arc);
 
@@ -100,7 +98,7 @@ fn build_next_swap_body(params: &SwapTransactionParams<'_>, next_swap: &NextSwap
         ask_wallet,
         refund_address: params.wallet_address,
         receiver_address: params.receiver_address,
-        min_ask_amount: next_swap.min_ask_amount.clone(),
+        min_ask_amount: BigUint::from_str(&next_swap.simulation.min_ask_units)?,
         forward_gas: 0,
         next_payload: None,
         referral_bps: params.referral.bps,
@@ -204,7 +202,6 @@ mod tests {
         let cross_transaction = build_swap_transaction(SwapTransactionParams {
             next_swap: Some(NextSwapParams {
                 simulation: &swap_from_intermediary,
-                min_ask_amount: BigUint::from(694u32),
                 through_ton: true,
             }),
             ..SwapTransactionParams::mock(&swap_to_intermediary)
@@ -215,7 +212,7 @@ mod tests {
         assert_eq!(cross_transaction.value, "1310000000");
         assert_eq!(
             cross_transaction.data,
-            "te6cckECBQEAAbUAAWQB84NdAAAAAAAAAABDuaygCABnQpS1KA0vOrNyZREwsizBcWLmxoViLGXfuZIjVyCvnwEB4WZk3iqAEkWsT6+x23oBycR3thipTt3Lw+jK50NeiC8K/0fEfSPwAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+ABnQpS1KA0vOrNyZREwsizBcWLmxoViLGXfuZIjVyCvngAAAADKp+IBAAgGTMD7mOAElwoI1yo0SXmdlkVE9Ugchsf6Z93IvTIdyPOfuDftzohAAAEADOhSlqUBpedWbkyiJhZFmC4sXNjQrEWMu/cyRGrkFfPgDAeFpzxpbgBJEGDA02f1Zojb3HsQnG+N3OZBW3aTMOl6/XcQJZ99kEADOhSlqUBpedWbkyiJhZFmC4sXNjQrEWMu/cyRGrkFfPgAZ0KUtSgNLzqzcmURMLIswXFi5saFYixl37mSI1cgr54AAAAAyqfiAQAQAkSAraABnQpS1KA0vOrNyZREwsizBcWLmxoViLGXfuZIjVyCvngAAGUADOhSlqUBpedWbkyiJhZFmC4sXNjQrEWMu/cyRGrkFfPhOi4cX"
+            "te6cckECBQEAAbUAAWQB84NdAAAAAAAAAABDuaygCABnQpS1KA0vOrNyZREwsizBcWLmxoViLGXfuZIjVyCvnwEB4WZk3iqAEkWsT6+x23oBycR3thipTt3Lw+jK50NeiC8K/0fEfSPwAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+ABnQpS1KA0vOrNyZREwsizBcWLmxoViLGXfuZIjVyCvngAAAADKp+IBAAgGTMD7mOAElwoI1yo0SXmdlkVE9Ugchsf6Z93IvTIdyPOfuDftzohAAAEADOhSlqUBpedWbkyiJhZFmC4sXNjQrEWMu/cyRGrkFfPgDAeFpzxpbgBJEGDA02f1Zojb3HsQnG+N3OZBW3aTMOl6/XcQJZ99kEADOhSlqUBpedWbkyiJhZFmC4sXNjQrEWMu/cyRGrkFfPgAZ0KUtSgNLzqzcmURMLIswXFi5saFYixl37mSI1cgr54AAAAAyqfiAQAQAkSAr6ABnQpS1KA0vOrNyZREwsizBcWLmxoViLGXfuZIjVyCvngAAGUADOhSlqUBpedWbkyiJhZFmC4sXNjQrEWMu/cyRGrkFfPhztcoQ"
         );
         assert!(BagOfCells::parse_base64(&cross_transaction.data).is_ok());
 
@@ -229,7 +226,6 @@ mod tests {
         let cross_transaction_with_minor_mismatch = build_swap_transaction(SwapTransactionParams {
             next_swap: Some(NextSwapParams {
                 simulation: &swap_from_intermediary_with_minor_mismatch,
-                min_ask_amount: BigUint::from(694u32),
                 through_ton: true,
             }),
             ..SwapTransactionParams::mock(&swap_to_intermediary)
@@ -249,7 +245,6 @@ mod tests {
         let forward_transaction = build_swap_transaction(SwapTransactionParams {
             next_swap: Some(NextSwapParams {
                 simulation: &swap_from_intermediary_on_other_router,
-                min_ask_amount: BigUint::from(694u32),
                 through_ton: true,
             }),
             from_native: false,
@@ -263,7 +258,7 @@ mod tests {
         assert_eq!(forward_transaction.value, "540000000");
         assert_eq!(
             forward_transaction.data,
-            "te6cckECBQEAAd4AAa4Pin6lAAAAAAAAAAAw9CQIASXCgjXKjRJeZ2WRUT1SByGx/pn3ci9Mh3I85+4N+3OjAAzoUpalAaXnVm5MoiYWRZguLFzY0KxFjLv3MkRq5BXzyDk4cAEBAeFmZN4qgBJFrE+vsdt6AcnEd7YYqU7dy8PoyudDXogvCv9HxH0j8ADOhSlqUBpedWbkyiJhZFmC4sXNjQrEWMu/cyRGrkFfPgAZ0KUtSgNLzqzcmURMLIswXFi5saFYixl37mSI1cgr54AAAAAyqfiAQAIBmzA+5jgBJFrE+vsdt6AcnEd7YYqU7dy8PoyudDXogvCv9HxH0j6BycOAEAAAQAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+AMB4WZk3iqAEkQYMDTZ/VmiNvcexCcb43c5kFbdpMw6Xr9dxAln32QQAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+ABnQpS1KA0vOrNyZREwsizBcWLmxoViLGXfuZIjVyCvngAAAADKp+IBABACRICtoAGdClLUoDS86s3JlETCyLMFxYubGhWIsZd+5kiNXIK+eAAAZQAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+Jp8zgc="
+            "te6cckECBQEAAd4AAa4Pin6lAAAAAAAAAAAw9CQIASXCgjXKjRJeZ2WRUT1SByGx/pn3ci9Mh3I85+4N+3OjAAzoUpalAaXnVm5MoiYWRZguLFzY0KxFjLv3MkRq5BXzyDk4cAEBAeFmZN4qgBJFrE+vsdt6AcnEd7YYqU7dy8PoyudDXogvCv9HxH0j8ADOhSlqUBpedWbkyiJhZFmC4sXNjQrEWMu/cyRGrkFfPgAZ0KUtSgNLzqzcmURMLIswXFi5saFYixl37mSI1cgr54AAAAAyqfiAQAIBmzA+5jgBJFrE+vsdt6AcnEd7YYqU7dy8PoyudDXogvCv9HxH0j6BycOAEAAAQAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+AMB4WZk3iqAEkQYMDTZ/VmiNvcexCcb43c5kFbdpMw6Xr9dxAln32QQAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+ABnQpS1KA0vOrNyZREwsizBcWLmxoViLGXfuZIjVyCvngAAAADKp+IBABACRICvoAGdClLUoDS86s3JlETCyLMFxYubGhWIsZd+5kiNXIK+eAAAZQAM6FKWpQGl51ZuTKImFkWYLixc2NCsRYy79zJEauQV8+KdCgwA="
         );
         assert!(BagOfCells::parse_base64(&forward_transaction.data).is_ok());
     }
@@ -282,7 +277,6 @@ mod tests {
             first_hop_receiver(&SwapTransactionParams {
                 next_swap: Some(NextSwapParams {
                     simulation: next,
-                    min_ask_amount: BigUint::from(1u32),
                     through_ton,
                 }),
                 ..SwapTransactionParams::mock(&first)

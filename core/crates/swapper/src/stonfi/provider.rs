@@ -2,7 +2,7 @@ use super::{
     client::StonfiClient,
     constants::{DISCOVERY_ROUTERS, RouterInfo},
     model::{QuotePath, SwapSimulation},
-    quote::{DiscoveredPool, PoolData, compute_amount_out, router_model, scaled_next_min_ask_amount, static_candidates, token_address},
+    quote::{DiscoveredPool, PoolData, compute_amount_out, router_model, static_candidates, token_address},
     tx_builder::{self, NextSwapParams, ReferralParams, SwapTransactionParams, build_swap_transaction},
 };
 use crate::{
@@ -424,16 +424,10 @@ where
             return Err(SwapperError::InvalidRoute);
         }
         let simulation = simulations.first().ok_or(SwapperError::InvalidRoute)?;
-        let next_swap = simulations
-            .get(1)
-            .map(|next_simulation| {
-                Ok::<_, SwapperError>(NextSwapParams {
-                    simulation: next_simulation,
-                    min_ask_amount: scaled_next_min_ask_amount(simulation, next_simulation)?,
-                    through_ton: quote.data.routes.first().is_some_and(|route| route.output.is_native()),
-                })
-            })
-            .transpose()?;
+        let next_swap = simulations.get(1).map(|next_simulation| NextSwapParams {
+            simulation: next_simulation,
+            through_ton: quote.data.routes.first().is_some_and(|route| route.output.is_native()),
+        });
         let referral_fee = Self::referral_fee();
         let receiver_address = if quote.request.destination_address.is_empty() {
             &quote.request.wallet_address
