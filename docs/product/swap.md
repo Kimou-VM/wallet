@@ -214,7 +214,8 @@ A deposit no relayer fills is refunded once its fill deadline passes. The deadli
 | The user picks another provider | the choice survives refreshes | |
 | A chosen Slippage is `3%` or more | a warning | |
 | Slippage is Auto, including Solana's `3%` | no warning | |
-| Slippage is Auto and the provider picks its own: OKX, Squid | Minimum Receive is priced with the most OKX may take, and with the slippage Squid picked | the minimum shown is one the trade keeps |
+| Slippage is Auto and the provider picks its own: OKX, Squid, Chainflip | Minimum Receive is priced with the most OKX may take, and with the slippage Squid or Chainflip recommended | the minimum shown is one the trade keeps |
+| The user picks a Slippage and the provider is Chainflip | the swap's minimum price uses that slippage, not Chainflip's recommendation (`test_quote_slippage_bps`) | the chosen limit is the one enforced |
 | The user changes Slippage | the choice is kept for later swaps | |
 | The price impact is `10%` or more | "High Price Impact" asks first | |
 | The swap needs a spending approval | the approval is signed together with the swap, with one fee for both | |

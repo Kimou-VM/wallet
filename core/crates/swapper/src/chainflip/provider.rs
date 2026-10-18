@@ -21,7 +21,7 @@ use super::{
     tx_builder,
 };
 use crate::{
-    FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
+    FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData, SwapperSlippage,
     alien::RpcProvider,
     approval::{check_approval_erc20, get_swap_gas_limit_with_approval},
     cross_chain::VaultAddresses,
@@ -31,6 +31,7 @@ use crate::{
 use primitives::{
     AssetId, Chain, ChainType, MINUTE,
     hex::{decode_hex, encode_with_0x},
+    swap::SlippageMode,
 };
 
 const DEFAULT_SWAP_ERC20_GAS_LIMIT: u64 = 100_000;
@@ -107,6 +108,13 @@ fn build_quote_request(request: &QuoteRequest, assets: &AssetsResponse) -> Resul
         },
         source_broker_asset.minimal_amount_native.clone(),
     ))
+}
+
+fn quote_slippage_bps(slippage: &SwapperSlippage, recommended_bps: u32) -> u32 {
+    match slippage.mode {
+        SlippageMode::Exact => slippage.bps,
+        SlippageMode::Auto => recommended_bps,
+    }
 }
 
 fn get_best_quote(quotes: Vec<QuoteResponse>, request: &ChainflipQuoteRequest) -> Result<(BigUint, u32, u32, ChainflipRouteData), SwapperError> {
@@ -236,7 +244,8 @@ where
         validate_minimum_amount(&quote_request.amount, &minimum_amount)?;
 
         let quotes = self.broker_client.get_quotes(&quote_request).await?;
-        let (egress_amount, slippage_bps, eta_in_seconds, route_data) = get_best_quote(quotes, &quote_request)?;
+        let (egress_amount, recommended_slippage_bps, eta_in_seconds, route_data) = get_best_quote(quotes, &quote_request)?;
+        let slippage_bps = quote_slippage_bps(&request.options.slippage, recommended_slippage_bps);
 
         Ok(Quote {
             min_from_value: Some(minimum_amount),
@@ -569,6 +578,12 @@ mod tests {
         quote.data.routes = mock_routes(&quote, 1.0);
 
         assert_eq!(provider.get_quote_data(&quote, FetchQuoteData::None).await.unwrap_err(), SwapperError::InvalidRoute);
+    }
+
+    #[test]
+    fn test_quote_slippage_bps() {
+        assert_eq!(quote_slippage_bps(&SwapperSlippage::mock_exact(50), 250), 50);
+        assert_eq!(quote_slippage_bps(&SwapperSlippage { mode: SlippageMode::Auto, bps: 100 }, 250), 250);
     }
 
     #[test]
