@@ -200,6 +200,10 @@ impl MockSwapper {
         }
     }
 
+    pub fn with_supported_assets(self, supported_assets: Vec<SwapperChainAsset>) -> Self {
+        Self { supported_assets, ..self }
+    }
+
     pub fn with_amount_mode(self, amount_mode: SwapAmountMode) -> Self {
         Self { amount_mode, ..self }
     }

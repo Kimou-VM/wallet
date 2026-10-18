@@ -70,8 +70,13 @@ impl GemSwapper {
 
     pub fn new(rpc_provider: Arc<dyn RpcProvider>) -> Self {
         let swappers: Vec<Box<dyn Swapper>> = [
-            Some(uniswap::default::boxed_uniswap_v3(rpc_provider.clone())),
-            Some(uniswap::default::boxed_uniswap_v4(rpc_provider.clone())),
+            Self::group(
+                SwapperProvider::UniswapV3,
+                vec![
+                    Some(("uniswap_v3", uniswap::default::boxed_uniswap_v3(rpc_provider.clone()))),
+                    Some(("uniswap_v4", uniswap::default::boxed_uniswap_v4(rpc_provider.clone()))),
+                ],
+            ),
             Some(uniswap::default::boxed_pancakeswap(rpc_provider.clone())),
             thorchain::ThorChain::new(rpc_provider.clone()).map(Self::boxed),
             thorchain::ThorChain::new_mayachain(rpc_provider.clone()).map(Self::boxed),
@@ -478,7 +483,10 @@ mod swap_integration_tests {
     use std::{sync::Arc, time::Instant};
 
     use num_bigint::BigUint;
-    use primitives::{AssetId, Chain, asset_constants::ETHEREUM_USDC_ASSET_ID};
+    use primitives::{
+        AssetId, Chain,
+        asset_constants::{ETHEREUM_USDC_ASSET_ID, SOLANA_USDC_ASSET_ID},
+    };
 
     use super::*;
     use crate::{QuoteRequest, alien::reqwest_provider::NativeProvider, testkit::mock_quote};
@@ -500,6 +508,35 @@ mod swap_integration_tests {
             println!("{round} quote {provider}: {elapsed}ms {}", if *quoted { "quoted" } else { "no quote" });
         }
         println!("{round} quote round total: {total}ms, slowest decides");
+    }
+
+    #[tokio::test]
+    async fn test_grouped_providers_build_with_the_member_that_quoted() {
+        let swapper = GemSwapper::new(Arc::new(NativeProvider::new().set_debug(false)));
+        let ethereum = QuoteRequest {
+            wallet_address: "0xBA4D1d35bCe0e8F28E5a3403e7a0b996c5d50AC4".into(),
+            destination_address: "0xBA4D1d35bCe0e8F28E5a3403e7a0b996c5d50AC4".into(),
+            value: BigUint::from(100000000000000000u64),
+            ..mock_quote(AssetId::from_chain(Chain::Ethereum).into(), ETHEREUM_USDC_ASSET_ID.clone().into())
+        };
+        let solana = QuoteRequest {
+            wallet_address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM".into(),
+            destination_address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM".into(),
+            value: BigUint::from(1000000000u64),
+            ..mock_quote(AssetId::from_chain(Chain::Solana).into(), SOLANA_USDC_ASSET_ID.clone().into())
+        };
+
+        for (provider, request, members) in [
+            (SwapperProvider::UniswapV3, ethereum, ["uniswap_v3", "uniswap_v4"].as_slice()),
+            (SwapperProvider::RaydiumClmm, solana, ["raydium_clmm"].as_slice()),
+        ] {
+            let quote = swapper.get_quote_by_provider(&provider, &request).await.unwrap();
+            println!("{provider:?} quoted by {} for {}", quote.data.provider.protocol_id, quote.to_value);
+
+            assert_eq!(quote.data.provider.id, provider);
+            assert!(members.contains(&quote.data.provider.protocol_id.as_str()));
+            assert!(!swapper.get_quote_data(&quote, FetchQuoteData::None).await.unwrap().data.is_empty());
+        }
     }
 
     #[tokio::test]
