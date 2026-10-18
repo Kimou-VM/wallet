@@ -6879,8 +6879,6 @@ dependencies = [
  "gem_jsonrpc",
  "gem_solana",
  "gem_tracing",
- "hex",
- "hmac 0.13.0",
  "in_app_notifications",
  "job_runner",
  "lists",
@@ -6899,7 +6897,6 @@ dependencies = [
  "serde",
  "serde_json",
  "settings",
- "sha2 0.11.0",
  "storage",
  "streamer",
  "strum",
@@ -7295,7 +7292,11 @@ dependencies = [
 name = "support"
 version = "2.114.73"
 dependencies = [
+ "chrono",
+ "hex",
+ "hmac 0.13.0",
  "primitives",
+ "sha2 0.11.0",
  "url",
 ]
 

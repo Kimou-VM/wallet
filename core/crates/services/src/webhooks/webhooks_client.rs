@@ -6,8 +6,7 @@ use std::sync::Arc;
 use gem_tracing::info_with_fields;
 use primitives::TransactionId;
 use streamer::{StreamProducerQueue, SupportWebhookPayload};
-
-use crate::support::ChatwootWebhookVerifier;
+use support::ChatwootWebhookVerifier;
 
 #[derive(Debug)]
 pub enum SupportWebhookError {
@@ -55,11 +54,10 @@ impl WebhooksClient {
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
-    use hmac::{Hmac, KeyInit, Mac};
     use primitives::Chain;
     use serde_json::json;
-    use sha2::Sha256;
     use streamer::QueueName;
+    use support::testkit::chatwoot_webhook_headers;
 
     use super::*;
     use crate::testkit::RecordingStreamProducer;
@@ -68,13 +66,7 @@ mod tests {
     const BODY: &str = r#"{"event":"message_created"}"#;
 
     fn signed_headers(body: &str) -> HashMap<String, String> {
-        let timestamp = Utc::now().timestamp();
-        let mut mac = Hmac::<Sha256>::new_from_slice(SECRET.as_bytes()).unwrap();
-        mac.update(format!("{timestamp}.{body}").as_bytes());
-        HashMap::from([
-            ("x-chatwoot-timestamp".to_string(), timestamp.to_string()),
-            ("x-chatwoot-signature".to_string(), format!("sha256={}", hex::encode(mac.finalize().into_bytes()))),
-        ])
+        chatwoot_webhook_headers(SECRET, body, Utc::now().timestamp())
     }
 
     #[tokio::test]

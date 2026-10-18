@@ -6,9 +6,9 @@ use chrono::Utc;
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 
-const SIGNATURE_HEADER: &str = "x-chatwoot-signature";
-const TIMESTAMP_HEADER: &str = "x-chatwoot-timestamp";
-const SIGNATURE_PREFIX: &str = "sha256=";
+pub(crate) const SIGNATURE_HEADER: &str = "x-chatwoot-signature";
+pub(crate) const TIMESTAMP_HEADER: &str = "x-chatwoot-timestamp";
+pub(crate) const SIGNATURE_PREFIX: &str = "sha256=";
 const MAX_SIGNATURE_AGE_SECONDS: i64 = 300;
 
 pub struct ChatwootWebhookVerifier {
@@ -60,6 +60,7 @@ impl ChatwootWebhookVerifier {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testkit::chatwoot_webhook_headers;
 
     const TEST_SECRET: &str = "test_chatwoot_webhook_secret";
     const TEST_NOW: i64 = 1_750_000_000;
@@ -68,12 +69,7 @@ mod tests {
     #[test]
     fn test_verify() {
         let verifier = ChatwootWebhookVerifier::new(TEST_SECRET.to_string());
-        let mut mac = Hmac::<Sha256>::new_from_slice(TEST_SECRET.as_bytes()).unwrap();
-        mac.update(format!("{TEST_NOW}.{TEST_DATA}").as_bytes());
-        let headers = HashMap::from([
-            (TIMESTAMP_HEADER.to_string(), TEST_NOW.to_string()),
-            (SIGNATURE_HEADER.to_string(), format!("{SIGNATURE_PREFIX}{}", hex::encode(mac.finalize().into_bytes()))),
-        ]);
+        let headers = chatwoot_webhook_headers(TEST_SECRET, TEST_DATA, TEST_NOW);
         assert!(verifier.verify_at(&headers, TEST_DATA, TEST_NOW).is_ok());
         assert!(verifier.verify_at(&headers, r#"{"event":"conversation_created"}"#, TEST_NOW).is_err());
         assert!(ChatwootWebhookVerifier::new("wrong_secret".to_string()).verify_at(&headers, TEST_DATA, TEST_NOW).is_err());

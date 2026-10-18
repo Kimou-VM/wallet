@@ -18,8 +18,6 @@ gem_client = { path = "../gem_client", features = ["reqwest"] }
 gem_evm = { path = "../gem_evm", features = ["rpc", "reqwest"] }
 gem_jsonrpc = { path = "../gem_jsonrpc", features = ["client", "reqwest"] }
 gem_tracing = { path = "../gem_tracing" }
-hex = { workspace = true }
-hmac = { workspace = true }
 in_app_notifications = { path = "../in_app_notifications" }
 job_runner = { path = "../job_runner" }
 lists = { path = "../lists" }
@@ -38,7 +36,6 @@ security = { path = "../security" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 settings = { path = "../settings" }
-sha2 = { workspace = true }
 storage = { path = "../storage" }
 streamer = { path = "../streamer" }
 strum = { workspace = true }
@@ -52,3 +49,4 @@ storage = { path = "../storage", features = ["testkit"] }
 gem_solana = { path = "../gem_solana", features = ["rpc"] }
 primitives = { path = "../primitives", features = ["testkit"] }
 swapper = { path = "../swapper", features = ["testkit"] }
+support = { path = "../support", features = ["testkit"] }

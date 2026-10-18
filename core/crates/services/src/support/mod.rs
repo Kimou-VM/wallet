@@ -6,11 +6,9 @@ mod constants;
 mod model;
 pub(crate) mod repository;
 mod support_webhook_consumer;
-mod webhook;
 
 pub use api_client::SupportApiClient;
 pub use chatwoot::ChatwootClient;
 pub use client::SupportClient;
 pub use model::{ChatwootSession, ChatwootWebhookPayload};
 pub use support_webhook_consumer::SupportWebhookConsumer;
-pub use webhook::ChatwootWebhookVerifier;
