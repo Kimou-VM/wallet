@@ -24,8 +24,6 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
-    implementation(libs.datastore)
-
     implementation(libs.androidx.biometric)
     implementation(libs.ktx.core)
     testImplementation(testFixtures(project(":data:services:store")))
