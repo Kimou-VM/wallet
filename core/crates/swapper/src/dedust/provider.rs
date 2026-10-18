@@ -117,7 +117,9 @@ where
         };
         let pairs = route_paths(&from, &to).unwrap_or_default().iter().flat_map(|path| path.pairs(&from, &to)).collect::<Vec<_>>();
         stream::iter(pairs)
-            .for_each_concurrent(None, |(asset_in, asset_out)| async move { _ = try_join_all(PoolType::ALL.map(|pool_type| self.client.pool_address(pool_type, &asset_in, &asset_out))).await })
+            .for_each_concurrent(None, |(asset_in, asset_out)| async move {
+                _ = try_join_all(PoolType::ALL.map(|pool_type| self.client.pool_address(pool_type, &asset_in, &asset_out))).await
+            })
             .await;
     }
 

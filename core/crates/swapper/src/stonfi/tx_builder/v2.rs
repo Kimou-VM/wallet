@@ -275,10 +275,7 @@ mod tests {
         };
         let receiver = |next: &SwapSimulation, through_ton: bool| {
             first_hop_receiver(&SwapTransactionParams {
-                next_swap: Some(NextSwapParams {
-                    simulation: next,
-                    through_ton,
-                }),
+                next_swap: Some(NextSwapParams { simulation: next, through_ton }),
                 ..SwapTransactionParams::mock(&first)
             })
             .unwrap()
