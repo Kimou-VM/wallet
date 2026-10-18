@@ -188,7 +188,6 @@ Findings from reviewing commits that nobody has accepted yet, and not all of the
   - **Android:** [`GemCandlestickChart.kt`](../android/ui/src/main/kotlin/com/gemwallet/android/ui/components/chart/GemCandlestickChart.kt) draws the ring in `colorScheme.surface`.
   - **Expected:** needs a decision (design).
 - **CLN510** **S** **Orca and Raydium each build their swap instruction.** `whirlpool_instruction` ([`orca/swap.rs`](../core/crates/swapper/src/orca/swap.rs)) and `raydium_instruction` ([`raydium_clmm/swap.rs`](../core/crates/swapper/src/raydium_clmm/swap.rs)) are the same body over a different program id (68d9dfe937, f22d437b75). Wallet-critical.
-- **CLN511** **S** **iOS `ShowSecretDataScene` re-derives the secret kind.** Its private `kind` repeats `GemWalletSecret.kind` in `Gemstone+Localized.swift` (cbd237c201). Wallet-critical.
 - **CLN519** **S** **Dependabot's Swift job fails every day.** [`dependabot.yml`](../.github/dependabot.yml) points `swift` at `/ios`, which has no `Package.swift` or `Package.resolved`, so iOS packages get no update or advisory checks.
 
 ## Blocked upstream

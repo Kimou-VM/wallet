@@ -4,7 +4,6 @@ import Components
 import struct Gemstone.GemCopy
 import struct Gemstone.GemSecretScreen
 import enum Gemstone.GemWalletSecret
-import enum Gemstone.GemWalletSecretKind
 import func Gemstone.privateKeyCopy
 import func Gemstone.secretPhraseCopy
 import func Gemstone.secretScreen
@@ -59,7 +58,7 @@ public struct ShowSecretDataScene: View {
             copy: secretCopy,
             isPresenting: $isPresentingCopyToast,
         )
-        .detectScreenshots(kind: kind)
+        .detectScreenshots(kind: secret.kind)
         .protectFromScreenRecording()
     }
 
@@ -84,15 +83,8 @@ public struct ShowSecretDataScene: View {
         }
     }
 
-    private var kind: GemWalletSecretKind {
-        switch secret {
-        case .words: .phrase
-        case .privateKey: .privateKey
-        }
-    }
-
     private var docsUrl: URL {
-        kind.securityDocsUrl
+        secret.kind.securityDocsUrl
     }
 
     private func copy() {
