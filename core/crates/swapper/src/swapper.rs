@@ -1,8 +1,8 @@
 use crate::ranking::rank_quotes;
 use crate::{
     AssetList, FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapQuoteError, SwapQuotes, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperProviderMode, SwapperQuoteData,
-    across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, dedust, fees::max_quote_value_with_fee_reserve, hyperion, hyperliquid, jupiter, mayan, meteora_damm_v2, meteora_dlmm,
-    near_intents, okx, orca, panora, provider_group::ProviderGroup, pump_swap, raydium_amm, raydium_clmm, raydium_cpmm, relay, solana_dex, squid, stonfi, swaps_xyz, thorchain, uniswap,
+    across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, dedust, hyperion, hyperliquid, jupiter, mayan, meteora_damm_v2, meteora_dlmm, near_intents, okx, orca, panora,
+    provider_group::ProviderGroup, pump_swap, raydium_amm, raydium_clmm, raydium_cpmm, relay, solana_dex, squid, stonfi, swaps_xyz, thorchain, uniswap,
 };
 use primitives::{AssetId, Chain, EVMChain};
 use std::{
@@ -186,7 +186,7 @@ impl GemSwapper {
     fn quote_request_for_mode(mode: SwapAmountMode, request: &QuoteRequest) -> Result<QuoteRequest, SwapperError> {
         match mode {
             SwapAmountMode::Fixed => Ok(QuoteRequest {
-                value: max_quote_value_with_fee_reserve(request)?,
+                value: request.value_after_fee_reserve()?,
                 ..request.clone()
             }),
             SwapAmountMode::Flexible => Ok(request.clone()),
@@ -379,7 +379,7 @@ mod tests {
 
         let quotes = gem_swapper.get_quotes(&request).await.unwrap().quotes;
         let asked = |provider: SwapperProvider| quotes.iter().find(|quote| quote.data.provider.id == provider).unwrap().request.value.clone();
-        let reserve: BigUint = crate::fees::reserved_transaction_fees(Chain::Ethereum).unwrap().parse().unwrap();
+        let reserve = crate::fees::reserved_transaction_fees(Chain::Ethereum).unwrap();
 
         assert_eq!(asked(SwapperProvider::Jupiter), request.value, "a provider that swaps whatever arrives is asked for everything; the fee comes off at signing");
         assert_eq!(

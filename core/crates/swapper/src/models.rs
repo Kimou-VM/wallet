@@ -11,7 +11,7 @@ use primitives::{
 use serde::{Serialize, de::DeserializeOwned};
 use serde_serializers::serialize_display;
 use serde_serializers::{serialize_biguint, serialize_option_biguint};
-use std::{fmt::Debug, str::FromStr};
+use std::fmt::Debug;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ProviderType {
@@ -112,12 +112,23 @@ impl QuoteRequest {
         swap_value_u64(&self.value)
     }
 
+    fn spends_all_native(&self) -> bool {
+        self.options.use_max_amount && self.from_asset.is_native()
+    }
+
+    pub(crate) fn value_after_fee_reserve(&self) -> Result<BigUint, SwapperError> {
+        match reserved_transaction_fees(self.from_asset.chain()) {
+            Some(reserve) if self.spends_all_native() => (self.value > reserve).then(|| &self.value - &reserve).ok_or(SwapperError::InputAmountError { min_amount: Some(reserve.to_string()) }),
+            _ => Ok(self.value.clone()),
+        }
+    }
+
     pub(crate) fn reserve_native_attachment(&self, attachment: &BigUint) -> Result<Self, SwapperError> {
-        if !self.options.use_max_amount || !self.from_asset.is_native() {
+        if !self.spends_all_native() {
             return Ok(self.clone());
         }
         if self.value <= *attachment {
-            let reserved_fee = reserved_transaction_fees(self.from_asset.chain()).and_then(|fee| BigUint::from_str(fee).ok()).unwrap_or_default();
+            let reserved_fee = reserved_transaction_fees(self.from_asset.chain()).unwrap_or_default();
             return Err(SwapperError::InputAmountError {
                 min_amount: Some((attachment + reserved_fee).to_string()),
             });
@@ -323,6 +334,31 @@ mod tests {
             .value_u64(),
             Err(SwapperError::ComputeQuoteError("swap amount is too large".into()))
         );
+    }
+
+    #[test]
+    fn test_value_after_fee_reserve() {
+        let max = |asset: AssetId, value: u64| QuoteRequest {
+            from_asset: SwapperQuoteAsset::from(asset),
+            value: BigUint::from(value),
+            options: Options { use_max_amount: true, ..Options::default() },
+            ..QuoteRequest::mock(Chain::Solana, None)
+        };
+        let solana = AssetId::from_chain(Chain::Solana);
+        let tron_usdt = AssetId::from_token(Chain::Tron, primitives::asset_constants::TRON_USDT_TOKEN_ID);
+
+        assert_eq!(max(solana.clone(), 105_814_789).value_after_fee_reserve(), Ok(BigUint::from(100_814_789u64)));
+        assert_eq!(max(AssetId::from_chain(Chain::Tron), 50_000_000).value_after_fee_reserve(), Ok(BigUint::from(48_000_000u64)));
+        assert_eq!(max(tron_usdt, 50_000_000).value_after_fee_reserve(), Ok(BigUint::from(50_000_000u64)));
+        assert_eq!(
+            QuoteRequest {
+                options: Options::default(),
+                ..max(solana.clone(), 105_814_789)
+            }
+            .value_after_fee_reserve(),
+            Ok(BigUint::from(105_814_789u64))
+        );
+        assert_eq!(max(solana, 5_000_000).value_after_fee_reserve(), Err(SwapperError::InputAmountError { min_amount: Some("5000000".to_string()) }));
     }
 
     #[test]
