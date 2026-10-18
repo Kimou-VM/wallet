@@ -3,7 +3,7 @@ use alloy_sol_types::SolValue;
 use async_trait::async_trait;
 use gem_evm::u256::u256_to_biguint;
 use num_bigint::BigUint;
-use std::{collections::HashSet, fmt, str::FromStr, sync::Arc, vec};
+use std::{fmt, str::FromStr, sync::Arc, vec};
 
 use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
@@ -62,14 +62,6 @@ impl UniswapV4 {
         vec![FeeTier::Hundred, FeeTier::FiveHundred, FeeTier::ThreeThousand, FeeTier::TenThousand]
     }
 
-    fn is_base_pair(token_in: &Address, token_out: &Address, evm_chain: &EVMChain) -> bool {
-        let Some(base_pair) = base_pair(*evm_chain, PROTOCOL) else {
-            return false;
-        };
-        let base_set: HashSet<Address> = HashSet::from_iter(base_pair.path_building_array());
-        base_set.contains(token_in) || base_set.contains(token_out)
-    }
-
     fn routed_request(request: &QuoteRequest) -> Result<(EVMChain, RoutedAsset, RoutedAsset, u128), SwapperError> {
         let (evm_chain, input, output) = routed_pair(&request.from_asset.asset_id(), &request.to_asset.asset_id(), PROTOCOL)?;
         let amount_in = U256::from_str(&request.value.to_string()).map_err(SwapperError::from)? / input.scale;
@@ -83,12 +75,7 @@ impl UniswapV4 {
         let base_pair = base_pair(evm_chain, PROTOCOL).ok_or_else(|| SwapperError::ComputeQuoteError("base pair not found".into()))?;
         let client = create_client(self.rpc_provider.clone(), chain)?;
         let fee_tiers = self.get_tiers();
-        let intermediaries = if Self::is_base_pair(&token_in, &token_out, &evm_chain) {
-            vec![]
-        } else {
-            get_intermediaries(&token_in, &token_out, &base_pair)
-        };
-        let pairs = candidate_pairs(token_in, token_out, intermediaries);
+        let pairs = candidate_pairs(token_in, token_out, get_intermediaries(&token_in, &token_out, &base_pair));
         let pools = self
             .pool_discovery
             .missing_pools(chain, &pairs, &fee_tiers)
@@ -150,11 +137,7 @@ impl Swapper for UniswapV4 {
         let direct_paths = build_pool_keys(&token_in, &token_out, &fee_tiers)
             .into_iter()
             .map(|(pairs, pool_key)| (pairs, build_quote_exact_single_request(&token_in, deployment.quoter, quote_amount_in, &pool_key)));
-        let intermediaries = if Self::is_base_pair(&token_in, &token_out, &evm_chain) {
-            Vec::new()
-        } else {
-            get_intermediaries(&token_in, &token_out, &base_pair)
-        };
+        let intermediaries = get_intermediaries(&token_in, &token_out, &base_pair);
         let multi_hop_paths = build_quote_exact_params(quote_amount_in, &token_in, &token_out, &fee_tiers, &intermediaries)
             .into_iter()
             .flatten()
@@ -250,29 +233,9 @@ impl Swapper for UniswapV4 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Options, alien::mock::ProviderMock};
-    use num_bigint::BigUint;
+    use crate::alien::mock::ProviderMock;
     use primitives::asset_constants::TEMPO_BRIDGED_USDC_ASSET_ID;
     use std::sync::Arc;
-
-    #[test]
-    fn test_is_base_pair() {
-        let provider = Arc::new(ProviderMock::new("{}".to_string()));
-        let swapper = UniswapV4::new(provider);
-        let request = QuoteRequest {
-            from_asset: AssetId::from(Chain::SmartChain, Some("0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82".to_string())).into(),
-            to_asset: AssetId::from_chain(Chain::SmartChain).into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            value: BigUint::from(40000000000000000u64),
-            options: Options::default(),
-        };
-
-        let (evm_chain, input, output, _) = UniswapV4::routed_request(&request).unwrap();
-
-        assert!(UniswapV4::is_base_pair(&input.address, &output.address, &evm_chain));
-        assert_eq!(swapper.provider.id, SwapperProvider::UniswapV4);
-    }
 
     #[test]
     fn test_robinhood_supported() {
@@ -298,9 +261,31 @@ mod swap_integration_tests {
     use num_traits::ToPrimitive;
     use primitives::{
         AssetId, Chain,
-        asset_constants::{ARC_EURC_ASSET_ID, ROBINHOOD_USDG_TOKEN_ID, TEMPO_BRIDGED_USDC_ASSET_ID, TEMPO_PATHUSD_ASSET_ID},
+        asset_constants::{ARC_EURC_ASSET_ID, ETHEREUM_USDC_ASSET_ID, ROBINHOOD_USDG_TOKEN_ID, TEMPO_BRIDGED_USDC_ASSET_ID, TEMPO_PATHUSD_ASSET_ID},
     };
     use std::sync::Arc;
+
+    #[tokio::test]
+    async fn test_ethereum_usdc_to_cfg_routes_through_eth() -> Result<(), SwapperError> {
+        let swap_provider = uniswap::default::boxed_uniswap_v4(Arc::new(NativeProvider::default()));
+        let wallet = "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7";
+        let request = QuoteRequest {
+            from_asset: ETHEREUM_USDC_ASSET_ID.clone().into(),
+            to_asset: AssetId::from_token(Chain::Ethereum, "0xcccCCCcCCC33D538DBC2EE4fEab0a7A1FF4e8A94").into(),
+            wallet_address: wallet.into(),
+            destination_address: wallet.into(),
+            value: BigUint::from(100_000_000u64),
+            options: Options { slippage: 100.into(), use_max_amount: false },
+        };
+
+        let quote = swap_provider.get_quote(&request).await?;
+        let quote_data = swap_provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+
+        assert!(quote.to_value > BigUint::ZERO);
+        assert_eq!(quote.data.routes.len(), 2);
+        assert!(!quote_data.data.is_empty());
+        Ok(())
+    }
 
     #[tokio::test]
     async fn test_arc_native_usdc_eurc_quotes() -> Result<(), SwapperError> {
