@@ -32,7 +32,7 @@ A link, push or scanned code opens only what the app's own screens offer, so a s
 
 `amount` is a fiat amount in whole USD, not a crypto amount. Values that are not a positive whole number, including fractional ones like `49.5`, are ignored and the screen opens with its default amount. A locale segment in front of the path is accepted and skipped, so `https://gemwallet.com/zh-cn/tokens/bitcoin/buy` resolves like `https://gemwallet.com/tokens/bitcoin/buy`. Every action requires an asset. An address link needs both the chain and the address. A link with an unknown path, an unknown chain, an unknown action, or a missing asset is not a deep link and opens in the browser.
 
-Sell availability controls whether Sell can be selected in the screen. A direct sell link still opens Sell when the asset is not marked as sellable.
+Sell availability controls whether Sell can be selected in the screen.
 
 A Receive, Buy, Sell or Swap link for a network the current wallet has no account on opens nothing and says the wallet has no account for that network.
 
