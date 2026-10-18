@@ -235,6 +235,7 @@ impl GemConfirmMetadata {
             asset_balance: balance.clone(),
             fee_asset_balance: balance,
             prices: vec![],
+            buyable_asset_ids: vec![],
         }
     }
 }

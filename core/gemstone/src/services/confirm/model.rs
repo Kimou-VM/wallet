@@ -138,6 +138,7 @@ pub struct GemConfirmMetadata {
     pub asset_balance: GemAssetBalance,
     pub fee_asset_balance: GemAssetBalance,
     pub prices: Vec<AssetPrice>,
+    pub buyable_asset_ids: Vec<AssetId>,
 }
 
 impl GemConfirmMetadata {
@@ -584,6 +585,7 @@ mod tests {
                 AssetPrice::new(AssetId::from_chain(primitives::Chain::Bitcoin), 2.0, 0.0, now),
                 AssetPrice::new(AssetId::from_chain(primitives::Chain::Solana), 1.0, 0.0, now),
             ],
+            buyable_asset_ids: vec![],
         };
 
         assert_eq!(metadata.asset_price().map(|price| price.price), Some(1.0));

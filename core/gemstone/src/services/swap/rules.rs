@@ -18,8 +18,8 @@ use crate::services::assets::rules::fee_asset_id;
 use crate::services::assets::{GemAssetAction, GemAssetFilter};
 use crate::services::collections::unique;
 use crate::services::confirm::error::GemConfirmErrorInfo;
-use crate::services::confirm::rules::{error_info, is_insufficient_network_fee};
-use crate::services::confirm::{GemAcquireAsset, GemAcquireAssetFlow, GemAcquireOption, GemConfirmError};
+use crate::services::confirm::rules::{acquire_options, error_info, is_insufficient_network_fee};
+use crate::services::confirm::{GemAcquireAsset, GemAcquireAssetFlow, GemConfirmError};
 use crate::services::localization::GemLocalizedText;
 use crate::services::swap::model::{GemAssetRate, GemSwapButtonAction, GemSwapButtonInput, GemSwapNetworkFeeError, GemSwapPair, GemSwapPairSelection, GemSwapPairSuggestion, GemSwapPriceImpactRow, GemSwapRate, GemSwapSide};
 use crate::services::swap::session::{GemSwapQuoteInput, GemSwapRequest};
@@ -314,7 +314,7 @@ pub fn network_fee_error(pay: &AssetData, fee: &AssetData, currency: Currency) -
         return None;
     }
     let display = GemConfirmError::InsufficientNetworkFee { asset: fee.asset.clone(), requirement: None }.display();
-    let info = error_info(&display, &[], currency, &pay.asset.id, &fee.asset.id)?;
+    let info = error_info(&display, &[], &[], currency, &pay.asset.id, &fee.asset.id)?;
     Some(GemSwapNetworkFeeError {
         info: GemConfirmErrorInfo {
             acquire: Some(network_fee_acquire(fee)),
@@ -328,7 +328,7 @@ fn network_fee_acquire(fee: &AssetData) -> GemAcquireAsset {
     let is_buyable = fee.metadata.is_buy_enabled;
     GemAcquireAsset {
         flow: GemAcquireAssetFlow::Options,
-        options: [is_buyable.then_some(GemAcquireOption::Buy), Some(GemAcquireOption::Receive)].into_iter().flatten().collect(),
+        options: acquire_options(is_buyable, false),
         buy_amount: is_buyable.then(|| get_fiat_config().insufficient_network_fee_buy_amount),
         swap_pair: GemSwapPairSelection {
             pay_asset_id: None,
@@ -577,6 +577,7 @@ mod tests {
 
     use super::*;
     use crate::models::custom_types::GemBigInt;
+    use crate::services::confirm::GemAcquireOption;
     use crate::services::confirm::error::{GemConfirmErrorDisplay, GemConfirmErrorSheet};
     use crate::services::swap::testkit::mock_asset_data;
     use primitives::asset_balance::BalanceMetadata;

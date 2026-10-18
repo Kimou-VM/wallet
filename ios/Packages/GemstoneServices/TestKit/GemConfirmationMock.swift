@@ -175,6 +175,7 @@ public final class GemConfirmationMock: GemConfirmationProtocol, @unchecked Send
         return confirmErrorInfo(
             error: error,
             prices: state.metadata.prices,
+            buyableAssetIds: state.metadata.buyableAssetIds,
             currency: currency,
             inputAssetId: transfer().inputAsset().id,
             feeAssetId: state.feeAsset.id,

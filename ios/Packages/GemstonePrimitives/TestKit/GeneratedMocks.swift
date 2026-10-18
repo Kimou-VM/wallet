@@ -439,11 +439,13 @@ public extension Gemstone.GemConfirmMetadata {
         assetBalance: Gemstone.GemAssetBalance = .mock(),
         feeAssetBalance: Gemstone.GemAssetBalance = .mock(),
         prices: [Gemstone.AssetPrice] = [],
+        buyableAssetIds: [Primitives.AssetId] = [],
     ) -> Gemstone.GemConfirmMetadata {
         Gemstone.GemConfirmMetadata(
             assetBalance: assetBalance,
             feeAssetBalance: feeAssetBalance,
             prices: prices,
+            buyableAssetIds: buyableAssetIds,
         )
     }
 }

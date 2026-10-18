@@ -173,6 +173,8 @@ Confirm and Transaction details show the Network Fee the same way.
 | The fee's coin has a price | Network Fee shows its value only: `$0.01` | the value is the number the user weighs |
 | The fee's coin has no price | the fee in that coin: `0.000021 ETH` | |
 | There is not enough of the coin that pays the fee | the fee in that coin above its value: `0.0000129 BNB` over `$0.01` | that is the amount the user has to add |
+| Not enough of an asset or of the fee's coin, and a provider sells it | its sheet offers Buy, with the fee amount for a fee coin; Tron also offers Swap and Receive | |
+| No provider sells it, such as ETH on World Chain | Get offers Swap and Receive, never Buy (`test_acquire_asset_flow`) | a Buy that has nothing to buy only sends the user into an empty purchase screen |
 | The user can pick which asset pays the fee | its value and the asset: `$0.01` with `USDC` | |
 | The user taps Network Fee on Confirm | the fee in its coin above its value, and faster, slower or custom fees where the network allows | |
 | Confirm refreshes while the user types a custom fee | the typed value stays until they confirm it or leave the custom fee screen | a refresh never takes back what the user typed |

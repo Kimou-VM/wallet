@@ -85,8 +85,8 @@ impl GemConfirmService {
 impl GemConfirmService {
     pub async fn metadata(&self, wallet_id: WalletId, asset_id: AssetId, fee_asset_id: AssetId, extra_asset_ids: Vec<AssetId>) -> Result<GemConfirmMetadata, GemConfirmError> {
         let asset_ids = rules::metadata_asset_ids(&asset_id, &fee_asset_id, extra_asset_ids);
-        let (balances, prices) = futures::join!(self.balance.balances(wallet_id, asset_ids.clone()), self.price.prices(asset_ids));
-        rules::build_metadata(asset_id, fee_asset_id, balances?, prices?)
+        let (balances, prices, buyable_asset_ids) = futures::join!(self.balance.balances(wallet_id, asset_ids.clone()), self.price.prices(asset_ids.clone()), self.assets.buyable_asset_ids(asset_ids));
+        rules::build_metadata(asset_id, fee_asset_id, balances?, prices?, buyable_asset_ids?)
     }
 
     pub async fn load(&self, wallet_id: &WalletId, input: &GemConfirmInput, options: &GemConfirmLoadOptions, currency: Currency) -> Result<GemConfirmFeeLoad, GemConfirmError> {

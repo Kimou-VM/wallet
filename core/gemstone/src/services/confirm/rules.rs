@@ -333,11 +333,12 @@ pub fn fee_asset_row(asset: &Asset, balance: &GemAssetBalance, price: Option<f64
     }
 }
 
-pub fn build_metadata(asset_id: AssetId, fee_asset_id: AssetId, balances: Vec<GemAssetBalance>, prices: Vec<AssetPrice>) -> Result<GemConfirmMetadata, GemConfirmError> {
+pub fn build_metadata(asset_id: AssetId, fee_asset_id: AssetId, balances: Vec<GemAssetBalance>, prices: Vec<AssetPrice>, buyable_asset_ids: Vec<AssetId>) -> Result<GemConfirmMetadata, GemConfirmError> {
     Ok(GemConfirmMetadata {
         asset_balance: asset_balance(&balances, &asset_id)?,
         fee_asset_balance: asset_balance(&balances, &fee_asset_id)?,
         prices,
+        buyable_asset_ids,
     })
 }
 
@@ -349,14 +350,27 @@ fn asset_balance(balances: &[GemAssetBalance], asset_id: &AssetId) -> Result<Gem
         .ok_or_else(|| GemConfirmError::BalanceMissing { asset_id: asset_id.clone() })
 }
 
-fn acquire_options(flow: GemAcquireAssetFlow) -> Vec<GemAcquireOption> {
-    match flow {
-        GemAcquireAssetFlow::Options => vec![GemAcquireOption::Buy, GemAcquireOption::Swap, GemAcquireOption::Receive],
-        GemAcquireAssetFlow::Fiat => vec![],
+pub fn acquire_options(is_buyable: bool, is_swappable: bool) -> Vec<GemAcquireOption> {
+    [is_buyable.then_some(GemAcquireOption::Buy), is_swappable.then_some(GemAcquireOption::Swap), Some(GemAcquireOption::Receive)]
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
+fn acquire_asset(asset: &Asset, is_buyable: bool, buy_amount: Option<i32>, swap_pair: GemSwapPairSelection) -> GemAcquireAsset {
+    let flow = acquire_asset_flow(asset.chain(), is_buyable);
+    GemAcquireAsset {
+        flow,
+        options: match flow {
+            GemAcquireAssetFlow::Options => acquire_options(is_buyable, true),
+            GemAcquireAssetFlow::Fiat => vec![],
+        },
+        buy_amount: buy_amount.filter(|_| is_buyable),
+        swap_pair,
     }
 }
 
-pub fn error_info(display: &GemConfirmErrorDisplay, prices: &[AssetPrice], currency: Currency, input_asset_id: &AssetId, fee_asset_id: &AssetId) -> Option<GemConfirmErrorInfo> {
+pub fn error_info(display: &GemConfirmErrorDisplay, prices: &[AssetPrice], buyable_asset_ids: &[AssetId], currency: Currency, input_asset_id: &AssetId, fee_asset_id: &AssetId) -> Option<GemConfirmErrorInfo> {
     let info = |sheet: GemConfirmErrorSheet, asset: Option<&Asset>, title: String, requirement: Option<&GemConfirmRequirement>, required: Option<&GemFormattedNumber>| {
         let required = required.or_else(|| requirement.map(|requirement| &requirement.required)).cloned();
         let price = asset.and_then(|asset| prices.iter().find(|price| price.asset_id == asset.id)).map(|price| price.price);
@@ -369,12 +383,9 @@ pub fn error_info(display: &GemConfirmErrorDisplay, prices: &[AssetPrice], curre
             required,
             available: requirement.map(|requirement| requirement.available.clone()),
             shortfall: requirement.map(|requirement| requirement.shortfall.clone()),
-            acquire: asset.filter(|asset| asset.asset_type != AssetType::PERPETUAL).map(|asset| GemAcquireAsset {
-                flow: acquire_asset_flow(asset.chain()),
-                options: acquire_options(acquire_asset_flow(asset.chain())),
-                buy_amount,
-                swap_pair: acquire_swap_pair(input_asset_id, fee_asset_id, asset.id.clone()),
-            }),
+            acquire: asset
+                .filter(|asset| asset.asset_type != AssetType::PERPETUAL)
+                .map(|asset| acquire_asset(asset, buyable_asset_ids.contains(&asset.id), buy_amount, acquire_swap_pair(input_asset_id, fee_asset_id, asset.id.clone()))),
         }
     };
     match display {
@@ -407,10 +418,10 @@ pub fn error_info(display: &GemConfirmErrorDisplay, prices: &[AssetPrice], curre
     }
 }
 
-fn acquire_asset_flow(chain: Chain) -> GemAcquireAssetFlow {
-    match chain {
-        Chain::Tron => GemAcquireAssetFlow::Options,
-        _ => GemAcquireAssetFlow::Fiat,
+fn acquire_asset_flow(chain: Chain, is_buyable: bool) -> GemAcquireAssetFlow {
+    match (chain, is_buyable) {
+        (Chain::Tron, _) | (_, false) => GemAcquireAssetFlow::Options,
+        (_, true) => GemAcquireAssetFlow::Fiat,
     }
 }
 
@@ -1373,7 +1384,8 @@ mod tests {
 
         let prices = vec![AssetPrice::new(asset.id.clone(), 2_000.0, 0.0, chrono::Utc::now())];
         let token = AssetId::from_token(Chain::Ethereum, "0xtoken");
-        let info = error_info(&display, &prices, Currency::USD, &token, &asset.id).unwrap();
+        let buyable = vec![asset.id.clone()];
+        let info = error_info(&display, &prices, &buyable, Currency::USD, &token, &asset.id).unwrap();
 
         assert_eq!(info.sheet, GemConfirmErrorSheet::NetworkFeeRequired);
         assert_eq!(info.required.as_ref().map(|number| number.value), Some(3.0), "the sheet names what the transaction requires, not the fee alone");
@@ -1390,7 +1402,7 @@ mod tests {
             asset: asset.clone(),
         };
         assert_eq!(
-            error_info(&balance, &prices, Currency::USD, &token, &asset.id).unwrap().acquire.unwrap().buy_amount,
+            error_info(&balance, &prices, &buyable, Currency::USD, &token, &asset.id).unwrap().acquire.unwrap().buy_amount,
             None,
             "a balance sheet leaves the amount to the user"
         );
@@ -1401,13 +1413,24 @@ mod tests {
             asset: usdc.clone(),
         };
         assert_eq!(
-            error_info(&perpetual_balance, &prices, Currency::USD, &usdc.id, &usdc.id).unwrap().acquire,
+            error_info(&perpetual_balance, &prices, &[usdc.id.clone()], Currency::USD, &usdc.id, &usdc.id).unwrap().acquire,
             None,
             "a perpetual balance is funded by a deposit, never bought"
         );
 
-        let without_price = error_info(&display, &[], Currency::USD, &token, &asset.id).unwrap();
+        let without_price = error_info(&display, &[], &buyable, Currency::USD, &token, &asset.id).unwrap();
         assert_eq!(without_price.required_fiat, None, "no price means no fiat, never a zero");
+
+        assert_eq!(
+            error_info(&display, &prices, &[], Currency::USD, &token, &asset.id).unwrap().acquire,
+            Some(GemAcquireAsset {
+                flow: GemAcquireAssetFlow::Options,
+                options: vec![GemAcquireOption::Swap, GemAcquireOption::Receive],
+                buy_amount: None,
+                swap_pair: acquire_swap_pair(&token, &asset.id, asset.id.clone()),
+            }),
+            "a coin no provider sells is never offered to buy"
+        );
     }
 
     #[test]
@@ -1421,25 +1444,31 @@ mod tests {
             GemConfirmErrorDisplay::InsufficientFunds,
             GemConfirmErrorDisplay::Message { msg: "boom".to_string() },
         ] {
-            assert_eq!(error_info(&display, &[], Currency::USD, &AssetId::from_chain(Chain::Ethereum), &AssetId::from_chain(Chain::Ethereum)), None, "{display:?}");
+            assert_eq!(error_info(&display, &[], &[], Currency::USD, &AssetId::from_chain(Chain::Ethereum), &AssetId::from_chain(Chain::Ethereum)), None, "{display:?}");
         }
     }
 
     #[test]
     fn test_a_sheet_without_an_asset_carries_no_amount_and_no_acquire() {
         let bitcoin = AssetId::from_chain(Chain::Bitcoin);
-        let info = error_info(&GemConfirmErrorDisplay::DustThreshold { chain: Chain::Bitcoin }, &[], Currency::USD, &bitcoin, &bitcoin).unwrap();
+        let info = error_info(&GemConfirmErrorDisplay::DustThreshold { chain: Chain::Bitcoin }, &[], &[], Currency::USD, &bitcoin, &bitcoin).unwrap();
 
         assert_eq!(info.sheet, GemConfirmErrorSheet::DustThreshold { chain: Chain::Bitcoin });
         assert!(info.required.is_none() && info.available.is_none() && info.shortfall.is_none() && info.acquire.is_none());
     }
 
     #[test]
-    fn test_acquire_asset_flow_offers_options_only_on_tron() {
-        assert_eq!(acquire_asset_flow(Chain::Tron), GemAcquireAssetFlow::Options);
-        assert_eq!(acquire_asset_flow(Chain::Ethereum), GemAcquireAssetFlow::Fiat);
-        assert_eq!(acquire_options(GemAcquireAssetFlow::Options), vec![GemAcquireOption::Buy, GemAcquireOption::Swap, GemAcquireOption::Receive]);
-        assert!(acquire_options(GemAcquireAssetFlow::Fiat).is_empty(), "the fiat flow goes straight to buying");
+    fn test_acquire_asset_flow() {
+        assert_eq!(acquire_asset_flow(Chain::Tron, true), GemAcquireAssetFlow::Options);
+        assert_eq!(acquire_asset_flow(Chain::Ethereum, true), GemAcquireAssetFlow::Fiat);
+        assert_eq!(acquire_asset_flow(Chain::World, false), GemAcquireAssetFlow::Options, "a coin no provider sells cannot go straight to buying");
+        assert_eq!(acquire_options(true, true), vec![GemAcquireOption::Buy, GemAcquireOption::Swap, GemAcquireOption::Receive]);
+        assert_eq!(acquire_options(false, true), vec![GemAcquireOption::Swap, GemAcquireOption::Receive]);
+        assert_eq!(acquire_options(true, false), vec![GemAcquireOption::Buy, GemAcquireOption::Receive]);
+
+        let eth = AssetId::from_chain(Chain::Ethereum);
+        let fiat = acquire_asset(&Asset::from_chain(Chain::Ethereum), true, None, acquire_swap_pair(&eth, &eth, eth.clone()));
+        assert!(fiat.options.is_empty(), "the fiat flow goes straight to buying");
     }
 
     #[test]
@@ -1517,7 +1546,7 @@ mod tests {
         let metadata = |token_available: u64, eth_available: u64| GemConfirmMetadata {
             asset_balance: GemConfirmMetadata::mock(&token.id, token_available).asset_balance,
             fee_asset_balance: GemConfirmMetadata::mock(&AssetId::from_chain(Chain::Ethereum), eth_available).fee_asset_balance,
-            prices: vec![],
+            ..GemConfirmMetadata::mock(&token.id, token_available)
         };
 
         let missing_fee = Some(GemConfirmError::InsufficientNetworkFee {
@@ -1753,7 +1782,7 @@ mod tests {
             },
         ];
 
-        let metadata = build_metadata(asset_id, fee_asset_id, balances, vec![]).unwrap();
+        let metadata = build_metadata(asset_id, fee_asset_id, balances, vec![], vec![]).unwrap();
 
         assert_eq!(metadata.asset_balance.available, GemBigUint::from(3u32));
         assert_eq!(metadata.fee_asset_balance.available, GemBigUint::from(7u32));
@@ -1772,6 +1801,7 @@ mod tests {
                 ..GemAssetBalance::mock_with_available(7)
             }],
             vec![],
+            vec![],
         ) {
             Err(GemConfirmError::BalanceMissing { asset_id: missing }) => assert_eq!(missing, asset_id),
             result => panic!("expected the asset balance to be required, got {result:?}"),
@@ -1783,6 +1813,7 @@ mod tests {
                 asset_id,
                 ..GemAssetBalance::mock_with_available(3)
             }],
+            vec![],
             vec![],
         ) {
             Err(GemConfirmError::BalanceMissing { asset_id: missing }) => assert_eq!(missing, fee_asset_id),

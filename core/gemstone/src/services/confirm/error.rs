@@ -265,8 +265,15 @@ pub struct GemConfirmErrorInfo {
 }
 
 #[uniffi::export]
-pub fn confirm_error_info(error: GemConfirmError, prices: Vec<primitives::AssetPrice>, currency: primitives::currency::Currency, input_asset_id: AssetId, fee_asset_id: AssetId) -> Option<GemConfirmErrorInfo> {
-    super::rules::error_info(&error.display(), &prices, currency, &input_asset_id, &fee_asset_id)
+pub fn confirm_error_info(
+    error: GemConfirmError,
+    prices: Vec<primitives::AssetPrice>,
+    buyable_asset_ids: Vec<AssetId>,
+    currency: primitives::currency::Currency,
+    input_asset_id: AssetId,
+    fee_asset_id: AssetId,
+) -> Option<GemConfirmErrorInfo> {
+    super::rules::error_info(&error.display(), &prices, &buyable_asset_ids, currency, &input_asset_id, &fee_asset_id)
 }
 
 #[uniffi::export]

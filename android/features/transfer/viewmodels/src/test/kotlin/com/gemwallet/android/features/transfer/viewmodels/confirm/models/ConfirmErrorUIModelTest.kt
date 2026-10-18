@@ -117,7 +117,7 @@ class ConfirmErrorUIModelTest {
         shortfall = BigInteger(shortfall),
     )
 
-    private fun GemConfirmException.amounts(): List<String> = when (val description = confirmErrorInfo(this, emptyList(), Currency.USD, "ethereum", "ethereum")?.sheet(Platform.ANDROID)?.description) {
+    private fun GemConfirmException.amounts(): List<String> = when (val description = confirmErrorInfo(this, emptyList(), emptyList(), Currency.USD, "ethereum", "ethereum")?.sheet(Platform.ANDROID)?.description) {
         is GemInfoDescription.BalanceRequired -> listOfNotNull(description.required, description.available, description.shortfall).map { it.text() }
         is GemInfoDescription.InsufficientNetworkFeeBalance -> listOfNotNull(description.required?.text(), description.network, description.available.text(), description.shortfall?.text())
         else -> emptyList()

@@ -254,7 +254,7 @@ mod tests {
 
     fn confirm_sheet(display: GemConfirmErrorDisplay) -> GemInfoSheet {
         let ethereum = Asset::from_chain(Chain::Ethereum).id;
-        let info = error_info(&display, &[], Currency::USD, &ethereum, &ethereum).expect("a sheet");
+        let info = error_info(&display, &[], std::slice::from_ref(&ethereum), Currency::USD, &ethereum, &ethereum).expect("a sheet");
         confirm_error_sheet(&info, Platform::IOS)
     }
 

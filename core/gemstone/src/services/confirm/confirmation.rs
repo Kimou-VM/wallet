@@ -188,11 +188,11 @@ impl GemConfirmation {
 
     pub fn error_info(&self, error: GemConfirmError) -> Option<GemConfirmErrorInfo> {
         let transfer = self.transfer();
-        let (prices, fee_asset_id) = match self.stored().as_ref() {
-            Some(state) => (state.load.metadata.prices.clone(), state.load.fee_asset.id.clone()),
-            None => (Vec::new(), transfer.fee_asset().id),
+        let (prices, buyable_asset_ids, fee_asset_id) = match self.stored().as_ref() {
+            Some(state) => (state.load.metadata.prices.clone(), state.load.metadata.buyable_asset_ids.clone(), state.load.fee_asset.id.clone()),
+            None => (Vec::new(), Vec::new(), transfer.fee_asset().id),
         };
-        super::error::confirm_error_info(error, prices, self.service.get_currency(), transfer.input_asset().id, fee_asset_id)
+        super::error::confirm_error_info(error, prices, buyable_asset_ids, self.service.get_currency(), transfer.input_asset().id, fee_asset_id)
     }
 
     pub async fn submit(&self) -> Result<GemSubmitResult, GemConfirmError> {

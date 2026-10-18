@@ -1297,10 +1297,12 @@ fun mockGemConfirmMetadata(
     assetBalance: uniffi.gemstone.GemAssetBalance = mockGemAssetBalance(),
     feeAssetBalance: uniffi.gemstone.GemAssetBalance = mockGemAssetBalance(),
     prices: List<uniffi.gemstone.AssetPrice> = emptyList(),
+    buyableAssetIds: List<String> = emptyList(),
 ) = uniffi.gemstone.GemConfirmMetadata(
     assetBalance = assetBalance,
     feeAssetBalance = feeAssetBalance,
     prices = prices,
+    buyableAssetIds = buyableAssetIds,
 )
 
 fun mockGemConfirmScreen(

@@ -168,6 +168,10 @@ impl GemAssetsService {
         self.store.get_assets(asset_ids).await
     }
 
+    pub async fn buyable_asset_ids(&self, asset_ids: Vec<AssetId>) -> Result<Vec<AssetId>, GemServiceError> {
+        Ok(self.store.get_asset_basics(asset_ids).await?.into_iter().filter(|basic| basic.properties.is_buyable).map(|basic| basic.asset.id).collect())
+    }
+
     pub async fn asset_properties(&self, asset_id: AssetId) -> Result<Option<AssetProperties>, GemServiceError> {
         Ok(self.store.get_asset_basics(vec![asset_id]).await?.into_iter().next().map(|basic| basic.properties))
     }

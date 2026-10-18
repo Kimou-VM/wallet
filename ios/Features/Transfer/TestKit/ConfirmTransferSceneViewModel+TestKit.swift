@@ -23,6 +23,7 @@ public extension ConfirmTransferSceneViewModel {
         execute: Result<GemSubmitResult, any Error> = .success(.signed(data: [], message: nil)),
         rows: ((Gemstone.AddressName?) -> [GemConfirmRowContent])? = nil,
         confirmation: GemConfirmationMock? = nil,
+        buyableAssetIds: [AssetId] = [],
         onComplete: ((GemSubmitResult) -> Void)? = nil,
     ) -> ConfirmTransferSceneViewModel {
         let wallet = Wallet.mock(accounts: [.mock(chain: data.chain)])
@@ -51,7 +52,7 @@ public extension ConfirmTransferSceneViewModel {
             request: request ?? .mock(data: data),
             wallet: wallet,
             confirmation: confirmation ?? GemConfirmationMock(
-                state: .mock(transfer: data, feeAsset: data.feeAsset(), fee: nil),
+                state: .mock(transfer: data, feeAsset: data.feeAsset(), metadata: .mock(buyableAssetIds: buyableAssetIds), fee: nil),
                 load: load ?? .success(.mock(transfer: data, fee: .mock())),
                 execute: execute,
                 rows: rows,
