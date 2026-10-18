@@ -118,7 +118,6 @@ impl SwapProvider {
             Self::StonfiV2 => "STON.fi v2",
             Self::CetusClmm => "Cetus",
             Self::RaydiumClmm => "Raydium CLMM",
-            Self::MeteoraDammV2 => "Meteora DAMM v2",
             Self::Thorchain
             | Self::Mayachain
             | Self::Jupiter
@@ -136,7 +135,8 @@ impl SwapProvider {
             | Self::Bridgers
             | Self::Hyperion
             | Self::Dedust
-            | Self::PumpSwap => self.name(),
+            | Self::PumpSwap
+            | Self::MeteoraDammV2 => self.name(),
         }
     }
 }
