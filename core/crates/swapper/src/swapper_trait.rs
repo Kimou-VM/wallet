@@ -22,11 +22,7 @@ pub trait Swapper: Send + Sync + Debug {
     }
     async fn get_swap_result(&self, _request: &SwapResultRequest) -> Result<SwapResult, SwapperError> {
         if self.provider().mode == SwapperProviderMode::OnChain {
-            Ok(SwapResult {
-                status: SwapStatus::Completed,
-                metadata: None,
-                eta_in_seconds: None,
-            })
+            Ok(SwapResult::from(SwapStatus::Completed))
         } else {
             Err(SwapperError::NotSupportedAsset)
         }

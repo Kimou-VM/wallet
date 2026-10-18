@@ -91,10 +91,6 @@ impl Swapper for HyperCoreBridge {
     }
 
     async fn get_swap_result(&self, _request: &SwapResultRequest) -> Result<SwapResult, SwapperError> {
-        Ok(SwapResult {
-            status: SwapStatus::Completed,
-            metadata: None,
-            eta_in_seconds: None,
-        })
+        Ok(SwapResult::from(SwapStatus::Completed))
     }
 }

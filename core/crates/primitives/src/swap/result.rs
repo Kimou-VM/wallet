@@ -12,8 +12,14 @@ pub struct SwapResult {
 
 impl SwapResult {
     pub fn pending() -> Self {
+        Self::from(SwapStatus::Pending)
+    }
+}
+
+impl From<SwapStatus> for SwapResult {
+    fn from(status: SwapStatus) -> Self {
         Self {
-            status: SwapStatus::Pending,
+            status,
             metadata: None,
             eta_in_seconds: None,
         }

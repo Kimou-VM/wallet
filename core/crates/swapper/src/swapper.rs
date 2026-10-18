@@ -95,7 +95,7 @@ impl GemSwapper {
             Some(Box::new(mayan::Mayan::new(rpc_provider.clone()))),
             Some(Box::new(panora::Panora::default())),
             hyperion::Hyperion::new(rpc_provider.clone()).map(Self::boxed),
-            near_intents::NearIntents::new(rpc_provider.clone()).map(Self::boxed),
+            Some(Self::boxed(near_intents::NearIntents::new(rpc_provider.clone()))),
             Some(Box::new(chainflip::ChainflipProvider::new(rpc_provider.clone()))),
             cetus_clmm::CetusClmm::new(rpc_provider.clone()).map(Self::boxed),
             Some(Box::new(relay::Relay::new(rpc_provider.clone()))),

@@ -182,11 +182,7 @@ where
 
     async fn get_swap_result(&self, request: &SwapResultRequest) -> Result<SwapResult, SwapperError> {
         let result = self.client.get_status(&request.transaction_hash, request.chain.network_id()).await?;
-        Ok(SwapResult {
-            status: result.squid_transaction_status.swap_status(),
-            metadata: None,
-            eta_in_seconds: None,
-        })
+        Ok(SwapResult::from(result.squid_transaction_status.swap_status()))
     }
 }
 

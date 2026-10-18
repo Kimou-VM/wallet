@@ -61,15 +61,15 @@ where
 }
 
 impl NearIntents<RpcClient> {
-    pub fn new(rpc_provider: Arc<dyn RpcProvider>) -> Option<Self> {
+    pub fn new(rpc_provider: Arc<dyn RpcProvider>) -> Self {
         let client = NearIntentsClient::new(RpcClient::new(base_url(), rpc_provider.clone()), None);
         let explorer = NearIntentsExplorer::new(RpcClient::new(explorer_url(), rpc_provider));
-        Some(Self {
+        Self {
             provider: ProviderType::new(SwapperProvider::NearIntents),
             client,
             explorer,
             supported_assets: supported_assets(),
-        })
+        }
     }
 }
 
@@ -363,7 +363,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hypercore_quote_data() {
-        let provider = NearIntents::new(Arc::new(ProviderMock::new(include_str!("testdata/quote_hypercore_to_ethereum_usdc.json").to_string()))).unwrap();
+        let provider = NearIntents::new(Arc::new(ProviderMock::new(include_str!("testdata/quote_hypercore_to_ethereum_usdc.json").to_string())));
         let quote = provider.get_quote(&mock_hypercore_quote_request()).await.unwrap();
         let data = provider.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
         let payload: Value = serde_json::from_str(&data.data).unwrap();
@@ -548,7 +548,7 @@ mod swap_integration_tests {
 
     #[tokio::test]
     async fn test_near_intents_hypercore_quote() -> Result<(), SwapperError> {
-        let provider = NearIntents::new(Arc::new(NativeProvider::new().set_debug(true))).unwrap();
+        let provider = NearIntents::new(Arc::new(NativeProvider::new().set_debug(true)));
         let request = mock_hypercore_quote_request();
 
         let quote = provider.get_quote(&request).await?;
@@ -560,7 +560,7 @@ mod swap_integration_tests {
     #[tokio::test]
     async fn test_near_intents_quote() -> Result<(), SwapperError> {
         let rpc_provider = Arc::new(NativeProvider::new().set_debug(true));
-        let provider = NearIntents::new(rpc_provider).unwrap();
+        let provider = NearIntents::new(rpc_provider);
 
         let options = Options::mock_exact(100);
 
@@ -585,7 +585,7 @@ mod swap_integration_tests {
     #[tokio::test]
     async fn test_near_intents_near_to_usdt_quote() -> Result<(), SwapperError> {
         let rpc_provider = Arc::new(NativeProvider::new().set_debug(true));
-        let provider = NearIntents::new(rpc_provider).unwrap();
+        let provider = NearIntents::new(rpc_provider);
         let request = QuoteRequest {
             from_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Near)),
             to_asset: SwapperQuoteAsset::from(NEAR_USDT_ASSET_ID.clone()),
@@ -604,7 +604,7 @@ mod swap_integration_tests {
     #[tokio::test]
     async fn test_near_intents_bitcoin_quotes() -> Result<(), SwapperError> {
         let rpc_provider = Arc::new(NativeProvider::new().set_debug(true));
-        let provider = NearIntents::new(rpc_provider).unwrap();
+        let provider = NearIntents::new(rpc_provider);
 
         let from_bitcoin_request = QuoteRequest {
             from_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Bitcoin)),
@@ -650,7 +650,7 @@ mod swap_integration_tests {
     #[tokio::test]
     async fn test_near_intents_stellar_requires_memo() -> Result<(), SwapperError> {
         let rpc_provider = Arc::new(NativeProvider::new().set_debug(true));
-        let provider = NearIntents::new(rpc_provider).unwrap();
+        let provider = NearIntents::new(rpc_provider);
 
         let request = QuoteRequest {
             from_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Stellar)),
@@ -680,7 +680,7 @@ mod swap_integration_tests {
     #[tokio::test]
     async fn test_near_intents_status() -> Result<(), SwapperError> {
         let rpc_provider = Arc::new(NativeProvider::new().set_debug(true));
-        let provider = NearIntents::new(rpc_provider).unwrap();
+        let provider = NearIntents::new(rpc_provider);
         let deposit_address = "18gB9wZz1Q4CzniurLye1KdUUqjWjo3ePr";
 
         let request = SwapResultRequest {

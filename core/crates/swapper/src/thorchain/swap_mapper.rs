@@ -267,14 +267,7 @@ mod tests {
     fn test_map_swap_result_mayachain_refund() {
         let response = status(include_str!("testdata/transaction_status_mayachain_refund.json"));
 
-        assert_eq!(
-            map_swap_result(&response, THORChainNetwork::Mayachain),
-            SwapResult {
-                status: SwapStatus::Refunded,
-                metadata: None,
-                eta_in_seconds: None,
-            }
-        );
+        assert_eq!(map_swap_result(&response, THORChainNetwork::Mayachain), SwapResult::from(SwapStatus::Refunded));
     }
 
     #[test]

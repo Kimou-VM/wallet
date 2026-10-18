@@ -208,14 +208,7 @@ mod tests {
 
     #[test]
     fn test_map_swap_result_without_metadata() {
-        assert_eq!(
-            map_swap_result(&result(include_str!("test/mctp_pending.json")), None),
-            SwapResult {
-                status: SwapStatus::Pending,
-                metadata: None,
-                eta_in_seconds: None,
-            }
-        );
+        assert_eq!(map_swap_result(&result(include_str!("test/mctp_pending.json")), None), SwapResult::pending());
 
         let refunded = map_swap_result(&result(include_str!("test/swift_refunded.json")), None);
         assert_eq!(refunded.status, SwapStatus::Refunded);
@@ -237,13 +230,6 @@ mod tests {
 
     #[test]
     fn test_map_swap_result_rejects_decimal_hyperevm_output() {
-        assert_eq!(
-            map_swap_result(&result(include_str!("test/hyperevm_to_solana_invalid_amount.json")), None),
-            SwapResult {
-                status: SwapStatus::Completed,
-                metadata: None,
-                eta_in_seconds: None,
-            }
-        );
+        assert_eq!(map_swap_result(&result(include_str!("test/hyperevm_to_solana_invalid_amount.json")), None), SwapResult::from(SwapStatus::Completed));
     }
 }

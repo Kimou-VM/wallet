@@ -407,14 +407,7 @@ mod tests {
         let upstream = MockClient::new().with_get(move |_| Ok(serde_json::to_vec(&response).unwrap()));
         let provider = SwapsXyz::with_client(SwapsXyzClient::new(upstream, MockClient::new()), TonClient::new(MockClient::new()));
         let result = provider.get_swap_result(&SwapResultRequest::new(Chain::Cosmos, "source-hash")).await.unwrap();
-        assert_eq!(
-            result,
-            SwapResult {
-                status: SwapStatus::Completed,
-                metadata: None,
-                eta_in_seconds: None
-            }
-        );
+        assert_eq!(result, SwapResult::from(SwapStatus::Completed));
     }
 
     #[tokio::test]
