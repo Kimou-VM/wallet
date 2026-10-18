@@ -175,6 +175,19 @@ A repeat quote took about `110 ms` to `130 ms` on Ethereum and Sui, most of it t
 
 Since 2026-10-18 DeDust also asks each hop's stable pool, which holds the liquid-staking pairs: 10 TON to stTON receives `8.31` stTON through the stable pool, against `7.81` through USDT before (`test_ton_to_stton_quote_takes_the_stable_pool`). A first quote now makes twice the lookups and estimates in the table, `4` for TON to USDT and `12` for USDT to NOT, sent at the same time as before. Most pairs have no stable pool, and one that was never deployed is not asked again for an hour, so repeat quotes stay at `1` and `2` (`test_repeat_quote_skips_outpriced_route_and_undeployed_pools`).
 
+## Cross-chain quotes
+
+A cross-chain provider is asked for a new quote every time. Only these facts are kept between quotes:
+
+| Fact | Kept for |
+|---|---|
+| THORChain and Maya inbound addresses, which also say whether a network is halted | `5 minutes` on the device and `10 minutes` on Dynode, so a halt or a resume can show up to `15 minutes` late |
+| Chainflip's assets and their minimum amounts | `5 minutes` on the device |
+| Hyperliquid's spot token list | `1 hour` on the device |
+| Mayan's Sui package | `1 hour` on the device |
+
+Anything not listed is asked again for every quote.
+
 ## Across
 
 Across quotes from the chain. The hub pool on Ethereum says whether the bridge is paused, how much it can pay out and what its LP fee is; the destination network gives its gas price. A quote sends these requests at the same time, so it takes one round trip.
