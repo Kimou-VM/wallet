@@ -17,6 +17,9 @@ pub(super) const TEST_AQUA_MINT: &str = "AQVcP67EpMyu4cBZZjqMu91cVsWy1aX98JmcZm1
 pub(super) const TEST_AQUA_WHIRLPOOL: &str = "9TT3NbWogWjbQh7b3s1hfcqYF7VJHmg8uNcXDjtPRnh4";
 pub(super) const TEST_PUMP_MINT: &str = "pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn";
 pub(super) const TEST_PUMP_WHIRLPOOL: &str = "BofA2ViUSudPBTUms2KRuG6AHNeMawjNfwqTJDgx5BKW";
+pub(super) const TEST_XAUT0_MINT: &str = "AymATz4TCL9sWNEEV9Kvyz45CHVhDZ6kUgjTJPzLpU9P";
+pub(super) const TEST_XAUT0_SOL_WHIRLPOOL: &str = "B2q3X5QA47NTaVrQKNhGo2ii1Zs8x5h6CZK6qydRdJrA";
+pub(super) const TEST_XAUT0_USDC_WHIRLPOOL: &str = "B3QsKvpsBYVAuJBzyKRBWBJw8CAM45zStdJhtE1miBri";
 pub(super) const TEST_TOKEN_2022_SNAPSHOT: &str = include_str!("../../testdata/orca/token_2022_snapshot.json");
 pub(super) const TEST_PUMP_SNAPSHOT: &str = include_str!("../../testdata/orca/pump_snapshot.json");
 const TEST_CLOCK: &str = "+ZJIGwAAAAB7mtFqAAAAACMEAAAAAAAAJAQAAAAAAAD0b9JqAAAAAA==";
@@ -36,6 +39,25 @@ pub(super) fn mock_tick_array_accounts(start_tick_indexes: &[i32]) -> Vec<Option
 
 pub(super) fn mock_dynamic_tick_array() -> Vec<u8> {
     decode_base64(include_str!("../../testdata/orca/dynamic_tick_array.base64").trim()).unwrap()
+}
+
+pub(super) fn mock_whirlpool_account(mint_a: &Pubkey, mint_b: &Pubkey, fee_tier_index: u16) -> Vec<u8> {
+    let data = mock_snapshot_accounts().into_iter().next().unwrap();
+    let tick_spacing = if fee_tier_index < 1024 { fee_tier_index } else { 64 };
+    let liquidity = u128::from(fee_tier_index).to_le_bytes();
+    [
+        &data[..41],
+        &tick_spacing.to_le_bytes(),
+        &fee_tier_index.to_le_bytes(),
+        &data[45..49],
+        &liquidity,
+        &data[65..101],
+        mint_a.as_bytes(),
+        &data[133..181],
+        mint_b.as_bytes(),
+        &data[213..],
+    ]
+    .concat()
 }
 
 impl Whirlpool {

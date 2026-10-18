@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use std::{
     collections::HashMap,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
     },
 };
@@ -154,10 +154,15 @@ pub(crate) fn mock_rpc_accounts(snapshot: &str) -> HashMap<String, Value> {
 }
 
 pub(crate) fn mock_rpc_client(accounts: HashMap<String, Value>, requests: Arc<AtomicUsize>) -> JsonRpcClient<MockClient> {
+    mock_rpc_client_with_sizes(accounts, requests, Arc::default())
+}
+
+pub(crate) fn mock_rpc_client_with_sizes(accounts: HashMap<String, Value>, requests: Arc<AtomicUsize>, sizes: Arc<Mutex<Vec<usize>>>) -> JsonRpcClient<MockClient> {
     mock_jsonrpc_client(move |method, params| match method {
         "getMultipleAccounts" => {
             requests.fetch_add(1, Ordering::SeqCst);
             let addresses = params[0].as_array().unwrap();
+            sizes.lock().unwrap().push(addresses.len());
             let value = addresses
                 .iter()
                 .map(|address| accounts.get(address.as_str().unwrap()).map_or(Value::Null, |account| mock_account_slice(account, &params[1]["dataSlice"])));

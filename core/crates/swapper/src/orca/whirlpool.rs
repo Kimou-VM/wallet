@@ -9,9 +9,9 @@ use crate::{
 };
 
 const WHIRLPOOLS_CONFIG: Pubkey = Pubkey::new(hex!("13e441f83913ca68b0634fb025fdeaa88737e84110d1255e357b3377ddee1ccd"));
-const FEE_TIER_INDEXES: [u16; 8] = [
+pub(super) const FEE_TIER_INDEXES: [u16; 9] = [
     1, 4, 8, 16, 64, // 2, 96, 128, 256, 32896
-    1025, 1026, 1030, // 1027, 1028, 1029, 1031, 1032, 1033, 1034, 1035, 1036, 2049, 2050, 2051
+    1025, 1026, 1028, 1030, // 1027, 1029, 1031, 1032, 1033, 1034, 1035, 1036, 2049, 2050, 2051
 ];
 pub(super) const TICK_ARRAY_SIZE: i32 = 88;
 
@@ -19,7 +19,7 @@ pub(super) const TICK_ARRAY_SIZE: i32 = 88;
 pub(crate) struct Whirlpool {
     _whirlpools_config_and_bump: [u8; 33],
     pub tick_spacing: u16,
-    _fee_tier_index: u16,
+    fee_tier_index: u16,
     pub fee_rate: u16,
     _protocol_fee_rate: u16,
     pub liquidity: u128,
@@ -57,6 +57,10 @@ impl Whirlpool {
                 Ok(find_program_address(&orca_whirlpool_program(), &seeds)?.0)
             })
             .collect()
+    }
+
+    pub fn has_adaptive_fee(&self) -> bool {
+        self.fee_tier_index != self.tick_spacing
     }
 
     pub fn oracle_address(address: &Pubkey) -> Result<Pubkey, SwapperError> {
@@ -112,16 +116,20 @@ mod tests {
     use super::*;
     use gem_solana::{USDC_TOKEN_MINT, WSOL_TOKEN_ADDRESS};
 
-    use crate::orca::testkit::TEST_WHIRLPOOL;
+    use crate::orca::testkit::{TEST_WHIRLPOOL, TEST_XAUT0_MINT, TEST_XAUT0_SOL_WHIRLPOOL, TEST_XAUT0_USDC_WHIRLPOOL};
 
     #[test]
     fn test_addresses() {
         let sol = Pubkey::from_base58(WSOL_TOKEN_ADDRESS).unwrap();
         let usdc = Pubkey::from_base58(USDC_TOKEN_MINT).unwrap();
+        let xaut0 = Pubkey::from_base58(TEST_XAUT0_MINT).unwrap();
         let addresses = Whirlpool::addresses(&usdc, &sol).unwrap();
+        let contains = |mint_a: &Pubkey, mint_b: &Pubkey, pool: &str| Whirlpool::addresses(mint_a, mint_b).unwrap().contains(&Pubkey::from_base58(pool).unwrap());
 
         assert_eq!(addresses, Whirlpool::addresses(&sol, &usdc).unwrap());
         assert_eq!(addresses[4].to_base58(), TEST_WHIRLPOOL);
+        assert!(contains(&sol, &xaut0, TEST_XAUT0_SOL_WHIRLPOOL));
+        assert!(contains(&xaut0, &usdc, TEST_XAUT0_USDC_WHIRLPOOL));
     }
 
     #[test]

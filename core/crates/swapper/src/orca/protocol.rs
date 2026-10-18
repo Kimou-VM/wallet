@@ -38,16 +38,17 @@ impl DexProtocol for Orca {
 
     fn quote_accounts(&self, address: &Pubkey, pool: &Whirlpool, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
         let tick_arrays = TickArray::addresses(address, &pool.swap_start_tick_indexes(pool.is_a_to_b(input_mint)?))?;
-        Ok([tick_arrays, vec![Whirlpool::oracle_address(address)?]]
-            .concat()
-            .into_iter()
-            .map(|address| QuoteAccount::Owned { address, owner: Self::PROGRAM_ID })
-            .collect())
+        let oracle = pool.has_adaptive_fee().then(|| Whirlpool::oracle_address(address)).transpose()?;
+        Ok(tick_arrays.into_iter().chain(oracle).map(|address| QuoteAccount::Owned { address, owner: Self::PROGRAM_ID }).collect())
     }
 
     fn quote(&self, address: &Pubkey, pool: &Whirlpool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError> {
         let a_to_b = pool.is_a_to_b(input_mint)?;
-        let (oracle, tick_arrays) = accounts.split_last().ok_or(SwapperError::NoQuoteAvailable)?;
+        let (oracle, tick_arrays) = if pool.has_adaptive_fee() {
+            accounts.split_last().map(|(oracle, tick_arrays)| (oracle.as_ref(), tick_arrays)).ok_or(SwapperError::NoQuoteAvailable)?
+        } else {
+            (None, accounts)
+        };
         let ticks = swap_ticks(address, pool, a_to_b, tick_arrays)?;
         let swap = pool.clmm_swap(a_to_b);
         match oracle {
@@ -109,19 +110,24 @@ mod tests {
     use super::*;
     use crate::{
         FetchQuoteData, ProviderData, Quote, QuoteRequest, Route, Swapper, SwapperQuoteAsset,
-        orca::testkit::{TEST_AQUA_MINT, TEST_PUMP_MINT, TEST_PUMP_SNAPSHOT, TEST_PUMP_WHIRLPOOL, TEST_TOKEN_2022_SNAPSHOT, TEST_WHIRLPOOL, mock_adaptive_snapshot, mock_snapshot_rpc_accounts, mock_tick_array_accounts},
+        orca::{
+            testkit::{
+                TEST_AQUA_MINT, TEST_PUMP_MINT, TEST_PUMP_SNAPSHOT, TEST_PUMP_WHIRLPOOL, TEST_TOKEN_2022_SNAPSHOT, TEST_WHIRLPOOL, mock_adaptive_snapshot, mock_snapshot_rpc_accounts, mock_tick_array_accounts, mock_whirlpool_account,
+            },
+            whirlpool::FEE_TIER_INDEXES,
+        },
         solana_dex::{
             SolanaDex,
-            testkit::{mock_rpc_accounts, mock_rpc_client, mock_solana_asset},
+            testkit::{mock_rpc_accounts, mock_rpc_client, mock_rpc_client_with_sizes, mock_solana_asset},
         },
         testkit::mock_quote,
     };
     use gem_encoding::{decode_base64, encode_base64};
-    use gem_solana::{USDC_TOKEN_MINT, USDT_TOKEN_MINT};
+    use gem_solana::{USDC_TOKEN_MINT, USDT_TOKEN_MINT, instructions::program_ids::token_program};
     use num_bigint::BigUint;
     use primitives::{AssetType, testkit::signer_mock::TEST_SOLANA_SENDER};
     use std::sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
     };
 
@@ -170,6 +176,34 @@ mod tests {
         };
         assert_eq!(orca.get_quote_data(&tampered, FetchQuoteData::None).await, Err(SwapperError::InvalidRoute));
         assert_eq!(requests.load(Ordering::SeqCst), 5);
+    }
+
+    #[tokio::test]
+    async fn test_quote_requests_stay_under_the_account_limit() {
+        let (input, output) = (Pubkey::new([7; 32]), Pubkey::new([9; 32]));
+        let (sol, usdc) = (Whirlpool::mock().token_mint_a, Whirlpool::mock().token_mint_b);
+        let account = |data: Vec<u8>, owner: Pubkey| serde_json::json!({ "data": [encode_base64(&data), "base64"], "owner": owner.to_base58() });
+        let pools = [(input, output), (input, sol), (sol, output), (input, usdc), (usdc, output)].into_iter().flat_map(|(mint_0, mint_1)| {
+            let (mint_a, mint_b) = if mint_0 < mint_1 { (mint_0, mint_1) } else { (mint_1, mint_0) };
+            let addresses = Whirlpool::addresses(&mint_a, &mint_b).unwrap();
+            addresses
+                .into_iter()
+                .zip(FEE_TIER_INDEXES)
+                .map(move |(address, tier)| (address.to_base58(), account(mock_whirlpool_account(&mint_a, &mint_b, tier), orca_whirlpool_program())))
+        });
+        let mints = [input, output].map(|mint| (mint.to_base58(), account(vec![0; 82], token_program())));
+        let accounts = mock_snapshot_rpc_accounts().into_iter().chain(pools).chain(mints).collect();
+        let sizes = Arc::new(Mutex::new(Vec::new()));
+        let orca = SolanaDex::with_client(Orca, mock_rpc_client_with_sizes(accounts, Arc::default(), sizes.clone()));
+        let request = QuoteRequest {
+            value: BigUint::from(1_000_000u64),
+            ..mock_quote(mock_solana_asset(Some(&input.to_base58()), 6), mock_solana_asset(Some(&output.to_base58()), 6))
+        };
+
+        let _ = orca.get_quote(&request).await;
+        let _ = orca.get_quote(&request).await;
+
+        assert_eq!(*sizes.lock().unwrap(), [50, 93]);
     }
 
     #[tokio::test]
@@ -303,7 +337,7 @@ mod tests {
         let address = Pubkey::from_base58(TEST_WHIRLPOOL).unwrap();
         let (sol, usdc) = (whirlpool.token_mint_a, whirlpool.token_mint_b);
         let quote = |input_mint: &Pubkey, amount_in: u64| {
-            let accounts = [mock_tick_array_accounts(&whirlpool.swap_start_tick_indexes(*input_mint == sol)), vec![None]].concat();
+            let accounts = mock_tick_array_accounts(&whirlpool.swap_start_tick_indexes(*input_mint == sol));
             Orca.quote(&address, &whirlpool, input_mint, amount_in, &accounts, 0)
         };
 
