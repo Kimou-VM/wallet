@@ -42,10 +42,10 @@ impl Bridgers {
     }
 
     async fn get_evm_quote_data(&self, network: Network, from_asset: &AssetId, to_code: &str, swap: &SwapRequest) -> Result<SwapperQuoteData, SwapperError> {
-        let transaction = self.client.get_swap(swap).await?.tx_data;
         let router = network.router()?;
+        let (swap_data, approval) = futures::try_join!(self.client.get_swap(swap), self.get_approval(network, router, from_asset, swap))?;
+        let transaction = swap_data.tx_data;
         let value = get_transaction_value(&transaction, router, from_asset, to_code, swap)?;
-        let approval = self.get_approval(network, router, from_asset, swap).await?;
         let gas_limit = get_swap_gas_limit_with_approval(&approval, None, TOKEN_TRANSFER_GAS_LIMIT * 2);
         Ok(SwapperQuoteData::new_contract(router.to_string(), u256_to_biguint(&value), transaction.data, approval, gas_limit))
     }
