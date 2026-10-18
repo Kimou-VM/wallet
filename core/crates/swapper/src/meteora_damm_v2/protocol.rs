@@ -87,29 +87,19 @@ impl DexProtocol for MeteoraDammV2 {
     fn swap_instruction(&self, address: &Pubkey, pool: &Pool, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
         swap_instruction(address, pool, swap)
     }
-
-    fn two_hop_swap_instruction(&self, _first: &(Pubkey, Pool), _second: &(Pubkey, Pool), _swap: &PoolSwap, _intermediate: &SwapToken) -> Result<Instruction, SwapperError> {
-        Err(SwapperError::InvalidRoute)
-    }
 }
 
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
-    use crate::{FetchQuoteData, NativeProvider, QuoteRequest, Swapper, SwapperQuoteAsset, client_factory::create_client_with_chain, meteora_damm_v2::testkit::TEST_TOS_MINT, models::Options, solana_dex::SolanaDex};
-    use gem_solana::SolanaClient;
-    use num_bigint::BigUint;
+    use crate::{
+        SwapperQuoteAsset,
+        solana_dex::testkit::{TEST_FUNDED_WALLET, TEST_TOS_HOLDER, TEST_TOS_MINT, assert_swaps_simulate},
+    };
     use primitives::{AssetId, AssetType, Chain};
-    use std::sync::Arc;
-
-    const TEST_FUNDED_WALLET: &str = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
-    const TEST_TOS_HOLDER: &str = "2keyaLG5fUBEGFAboUZ7LajhpGygXSxKJBovHyTbJ9KB";
 
     #[tokio::test]
     async fn test_meteora_damm_v2_simulates() -> Result<(), SwapperError> {
-        let rpc_provider = Arc::new(NativeProvider::default());
-        let damm = SolanaDex::new(MeteoraDammV2, rpc_provider.clone()).unwrap();
-        let client = SolanaClient::new(create_client_with_chain(rpc_provider, Chain::Solana)?);
         let sol = SwapperQuoteAsset {
             decimals: 9,
             ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
@@ -120,25 +110,7 @@ mod swap_integration_tests {
             ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_TOS_MINT))
         };
 
-        for (from_asset, to_asset, value, wallet) in [(tos.clone(), sol.clone(), 326_754_966u64, TEST_TOS_HOLDER), (sol, tos, 10_000_000, TEST_FUNDED_WALLET)] {
-            let request = QuoteRequest {
-                from_asset,
-                to_asset,
-                wallet_address: wallet.to_string(),
-                destination_address: wallet.to_string(),
-                value: BigUint::from(value),
-                options: Options::new_with_slippage(100.into()),
-            };
-            damm.preload_routes(&request.from_asset.asset_id(), &request.to_asset.asset_id()).await;
-            let quote = damm.get_quote(&request).await?;
-            let quote_data = damm.get_quote_data(&quote, FetchQuoteData::None).await?;
-            let simulation = client.simulate_encoded_transaction(&quote_data.data).await?;
-            println!("to_value={} route={}", quote.to_value, quote.data.routes[0].route_data);
-
-            assert!(quote.to_value > BigUint::ZERO);
-            assert_eq!(simulation.err, None);
-        }
-        Ok(())
+        assert_swaps_simulate(MeteoraDammV2, vec![(tos.clone(), sol.clone(), 326_754_966, TEST_TOS_HOLDER), (sol, tos, 10_000_000, TEST_FUNDED_WALLET)]).await
     }
 }
 
@@ -147,10 +119,10 @@ mod tests {
     use super::*;
     use crate::{
         FetchQuoteData, QuoteRequest, Swapper, SwapperQuoteAsset,
-        meteora_damm_v2::testkit::{TEST_BOTH_TOKEN_POOL, TEST_COMPOUNDING_POOL, TEST_MARKET_CAP_SCHEDULER_POOL, TEST_TIME_SCHEDULER_POOL, TEST_TOS_MINT, mock_pool_snapshot},
+        meteora_damm_v2::testkit::{TEST_BOTH_TOKEN_POOL, TEST_COMPOUNDING_POOL, TEST_MARKET_CAP_SCHEDULER_POOL, TEST_TIME_SCHEDULER_POOL, mock_pool_snapshot},
         solana_dex::{
             SolanaDex,
-            testkit::{mock_rpc_accounts, mock_rpc_client},
+            testkit::{TEST_TOS_MINT, mock_rpc_accounts, mock_rpc_client},
         },
         testkit::mock_quote,
     };

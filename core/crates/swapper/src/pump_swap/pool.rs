@@ -104,7 +104,10 @@ impl Reserves {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pump_swap::testkit::{TEST_TOKEN_2022_MINT, TEST_TOS_MINT, TEST_USDC_POOL, mock_pool_snapshot};
+    use crate::{
+        pump_swap::testkit::{TEST_TOKEN_2022_MINT, TEST_USDC_POOL, mock_pool_snapshot},
+        solana_dex::testkit::TEST_TOS_MINT,
+    };
 
     #[test]
     fn test_addresses() {

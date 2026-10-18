@@ -70,21 +70,18 @@ impl DexProtocol for RaydiumClmm {
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
-    use crate::{FetchQuoteData, NativeProvider, QuoteRequest, Swapper, SwapperQuoteAsset, client_factory::create_client_with_chain, models::Options, solana_dex::SolanaDex};
-    use gem_solana::{SolanaClient, USDC_TOKEN_MINT, USDT_TOKEN_MINT};
-    use num_bigint::BigUint;
+    use crate::{
+        SwapperQuoteAsset,
+        solana_dex::testkit::{TEST_FUNDED_WALLET, assert_swaps_simulate},
+    };
+    use gem_solana::{USDC_TOKEN_MINT, USDT_TOKEN_MINT};
     use primitives::{AssetId, AssetType, Chain};
-    use std::sync::Arc;
 
-    const TEST_FUNDED_WALLET: &str = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
     const TEST_XDC_MINT: &str = "4TaFLLV3uhgu3HUTgbyLTuumBKwJ3DufyuLLnVN8YLwp";
     const TEST_NVDAX_MINT: &str = "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh";
 
     #[tokio::test]
     async fn test_raydium_clmm_swap_simulates() -> Result<(), SwapperError> {
-        let rpc_provider = Arc::new(NativeProvider::default());
-        let raydium = SolanaDex::new(RaydiumClmm, rpc_provider.clone()).unwrap();
-        let client = SolanaClient::new(create_client_with_chain(rpc_provider, Chain::Solana)?);
         let token = |mint: &str, decimals: u32, asset_type: AssetType| SwapperQuoteAsset {
             decimals,
             asset_type,
@@ -97,29 +94,16 @@ mod swap_integration_tests {
         let usdc = token(USDC_TOKEN_MINT, 6, AssetType::SPL);
         let usdt = token(USDT_TOKEN_MINT, 6, AssetType::SPL);
 
-        for (from_asset, to_asset, value) in [
-            (sol.clone(), usdc.clone(), 1_000_000_000u64),
-            (usdc.clone(), sol, 100_000_000),
-            (usdc, token(TEST_XDC_MINT, 8, AssetType::SPL), 100_000_000),
-            (usdt, token(TEST_NVDAX_MINT, 8, AssetType::SPL2022), 100_000_000),
-        ] {
-            let request = QuoteRequest {
-                from_asset,
-                to_asset,
-                wallet_address: TEST_FUNDED_WALLET.to_string(),
-                destination_address: TEST_FUNDED_WALLET.to_string(),
-                value: BigUint::from(value),
-                options: Options::new_with_slippage(100.into()),
-            };
-            let quote = raydium.get_quote(&request).await?;
-            let quote_data = raydium.get_quote_data(&quote, FetchQuoteData::None).await?;
-            let simulation = client.simulate_encoded_transaction(&quote_data.data).await?;
-            println!("to_value={} route={}", quote.to_value, quote.data.routes[0].route_data);
-
-            assert!(quote.to_value > BigUint::ZERO);
-            assert_eq!(simulation.err, None);
-        }
-        Ok(())
+        assert_swaps_simulate(
+            RaydiumClmm,
+            vec![
+                (sol.clone(), usdc.clone(), 1_000_000_000, TEST_FUNDED_WALLET),
+                (usdc.clone(), sol, 100_000_000, TEST_FUNDED_WALLET),
+                (usdc, token(TEST_XDC_MINT, 8, AssetType::SPL), 100_000_000, TEST_FUNDED_WALLET),
+                (usdt, token(TEST_NVDAX_MINT, 8, AssetType::SPL2022), 100_000_000, TEST_FUNDED_WALLET),
+            ],
+        )
+        .await
     }
 }
 

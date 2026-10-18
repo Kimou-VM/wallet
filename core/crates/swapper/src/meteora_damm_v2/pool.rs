@@ -26,7 +26,7 @@ const Q128_RESOLUTION: usize = 128;
 pub(crate) struct Pool {
     base_fee: BaseFee,
     _base_fee_padding: u64,
-    _fee_shares: [u8; 8],
+    _fee_percents: [u8; 8],
     dynamic_fee: DynamicFee,
     init_sqrt_price: u128,
     pub token_a_mint: Pubkey,
@@ -34,7 +34,7 @@ pub(crate) struct Pool {
     pub token_a_vault: Pubkey,
     pub token_b_vault: Pubkey,
     _whitelisted_vault: Pubkey,
-    _padding_0: [u8; 32],
+    _partner: Pubkey,
     pub liquidity: u128,
     _padding_1: u128,
     _protocol_fees: [u8; 32],
@@ -109,7 +109,7 @@ impl Pool {
             init_sqrt_price: self.init_sqrt_price,
             sqrt_price: self.sqrt_price,
         };
-        let total = u64::try_from(self.dynamic_fee.variable_fee()?.checked_add(u128::from(self.base_fee.numerator(&point)?))?).ok()?;
+        let total = self.dynamic_fee.variable_fee()?.checked_add(u128::from(self.base_fee.numerator(&point)?))?;
         Some(u32::try_from(total).map_or(max_fee_rate, |total| total.min(max_fee_rate)))
     }
 

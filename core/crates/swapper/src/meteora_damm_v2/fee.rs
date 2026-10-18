@@ -2,9 +2,10 @@ use alloy_primitives::U256;
 use borsh::BorshDeserialize;
 use std::io::{Error, ErrorKind, Read};
 
+use crate::clmm::Q64_RESOLUTION;
+
 const MAX_BASIS_POINT: u64 = 10_000;
 const ONE_Q64: u128 = 1 << 64;
-const SCALE_OFFSET: u32 = 64;
 const VARIABLE_FEE_SCALE: u128 = 100_000_000_000;
 const TIME_SCHEDULER_LINEAR: u8 = 0;
 const TIME_SCHEDULER_EXPONENTIAL: u8 = 1;
@@ -157,12 +158,12 @@ fn exponential_fee(cliff_fee_numerator: u64, reduction_factor: u64, period: u16)
     if reduction_factor == 0 {
         return Some(cliff_fee_numerator);
     }
-    let base = ONE_Q64.checked_sub((u128::from(reduction_factor) << SCALE_OFFSET) / u128::from(MAX_BASIS_POINT))?;
+    let base = ONE_Q64.checked_sub((u128::from(reduction_factor) << Q64_RESOLUTION) / u128::from(MAX_BASIS_POINT))?;
     let (factor, _) = (0..u16::BITS).fold((ONE_Q64, base), |(factor, square), bit| {
-        let factor = if period & (1 << bit) != 0 { (factor * square) >> SCALE_OFFSET } else { factor };
-        (factor, (square * square) >> SCALE_OFFSET)
+        let factor = if period & (1 << bit) != 0 { (factor * square) >> Q64_RESOLUTION } else { factor };
+        (factor, (square * square) >> Q64_RESOLUTION)
     });
-    (factor > 0).then(|| u64::try_from((factor * u128::from(cliff_fee_numerator)) >> SCALE_OFFSET).unwrap_or_default())
+    (factor > 0).then(|| u64::try_from((factor * u128::from(cliff_fee_numerator)) >> Q64_RESOLUTION).unwrap_or_default())
 }
 
 #[cfg(test)]

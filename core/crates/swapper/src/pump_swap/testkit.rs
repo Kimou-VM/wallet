@@ -7,7 +7,6 @@ use super::{
 };
 use crate::solana_dex::testkit::{PoolSnapshot, mock_dex_pool_snapshot};
 
-pub(super) const TEST_TOS_MINT: &str = "HmjCoarLh5duURfJ333DwfFiPyTCgFT35pRSAoP8pump";
 pub(super) const TEST_TOKEN_2022_MINT: &str = "BcHEaaTCvycPwwsJ9yQTXdHP9X2gCLkznDbZ8VySpump";
 pub(super) const TEST_SOL_POOL: &str = include_str!("../../testdata/pump_swap/sol_pool.json");
 pub(super) const TEST_USDC_POOL: &str = include_str!("../../testdata/pump_swap/usdc_token_2022_pool.json");

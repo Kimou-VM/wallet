@@ -72,21 +72,18 @@ impl DexProtocol for Orca {
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
-    use crate::orca::testkit::TEST_PUMP_MINT;
-    use crate::{FetchQuoteData, NativeProvider, QuoteRequest, Swapper, SwapperQuoteAsset, client_factory::create_client_with_chain, models::Options, solana_dex::SolanaDex};
-    use gem_solana::{SolanaClient, USDC_TOKEN_MINT};
-    use num_bigint::BigUint;
+    use crate::{
+        SwapperQuoteAsset,
+        orca::testkit::TEST_PUMP_MINT,
+        solana_dex::testkit::{TEST_FUNDED_WALLET, assert_swaps_simulate},
+    };
+    use gem_solana::USDC_TOKEN_MINT;
     use primitives::{AssetId, AssetType, Chain};
-    use std::sync::Arc;
 
-    const TEST_FUNDED_WALLET: &str = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
     const TEST_JUP_MINT: &str = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN";
 
     #[tokio::test]
     async fn test_orca_swap_simulates() -> Result<(), SwapperError> {
-        let rpc_provider = Arc::new(NativeProvider::default());
-        let orca = SolanaDex::new(Orca, rpc_provider.clone()).unwrap();
-        let client = SolanaClient::new(create_client_with_chain(rpc_provider, Chain::Solana)?);
         let sol = SwapperQuoteAsset {
             decimals: 9,
             ..SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana))
@@ -95,36 +92,26 @@ mod swap_integration_tests {
             decimals: 6,
             ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, USDC_TOKEN_MINT))
         };
-
         let pump = SwapperQuoteAsset {
             decimals: 6,
             asset_type: AssetType::SPL2022,
             ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_PUMP_MINT))
         };
-
         let jup = SwapperQuoteAsset {
             decimals: 6,
             ..SwapperQuoteAsset::from(AssetId::from_token(Chain::Solana, TEST_JUP_MINT))
         };
 
-        for (from_asset, to_asset, value) in [(sol.clone(), usdc.clone(), 1_000_000_000u64), (usdc.clone(), sol.clone(), 100_000_000), (sol, pump, 100_000_000), (usdc, jup, 1_000_000_000)] {
-            let request = QuoteRequest {
-                from_asset,
-                to_asset,
-                wallet_address: TEST_FUNDED_WALLET.to_string(),
-                destination_address: TEST_FUNDED_WALLET.to_string(),
-                value: BigUint::from(value),
-                options: Options::new_with_slippage(100.into()),
-            };
-            let quote = orca.get_quote(&request).await?;
-            let quote_data = orca.get_quote_data(&quote, FetchQuoteData::None).await?;
-            let simulation = client.simulate_encoded_transaction(&quote_data.data).await?;
-            println!("to_value={} route={}", quote.to_value, quote.data.routes[0].route_data);
-
-            assert!(quote.to_value > BigUint::ZERO);
-            assert_eq!(simulation.err, None);
-        }
-        Ok(())
+        assert_swaps_simulate(
+            Orca,
+            vec![
+                (sol.clone(), usdc.clone(), 1_000_000_000, TEST_FUNDED_WALLET),
+                (usdc.clone(), sol.clone(), 100_000_000, TEST_FUNDED_WALLET),
+                (sol, pump, 100_000_000, TEST_FUNDED_WALLET),
+                (usdc, jup, 1_000_000_000, TEST_FUNDED_WALLET),
+            ],
+        )
+        .await
     }
 }
 

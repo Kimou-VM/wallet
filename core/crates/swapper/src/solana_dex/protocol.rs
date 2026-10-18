@@ -89,5 +89,8 @@ pub(crate) trait DexProtocol: Send + Sync {
     fn quote_accounts(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError>;
     fn quote(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError>;
     fn swap_instruction(&self, address: &Pubkey, pool: &Self::Pool, swap: &PoolSwap) -> Result<Instruction, SwapperError>;
-    fn two_hop_swap_instruction(&self, first: &(Pubkey, Self::Pool), second: &(Pubkey, Self::Pool), swap: &PoolSwap, intermediate: &SwapToken) -> Result<Instruction, SwapperError>;
+
+    fn two_hop_swap_instruction(&self, _first: &(Pubkey, Self::Pool), _second: &(Pubkey, Self::Pool), _swap: &PoolSwap, _intermediate: &SwapToken) -> Result<Instruction, SwapperError> {
+        Err(SwapperError::InvalidRoute)
+    }
 }
