@@ -101,7 +101,7 @@ flowchart LR
 | DeDust pool and vault addresses | `7 days` |
 | The Meteora DAMM v2 and DLMM, Raydium CPMM and Raydium AMM v4 pools found for a pair | `1 day`; Dynode keeps the lookup a day too, so a drained pool or a new one is noticed within about two days |
 | No pool exists at a fee tier, or Meteora has none for a pair | `1 day` |
-| A pool cannot trade: no liquidity at its price, or swaps paused or not open yet on Orca and Raydium, or a cashback coin on PumpSwap, or disabled on Meteora, or locked on STON.fi | `1 hour`, then it is checked again |
+| A pool cannot trade: no liquidity at its price, or swaps paused or not open yet on Orca and Raydium, or a cashback coin on PumpSwap, or disabled on Meteora, or locked on STON.fi, or a DeDust stable pool that was never deployed | `1 hour`, then it is checked again |
 | A pool or route that gave more than `3%` less than the best, or failed while another succeeded | `5 minutes`, skipped only when the same pair is quoted for the same amount |
 | On Solana: the token mints, Gem's fee accounts, Raydium's fee configs and pump.fun's fee schedule | `1 day` |
 | Cetus's four main SUI/USDC pools | always; they ship with the app |
@@ -143,7 +143,7 @@ Every quote compares candidates and keeps the best. A candidate that gave more t
 | Raydium CPMM, Raydium AMM v4 | each of the pair's `4` pools with the largest LP supply; a skipped pool is left out of the request |
 | Meteora DLMM | each of the pair's `4` pairs with the deepest reserves; a skipped pair is left out of the request |
 | STON.fi | each path, and each pool within a hop |
-| DeDust | each path: one pool, or two pools through TON or USDT |
+| DeDust | each path: one pool, or two pools through TON or USDT; each hop asks its volatile and stable pool at the same time and takes the one that pays more |
 | Hyperion | each path, and each pool within a hop |
 
 Cetus prices all its pools in one dry run, and PumpSwap has one pool per pair, so neither has anything to skip. `3%` keeps close rivals: two fee tiers on a busy pair are often within `1%` and trade places as prices move, so both stay. In the measured pairs, every pool that lost was `6%` to `99%` worse than the best, or failed.
@@ -170,6 +170,8 @@ Measured on 2026-10-17, one pair per provider and the same amount, on the build 
 | Hyperion, APT to USDC | 19 → 13 | 7 → 2 | 19 → 7 | 3 | under 1 KB |
 
 A repeat quote took about `110 ms` to `130 ms` on Ethereum and Sui, most of it the round trip to Dynode. Solana's carry 130 to 230 KB of pool accounts and took `170 ms` to `800 ms`. Meteora was measured on 2026-10-18: its first quote counts the two pool lookups, sent at the same time, and took about `460 ms` to `600 ms`; its repeat quote reads one pool and took `125 ms` to `345 ms`. STON.fi, DeDust and Hyperion ask one pool per request, so their repeat quotes took about `230 ms`, `220 ms` and `270 ms`; a DeDust two-hop quote asks its hops in turn and took about `500 ms`.
+
+Since 2026-10-18 DeDust also asks each hop's stable pool, which holds the liquid-staking pairs: 10 TON to stTON receives `8.31` stTON through the stable pool, against `7.81` through USDT before (`test_ton_to_stton_quote_takes_the_stable_pool`). A first quote now makes twice the lookups and estimates in the table, `4` for TON to USDT and `12` for USDT to NOT, sent at the same time as before. Most pairs have no stable pool, and one that was never deployed is not asked again for an hour, so repeat quotes stay at `1` and `2` (`test_repeat_quote_skips_outpriced_route_and_undeployed_pools`).
 
 ## Across
 

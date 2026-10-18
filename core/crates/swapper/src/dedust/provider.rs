@@ -1,7 +1,7 @@
 use super::{
     client::DedustClient,
     constants::SWAP_GAS,
-    model::{DedustAsset, PoolRoute},
+    model::{DedustAsset, PoolRoute, PoolType},
     tx_builder::DedustSwap,
 };
 use crate::{
@@ -60,18 +60,30 @@ impl<C: Client> Dedust<C> {
         let quotes = join_all(paths.into_iter().map(|path| async move { (path.clone(), self.quote_path(path, from, to, value).await) })).await;
         let outcomes = quotes.iter().filter_map(|(path, quote)| Some((path.clone(), quote_outcome(quote.as_ref().map(|(_, value_out)| amount_key(value_out)))?)));
         self.outpriced_paths.record(from, to, amount_key(value), outcomes);
-        let best = quotes.iter().filter_map(|(_, quote)| quote.as_ref().ok()).max_by_key(|(_, value_out)| value_out).cloned();
-        best.ok_or_else(|| quotes.into_iter().find_map(|(_, quote)| quote.err()).unwrap_or(SwapperError::NoQuoteAvailable))
+        best_quote(quotes.into_iter().map(|(_, quote)| quote))
     }
 
     async fn quote_path(&self, path: RoutePath<DedustAsset>, from: &DedustAsset, to: &DedustAsset, value: &BigUint) -> Result<(Vec<Address>, BigUint), SwapperError> {
         let pairs = path.pairs(from, to);
-        let pools = try_join_all(pairs.iter().map(|(asset_in, asset_out)| self.client.pool_address(asset_in, asset_out))).await?;
-        let value_out = stream::iter(pools.iter().zip(&pairs).map(Ok))
-            .try_fold(value.clone(), |value_in, (pool, (asset_in, _))| async move { self.client.estimate_swap_out(pool, asset_in, &value_in).await })
-            .await?;
-        Ok((pools, value_out))
+        let hops = try_join_all(pairs.iter().map(|(asset_in, asset_out)| try_join_all(PoolType::ALL.map(|pool_type| self.client.pool_address(pool_type, asset_in, asset_out))))).await?;
+        stream::iter(hops.iter().zip(&pairs).map(Ok))
+            .try_fold((vec![], value.clone()), |(route, value_in), (pools, (asset_in, _))| async move {
+                let (pool, value_out) = self.quote_hop(pools, asset_in, &value_in).await?;
+                Ok(([route, vec![pool]].concat(), value_out))
+            })
+            .await
     }
+
+    async fn quote_hop(&self, pools: &[Address], asset_in: &DedustAsset, value: &BigUint) -> Result<(Address, BigUint), SwapperError> {
+        let quotes = join_all(pools.iter().map(|pool| async move { Ok((*pool, self.client.estimate_swap_out(pool, asset_in, value).await?)) })).await;
+        best_quote(quotes)
+    }
+}
+
+fn best_quote<T>(quotes: impl IntoIterator<Item = Result<(T, BigUint), SwapperError>>) -> Result<(T, BigUint), SwapperError> {
+    let (quoted, failed): (Vec<_>, Vec<_>) = quotes.into_iter().partition(Result::is_ok);
+    let best = quoted.into_iter().flatten().max_by(|(_, left), (_, right)| left.cmp(right));
+    best.ok_or_else(|| failed.into_iter().find_map(Result::err).unwrap_or(SwapperError::NoQuoteAvailable))
 }
 
 fn route_paths(from: &DedustAsset, to: &DedustAsset) -> Result<Vec<RoutePath<DedustAsset>>, SwapperError> {
@@ -105,7 +117,7 @@ where
         };
         let pairs = route_paths(&from, &to).unwrap_or_default().iter().flat_map(|path| path.pairs(&from, &to)).collect::<Vec<_>>();
         stream::iter(pairs)
-            .for_each_concurrent(None, |(asset_in, asset_out)| async move { _ = self.client.pool_address(&asset_in, &asset_out).await })
+            .for_each_concurrent(None, |(asset_in, asset_out)| async move { _ = try_join_all(PoolType::ALL.map(|pool_type| self.client.pool_address(pool_type, &asset_in, &asset_out))).await })
             .await;
     }
 
@@ -137,14 +149,14 @@ where
 mod swap_integration_tests {
     use super::*;
     use crate::{
-        dedust::testkit::{mock_request, not, ton, usdt},
+        dedust::testkit::{mock_request, not, stton, ton, usdt},
         testkit::dynode_provider,
     };
 
     #[tokio::test]
     async fn test_dedust_quotes_and_quote_data() -> Result<(), SwapperError> {
         let provider = Dedust::new(dynode_provider([Chain::Ton])).unwrap();
-        for (from, to, value) in [(ton(), usdt(), 1_000_000_000u64), (usdt(), ton(), 5_000_000), (usdt(), not(), 5_000_000)] {
+        for (from, to, value) in [(ton(), usdt(), 1_000_000_000u64), (usdt(), ton(), 5_000_000), (usdt(), not(), 5_000_000), (ton(), stton(), 10_000_000_000)] {
             let quote = provider.get_quote(&mock_request(from, to, value)).await?;
             let data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
             let messages: Vec<TonConnectMessage> = serde_json::from_str(&data.data)?;
@@ -164,7 +176,7 @@ mod tests {
         Options,
         dedust::{
             constants::ESTIMATE_SWAP_OUT_METHOD,
-            testkit::{NATIVE_VAULT, TEST_USDT_WALLET, TON_NOT_POOL, TON_USDT_POOL, mock_request, mock_ton_client, mock_ton_client_with_calls, not, ton, usdt},
+            testkit::{NATIVE_VAULT, TEST_USDT_WALLET, TON_NOT_POOL, TON_STTON_STABLE_POOL, TON_USDT_POOL, mock_request, mock_ton_client, mock_ton_client_with_calls, not, stton, ton, usdt},
         },
     };
     use std::sync::Mutex;
@@ -202,16 +214,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_repeat_quote_skips_outpriced_route() {
+    async fn test_repeat_quote_skips_outpriced_route_and_undeployed_pools() {
         let calls = Arc::new(Mutex::new(Vec::new()));
         let provider = Dedust::with_client(mock_ton_client_with_calls(include_str!("testdata/usdt_to_not_get_methods.json"), calls.clone()));
         let request = mock_request(usdt(), not(), 5_000_000);
         let estimates = |calls: &Mutex<Vec<String>>| calls.lock().unwrap().drain(..).filter(|method| method == ESTIMATE_SWAP_OUT_METHOD).count();
 
         let quote = provider.get_quote(&request).await.unwrap();
-        assert_eq!(estimates(&calls), 3);
+        assert_eq!(estimates(&calls), 6);
         assert_eq!(provider.get_quote(&request).await.unwrap(), quote);
         assert_eq!(estimates(&calls), 2);
+    }
+
+    #[tokio::test]
+    async fn test_ton_to_stton_quote_takes_the_stable_pool() {
+        let provider = Dedust::with_client(mock_ton_client(include_str!("testdata/ton_to_stton_get_methods.json")));
+
+        let quote = provider.get_quote(&mock_request(ton(), stton(), 10_000_000_000)).await.unwrap();
+        let data = provider.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
+
+        assert_eq!(quote.to_value, BigUint::from(8_311_262_099u64));
+        assert_eq!(quote.route_data::<PoolRoute>().unwrap().pools, vec![TON_STTON_STABLE_POOL]);
+        assert_eq!(data.to, NATIVE_VAULT);
     }
 
     #[tokio::test]

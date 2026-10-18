@@ -36,6 +36,23 @@ impl DedustAsset {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) enum PoolType {
+    Volatile,
+    Stable,
+}
+
+impl PoolType {
+    pub const ALL: [Self; 2] = [Self::Volatile, Self::Stable];
+
+    pub fn stack_arg(self) -> StackArg {
+        match self {
+            Self::Volatile => StackArg::num("0"),
+            Self::Stable => StackArg::num("1"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct PoolRoute {
     pub pools: Vec<String>,

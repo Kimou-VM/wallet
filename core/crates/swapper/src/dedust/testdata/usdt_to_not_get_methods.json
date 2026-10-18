@@ -226,5 +226,191 @@
         }
       ]
     }
+  },
+  {
+    "request": {
+      "address": "EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67",
+      "method": "get_pool_address",
+      "stack": [
+        {
+          "type": "num",
+          "value": "1"
+        },
+        {
+          "type": "slice",
+          "value": "te6cckEBAQEAJAAAQxALETqZS1AkoWcZ9pE5Mo63WVlsOKJfWQKLFG/s3DYh3+iNJO1L"
+        },
+        {
+          "type": "slice",
+          "value": "te6cckEBAQEAJAAAQxAC+VYUPEYXaVebrvLjLMLXvBgoP0DSC7A+QyzWA6wz/8gGpN8r"
+        }
+      ]
+    },
+    "response": {
+      "exit_code": 0,
+      "stack": [
+        {
+          "type": "cell",
+          "value": "te6cckEBAQEAJAAAQ4ABqCsKP3DbZ+8TxdL0/2oiaJzyME/IwlmWYlsq8wC8edC+TbeI"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "address": "EQANQVhR-4bbP3ieLpen-1ETROeRgn5GEsyzEtlXmAXjzp7b",
+      "method": "estimate_swap_out",
+      "stack": [
+        {
+          "type": "slice",
+          "value": "te6cckEBAQEAJAAAQxALETqZS1AkoWcZ9pE5Mo63WVlsOKJfWQKLFG/s3DYh3+iNJO1L"
+        },
+        {
+          "type": "num",
+          "value": "4975000"
+        }
+      ]
+    },
+    "response": {
+      "exit_code": -13,
+      "stack": [
+        {
+          "type": "cell",
+          "value": "te6cckEBAQEAJAAAQxALETqZS1AkoWcZ9pE5Mo63WVlsOKJfWQKLFG/s3DYh3+iNJO1L"
+        },
+        {
+          "type": "num",
+          "value": "0x4be998"
+        },
+        {
+          "type": "num",
+          "value": "0x11462"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "address": "EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67",
+      "method": "get_pool_address",
+      "stack": [
+        {
+          "type": "num",
+          "value": "1"
+        },
+        {
+          "type": "slice",
+          "value": "te6cckEBAQEAJAAAQxALETqZS1AkoWcZ9pE5Mo63WVlsOKJfWQKLFG/s3DYh3+iNJO1L"
+        },
+        {
+          "type": "slice",
+          "value": "te6cckEBAQEAAwAAAQiFl+L/"
+        }
+      ]
+    },
+    "response": {
+      "exit_code": 0,
+      "stack": [
+        {
+          "type": "cell",
+          "value": "te6cckEBAQEAJAAAQ4Ae7aCWUePUcLHNTuFLc/GpQypBWGiaDAQ/s1J2qHwNwZASYypX"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "address": "EQD3bQSyjx6jhY5qdwpbn41KGVIKw0TQYCH9mpO1Q-BuDJ8O",
+      "method": "estimate_swap_out",
+      "stack": [
+        {
+          "type": "slice",
+          "value": "te6cckEBAQEAJAAAQxALETqZS1AkoWcZ9pE5Mo63WVlsOKJfWQKLFG/s3DYh3+iNJO1L"
+        },
+        {
+          "type": "num",
+          "value": "4975000"
+        }
+      ]
+    },
+    "response": {
+      "exit_code": -13,
+      "stack": [
+        {
+          "type": "cell",
+          "value": "te6cckEBAQEAJAAAQxALETqZS1AkoWcZ9pE5Mo63WVlsOKJfWQKLFG/s3DYh3+iNJO1L"
+        },
+        {
+          "type": "num",
+          "value": "0x4be998"
+        },
+        {
+          "type": "num",
+          "value": "0x11462"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "address": "EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67",
+      "method": "get_pool_address",
+      "stack": [
+        {
+          "type": "num",
+          "value": "1"
+        },
+        {
+          "type": "slice",
+          "value": "te6cckEBAQEAAwAAAQiFl+L/"
+        },
+        {
+          "type": "slice",
+          "value": "te6cckEBAQEAJAAAQxAC+VYUPEYXaVebrvLjLMLXvBgoP0DSC7A+QyzWA6wz/8gGpN8r"
+        }
+      ]
+    },
+    "response": {
+      "exit_code": 0,
+      "stack": [
+        {
+          "type": "cell",
+          "value": "te6cckEBAQEAJAAAQ4AGXOtvOwIsQ3H+REe7aZc00qC1Avo2N03XOzsDOCIqEZDTkAzv"
+        }
+      ]
+    }
+  },
+  {
+    "request": {
+      "address": "EQAy51t52BFiG4_yIj3bTLmmlQWoF9Gxum652dgZwRFQjDE8",
+      "method": "estimate_swap_out",
+      "stack": [
+        {
+          "type": "slice",
+          "value": "te6cckEBAQEAAwAAAQiFl+L/"
+        },
+        {
+          "type": "num",
+          "value": "3628801923"
+        }
+      ]
+    },
+    "response": {
+      "exit_code": -13,
+      "stack": [
+        {
+          "type": "cell",
+          "value": "te6cckEBAQEAAwAAAQiFl+L/"
+        },
+        {
+          "type": "num",
+          "value": "0xd84b1f83"
+        },
+        {
+          "type": "num",
+          "value": "0x11462"
+        }
+      ]
+    }
   }
 ]
