@@ -1,6 +1,6 @@
 use borsh::BorshDeserialize;
 use gem_solana::{
-    Instruction, Pubkey, SolanaProgramAccountsFilter,
+    Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter,
     anchor::AnchorAccount,
     instructions::program_ids::{meteora_damm_v2_program, sysvar_clock, sysvar_program},
     models::Clock,
@@ -65,7 +65,13 @@ impl DexProtocol for MeteoraDammV2 {
                 ]
             })
             .collect();
-        Some(PoolQuery { filters, liquidity_offset: LIQUIDITY_OFFSET })
+        Some(PoolQuery {
+            filters,
+            depth: SolanaDataSlice {
+                offset: LIQUIDITY_OFFSET,
+                length: size_of::<u128>(),
+            },
+        })
     }
 
     fn quote_accounts(&self, _address: &Pubkey, _pool: &Pool, _input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {

@@ -1,4 +1,4 @@
-use gem_solana::{Instruction, Pubkey, SolanaProgramAccountsFilter};
+use gem_solana::{Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter};
 
 use super::token::{INTERMEDIATE_TOKENS, SwapToken};
 use crate::{SwapperError, SwapperProvider};
@@ -20,7 +20,7 @@ impl QuoteAccount {
 #[derive(Debug)]
 pub(crate) struct PoolQuery {
     pub filters: Vec<Vec<SolanaProgramAccountsFilter>>,
-    pub liquidity_offset: usize,
+    pub depth: SolanaDataSlice,
 }
 
 #[derive(Debug)]

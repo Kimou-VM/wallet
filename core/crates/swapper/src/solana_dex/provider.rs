@@ -4,7 +4,7 @@ use futures::future::try_join_all;
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
-    DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaDataSlice, SolanaRpc, SolanaRpcConfig,
+    DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaRpc, SolanaRpcConfig,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_2022_program, token_program},
     models::{AccountData, Clock, ProgramAccount, ValueResult, blockhash::SolanaBlockhashResult},
 };
@@ -58,7 +58,6 @@ type PathLookup<Pool> = (RoutePath<Pubkey>, Vec<PoolLookup<Pool>>);
 
 const SIZE_CHECK_BLOCKHASH: &str = "11111111111111111111111111111111";
 const MAX_QUERIED_POOLS: usize = 4;
-const LIQUIDITY_LENGTH: usize = 16;
 
 pub(crate) struct SolanaDex<P: DexProtocol, C: Client + Clone = RpcClient> {
     provider: ProviderType,
@@ -147,16 +146,13 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         if self.queried_pools.missing_probes(input_mint, output_mint, &[()]).is_empty() {
             return Ok(());
         }
-        let pools = most_liquid_pools(self.fetch_pool_liquidity(query).await?);
+        let pools = deepest_pools(self.fetch_pool_depths(query).await?);
         self.queried_pools.record_discovery(input_mint, output_mint, [((), (!pools.is_empty()).then_some(pools))]);
         Ok(())
     }
 
-    async fn fetch_pool_liquidity(&self, query: PoolQuery) -> Result<Vec<(Pubkey, u128)>, SwapperError> {
-        let slice = SolanaDataSlice {
-            offset: query.liquidity_offset,
-            length: LIQUIDITY_LENGTH,
-        };
+    async fn fetch_pool_depths(&self, query: PoolQuery) -> Result<Vec<(Pubkey, u128)>, SwapperError> {
+        let slice = query.depth;
         let requests = query
             .filters
             .into_iter()
@@ -165,7 +161,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             .await?
             .into_iter()
             .flatten()
-            .map(|account| Ok((Pubkey::from_base58(&account.pubkey)?, pool_liquidity(&account.account.decoded_data()?))))
+            .map(|account| Ok((Pubkey::from_base58(&account.pubkey)?, pool_depth(&account.account.decoded_data()?))))
             .collect()
     }
 
@@ -377,12 +373,12 @@ impl<P: DexProtocol, C: Client + Clone> fmt::Debug for SolanaDex<P, C> {
     }
 }
 
-fn pool_liquidity(data: &[u8]) -> u128 {
-    data.try_into().map(u128::from_le_bytes).unwrap_or_default()
+fn pool_depth(data: &[u8]) -> u128 {
+    data.iter().rev().fold(0, |depth, byte| depth << 8 | u128::from(*byte))
 }
 
-fn most_liquid_pools(pools: Vec<(Pubkey, u128)>) -> Vec<Pubkey> {
-    let ranked = pools.into_iter().filter(|(_, liquidity)| *liquidity > 0).map(|(address, liquidity)| (Reverse(liquidity), address)).collect::<BTreeSet<_>>();
+fn deepest_pools(pools: Vec<(Pubkey, u128)>) -> Vec<Pubkey> {
+    let ranked = pools.into_iter().filter(|(_, depth)| *depth > 0).map(|(address, depth)| (Reverse(depth), address)).collect::<BTreeSet<_>>();
     ranked.into_iter().take(MAX_QUERIED_POOLS).map(|(_, address)| address).collect()
 }
 
@@ -532,11 +528,18 @@ mod tests {
     }
 
     #[test]
-    fn test_most_liquid_pools() {
+    fn test_deepest_pools() {
         let pool = |byte: u8| Pubkey::new([byte; 32]);
         let depths = vec![(pool(1), 5), (pool(2), 0), (pool(3), 9), (pool(4), 7), (pool(5), 1), (pool(6), 3)];
 
-        assert_eq!(most_liquid_pools(depths), vec![pool(3), pool(4), pool(1), pool(6)]);
-        assert_eq!(most_liquid_pools(vec![(pool(1), 0)]), vec![]);
+        assert_eq!(deepest_pools(depths), vec![pool(3), pool(4), pool(1), pool(6)]);
+        assert_eq!(deepest_pools(vec![(pool(1), 0)]), vec![]);
+    }
+
+    #[test]
+    fn test_pool_depth_reads_little_endian_of_any_width() {
+        assert_eq!(pool_depth(&7u64.to_le_bytes()), 7);
+        assert_eq!(pool_depth(&(u128::from(u64::MAX) + 2).to_le_bytes()), u128::from(u64::MAX) + 2);
+        assert_eq!(pool_depth(&[]), 0);
     }
 }
