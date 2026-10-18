@@ -17,10 +17,10 @@ impl QuoteAccount {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct PoolQuery {
-    pub filters: Vec<SolanaProgramAccountsFilter>,
-    pub depth_offset: usize,
+    pub filters: Vec<Vec<SolanaProgramAccountsFilter>>,
+    pub liquidity_offset: usize,
 }
 
 #[derive(Debug)]
@@ -82,8 +82,8 @@ pub(crate) trait DexProtocol: Send + Sync {
         &INTERMEDIATE_TOKENS
     }
 
-    fn pool_queries(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Vec<PoolQuery> {
-        vec![]
+    fn pool_query(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Option<PoolQuery> {
+        None
     }
 
     fn quote_accounts(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError>;

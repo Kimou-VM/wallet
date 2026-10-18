@@ -11,8 +11,7 @@ use crate::{
 pub(super) const POOL_ACCOUNT_LEN: u64 = 1112;
 pub(super) const TOKEN_A_MINT_OFFSET: u8 = 168;
 pub(super) const TOKEN_B_MINT_OFFSET: u8 = 200;
-pub(super) const TOKEN_A_AMOUNT_OFFSET: usize = 680;
-pub(super) const TOKEN_B_AMOUNT_OFFSET: usize = 688;
+pub(super) const LIQUIDITY_OFFSET: usize = 360;
 const FEE_DENOMINATOR: u32 = 1_000_000_000;
 const ACTIVATION_SLOT: u8 = 0;
 const ACTIVATION_TIMESTAMP: u8 = 1;
@@ -190,7 +189,6 @@ mod tests {
         assert_eq!(u64::try_from(data.len()).unwrap(), POOL_ACCOUNT_LEN);
         assert_eq!(at(usize::from(TOKEN_A_MINT_OFFSET), 32), snapshot.pool.token_a_mint.as_bytes());
         assert_eq!(at(usize::from(TOKEN_B_MINT_OFFSET), 32), snapshot.pool.token_b_mint.as_bytes());
-        assert_eq!(at(TOKEN_A_AMOUNT_OFFSET, 8), snapshot.pool.token_a_amount.to_le_bytes());
-        assert_eq!(at(TOKEN_B_AMOUNT_OFFSET, 8), snapshot.pool.token_b_amount.to_le_bytes());
+        assert_eq!(at(LIQUIDITY_OFFSET, 16), snapshot.pool.liquidity.to_le_bytes());
     }
 }

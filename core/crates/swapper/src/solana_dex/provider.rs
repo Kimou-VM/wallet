@@ -4,12 +4,12 @@ use futures::future::try_join_all;
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
-    DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaDataSlice, SolanaRpc, SolanaRpcConfig, get_pubkey_by_asset,
+    DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaDataSlice, SolanaRpc, SolanaRpcConfig,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_2022_program, token_program},
     models::{AccountData, Clock, ProgramAccount, ValueResult, blockhash::SolanaBlockhashResult},
 };
 use num_bigint::BigUint;
-use primitives::{AssetId, Chain};
+use primitives::{Chain, DAY};
 use serde_json::Value;
 use std::{
     cmp::Reverse,
@@ -58,7 +58,7 @@ type PathLookup<Pool> = (RoutePath<Pubkey>, Vec<PoolLookup<Pool>>);
 
 const SIZE_CHECK_BLOCKHASH: &str = "11111111111111111111111111111111";
 const MAX_QUERIED_POOLS: usize = 4;
-const DEPTH_LENGTH: usize = 8;
+const LIQUIDITY_LENGTH: usize = 16;
 
 pub(crate) struct SolanaDex<P: DexProtocol, C: Client + Clone = RpcClient> {
     provider: ProviderType,
@@ -83,7 +83,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             protocol,
             client,
             pools: DiscoveryCache::default(),
-            queried_pools: DiscoveryCache::default(),
+            queried_pools: DiscoveryCache::with_found_ttl(DAY),
             constant_accounts: Cache::default(),
             outpriced_routes: OutpricedCache::default(),
         }
@@ -141,23 +141,32 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
     }
 
     async fn query_pools(&self, (input_mint, output_mint): Pair) -> Result<(), SwapperError> {
-        let queries = self.protocol.pool_queries(&input_mint, &output_mint);
-        if queries.is_empty() || self.queried_pools.missing_probes(input_mint, output_mint, &[()]).is_empty() {
+        let Some(query) = self.protocol.pool_query(&input_mint, &output_mint) else {
+            return Ok(());
+        };
+        if self.queried_pools.missing_probes(input_mint, output_mint, &[()]).is_empty() {
             return Ok(());
         }
-        let depths = try_join_all(queries.into_iter().map(|query| self.fetch_pool_depths(query))).await?;
-        let pools = deepest_pools(depths.into_iter().flatten().collect());
+        let pools = most_liquid_pools(self.fetch_pool_liquidity(query).await?);
         self.queried_pools.record_discovery(input_mint, output_mint, [((), (!pools.is_empty()).then_some(pools))]);
         Ok(())
     }
 
-    async fn fetch_pool_depths(&self, query: PoolQuery) -> Result<Vec<(Pubkey, u64)>, SwapperError> {
+    async fn fetch_pool_liquidity(&self, query: PoolQuery) -> Result<Vec<(Pubkey, u128)>, SwapperError> {
         let slice = SolanaDataSlice {
-            offset: query.depth_offset,
-            length: DEPTH_LENGTH,
+            offset: query.liquidity_offset,
+            length: LIQUIDITY_LENGTH,
         };
-        let accounts: Vec<ProgramAccount> = self.client.request(SolanaRpc::GetProgramAccountsSlice(P::PROGRAM_ID.to_base58(), query.filters, slice)).await?;
-        accounts.into_iter().map(|account| Ok((Pubkey::from_base58(&account.pubkey)?, pool_depth(&account.account.decoded_data()?)))).collect()
+        let requests = query
+            .filters
+            .into_iter()
+            .map(|filters| self.client.request::<Vec<ProgramAccount>, _>(SolanaRpc::GetProgramAccountsSlice(P::PROGRAM_ID.to_base58(), filters, slice)));
+        try_join_all(requests)
+            .await?
+            .into_iter()
+            .flatten()
+            .map(|account| Ok((Pubkey::from_base58(&account.pubkey)?, pool_liquidity(&account.account.decoded_data()?))))
+            .collect()
     }
 
     fn pool_lookup(&self, pair: Pair) -> Result<PoolLookup<P::Pool>, SwapperError> {
@@ -368,20 +377,13 @@ impl<P: DexProtocol, C: Client + Clone> fmt::Debug for SolanaDex<P, C> {
     }
 }
 
-fn pool_depth(data: &[u8]) -> u64 {
-    data.try_into().map(u64::from_le_bytes).unwrap_or_default()
+fn pool_liquidity(data: &[u8]) -> u128 {
+    data.try_into().map(u128::from_le_bytes).unwrap_or_default()
 }
 
-fn deepest_pools(depths: Vec<(Pubkey, u64)>) -> Vec<Pubkey> {
-    let ranked = depths.into_iter().filter(|(_, depth)| *depth > 0).map(|(address, depth)| (Reverse(depth), address)).collect::<BTreeSet<_>>();
+fn most_liquid_pools(pools: Vec<(Pubkey, u128)>) -> Vec<Pubkey> {
+    let ranked = pools.into_iter().filter(|(_, liquidity)| *liquidity > 0).map(|(address, liquidity)| (Reverse(liquidity), address)).collect::<BTreeSet<_>>();
     ranked.into_iter().take(MAX_QUERIED_POOLS).map(|(_, address)| address).collect()
-}
-
-fn solana_pair(from_asset: &AssetId, to_asset: &AssetId) -> Option<Pair> {
-    match (from_asset.chain, to_asset.chain) {
-        (Chain::Solana, Chain::Solana) => Some((get_pubkey_by_asset(from_asset)?, get_pubkey_by_asset(to_asset)?)),
-        _ => None,
-    }
 }
 
 fn has_pools<Pool>(lookups: &[PoolLookup<Pool>]) -> bool {
@@ -446,12 +448,6 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
 
     fn amount_mode(&self, _request: &QuoteRequest) -> SwapAmountMode {
         SwapAmountMode::Fixed
-    }
-
-    async fn preload_routes(&self, from_asset: &AssetId, to_asset: &AssetId) {
-        if let Some(pair) = solana_pair(from_asset, to_asset) {
-            _ = self.query_route_pools(pair).await;
-        }
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
@@ -536,11 +532,11 @@ mod tests {
     }
 
     #[test]
-    fn test_deepest_pools() {
+    fn test_most_liquid_pools() {
         let pool = |byte: u8| Pubkey::new([byte; 32]);
         let depths = vec![(pool(1), 5), (pool(2), 0), (pool(3), 9), (pool(4), 7), (pool(5), 1), (pool(6), 3)];
 
-        assert_eq!(deepest_pools(depths), vec![pool(3), pool(4), pool(1), pool(6)]);
-        assert_eq!(deepest_pools(vec![(pool(1), 0)]), vec![]);
+        assert_eq!(most_liquid_pools(depths), vec![pool(3), pool(4), pool(1), pool(6)]);
+        assert_eq!(most_liquid_pools(vec![(pool(1), 0)]), vec![]);
     }
 }

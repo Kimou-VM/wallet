@@ -91,7 +91,7 @@ flowchart LR
 |---|---|
 | A pool exists: its address, tokens and fee tier, and the version Cetus needs to trade with it | `7 days` |
 | DeDust pool and vault addresses | `7 days` |
-| The Meteora pools found for a pair | `7 days` |
+| The Meteora pools found for a pair | `1 day`; Dynode keeps the lookup a day too, so a drained pool or a new one is noticed within about two days |
 | No pool exists at a fee tier, or Meteora has none for a pair | `1 day` |
 | A pool cannot trade: no liquidity at its price, or swaps paused or not open yet on Orca and Raydium, or a cashback coin on PumpSwap, or disabled on Meteora, or locked on STON.fi | `1 hour`, then it is checked again |
 | A pool or route that gave more than `3%` less than the best, or failed while another succeeded | `5 minutes`, skipped only when the same pair is quoted for the same amount |
@@ -103,6 +103,7 @@ flowchart LR
 | Uniswap v3, PancakeSwap, Aerodrome, Oku and Wagmi pool lookups | `1 day` |
 | Uniswap v4 pool lookups | `1 day` |
 | Cetus pool lookups | `1 day` |
+| The Meteora pools for a pair | `1 day` |
 | STON.fi and DeDust pool, vault and jetton wallet addresses | `30 days` |
 | Sui epoch and gas price | `10 minutes` |
 
@@ -110,7 +111,7 @@ Anything not listed is read again for every quote.
 
 Solana, Uniswap v4 and Hyperion pool addresses are computed on the device from the two tokens and the fee tier, so finding a pool only checks that it exists. On Solana a quote reads every account it needs in one request. Orca and Raydium each look up their `8` most-used fee tiers, which hold about `92%` and `94%` of the liquidity in their 200 largest pools. With 8 tiers, a token-to-token pair needs at most `93` accounts, which fits Solana's `100`-account limit, so a quote never splits into a second request. PumpSwap looks up the one pool pump.fun creates when a coin graduates, against SOL or USDC, and trades it directly; its fee depends on the coin's market cap, read from the same request.
 
-A Meteora DAMM v2 pool address depends on a config the pool does not store, so it cannot be computed from the two tokens. When a pair is picked, or on its first quote, the wallet asks the node for the program's pools that hold both tokens, once per token order. The two lookups go out at the same time as separate requests, because Dynode sends program lookups to a node that answers them in about `60 ms` only when they are not batched; batched, they reached a node that took up to `14 s` or refused them. Each lookup returns only the pool addresses and each pool's reserve of the token being sold, and the wallet keeps the `4` deepest pools that hold any: SOL/USDC alone has `463` pools, most of them empty. A Meteora pool carries its whole fee schedule, so a quote then reads only those pools, the mints and the clock, in one request, and trades the best one directly.
+A Meteora DAMM v2 pool address depends on a config the pool does not store, so it cannot be computed from the two tokens. On a pair's first quote, the wallet asks the node for the program's pools that hold both tokens, once per token order, as two requests sent at the same time: the public Solana node refuses program lookups sent as one batch. Dynode sends program lookups to a node that answers them in about `60 ms` to `200 ms`, and keeps each answer for a day for every wallet, so a lookup any wallet made that day comes back in about `95 ms`. The wallet asks again once its own copy is a day old, so a day later the first quote makes the two lookups again. Each lookup returns only the pool addresses and each pool's liquidity, which is the same whichever way the pair is traded, so buying and selling a token ask the same two lookups. The wallet keeps the `4` pools with the most liquidity: SOL/USDC alone has `463` pools, most of them empty. A Meteora pool carries its whole fee schedule, so a quote then reads only those pools, the mints and the clock, in one request, and trades the best one directly.
 
 ### Skipping pools that lose
 
@@ -120,7 +121,7 @@ Every quote compares candidates and keeps the best. A candidate that gave more t
 |---|---|
 | Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi | each path: one pool at a fee tier, or two pools through a base token unless both sides are base tokens |
 | Orca, Raydium | each route: one pool, or two pools through an intermediate token; a skipped pool's accounts are left out of the request |
-| Meteora | each of the pair's `4` deepest pools; a skipped pool is left out of the request |
+| Meteora | each of the pair's `4` pools with the most liquidity; a skipped pool is left out of the request |
 | STON.fi | each path, and each pool within a hop |
 | DeDust | each path: one pool, or two pools through TON or USDT |
 | Hyperion | each path, and each pool within a hop |

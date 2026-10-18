@@ -110,11 +110,15 @@ impl<Key, Value> Cache<Key, Value> {
 
 impl<Candidate, Probe, Key> Default for DiscoveryCache<Candidate, Probe, Key> {
     fn default() -> Self {
-        Self::new(DiscoveryTtl { found: WEEK, missing: DAY, unusable: HOUR })
+        Self::with_found_ttl(WEEK)
     }
 }
 
 impl<Candidate, Probe, Key> DiscoveryCache<Candidate, Probe, Key> {
+    pub(crate) fn with_found_ttl(found: Duration) -> Self {
+        Self::new(DiscoveryTtl { found, missing: DAY, unusable: HOUR })
+    }
+
     fn new(ttl: DiscoveryTtl) -> Self {
         Self {
             discoveries: Mutex::new(HashMap::new()),

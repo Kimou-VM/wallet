@@ -7,7 +7,7 @@ use gem_solana::{
 };
 
 use super::{
-    pool::{POOL_ACCOUNT_LEN, Pool, TOKEN_A_AMOUNT_OFFSET, TOKEN_A_MINT_OFFSET, TOKEN_B_AMOUNT_OFFSET, TOKEN_B_MINT_OFFSET},
+    pool::{LIQUIDITY_OFFSET, POOL_ACCOUNT_LEN, Pool, TOKEN_A_MINT_OFFSET, TOKEN_B_MINT_OFFSET},
     swap::swap_instruction,
 };
 use crate::{
@@ -48,11 +48,11 @@ impl DexProtocol for MeteoraDammV2 {
         &[]
     }
 
-    fn pool_queries(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Vec<PoolQuery> {
-        [(input_mint, output_mint, TOKEN_A_AMOUNT_OFFSET), (output_mint, input_mint, TOKEN_B_AMOUNT_OFFSET)]
+    fn pool_query(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Option<PoolQuery> {
+        let filters = [(input_mint, output_mint), (output_mint, input_mint)]
             .into_iter()
-            .map(|(mint_a, mint_b, depth_offset)| PoolQuery {
-                filters: vec![
+            .map(|(mint_a, mint_b)| {
+                vec![
                     SolanaProgramAccountsFilter::DataSize(POOL_ACCOUNT_LEN),
                     SolanaProgramAccountsFilter::Memcmp {
                         offset: TOKEN_A_MINT_OFFSET,
@@ -62,10 +62,10 @@ impl DexProtocol for MeteoraDammV2 {
                         offset: TOKEN_B_MINT_OFFSET,
                         bytes: mint_b.to_base58(),
                     },
-                ],
-                depth_offset,
+                ]
             })
-            .collect()
+            .collect();
+        Some(PoolQuery { filters, liquidity_offset: LIQUIDITY_OFFSET })
     }
 
     fn quote_accounts(&self, _address: &Pubkey, _pool: &Pool, _input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
@@ -170,9 +170,6 @@ mod tests {
             value: BigUint::from(326_754_966u64),
             ..mock_quote(tos.clone(), sol.clone())
         };
-
-        damm.preload_routes(&tos.asset_id(), &sol.asset_id()).await;
-        assert_eq!(requests.load(Ordering::SeqCst), 2);
 
         let quote = damm.get_quote(&tos_to_sol).await.unwrap();
         assert_eq!(requests.load(Ordering::SeqCst), 3);

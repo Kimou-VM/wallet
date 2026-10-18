@@ -51,7 +51,7 @@ A request is cached only when a rule in `chains.yml` matches it. Three kinds of 
 |---|---|---|
 | `rpc_method` | a JSON-RPC method | Solana `getEpochInfo` |
 | `path` with `params` | an HTTP path and method, and top-level JSON body fields equal to `params` | TON `/api/v3/runGetMethod` whose `method` is `get_pool_address` |
-| `contracts.methods` | contract calls decoded from the request: an `eth_call` to one of `addresses` with one of the 4-byte `identifiers`, or a Sui transaction whose Move calls are all in `identifiers` on one of `addresses` | Uniswap v3 factory `getPool`, Cetus `factory::pool_simple_info` |
+| `contracts.methods` | contract calls decoded from the request: an `eth_call` to one of `addresses` with one of the 4-byte `identifiers`, a Sui transaction whose Move calls are all in `identifiers` on one of `addresses`, or a Solana `getProgramAccounts` of one of `addresses` | Uniswap v3 factory `getPool`, Cetus `factory::pool_simple_info`, Meteora DAMM v2 pools |
 
 The cache key is the request's own content, never its caller, so every wallet asking the same thing shares one entry:
 
@@ -62,13 +62,16 @@ The cache key is the request's own content, never its caller, so every wallet as
 
 A JSON-RPC batch is checked call by call: cached calls are answered from memory, only the missing calls go upstream as one batch, and each answer is kept under its own key.
 
-Swaps rely on Dynode only for lookups that never change once a pool exists, so a quote is still priced on live state ([Swap](product/swap.md#on-chain-quotes)). Which pools lost to a better one stays on the device: it depends on the amount, and Dynode keeps responses, not comparisons between them.
+A batch follows a chain's overrides call by call. When every call goes to the same override, or to none, the batch goes upstream whole. Otherwise it is split into one batch per override, sent at the same time, and the answers are put back in call order; a part that fails answers each of its calls with a JSON-RPC error, and the other parts still answer (`test_batch_calls_follow_their_overrides`).
+
+Swaps rely on Dynode only for lookups that do not price a quote, what a pool is and which pools a pair has, so a quote is still priced on live state ([Swap](product/swap.md#on-chain-quotes)). Which pools lost to a better one stays on the device: it depends on the amount, and Dynode keeps responses, not comparisons between them.
 
 | Chain | Request | TTL |
 |---|---|---|
 | Ethereum and EVM networks | `eth_call` `getPool` to the Uniswap v3, PancakeSwap, Aerodrome, Oku and Wagmi factories | `1d` |
 | Ethereum and EVM networks | `eth_call` `getSlot0` to the Uniswap v4 StateView; the wallet reads it only to learn whether a pool exists, never for its price | `1d` |
 | Sui | `SimulateTransaction` calling Cetus `factory::new_pool_key`, `factory::pool_simple_info` or `factory::pool_id` | `1d` |
+| Solana | `getProgramAccounts` of the Meteora DAMM v2 program, the pools that hold a pair | `1d` |
 | Aptos | `/v1/view` of Hyperion `pool_v3::liquidity_pool_address_safe` or `pool_v3::liquidity_pool_info` | `1d` |
 | TON | `runGetMethod` `get_wallet_address`, `get_pool_address` or `get_vault_address` | `30d` |
 
