@@ -160,17 +160,18 @@ where
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
-        let source = SwapsXyzChain::from_chain(request.from_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
+        let source = SwapsXyzChain::from_source_chain(request.from_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
         let destination = SwapsXyzChain::from_chain(request.to_asset.chain()).ok_or(SwapperError::NotSupportedChain)?;
-        let paths = self.client.get_paths(source.id, destination.id).await?;
+        let action_request = Self::build_action_request(request, source, destination)?;
+        let (paths, response) = futures::join!(self.client.get_paths(source.id, destination.id), self.client.get_action(&action_request));
+        let paths = paths?;
         let path = paths
             .paths
             .iter()
             .find(|path| path.chain_id == destination.id && path.supports_exact_amount_in && path.tokens.iter().any(|token| token.is_native && token.address == EVM_ZERO_ADDRESS))
             .ok_or(SwapperError::NoQuoteAvailable)?;
         Self::validate_amount(&path.amount_limits, &request.value.to_string(), source.decimals())?;
-        let action_request = Self::build_action_request(request, source, destination)?;
-        let response = self.client.get_action(&action_request).await?;
+        let response = response?;
         Self::validate_response(&response, request, source, destination)?;
         let eta_in_seconds = if response.estimated_tx_time.is_finite() && response.estimated_tx_time > 0.0 && response.estimated_tx_time <= u32::MAX as f64 {
             Some(response.estimated_tx_time.ceil() as u32)
