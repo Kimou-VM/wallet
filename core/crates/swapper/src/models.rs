@@ -277,6 +277,13 @@ impl SwapperChainAsset {
             Self::Assets(chain, _) => *chain,
         }
     }
+
+    pub fn supports(&self, asset_id: &AssetId) -> bool {
+        match self {
+            Self::All(chain) => *chain == asset_id.chain,
+            Self::Assets(chain, assets) => *chain == asset_id.chain && (asset_id.is_native() || assets.contains(asset_id)),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -365,5 +372,19 @@ mod tests {
             .route_data::<serde_json::Value>(),
             Err(SwapperError::InvalidRoute)
         );
+    }
+
+    #[test]
+    fn test_chain_asset_supports() {
+        let usdt = primitives::asset_constants::ETHEREUM_USDT_ASSET_ID.clone();
+        let listed = SwapperChainAsset::Assets(Chain::Ethereum, vec![usdt.clone()]);
+        let cardano = SwapperChainAsset::Assets(Chain::Cardano, vec![]);
+
+        assert!(SwapperChainAsset::All(Chain::Ethereum).supports(&usdt));
+        assert!(listed.supports(&usdt));
+        assert!(listed.supports(&AssetId::from_chain(Chain::Ethereum)));
+        assert!(cardano.supports(&AssetId::from_chain(Chain::Cardano)));
+        assert!(!cardano.supports(&AssetId::from_token(Chain::Cardano, "policy.asset")));
+        assert!(!listed.supports(&AssetId::from_chain(Chain::Arbitrum)));
     }
 }

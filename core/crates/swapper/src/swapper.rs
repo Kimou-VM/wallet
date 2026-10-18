@@ -4,7 +4,6 @@ use crate::{
     across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, dedust, fees::max_quote_value_with_fee_reserve, hyperion, hyperliquid, jupiter, mayan, meteora_damm_v2, meteora_dlmm,
     near_intents, okx, orca, panora, provider_group::ProviderGroup, pump_swap, raydium_amm, raydium_clmm, raydium_cpmm, relay, solana_dex, squid, stonfi, swaps_xyz, thorchain, uniswap,
 };
-use num_traits::ToPrimitive;
 use primitives::{AssetId, Chain, EVMChain};
 use std::{
     collections::{BTreeSet, HashSet},
@@ -14,8 +13,7 @@ use std::{
 
 #[derive(Debug)]
 pub struct GemSwapper {
-    pub rpc_provider: Arc<dyn RpcProvider>,
-    pub swappers: Vec<Box<dyn Swapper>>,
+    pub(crate) swappers: Vec<Box<dyn Swapper>>,
 }
 
 impl GemSwapper {
@@ -31,13 +29,6 @@ impl GemSwapper {
         supported_chains.contains(&from_chain) && supported_chains.contains(&to_chain)
     }
 
-    fn supports_asset(supported_assets: &[SwapperChainAsset], asset_id: &AssetId) -> bool {
-        supported_assets.iter().any(|x| match x {
-            SwapperChainAsset::All(chain) => *chain == asset_id.chain,
-            SwapperChainAsset::Assets(chain, assets) => *chain == asset_id.chain && (asset_id.is_native() || assets.contains(asset_id)),
-        })
-    }
-
     fn amount_mode(&self, quote: &Quote) -> Option<SwapAmountMode> {
         self.get_swapper_by_provider(&quote.data.provider.id).ok().map(|swapper| swapper.amount_mode(&quote.request))
     }
@@ -47,13 +38,10 @@ impl GemSwapper {
     }
 
     fn gas_limit_with_multiplier(chain: &Chain, gas_limit: String) -> String {
-        if let Some(evm_chain) = EVMChain::from_chain(*chain) {
-            let multiplier = if evm_chain.is_zkstack() { 2.0 } else { 1.0 };
-            if let Ok(gas_limit_value) = gas_limit.parse::<f64>() {
-                return (gas_limit_value * multiplier).ceil().to_u64().unwrap_or_default().to_string();
-            }
+        match (EVMChain::from_chain(*chain), gas_limit.parse::<u64>()) {
+            (Some(evm_chain), Ok(value)) if evm_chain.is_zkstack() => value.saturating_mul(2).to_string(),
+            _ => gas_limit,
         }
-        gas_limit
     }
 }
 
@@ -120,7 +108,7 @@ impl GemSwapper {
         .flatten()
         .collect();
 
-        Self { rpc_provider, swappers }
+        Self { swappers }
     }
 
     pub fn supported_chains(&self) -> Vec<Chain> {
@@ -128,30 +116,25 @@ impl GemSwapper {
     }
 
     pub fn supported_chains_for_from_asset(&self, asset_id: &AssetId) -> AssetList {
-        let chains: Vec<Chain> = vec![asset_id.chain];
-        let mut asset_ids: Vec<AssetId> = Vec::new();
-
-        for provider in &self.swappers {
-            let supported_assets = provider.supported_assets();
-            if !Self::supports_asset(&supported_assets, asset_id) {
-                continue;
-            }
-            supported_assets.into_iter().for_each(|x| match x {
-                SwapperChainAsset::All(_) => {}
-                SwapperChainAsset::Assets(chain, assets) => {
-                    asset_ids.push(chain.as_asset_id());
-                    asset_ids.extend(assets);
-                }
-            });
-        }
-        AssetList { chains, asset_ids }
+        let asset_ids = self
+            .swappers
+            .iter()
+            .map(|provider| provider.supported_assets())
+            .filter(|supported_assets| supported_assets.iter().any(|supported| supported.supports(asset_id)))
+            .flatten()
+            .flat_map(|supported| match supported {
+                SwapperChainAsset::All(_) => vec![],
+                SwapperChainAsset::Assets(chain, assets) => [vec![chain.as_asset_id()], assets].concat(),
+            })
+            .collect();
+        AssetList { chains: vec![asset_id.chain], asset_ids }
     }
 
     fn is_native_mirror_pair(from_asset: &AssetId, to_asset: &AssetId) -> bool {
         from_asset.chain == to_asset.chain && ((from_asset.is_native() && to_asset.is_native_mirror()) || (from_asset.is_native_mirror() && to_asset.is_native()))
     }
 
-    pub fn get_providers_for_request(&self, request: &QuoteRequest) -> Result<Vec<ProviderType>, SwapperError> {
+    fn get_providers_for_request(&self, request: &QuoteRequest) -> Result<Vec<ProviderType>, SwapperError> {
         if request.from_asset.id == request.to_asset.id || Self::is_native_mirror_pair(&request.from_asset.asset_id(), &request.to_asset.asset_id()) {
             return Err(SwapperError::NoQuoteAvailable);
         }
@@ -192,14 +175,9 @@ impl GemSwapper {
 
         let quote_results = futures::future::join_all(quotes_futures).await;
 
-        let mut quotes = Vec::new();
-        let mut errors = Vec::new();
-        for result in quote_results {
-            match result {
-                Ok(quote) => quotes.push(quote),
-                Err((provider_id, error)) => errors.push(SwapQuoteError::new(Some(provider_id), error)),
-            }
-        }
+        let (quotes, errors): (Vec<_>, Vec<_>) = quote_results.into_iter().partition(Result::is_ok);
+        let quotes = quotes.into_iter().filter_map(Result::ok).collect();
+        let errors = errors.into_iter().filter_map(Result::err).map(|(provider_id, error)| SwapQuoteError::new(Some(provider_id), error)).collect();
 
         let quotes = rank_quotes(request, quotes, &quote_preferences(), |quote| self.amount_mode(quote));
         Ok(SwapQuotes { quotes, errors })
@@ -222,12 +200,11 @@ impl GemSwapper {
     }
 
     pub async fn get_quote_data(&self, quote: &Quote, data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
-        let provider = self.get_swapper_by_provider(&quote.data.provider.id)?;
-        let mut quote_data = provider.get_quote_data(quote, data).await?;
-        if let Some(gas_limit) = quote_data.gas_limit.take() {
-            quote_data.gas_limit = Some(Self::gas_limit_with_multiplier(&quote.request.from_asset.chain(), gas_limit));
-        }
-        Ok(quote_data)
+        let quote_data = self.get_swapper_by_provider(&quote.data.provider.id)?.get_quote_data(quote, data).await?;
+        Ok(SwapperQuoteData {
+            gas_limit: quote_data.gas_limit.map(|gas_limit| Self::gas_limit_with_multiplier(&quote.request.from_asset.chain(), gas_limit)),
+            ..quote_data
+        })
     }
 
     pub async fn get_swap_result(&self, provider: SwapperProvider, request: &SwapResultRequest) -> Result<SwapResult, SwapperError> {
@@ -247,12 +224,12 @@ mod tests {
 
     use primitives::{
         AssetId, Chain,
-        asset_constants::{ARC_USDC_ASSET_ID, ETHEREUM_USDC_ASSET_ID, ETHEREUM_USDT_ASSET_ID, STABLE_USDT0_ASSET_ID},
+        asset_constants::{ARC_USDC_ASSET_ID, ETHEREUM_USDC_ASSET_ID, STABLE_USDT0_ASSET_ID},
     };
 
     use super::*;
     use crate::{
-        Options, SwapperChainAsset, SwapperProvider, SwapperQuoteAsset,
+        Options, SwapperProvider, SwapperQuoteAsset,
         alien::reqwest_provider::NativeProvider,
         testkit::{MockSwapper, mock_quote},
         uniswap::universal_router::{new_pancakeswap, new_uniswap_v3},
@@ -335,24 +312,6 @@ mod tests {
         let filtered = filter(Chain::Ethereum, Chain::Mayachain);
 
         assert_eq!(filtered.len(), 0);
-    }
-
-    #[test]
-    fn test_supports_asset() {
-        let asset_id = AssetId::from_chain(Chain::Ethereum);
-        let asset_id_usdt: AssetId = ETHEREUM_USDT_ASSET_ID.clone();
-        let supported_assets_all = vec![SwapperChainAsset::All(Chain::Ethereum)];
-        assert!(GemSwapper::supports_asset(&supported_assets_all, &asset_id));
-        assert!(GemSwapper::supports_asset(&[SwapperChainAsset::Assets(Chain::Cardano, vec![])], &AssetId::from_chain(Chain::Cardano)));
-        assert!(!GemSwapper::supports_asset(&[SwapperChainAsset::Assets(Chain::Cardano, vec![])], &AssetId::from_token(Chain::Cardano, "policy.asset")));
-
-        let supported_assets = vec![
-            SwapperChainAsset::All(Chain::Ethereum),
-            SwapperChainAsset::Assets(Chain::Ethereum, vec![AssetId::from_token(Chain::Ethereum, &asset_id_usdt.clone().token_id.unwrap())]),
-        ];
-
-        assert!(GemSwapper::supports_asset(&supported_assets, &asset_id_usdt));
-        assert!(GemSwapper::supports_asset(&supported_assets, &asset_id));
     }
 
     #[test]

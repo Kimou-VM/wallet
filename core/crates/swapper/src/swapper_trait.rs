@@ -35,12 +35,6 @@ pub trait Swapper: Send + Sync + Debug {
 
 impl dyn Swapper {
     pub fn supported_chains(&self) -> Vec<Chain> {
-        self.supported_assets()
-            .into_iter()
-            .map(|x| match x {
-                SwapperChainAsset::All(chain) => chain,
-                SwapperChainAsset::Assets(chain, _) => chain,
-            })
-            .collect()
+        self.supported_assets().iter().map(SwapperChainAsset::get_chain).collect()
     }
 }

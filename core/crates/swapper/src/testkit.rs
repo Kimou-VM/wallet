@@ -1,10 +1,7 @@
 use crate::{
-    AlienError, AssetList, FetchQuoteData, Permit2ApprovalData, ProviderData, ProviderType, Route, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
-    SwapperSlippage, SwapperSlippageMode, Target,
+    AssetList, FetchQuoteData, Permit2ApprovalData, ProviderData, ProviderType, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData, SwapperSlippage, SwapperSlippageMode,
 };
 use async_trait::async_trait;
-use gem_jsonrpc::RpcResponse;
-use gem_jsonrpc::rpc::RpcProvider as GenericRpcProvider;
 use num_bigint::BigUint;
 use primitives::{AssetId, Chain, asset_constants::TON_USDT_TOKEN_ID};
 use std::sync::{Arc, Mutex};
@@ -151,28 +148,7 @@ pub fn mock_ton(wallet_address: String) -> QuoteRequest {
 
 impl crate::swapper::GemSwapper {
     pub fn mock(swappers: Vec<Box<dyn Swapper>>) -> Self {
-        Self {
-            rpc_provider: Arc::new(UnusedRpcProvider),
-            swappers,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct UnusedRpcProvider;
-
-#[async_trait]
-impl GenericRpcProvider for UnusedRpcProvider {
-    type Error = AlienError;
-
-    async fn request(&self, target: Target) -> Result<RpcResponse, Self::Error> {
-        panic!("a mock swapper never reaches the network: {target:?}")
-    }
-}
-
-impl RpcProvider for UnusedRpcProvider {
-    fn get_endpoint(&self, chain: Chain) -> Result<String, AlienError> {
-        panic!("a mock swapper never asks for a node: {chain}")
+        Self { swappers }
     }
 }
 
