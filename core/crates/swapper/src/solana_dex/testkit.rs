@@ -57,7 +57,7 @@ pub(crate) async fn assert_swaps_simulate<P: DexProtocol>(protocol: P, swaps: Ve
             wallet_address: wallet.to_string(),
             destination_address: wallet.to_string(),
             value: BigUint::from(value),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
         let quote = dex.get_quote(&request).await?;
         let quote_data = dex.get_quote_data(&quote, FetchQuoteData::None).await?;

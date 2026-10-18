@@ -191,10 +191,7 @@ mod tests {
     async fn test_max_ton_quote_reserves_swap_gas() {
         let provider = Dedust::with_client(mock_ton_client(include_str!("testdata/ton_to_usdt_get_methods.json")));
         let request = QuoteRequest {
-            options: Options {
-                use_max_amount: true,
-                ..Options::new_with_slippage(100.into())
-            },
+            options: Options { use_max_amount: true, ..Options::default() },
             ..mock_request(ton(), usdt(), 1_250_000_000)
         };
 

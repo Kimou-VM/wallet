@@ -343,6 +343,7 @@ mod tests {
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
+    use crate::testkit::mock_quote;
     use crate::{SwapperQuoteAsset, alien::reqwest_provider::NativeProvider, models::Options};
     use primitives::Chain;
     use primitives::{
@@ -362,7 +363,7 @@ mod swap_integration_tests {
             wallet_address: "bc1qq2mvrp4g3ugd424dw4xv53rgsf8szkrv853jrc".to_string(),
             destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(2_000_000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
         let quote = relay.get_quote(&request).await?;
         let data = relay.get_quote_data(&quote, FetchQuoteData::None).await?;
@@ -384,12 +385,9 @@ mod swap_integration_tests {
         let relay = Relay::new(provider);
 
         let request = QuoteRequest {
-            from_asset: SwapperQuoteAsset::from(ARBITRUM_USDC_ASSET_ID.clone()),
-            to_asset: SwapperQuoteAsset::from(BASE_USDC_ASSET_ID.clone()),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(500000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
+            ..mock_quote(SwapperQuoteAsset::from(ARBITRUM_USDC_ASSET_ID.clone()), SwapperQuoteAsset::from(BASE_USDC_ASSET_ID.clone()))
         };
 
         let quote = relay.get_quote(&request).await?;
@@ -416,7 +414,7 @@ mod swap_integration_tests {
             wallet_address: "TW1dU4L3eNm7Lw8WvieLKEHpXWAussRG9Z".to_string(),
             destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(10000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let quote = relay.get_quote(&native_request).await?;
@@ -450,7 +448,7 @@ mod swap_integration_tests {
             wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             destination_address: usdt_request.wallet_address.clone(),
             value: BigUint::from(10000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
         let quote = relay.get_quote(&reverse_request).await?;
 
@@ -471,7 +469,7 @@ mod swap_integration_tests {
             wallet_address: "7g2rVN8fAAQdPh1mkajpvELqYa3gWvFXJsBLnKfEQfqy".to_string(),
             destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(100000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let quote = relay.get_quote(&request).await?;
@@ -491,7 +489,7 @@ mod swap_integration_tests {
             wallet_address: "A21o4asMbFHYadqXdLusT9Bvx9xaC5YV9gcaidjqtdXC".to_string(),
             destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(20000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
         let quote = relay.get_quote(&usdt_request).await?;
         assert_eq!(quote.from_value, usdt_request.value);
@@ -505,7 +503,7 @@ mod swap_integration_tests {
             wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             destination_address: request.wallet_address.clone(),
             value: BigUint::from(10000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
         let quote = relay.get_quote(&reverse_request).await?;
         assert_eq!(quote.from_value, reverse_request.value);
@@ -525,7 +523,7 @@ mod swap_integration_tests {
             wallet_address: TEST_TON_SENDER.to_string(),
             destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(5_000_000_000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let quote = relay.get_quote(&request).await?;
@@ -545,7 +543,7 @@ mod swap_integration_tests {
             wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             destination_address: TEST_TON_SENDER.to_string(),
             value: BigUint::from(10_000_000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
         let quote = relay.get_quote(&reverse_request).await?;
         assert_eq!(quote.from_value, reverse_request.value);
@@ -566,12 +564,9 @@ mod swap_integration_tests {
         let relay = Relay::new(provider);
 
         let request = QuoteRequest {
-            from_asset: SwapperQuoteAsset::from(ETHEREUM_USDT_ASSET_ID.clone()),
-            to_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Base)),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(5000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
+            ..mock_quote(SwapperQuoteAsset::from(ETHEREUM_USDT_ASSET_ID.clone()), SwapperQuoteAsset::from(AssetId::from_chain(Chain::Base)))
         };
 
         let quote = relay.get_quote(&request).await?;
@@ -596,12 +591,9 @@ mod swap_integration_tests {
         let relay = Relay::new(provider);
 
         let request = QuoteRequest {
-            from_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Celo)),
-            to_asset: SwapperQuoteAsset::from(SMARTCHAIN_USDT_ASSET_ID.clone()),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::parse_bytes(b"40000000000000000000", 10).unwrap(),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
+            ..mock_quote(SwapperQuoteAsset::from(AssetId::from_chain(Chain::Celo)), SwapperQuoteAsset::from(SMARTCHAIN_USDT_ASSET_ID.clone()))
         };
 
         let quote = relay.get_quote(&request).await?;
@@ -625,12 +617,9 @@ mod swap_integration_tests {
         let relay = Relay::new(provider);
 
         let request = QuoteRequest {
-            from_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Arbitrum)),
-            to_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Robinhood)),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(5000000000000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
+            ..mock_quote(SwapperQuoteAsset::from(AssetId::from_chain(Chain::Arbitrum)), SwapperQuoteAsset::from(AssetId::from_chain(Chain::Robinhood)))
         };
 
         let quote = relay.get_quote(&request).await?;
@@ -653,12 +642,9 @@ mod swap_integration_tests {
         let relay = Relay::new(provider);
 
         let request = QuoteRequest {
-            from_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Arc)),
-            to_asset: SwapperQuoteAsset::from(BASE_USDC_ASSET_ID.clone()),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(1_000_000_000_000_000_000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
+            ..mock_quote(SwapperQuoteAsset::from(AssetId::from_chain(Chain::Arc)), SwapperQuoteAsset::from(BASE_USDC_ASSET_ID.clone()))
         };
 
         let quote = relay.get_quote(&request).await?;
@@ -677,12 +663,8 @@ mod swap_integration_tests {
         let relay = Relay::new(provider);
 
         let request = QuoteRequest {
-            from_asset: SwapperQuoteAsset::from(TEMPO_BRIDGED_USDC_ASSET_ID.clone()),
-            to_asset: SwapperQuoteAsset::from(BASE_USDC_ASSET_ID.clone()),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            value: BigUint::from(1000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
+            ..mock_quote(SwapperQuoteAsset::from(TEMPO_BRIDGED_USDC_ASSET_ID.clone()), SwapperQuoteAsset::from(BASE_USDC_ASSET_ID.clone()))
         };
 
         let quote = relay.get_quote(&request).await?;

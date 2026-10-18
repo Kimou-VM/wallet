@@ -34,7 +34,7 @@ pub fn mock_request(from: AssetId, to: AssetId, value: u64) -> QuoteRequest {
         wallet_address: TEST_WALLET.to_string(),
         destination_address: TEST_WALLET.to_string(),
         value: BigUint::from(value),
-        options: Options::new_with_slippage(100.into()),
+        options: Options::default(),
     }
 }
 

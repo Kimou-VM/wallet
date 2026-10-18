@@ -13,7 +13,7 @@ impl QuoteRequest {
             wallet_address: TEST_OSMOSIS_ADDRESS.to_string(),
             destination_address: TEST_COSMOS_ADDRESS.to_string(),
             value: BigUint::from(10000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         }
     }
 }

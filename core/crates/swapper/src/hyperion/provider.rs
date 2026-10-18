@@ -59,7 +59,7 @@ mod swap_integration_tests {
             wallet_address: TEST_WALLET.to_string(),
             destination_address: TEST_WALLET.to_string(),
             value: BigUint::from(100_000_000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let quote = provider.get_quote(&request).await?;
@@ -83,7 +83,7 @@ mod swap_integration_tests {
             wallet_address: TEST_WALLET.to_string(),
             destination_address: TEST_WALLET.to_string(),
             value: BigUint::from(1_000_000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let quote = provider.get_quote(&request).await?;

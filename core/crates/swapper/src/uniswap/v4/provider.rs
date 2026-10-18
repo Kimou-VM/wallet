@@ -236,6 +236,7 @@ mod tests {
 
 #[cfg(all(test, feature = "swap_integration_tests", feature = "reqwest_provider"))]
 mod swap_integration_tests {
+    use crate::testkit::mock_quote;
     use crate::{FetchQuoteData, NativeProvider, Options, QuoteRequest, SwapperError, client_factory::create_eth_client, uniswap};
     use num_bigint::BigUint;
     use num_traits::ToPrimitive;
@@ -366,12 +367,8 @@ mod swap_integration_tests {
 
         for (from_asset, to_asset) in [(TEMPO_BRIDGED_USDC_ASSET_ID.clone(), pathusd.clone()), (pathusd, TEMPO_BRIDGED_USDC_ASSET_ID.clone())] {
             let request = QuoteRequest {
-                from_asset: from_asset.into(),
-                to_asset: to_asset.into(),
-                wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-                destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-                value: BigUint::from(1000000u64),
                 options: options.clone(),
+                ..mock_quote(from_asset.into(), to_asset.into())
             };
             let quote = swap_provider.get_quote(&request).await?;
             assert!(quote.to_value > BigUint::ZERO);

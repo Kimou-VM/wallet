@@ -205,6 +205,7 @@ mod tests {
 
 #[cfg(all(test, feature = "swap_integration_tests", feature = "reqwest_provider"))]
 mod swap_integration_tests {
+    use crate::testkit::mock_quote;
     use crate::{FetchQuoteData, NativeProvider, Options, QuoteRequest, Swapper, SwapperError, client_factory::create_eth_client, uniswap};
     use num_bigint::BigUint;
     use num_traits::ToPrimitive;
@@ -240,12 +241,9 @@ mod swap_integration_tests {
         let network_provider = Arc::new(NativeProvider::default());
         let swap_provider = uniswap::default::boxed_uniswap_v3(network_provider);
         let request = QuoteRequest {
-            from_asset: AssetId::from_chain(Chain::Arc).into(),
-            to_asset: ARC_EURC_ASSET_ID.clone().into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
             value: BigUint::from(1_000_000_000_000_000_000u64),
             options: Options { slippage: 100.into(), use_max_amount: false },
+            ..mock_quote(AssetId::from_chain(Chain::Arc).into(), ARC_EURC_ASSET_ID.clone().into())
         };
         let quote = swap_provider.get_quote(&request).await?;
         assert!(quote.to_value > BigUint::from(500_000u64) && quote.to_value < BigUint::from(1_000_000u64));
@@ -260,12 +258,9 @@ mod swap_integration_tests {
         let network_provider = Arc::new(NativeProvider::default());
         let swap_provider = uniswap::default::boxed_uniswap_v3(network_provider);
         let request = QuoteRequest {
-            from_asset: AssetId::from_chain(Chain::Stable).into(),
-            to_asset: AssetId::from(Chain::Stable, Some(STABLE_TOKEN_ID.to_string())).into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
             value: BigUint::from(1_000_000_000_000_000_000u64),
             options: Options { slippage: 100.into(), use_max_amount: false },
+            ..mock_quote(AssetId::from_chain(Chain::Stable).into(), AssetId::from(Chain::Stable, Some(STABLE_TOKEN_ID.to_string())).into())
         };
         let quote = swap_provider.get_quote(&request).await?;
         let quote_data = swap_provider.get_quote_data(&quote, FetchQuoteData::None).await?;
@@ -291,12 +286,8 @@ mod swap_integration_tests {
         let network_provider = Arc::new(NativeProvider::default());
         let swap_provider = uniswap::default::boxed_uniswap_v3(network_provider);
         let request = QuoteRequest {
-            from_asset: AssetId::from(Chain::Arc, Some(ARC_USDC_TOKEN_ID.to_string())).into(),
-            to_asset: ARC_EURC_ASSET_ID.clone().into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            value: BigUint::from(1_000_000u64),
             options: Options { slippage: 100.into(), use_max_amount: false },
+            ..mock_quote(AssetId::from(Chain::Arc, Some(ARC_USDC_TOKEN_ID.to_string())).into(), ARC_EURC_ASSET_ID.clone().into())
         };
         let quote = swap_provider.get_quote(&request).await?;
         assert!(quote.to_value > BigUint::from(500_000u64) && quote.to_value < BigUint::from(1_000_000u64));

@@ -122,6 +122,7 @@ fn build_v3_swap_exact_in_command(recipient: Address, amount_in: U256, amount_ou
 mod tests {
     use super::*;
     use crate::permit2_data::*;
+    use crate::testkit::mock_quote;
     use crate::uniswap::routed_asset::RoutedAsset;
     use alloy_primitives::{address, aliases::U256};
     use gem_evm::uniswap::{FeeTier, path::build_direct_pair};
@@ -141,12 +142,9 @@ mod tests {
     #[test]
     fn test_build_commands_router_balance_input() {
         let request = QuoteRequest {
-            from_asset: AssetId::from_chain(Chain::Arc).into(),
-            to_asset: AssetId::from(Chain::Arc, Some(ARC_EURC_TOKEN_ID.into())).into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
             value: BigUint::from(3_000_000_000_000_000_000u64),
             options: Options::default(),
+            ..mock_quote(AssetId::from_chain(Chain::Arc).into(), AssetId::from(Chain::Arc, Some(ARC_EURC_TOKEN_ID.into())).into())
         };
         let input = RoutedAsset::mock_router_balance(ARC_USDC_TOKEN_ID, 1_000_000_000_000);
         let output = RoutedAsset::mock_permit2(ARC_EURC_TOKEN_ID);
@@ -179,12 +177,9 @@ mod tests {
     #[test]
     fn test_build_commands_eth_to_token() {
         let request = QuoteRequest {
-            from_asset: AssetId::from(Chain::Ethereum, None).into(),
-            to_asset: AssetId::from(Chain::Ethereum, Some(ETHEREUM_USDC_TOKEN_ID.into())).into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
             value: BigUint::from(10000000000000000u64),
             options: Options::default(),
+            ..mock_quote(AssetId::from(Chain::Ethereum, None).into(), AssetId::from(Chain::Ethereum, Some(ETHEREUM_USDC_TOKEN_ID.into())).into())
         };
 
         let input = RoutedAsset::mock_value(ETHEREUM_WETH_TOKEN_ID);
@@ -225,12 +220,9 @@ mod tests {
     #[test]
     fn test_build_commands_v2_1_uses_v2_1_swap_payload() {
         let request = QuoteRequest {
-            from_asset: AssetId::from(Chain::Ethereum, None).into(),
-            to_asset: AssetId::from(Chain::Ethereum, Some(ETHEREUM_USDC_TOKEN_ID.into())).into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
             value: BigUint::from(10000000000000000u64),
             options: Options::default(),
+            ..mock_quote(AssetId::from(Chain::Ethereum, None).into(), AssetId::from(Chain::Ethereum, Some(ETHEREUM_USDC_TOKEN_ID.into())).into())
         };
 
         let input = RoutedAsset::mock_value(ETHEREUM_WETH_TOKEN_ID);
@@ -323,12 +315,12 @@ mod tests {
     #[test]
     fn test_build_commands_usdc_to_usdt() {
         let request = QuoteRequest {
-            from_asset: AssetId::from(Chain::Optimism, Some(OPTIMISM_USDC_TOKEN_ID.into())).into(),
-            to_asset: AssetId::from(Chain::Optimism, Some(OPTIMISM_USDT_TOKEN_ID.into())).into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
             value: BigUint::from(6500000u64),
             options: Options::default(),
+            ..mock_quote(
+                AssetId::from(Chain::Optimism, Some(OPTIMISM_USDC_TOKEN_ID.into())).into(),
+                AssetId::from(Chain::Optimism, Some(OPTIMISM_USDT_TOKEN_ID.into())).into(),
+            )
         };
 
         let input = RoutedAsset::mock_permit2(request.from_asset.asset_id().token_id.as_ref().unwrap());
@@ -380,12 +372,12 @@ mod tests {
     #[test]
     fn test_build_commands_usdc_to_aave() {
         let request = QuoteRequest {
-            from_asset: AssetId::from(Chain::Optimism, Some("0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85".into())).into(),
-            to_asset: AssetId::from(Chain::Optimism, Some("0x76fb31fb4af56892a25e32cfc43de717950c9278".into())).into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
             value: BigUint::from(5064985u64),
             options: Options { slippage: 100.into(), use_max_amount: false },
+            ..mock_quote(
+                AssetId::from(Chain::Optimism, Some("0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85".into())).into(),
+                AssetId::from(Chain::Optimism, Some("0x76fb31fb4af56892a25e32cfc43de717950c9278".into())).into(),
+            )
         };
 
         let input = RoutedAsset::mock_permit2(request.from_asset.asset_id().token_id.as_ref().unwrap());
@@ -444,12 +436,9 @@ mod tests {
     #[test]
     fn test_build_commands_usdce_to_eth() {
         let request = QuoteRequest {
-            from_asset: AssetId::from(Chain::Optimism, Some(OPTIMISM_USDC_E_TOKEN_ID.into())).into(),
-            to_asset: AssetId::from(Chain::Ethereum, None).into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
             value: BigUint::from(10000000u64),
             options: Options { slippage: 100.into(), use_max_amount: false },
+            ..mock_quote(AssetId::from(Chain::Optimism, Some(OPTIMISM_USDC_E_TOKEN_ID.into())).into(), AssetId::from(Chain::Ethereum, None).into())
         };
 
         let input = RoutedAsset::mock_permit2(request.from_asset.asset_id().token_id.as_ref().unwrap());
@@ -511,12 +500,9 @@ mod tests {
     #[test]
     fn test_build_commands_eth_to_uni_with_input_fee() {
         let request = QuoteRequest {
-            from_asset: AssetId::from(Chain::Optimism, None).into(),
-            to_asset: AssetId::from(Chain::Optimism, Some("0x6fd9d7ad17242c41f7131d257212c54a0e816691".into())).into(),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".into(),
             value: BigUint::from(1000000000000000u64),
             options: Options { slippage: 100.into(), use_max_amount: false },
+            ..mock_quote(AssetId::from(Chain::Optimism, None).into(), AssetId::from(Chain::Optimism, Some("0x6fd9d7ad17242c41f7131d257212c54a0e816691".into())).into())
         };
 
         let input = RoutedAsset::mock_value(OPTIMISM_WETH_TOKEN_ID);

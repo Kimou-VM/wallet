@@ -160,7 +160,7 @@ mod swap_integration_tests {
             wallet_address: TEST_WALLET.to_string(),
             destination_address: TEST_WALLET.to_string(),
             value: BigUint::from(100000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let quote = provider.get_quote(&request).await?;
@@ -179,7 +179,7 @@ mod swap_integration_tests {
             wallet_address: TEST_WALLET.to_string(),
             destination_address: TEST_WALLET.to_string(),
             value: BigUint::from(100000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let quote = provider.get_quote(&request).await?;
@@ -199,7 +199,7 @@ mod swap_integration_tests {
             wallet_address: TEST_WALLET.to_string(),
             destination_address: TEST_WALLET.to_string(),
             value: BigUint::from(10000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let quote = provider.get_quote(&request).await?;

@@ -164,7 +164,7 @@ mod swap_integration_tests {
             wallet_address: "7g2rVN8fAAQdPh1mkajpvELqYa3gWvFXJsBLnKfEQfqy".to_string(),
             destination_address: "7g2rVN8fAAQdPh1mkajpvELqYa3gWvFXJsBLnKfEQfqy".to_string(),
             value: BigUint::from(1000000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let quote = provider.get_quote(&request).await?;

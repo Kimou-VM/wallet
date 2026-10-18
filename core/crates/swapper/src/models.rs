@@ -146,12 +146,6 @@ pub struct Options {
     pub use_max_amount: bool,
 }
 
-impl Options {
-    pub fn new_with_slippage(slippage: SwapperSlippage) -> Self {
-        Self { slippage, ..Default::default() }
-    }
-}
-
 impl Default for Options {
     fn default() -> Self {
         Self {

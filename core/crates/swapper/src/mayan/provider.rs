@@ -238,6 +238,7 @@ fn map_quote_error(error: SwapperError, decimals: u32) -> SwapperError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testkit::mock_quote;
     use num_bigint::BigUint;
 
     #[test]
@@ -290,22 +291,22 @@ mod tests {
         });
         let provider = Mayan::with_clients(MayanClient::new(price_client), MayanClient::new(MockClient::new()), Arc::new(ProviderMock::new("{}".to_string())));
         let request = QuoteRequest {
-            from_asset: SwapperQuoteAsset {
-                id: ARBITRUM_USDC_ASSET_ID.to_string(),
-                symbol: "USDC".to_string(),
-                decimals: 6,
-                asset_type: AssetType::ERC20,
-            },
-            to_asset: SwapperQuoteAsset {
-                id: HYPERCORE_SPOT_USDC_ASSET_ID.to_string(),
-                symbol: "USDC".to_string(),
-                decimals: 8,
-                asset_type: AssetType::SPOT,
-            },
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(7000000u64),
             options: Options::new_with_slippage(5.into()),
+            ..mock_quote(
+                SwapperQuoteAsset {
+                    id: ARBITRUM_USDC_ASSET_ID.to_string(),
+                    symbol: "USDC".to_string(),
+                    decimals: 6,
+                    asset_type: AssetType::ERC20,
+                },
+                SwapperQuoteAsset {
+                    id: HYPERCORE_SPOT_USDC_ASSET_ID.to_string(),
+                    symbol: "USDC".to_string(),
+                    decimals: 8,
+                    asset_type: AssetType::SPOT,
+                },
+            )
         };
 
         let quote = provider.get_quote(&request).await.unwrap();
@@ -318,12 +319,9 @@ mod tests {
         let price_client = MockClient::new().with_get(|_| panic!("unsupported asset should not call Mayan"));
         let provider = Mayan::with_clients(MayanClient::new(price_client), MayanClient::new(MockClient::new()), Arc::new(ProviderMock::new("{}".to_string())));
         let request = QuoteRequest {
-            from_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Ethereum)),
-            to_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::HyperCore)),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
             value: BigUint::from(30000000000000000u64),
             options: Options::default(),
+            ..mock_quote(SwapperQuoteAsset::from(AssetId::from_chain(Chain::Ethereum)), SwapperQuoteAsset::from(AssetId::from_chain(Chain::HyperCore)))
         };
 
         assert_eq!(provider.get_quote(&request).await.unwrap_err(), SwapperError::NotSupportedAsset);
@@ -371,6 +369,7 @@ mod tests {
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
     use super::*;
+    use crate::testkit::mock_quote;
     use crate::{FetchQuoteData, SwapperQuoteAsset, alien::reqwest_provider::NativeProvider, mayan::constants::MAYAN_FORWARDER, models::Options};
     use num_bigint::BigUint;
     use primitives::{
@@ -541,12 +540,8 @@ mod swap_integration_tests {
         let rpc_provider = Arc::new(NativeProvider::default().set_debug(false));
         let provider = Mayan::new(rpc_provider);
         let request = QuoteRequest {
-            from_asset: SwapperQuoteAsset::from(HYPEREVM_USDC_ASSET_ID.clone()),
-            to_asset: SwapperQuoteAsset::from(HYPERCORE_SPOT_USDC_ASSET_ID.clone()),
-            wallet_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
-            value: BigUint::from(1000000u64),
             options: Options::new_with_slippage(200.into()),
+            ..mock_quote(SwapperQuoteAsset::from(HYPEREVM_USDC_ASSET_ID.clone()), SwapperQuoteAsset::from(HYPERCORE_SPOT_USDC_ASSET_ID.clone()))
         };
 
         let quote = timed("mayan mono-chain hyperevm to hypercore quote", provider.get_quote(&request)).await?;

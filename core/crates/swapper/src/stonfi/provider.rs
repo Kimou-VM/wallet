@@ -587,7 +587,7 @@ mod tests {
             wallet_address: TEST_TON_SENDER.to_string(),
             destination_address: TEST_TON_SENDER.to_string(),
             value: BigUint::from(1_000_000_000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         provider.preload_routes(&ton, &token).await;
@@ -683,7 +683,7 @@ mod tests {
             wallet_address: TEST_TON_SENDER.to_string(),
             destination_address: TEST_TON_SENDER.to_string(),
             value: BigUint::from(100000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let path = provider.quote_direct(&request, &request.value.to_string(), false).await.unwrap();
@@ -718,7 +718,7 @@ mod tests {
             wallet_address: TEST_TON_SENDER.to_string(),
             destination_address: TEST_TON_SENDER.to_string(),
             value: BigUint::from(233000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let path = provider.quote_direct(&request, &request.value.to_string(), true).await.unwrap();
@@ -818,7 +818,7 @@ mod swap_integration_tests {
                 wallet_address: TEST_TON_SENDER.to_string(),
                 destination_address: TEST_TON_SENDER.to_string(),
                 value: BigUint::from(value),
-                options: Options::new_with_slippage(100.into()),
+                options: Options::default(),
             };
             let quote = provider.get_quote(&request).await?;
             assert_eq!(quote.from_value, request.value);
@@ -843,7 +843,7 @@ mod swap_integration_tests {
             wallet_address: TEST_TON_SENDER.to_string(),
             destination_address: TEST_TON_SENDER.to_string(),
             value: BigUint::from(1000000000000u64),
-            options: Options::new_with_slippage(100.into()),
+            options: Options::default(),
         };
 
         let quote = provider.get_quote(&request).await?;

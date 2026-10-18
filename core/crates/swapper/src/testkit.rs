@@ -53,6 +53,10 @@ impl Route {
 }
 
 impl Options {
+    pub fn new_with_slippage(slippage: SwapperSlippage) -> Self {
+        Self { slippage, ..Default::default() }
+    }
+
     pub fn mock_exact(bps: u32) -> Self {
         Self::new_with_slippage(SwapperSlippage::mock_exact(bps))
     }
