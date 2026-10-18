@@ -37,6 +37,7 @@ pub enum SwapProvider {
     Dedust,
     PumpSwap,
     MeteoraDammV2,
+    SunswapV3,
 }
 
 impl SwapProvider {
@@ -67,7 +68,8 @@ impl SwapProvider {
             | Self::RaydiumClmm
             | Self::Dedust
             | Self::PumpSwap
-            | Self::MeteoraDammV2 => false,
+            | Self::MeteoraDammV2
+            | Self::SunswapV3 => false,
         }
     }
 
@@ -104,6 +106,7 @@ impl SwapProvider {
             Self::Dedust => "DeDust",
             Self::PumpSwap => "PumpSwap",
             Self::MeteoraDammV2 => "Meteora",
+            Self::SunswapV3 => "SunSwap",
         }
     }
 
@@ -118,6 +121,7 @@ impl SwapProvider {
             Self::StonfiV2 => "STON.fi v2",
             Self::CetusClmm => "Cetus",
             Self::RaydiumClmm => "Raydium CLMM",
+            Self::SunswapV3 => "SunSwap v3",
             Self::Thorchain
             | Self::Mayachain
             | Self::Jupiter

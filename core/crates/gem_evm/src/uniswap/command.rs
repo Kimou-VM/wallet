@@ -15,6 +15,7 @@ pub const PERMIT2_TRANSFER_FROM_COMMAND: u8 = 0x02;
 pub const SWEEP_COMMAND: u8 = 0x04;
 pub const TRANSFER_COMMAND: u8 = 0x05;
 pub const PAY_PORTION_COMMAND: u8 = 0x06;
+pub const SUNSWAP_PAY_REFERRAL_COMMAND: u8 = 0x07;
 pub const PERMIT2_PERMIT_COMMAND: u8 = 0x0a;
 pub const WRAP_ETH_COMMAND: u8 = 0x0b;
 pub const UNWRAP_WETH_COMMAND: u8 = 0x0c;
@@ -30,6 +31,7 @@ pub enum UniversalRouterCommand {
     SWEEP(Sweep),
     TRANSFER(Transfer),
     PAY_PORTION(PayPortion),
+    SUNSWAP_PAY_REFERRAL(PayPortion),
     PERMIT2_PERMIT(Permit2Permit),
     WRAP_ETH(WrapEth),
     UNWRAP_WETH(UnwrapWeth),
@@ -46,6 +48,7 @@ impl UniversalRouterCommand {
             Self::SWEEP(_) => SWEEP_COMMAND,
             Self::TRANSFER(_) => TRANSFER_COMMAND,
             Self::PAY_PORTION(_) => PAY_PORTION_COMMAND,
+            Self::SUNSWAP_PAY_REFERRAL(_) => SUNSWAP_PAY_REFERRAL_COMMAND,
             Self::PERMIT2_PERMIT(_) => PERMIT2_PERMIT_COMMAND,
             Self::WRAP_ETH(_) => WRAP_ETH_COMMAND,
             Self::UNWRAP_WETH(_) => UNWRAP_WETH_COMMAND,
@@ -61,7 +64,7 @@ impl UniversalRouterCommand {
             Self::V3_SWAP_EXACT_OUT(payload) => payload.abi_encode(),
             Self::SWEEP(payload) => payload.abi_encode(),
             Self::TRANSFER(payload) => payload.abi_encode(),
-            Self::PAY_PORTION(payload) => payload.abi_encode(),
+            Self::PAY_PORTION(payload) | Self::SUNSWAP_PAY_REFERRAL(payload) => payload.abi_encode(),
             Self::WRAP_ETH(payload) => payload.abi_encode(),
             Self::UNWRAP_WETH(payload) => payload.abi_encode(),
             Self::PERMIT2_PERMIT(payload) => payload.abi_encode(),

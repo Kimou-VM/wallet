@@ -1,4 +1,4 @@
-use super::{DEFAULT_DEPOSIT_GAS_LIMIT, DEFAULT_FILL_TIMEOUT, GAS_TOKEN_DECIMALS, asset::parse_address, config_store::TokenConfig, hubpool::HubPoolClient};
+use super::{DEFAULT_DEPOSIT_GAS_LIMIT, DEFAULT_FILL_TIMEOUT, GAS_TOKEN_DECIMALS, config_store::TokenConfig, hubpool::HubPoolClient};
 use crate::{
     SwapAmountMode, SwapResult, Swapper, SwapperError, SwapperProvider, SwapperQuoteData,
     alien::RpcProvider,
@@ -163,7 +163,7 @@ impl Across {
         if referral_fee.bps == 0 {
             return Ok((vec![], U256::from(0)));
         }
-        let fee_address = parse_address(output_chain, &referral_fee.address)?;
+        let fee_address = eth_address::parse(output_chain, &referral_fee.address)?;
         let fee_amount = bps_of(amount, referral_fee.bps);
         let user_amount = amount - fee_amount;
 
@@ -255,8 +255,8 @@ impl Swapper for Across {
         if from_chain == Chain::Tron && request.from_asset.is_native() {
             return Err(SwapperError::NotSupportedAsset);
         }
-        let depositor_address = parse_address(from_chain, &request.wallet_address)?;
-        let recipient_address = parse_address(to_chain, &request.destination_address)?;
+        let depositor_address = eth_address::parse(from_chain, &request.wallet_address)?;
+        let recipient_address = eth_address::parse(to_chain, &request.destination_address)?;
 
         let origin_deployment = AcrossDeployment::deployment_by_chain(&from_chain).ok_or(SwapperError::NotSupportedChain)?;
         let destination_deployment = AcrossDeployment::deployment_by_chain(&to_chain).ok_or(SwapperError::NotSupportedChain)?;
@@ -268,8 +268,8 @@ impl Swapper for Across {
         let input = AcrossAsset::from_asset(&request.from_asset.asset_id()).ok_or(SwapperError::NotSupportedAsset)?;
         let output = AcrossAsset::from_asset(&request.to_asset.asset_id()).ok_or(SwapperError::NotSupportedAsset)?;
         let from_amount = U256::from_str(&request.value.to_string()).map_err(SwapperError::from)? / input.scale;
-        let input_token = parse_address(input.asset_id.chain, input.asset_id.token_id.as_deref().ok_or(SwapperError::NotSupportedAsset)?)?;
-        let output_token = parse_address(output.asset_id.chain, output.asset_id.token_id.as_deref().ok_or(SwapperError::NotSupportedAsset)?)?;
+        let input_token = eth_address::parse(input.asset_id.chain, input.asset_id.token_id.as_deref().ok_or(SwapperError::NotSupportedAsset)?)?;
+        let output_token = eth_address::parse(output.asset_id.chain, output.asset_id.token_id.as_deref().ok_or(SwapperError::NotSupportedAsset)?)?;
 
         let mappings = AcrossDeployment::asset_mappings();
         let asset_mapping = mappings.iter().find(|x| x.set.contains(&input.asset_id)).ok_or(SwapperError::NotSupportedAsset)?;
@@ -296,7 +296,7 @@ impl Swapper for Across {
         let recipient = if message.is_empty() {
             recipient_address
         } else {
-            parse_address(to_chain, destination_deployment.multicall_handler())?
+            eth_address::parse(to_chain, destination_deployment.multicall_handler())?
         };
         let relay_data = V3RelayData {
             depositor: depositor_address,

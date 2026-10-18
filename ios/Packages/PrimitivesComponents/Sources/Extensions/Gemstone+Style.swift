@@ -737,6 +737,7 @@ public extension SwapProvider {
         case .dedust: Images.SwapProviders.dedust
         case .pumpSwap: Images.SwapProviders.pumpswap
         case .meteoraDammV2: Images.SwapProviders.meteora
+        case .sunswapV3: Images.SwapProviders.sunswap
         }
     }
 }

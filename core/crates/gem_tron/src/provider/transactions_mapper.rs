@@ -1,14 +1,20 @@
+use alloy_primitives::{Address, U256};
 use chain_primitives::{BalanceDiff, SwapMapper};
 use chrono::{DateTime, Utc};
-use gem_evm::contracts::{IOkxDexRouter, OkxCommission};
+use gem_evm::contracts::{IOkxDexRouter, ISunSwapReferralVault, OkxCommission};
 use num_bigint::{BigInt, BigUint};
 use primitives::{
-    Address as _, AssetId, SwapProvider, Transaction, TransactionResourceTypeMetadata, TransactionState, TransactionSwapMetadata, TransactionSwapReferralFee, TransactionType, chain::Chain, contract_constants::EVM_NATIVE_TOKEN_ADDRESS,
-    hex::decode_hex_utf8, stake_type::Resource, swap::TRON_REFERRAL_ADDRESS,
+    Address as _, AssetId, SwapProvider, Transaction, TransactionResourceTypeMetadata, TransactionState, TransactionSwapMetadata, TransactionSwapReferralFee, TransactionType,
+    chain::Chain,
+    contract_constants::{EVM_NATIVE_TOKEN_ADDRESS, TRON_SUNSWAP_REFERRAL_VAULT_CONTRACT, TRON_SUNSWAP_UNIVERSAL_ROUTER_CONTRACT},
+    hex::decode_hex_utf8,
+    stake_type::Resource,
+    swap::TRON_REFERRAL_ADDRESS,
 };
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
+use std::str::FromStr;
 
 use crate::address::TronAddress;
 use crate::models::{BlockTransactions, ContractParameterValue, InternalTransaction, Transaction as TronTransaction, TransactionReceiptData, TronContractType, TronLog, TronTransactionBroadcast};
@@ -24,8 +30,8 @@ fn resource_type_metadata(resource: Option<&str>) -> Option<Value> {
     serde_json::to_value(TransactionResourceTypeMetadata::new(resource_type)).ok()
 }
 
-fn tron_swap_metadata(chain: Chain, owner: &TronAddress, call_value: Option<u64>, logs: &[TronLog], internal_transactions: &[InternalTransaction]) -> Option<TransactionSwapMetadata> {
-    let provider = logs.iter().any(|log| log.decode_event::<IOkxDexRouter::OrderRecord>().is_some()).then_some(SwapProvider::Okx);
+fn tron_swap_metadata(chain: Chain, owner: &TronAddress, contract: Option<&str>, call_value: Option<u64>, logs: &[TronLog], internal_transactions: &[InternalTransaction]) -> Option<TransactionSwapMetadata> {
+    let provider = swap_provider(contract, logs);
     let mut deltas: HashMap<Option<String>, BigInt> = HashMap::new();
 
     for (token, delta) in token_balance_deltas(logs, owner) {
@@ -51,31 +57,52 @@ fn tron_swap_metadata(chain: Chain, owner: &TronAddress, call_value: Option<u64>
         })
         .collect();
 
-    SwapMapper::map_swap(&balance_diffs, &BigUint::from(0u8), &chain.as_asset_id(), provider).map(|swap| swap.with_referral_fee(okx_referral_fee(chain, owner, logs)))
+    SwapMapper::map_swap(&balance_diffs, &BigUint::from(0u8), &chain.as_asset_id(), provider).map(|swap| swap.with_referral_fee(referral_fee(chain, owner, logs)))
 }
 
-fn okx_referral_fee(chain: Chain, owner: &TronAddress, logs: &[TronLog]) -> Option<TransactionSwapReferralFee> {
+fn swap_provider(contract: Option<&str>, logs: &[TronLog]) -> Option<SwapProvider> {
+    let router = TronAddress::from_hex_or_base58(TRON_SUNSWAP_UNIVERSAL_ROUTER_CONTRACT);
+    if contract.and_then(TronAddress::from_hex_or_base58).is_some_and(|contract| Some(contract) == router) {
+        return Some(SwapProvider::SunswapV3);
+    }
+    logs.iter().any(|log| log.decode_event::<IOkxDexRouter::OrderRecord>().is_some()).then_some(SwapProvider::Okx)
+}
+
+fn referral_fee(chain: Chain, owner: &TronAddress, logs: &[TronLog]) -> Option<TransactionSwapReferralFee> {
     let referral = TronAddress::from_hex_or_base58(TRON_REFERRAL_ADDRESS)?;
     if *owner == referral {
         return None;
     }
+    okx_referral_fee(chain, &referral, logs).or_else(|| sunswap_referral_fee(chain, &referral, logs))
+}
+
+fn okx_referral_fee(chain: Chain, referral: &TronAddress, logs: &[TronLog]) -> Option<TransactionSwapReferralFee> {
+    let native_token = Address::from_str(EVM_NATIVE_TOKEN_ADDRESS).ok()?;
     logs.iter().find_map(|log| {
         let commission = log
             .decode_event::<IOkxDexRouter::CommissionFromTokenRecord>()
             .map(OkxCommission::from)
             .or_else(|| log.decode_event::<IOkxDexRouter::CommissionToTokenRecord>().map(OkxCommission::from))?;
-        if TronAddress::from(commission.referrer.0.0) != referral {
-            return None;
-        }
-        let asset_id = match commission.token.to_checksum(None) == EVM_NATIVE_TOKEN_ADDRESS {
-            true => chain.as_asset_id(),
-            false => AssetId::from_token(chain, &TronAddress::from(commission.token.0.0).encode()),
-        };
-        Some(TransactionSwapReferralFee {
-            asset_id,
-            value: BigUint::from_bytes_be(&commission.amount.to_be_bytes::<32>()),
-        })
+        (TronAddress::from(commission.referrer) == *referral).then(|| referral_fee_value(chain, commission.token, native_token, commission.amount))
     })
+}
+
+fn sunswap_referral_fee(chain: Chain, referral: &TronAddress, logs: &[TronLog]) -> Option<TransactionSwapReferralFee> {
+    let vault = TronAddress::from_hex_or_base58(TRON_SUNSWAP_REFERRAL_VAULT_CONTRACT)?;
+    logs.iter().filter(|log| log.address == Some(vault)).find_map(|log| {
+        let allocation = log.decode_event::<ISunSwapReferralVault::ReferralAllocated>()?;
+        (TronAddress::from(allocation.rebateRecipient) == *referral).then(|| referral_fee_value(chain, allocation.token, Address::ZERO, allocation.rebateAmount))
+    })
+}
+
+fn referral_fee_value(chain: Chain, token: Address, native_token: Address, amount: U256) -> TransactionSwapReferralFee {
+    TransactionSwapReferralFee {
+        asset_id: match token == native_token {
+            true => chain.as_asset_id(),
+            false => AssetId::from_token(chain, &TronAddress::from(token).encode()),
+        },
+        value: BigUint::from_bytes_be(&amount.to_be_bytes::<32>()),
+    }
 }
 
 pub fn map_transaction_broadcast(response: &TronTransactionBroadcast) -> Result<String, Box<dyn Error + Sync + Send>> {
@@ -187,7 +214,7 @@ impl TransactionContext {
 
     fn map_swap(&self, contract_value: &ContractParameterValue, logs: &[TronLog], internal_transactions: &[InternalTransaction]) -> Option<Transaction> {
         let owner = TronAddress::from_hex_or_base58(&self.from)?;
-        let swap = tron_swap_metadata(self.chain, &owner, contract_value.call_value, logs, internal_transactions)?;
+        let swap = tron_swap_metadata(self.chain, &owner, contract_value.contract_address.as_deref(), contract_value.call_value, logs, internal_transactions)?;
 
         Some(Transaction {
             contract: contract_value.contract_address.clone(),
@@ -440,6 +467,31 @@ mod tests {
             Some(TransactionSwapReferralFee {
                 asset_id: Chain::Tron.as_asset_id(),
                 value: BigUint::from(1540000u64),
+            })
+        );
+    }
+
+    #[test]
+    fn test_map_transaction_sunswap_swap() {
+        let transaction: TronTransaction = serde_json::from_str(include_str!("../../testdata/transaction_sunswap_swap.json")).unwrap();
+        let receipt: TransactionReceiptData = serde_json::from_str(include_str!("../../testdata/transaction_sunswap_swap_receipt.json")).unwrap();
+        let logs = receipt.log.clone().unwrap();
+
+        let transaction = map_transaction(Chain::Tron, transaction, receipt).unwrap();
+        let metadata: TransactionSwapMetadata = serde_json::from_value(transaction.metadata.unwrap()).unwrap();
+
+        assert_eq!(transaction.transaction_type, TransactionType::Swap);
+        assert_eq!(metadata.provider, Some(SwapProvider::SunswapV3.id().to_string()));
+        assert_eq!(metadata.from_asset, Chain::Tron.as_asset_id());
+        assert_eq!(metadata.from_value, BigUint::from(23_000_000u64));
+        assert_eq!(metadata.to_asset, AssetId::from_token(Chain::Tron, TRON_USDT_TOKEN_ID));
+        assert_eq!(metadata.to_value, BigUint::from(7_617_087u64));
+        assert_eq!(metadata.referral_fee, None);
+        assert_eq!(
+            sunswap_referral_fee(Chain::Tron, &TronAddress::from_hex("df76f8a341abe1a06627eb01f7b0b4520ecb2c10").unwrap(), &logs),
+            Some(TransactionSwapReferralFee {
+                asset_id: Chain::Tron.as_asset_id(),
+                value: BigUint::from(34_500u64),
             })
         );
     }

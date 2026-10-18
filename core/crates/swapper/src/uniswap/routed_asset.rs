@@ -53,7 +53,7 @@ impl RoutedAsset {
         }
     }
 
-    fn unscaled(address: Address, funding: Funding) -> Self {
+    pub fn unscaled(address: Address, funding: Funding) -> Self {
         Self { address, scale: U256::from(1), funding }
     }
 }

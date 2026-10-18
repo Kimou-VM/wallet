@@ -8,6 +8,7 @@ mod swap_route;
 mod testkit;
 
 pub mod default;
+pub mod sunswap;
 pub mod universal_router;
 pub mod v3;
 pub mod v4;

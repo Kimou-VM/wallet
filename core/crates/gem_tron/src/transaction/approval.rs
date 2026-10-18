@@ -1,13 +1,12 @@
 use alloy_sol_types::SolCall;
 use gem_evm::permit2::IAllowanceTransfer;
 use num_bigint::BigUint;
-use primitives::{Address as _, ApprovalData, SignerError};
+use primitives::{Address as _, ApprovalData, SignerError, contract_constants::TRON_SUNSWAP_PERMIT2_CONTRACT};
 
 use crate::address::TronAddress;
 use crate::trc20::{TRC20_APPROVE_SELECTOR, decode_approval};
 
 pub(crate) const PERMIT2_APPROVE_SELECTOR: [u8; 4] = IAllowanceTransfer::approveCall::SELECTOR;
-const SUN_PERMIT2_CONTRACT: &str = "TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransactionApproval {
@@ -32,7 +31,7 @@ impl TransactionApproval {
                 expiration: None,
             }));
         }
-        if data.starts_with(&PERMIT2_APPROVE_SELECTOR) && contract == SUN_PERMIT2_CONTRACT {
+        if data.starts_with(&PERMIT2_APPROVE_SELECTOR) && contract == TRON_SUNSWAP_PERMIT2_CONTRACT {
             return Self::decode_permit2(contract, data).map(Some).ok_or_else(|| SignerError::invalid_input("Invalid Permit2 approval calldata"));
         }
         Ok(None)
@@ -46,8 +45,8 @@ impl TransactionApproval {
         let value = approval.amount.to_be_bytes::<20>();
         Some(Self {
             approval: ApprovalData {
-                token: TronAddress::from(approval.token.into_array()).encode(),
-                spender: TronAddress::from(approval.spender.into_array()).encode(),
+                token: TronAddress::from(approval.token).encode(),
+                spender: TronAddress::from(approval.spender).encode(),
                 value: BigUint::from_bytes_be(&value),
                 is_unlimited: value == [0xff; 20],
             },

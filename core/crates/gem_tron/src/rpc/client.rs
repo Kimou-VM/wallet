@@ -1,12 +1,13 @@
+use alloy_sol_types::SolCall;
 use num_bigint::BigUint;
-use primitives::{Asset, AssetId, asset_type::AssetType, chain::Chain};
+use primitives::{Asset, AssetId, asset_type::AssetType, chain::Chain, decode_hex};
 use std::{error::Error, str::FromStr};
 
 use crate::models::{
     Block, BlockId, BlockTransactions, BlockTransactionsInfo, ChainParameter, ChainParametersResponse, NowBlockRequest, Transaction, TransactionReceiptData, TriggerConstantContractRequest, TriggerConstantContractResponse,
     TriggerSmartContractRequest, TronTransactionBroadcast, WitnessesList,
 };
-use crate::models::{TriggerSmartContractData, TronAccount, TronAccountRequest, TronAccountUsage, TronBlock, TronEmptyAccount, TronReward};
+use crate::models::{TriggerSmartContractData, TronAccount, TronAccountRequest, TronAccountUsage, TronBlock, TronContractInfo, TronContractRequest, TronEmptyAccount, TronReward};
 use crate::rpc::constants::{DECIMALS_SELECTOR, DEFAULT_OWNER_ADDRESS, GENESIS_BLOCK_NUMBER, NAME_SELECTOR, SYMBOL_SELECTOR};
 use crate::rpc::target::TronTarget;
 use gem_client::{Client, ClientExt};
@@ -53,6 +54,11 @@ impl<C: Client> TronClient<C> {
 
     pub async fn trigger_constant_contract(&self, contract_address: &str, function_selector: &str, parameter: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
         self.trigger_constant_contract_with_owner(DEFAULT_OWNER_ADDRESS, contract_address, function_selector, parameter).await
+    }
+
+    pub async fn call_contract<T: SolCall + Sync>(&self, contract_address: &str, call: &T) -> Result<T::Return, Box<dyn Error + Send + Sync>> {
+        let result = self.trigger_constant_contract(contract_address, T::SIGNATURE, &hex::encode(&call.abi_encode()[4..])).await?;
+        Ok(T::abi_decode_returns(&decode_hex(&result)?)?)
     }
 
     pub async fn trigger_constant_contract_with_owner(&self, owner_address: &str, contract_address: &str, function_selector: &str, parameter: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
@@ -141,6 +147,12 @@ impl<C: Client> TronClient<C> {
         let request = TronAccountRequest { address: address.to_string(), visible: true };
 
         Ok(self.client.post(TronTarget::GetAccountResource, &request).await?)
+    }
+
+    pub async fn get_contract(&self, address: &str) -> Result<TronContractInfo, Box<dyn Error + Send + Sync>> {
+        let request = TronContractRequest { value: address.to_string(), visible: true };
+
+        Ok(self.client.post(TronTarget::GetContract, &request).await?)
     }
 
     pub async fn get_reward(&self, address: &str) -> Result<TronReward, Box<dyn Error + Send + Sync>> {

@@ -1109,6 +1109,7 @@ public extension Gemstone.SwapProvider {
         case .dedust: .dedust
         case .pumpSwap: .pumpSwap
         case .meteoraDammV2: .meteoraDammV2
+        case .sunswapV3: .sunswapV3
         }
     }
 }
@@ -1144,6 +1145,7 @@ public extension Primitives.SwapProvider {
         case .dedust: .dedust
         case .pumpSwap: .pumpSwap
         case .meteoraDammV2: .meteoraDammV2
+        case .sunswapV3: .sunswapV3
         }
     }
 }

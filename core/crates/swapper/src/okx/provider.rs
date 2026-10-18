@@ -87,7 +87,6 @@ where
 fn support_assets() -> Vec<SwapperChainAsset> {
     vec![
         SwapperChainAsset::All(Chain::Solana),
-        SwapperChainAsset::All(Chain::Tron),
         SwapperChainAsset::All(Chain::Ethereum),
         SwapperChainAsset::All(Chain::SmartChain),
         SwapperChainAsset::All(Chain::Polygon),
@@ -113,24 +112,21 @@ fn support_assets() -> Vec<SwapperChainAsset> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::constants::TRON_DEX_TOKEN_APPROVE_ADDRESS;
-    use super::super::testkit::{TEST_TRON_WALLET, mock_client, mock_solana_request};
+    use super::super::testkit::{mock_client, mock_solana_request};
     use super::*;
     use crate::{SwapperProviderMode, SwapperQuoteAsset, testkit::mock_quote};
     use gem_client::testkit::MockClient;
     use gem_solana::{SignatureBytes, VersionedTransaction, decode_transaction};
     use primitives::{
         AssetId,
-        asset_constants::{ETHEREUM_USDC_ASSET_ID, ETHEREUM_USDC_TOKEN_ID, TRON_USDT_TOKEN_ID},
+        asset_constants::{ETHEREUM_USDC_ASSET_ID, ETHEREUM_USDC_TOKEN_ID},
         testkit::signer_mock::{TEST_EVM_SENDER, TEST_SOLANA_SENDER},
     };
 
     const EVM_ROUTER: &str = "0x8feab81d36e7576107d5de0758c1b839be31b4f6";
     const EVM_TOKEN_APPROVE: &str = "0x40aA958dd87FC8305b97f2BA922CDdCa374bcD7f";
-    const TRON_ROUTER: &str = "TAGVH5t42MuofaAfUauPPRe4Qw3i8Z3QHM";
 
     const EVM_ZERO_ALLOWANCE: &str = r#"{"id":1,"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000"}"#;
-    const TRON_ZERO_ALLOWANCE: &str = r#"{"result":{"result":true},"constant_result":["0000000000000000000000000000000000000000000000000000000000000000"],"energy_used":1000}"#;
 
     #[test]
     fn test_support_assets_includes_new_okx_evm_chains() {
@@ -213,7 +209,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_quote_data_wires_approval_for_evm_and_tron() {
+    async fn test_get_quote_data_wires_evm_approval() {
         let client = MockClient::new().with_post(move |path, body| match path {
             PROXY_QUOTE_PATH => Ok(include_str!("testdata/quote_eth_usdc_to_eth.json").as_bytes().to_vec()),
             PROXY_SWAP_PATH => {
@@ -240,42 +236,17 @@ mod tests {
         assert_eq!(approval.spender, EVM_TOKEN_APPROVE);
         assert_eq!(approval.value, BigUint::from(1000000u64));
         assert_eq!(quote_data.gas_limit.as_deref(), Some("300000"));
-
-        let client = MockClient::new().with_post(|path, body| {
-            let params: serde_json::Value = serde_json::from_slice(body).unwrap();
-            assert_eq!(params["feePercent"], "1.5");
-            match path {
-                PROXY_QUOTE_PATH => Ok(include_str!("testdata/quote_tron_usdt_to_trx.json").as_bytes().to_vec()),
-                PROXY_SWAP_PATH => Ok(include_str!("testdata/swap_tron_usdt_to_trx.json").as_bytes().to_vec()),
-                _ => panic!("unexpected path: {path}"),
-            }
-        });
-        let provider = OkxProvider::mock(client, TRON_ZERO_ALLOWANCE);
-        let mut request = mock_quote(SwapperQuoteAsset::from(AssetId::from_token(Chain::Tron, TRON_USDT_TOKEN_ID)), SwapperQuoteAsset::from(AssetId::from_chain(Chain::Tron)));
-        request.wallet_address = TEST_TRON_WALLET.to_string();
-        request.value = BigUint::from(50000000u64);
-
-        let quote = provider.get_quote(&request).await.unwrap();
-        let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
-
-        assert_eq!(quote_data.to, TRON_ROUTER);
-        assert_eq!(quote_data.data, "f2c42696abcd");
-        let approval = quote_data.approval.unwrap();
-        assert_eq!(approval.token, TRON_USDT_TOKEN_ID);
-        assert_eq!(approval.spender, TRON_DEX_TOKEN_APPROVE_ADDRESS);
-        assert_eq!(approval.value, BigUint::from(50000000u64));
-        assert_eq!(quote_data.gas_limit.as_deref(), Some("230400"));
     }
 }
 
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
-    use super::super::testkit::{TEST_EVM_WALLET, TEST_TRON_WALLET};
+    use super::super::testkit::TEST_EVM_WALLET;
     use super::*;
     use crate::{SwapperQuoteAsset, SwapperSlippage, SwapperSlippageMode, testkit::mock_quote};
     use primitives::{
         AssetId,
-        asset_constants::{HYPEREVM_USDT_ASSET_ID, PLASMA_USDT_ASSET_ID, ROBINHOOD_USDG_ASSET_ID, SOLANA_USDC_ASSET_ID, TRON_USDT_ASSET_ID},
+        asset_constants::{HYPEREVM_USDT_ASSET_ID, PLASMA_USDT_ASSET_ID, ROBINHOOD_USDG_ASSET_ID, SOLANA_USDC_ASSET_ID},
         testkit::signer_mock::TEST_SOLANA_SENDER,
     };
 
@@ -285,7 +256,6 @@ mod swap_integration_tests {
         let cases = [
             (AssetId::from_chain(Chain::Solana), SOLANA_USDC_ASSET_ID.clone(), TEST_SOLANA_SENDER, "100000000", "0"),
             (AssetId::from_chain(Chain::Hyperliquid), HYPEREVM_USDT_ASSET_ID.clone(), TEST_EVM_WALLET, "100000000000000000", "100000000000000000"),
-            (AssetId::from_chain(Chain::Tron), TRON_USDT_ASSET_ID.clone(), TEST_TRON_WALLET, "100000000", "100000000"),
             (AssetId::from_chain(Chain::Robinhood), ROBINHOOD_USDG_ASSET_ID.clone(), TEST_EVM_WALLET, "100000000000000", "100000000000000"),
             (AssetId::from_chain(Chain::Plasma), PLASMA_USDT_ASSET_ID.clone(), TEST_EVM_WALLET, "100000000000000000", "100000000000000000"),
         ];

@@ -5,9 +5,13 @@ pub use evm::*;
 use primitives::{Chain, swap::ApprovalData};
 pub use tron::*;
 
-use crate::{SwapperError, alien::RpcProvider};
+use crate::{SwapperError, alien::RpcProvider, models::Permit2ApprovalData};
 use alloy_primitives::U256;
-use std::sync::Arc;
+use gem_evm::{permit2::IAllowanceTransfer, u256::u256_to_biguint};
+use std::{
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 pub const DEFAULT_EVM_SWAP_GAS_LIMIT: u64 = 750_000;
 
@@ -18,6 +22,23 @@ pub async fn check_token_approval(owner: String, token: String, spender: String,
         Chain::Tron => check_approval_trc20(owner, token, spender, amount, provider).await,
         _ => check_approval_erc20(owner, token, spender, amount, provider, &chain).await,
     }
+}
+
+pub(crate) fn permit2_approval(allowance: &IAllowanceTransfer::allowanceReturn, token: String, spender: String, permit2_contract: String, amount: U256) -> Result<Option<Permit2ApprovalData>, SwapperError> {
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    let expiration: u64 = allowance._1.try_into().map_err(|_| SwapperError::TransactionError("failed to convert expiration to u64".into()))?;
+
+    if U256::from(allowance._0) < amount || expiration < timestamp {
+        return Ok(Some(Permit2ApprovalData {
+            token,
+            spender,
+            value: u256_to_biguint(&amount),
+            permit2_contract,
+            permit2_nonce: allowance._2.try_into().map_err(|_| SwapperError::TransactionError("failed to convert nonce to u64".into()))?,
+        }));
+    }
+
+    Ok(None)
 }
 
 /// Returns the swap transaction gas limit only when a separate approval transaction is required.

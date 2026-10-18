@@ -163,6 +163,7 @@ pub const SOLANA_PYUSD_TOKEN_ID: &str = "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu
 
 pub const TRON_USDT_TOKEN_ID: &str = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 pub static TRON_USDT_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::from_token(Chain::Tron, TRON_USDT_TOKEN_ID));
+pub const TRON_WTRX_TOKEN_ID: &str = "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR";
 
 pub const TON_USDT_TOKEN_ID: &str = "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs";
 pub static TON_USDT_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::from_token(Chain::Ton, TON_USDT_TOKEN_ID));

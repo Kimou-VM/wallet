@@ -9,20 +9,13 @@ use crate::{
 };
 use primitives::{
     Chain, ChainType,
-    contract_constants::{EVM_NATIVE_TOKEN_ADDRESS, SOLANA_SYSTEM_PROGRAM_ID, TRON_BLACK_HOLE_ADDRESS},
+    contract_constants::{EVM_NATIVE_TOKEN_ADDRESS, SOLANA_SYSTEM_PROGRAM_ID},
     swap::{HUNDRED_PERCENT_IN_BPS, QuoteAsset, SlippageMode},
 };
 
 const OKX_MAX_SLIPPAGE_BPS_EVM: u32 = HUNDRED_PERCENT_IN_BPS;
 const OKX_MAX_SLIPPAGE_BPS_SOLANA: u32 = HUNDRED_PERCENT_IN_BPS - 1;
 const AUTO_SLIPPAGE_MAX_MULTIPLIER: u32 = 2;
-
-fn fee_bps(chain: Chain) -> u32 {
-    match chain {
-        Chain::Tron => 150,
-        _ => DEFAULT_AGGREGATOR_FEE_BPS,
-    }
-}
 
 fn limit_slippage_bps(slippage_bps: u32, chain: Chain) -> u32 {
     let max = if chain == Chain::Solana { OKX_MAX_SLIPPAGE_BPS_SOLANA } else { OKX_MAX_SLIPPAGE_BPS_EVM };
@@ -43,9 +36,6 @@ pub(super) fn asset_to_token_address(asset: &QuoteAsset) -> Result<String, Swapp
     if asset_id.chain == Chain::Solana {
         return Ok(asset_id.token_id.unwrap_or_else(|| SOLANA_SYSTEM_PROGRAM_ID.to_string()));
     }
-    if asset_id.chain == Chain::Tron {
-        return Ok(asset_id.token_id.unwrap_or_else(|| TRON_BLACK_HOLE_ADDRESS.to_string()));
-    }
     if asset_id.chain.chain_type() == ChainType::Ethereum {
         return Ok(asset_id.token_id.unwrap_or_else(|| EVM_NATIVE_TOKEN_ADDRESS.to_string()));
     }
@@ -61,7 +51,7 @@ pub(super) fn build_quote_params(request: &QuoteRequest) -> Result<QuoteParams, 
         to_token_address: asset_to_token_address(&request.to_asset)?,
         slippage_percent: bps_to_percent_string(limit_slippage_bps(request.options.slippage.bps, chain))?,
         dex_ids: dex_ids(chain).map(str::to_string),
-        fee_percent: bps_to_percent_string(fee_bps(chain))?,
+        fee_percent: bps_to_percent_string(DEFAULT_AGGREGATOR_FEE_BPS)?,
     })
 }
 
@@ -83,7 +73,7 @@ pub(super) fn build_swap_params(request: &QuoteRequest, route: &QuoteData) -> Re
         auto_slippage: Some(is_auto),
         max_auto_slippage_percent: is_auto.then(|| bps_to_percent_string(max_slippage_bps(request))).transpose()?,
         dex_ids: dex_ids(chain).map(str::to_string),
-        fee_percent: bps_to_percent_string(fee_bps(chain))?,
+        fee_percent: bps_to_percent_string(DEFAULT_AGGREGATOR_FEE_BPS)?,
         from_token_referrer_wallet_address: referrers.from_token,
         to_token_referrer_wallet_address: referrers.to_token,
     })
@@ -95,10 +85,7 @@ mod tests {
     use crate::{SwapperSlippage, fees::default_referral_address, testkit::mock_quote};
     use primitives::{
         AssetId,
-        asset_constants::{
-            ETHEREUM_USDC_ASSET_ID, ETHEREUM_USDC_TOKEN_ID, PLASMA_USDT_ASSET_ID, PLASMA_USDT_TOKEN_ID, ROBINHOOD_USDG_ASSET_ID, ROBINHOOD_USDG_TOKEN_ID, SMARTCHAIN_CAKE_TOKEN_ID, SOLANA_USDC_ASSET_ID, SOLANA_USDC_TOKEN_ID,
-            TRON_USDT_TOKEN_ID,
-        },
+        asset_constants::{ETHEREUM_USDC_ASSET_ID, ETHEREUM_USDC_TOKEN_ID, PLASMA_USDT_ASSET_ID, PLASMA_USDT_TOKEN_ID, ROBINHOOD_USDG_ASSET_ID, ROBINHOOD_USDG_TOKEN_ID, SMARTCHAIN_CAKE_TOKEN_ID, SOLANA_USDC_ASSET_ID, SOLANA_USDC_TOKEN_ID},
     };
 
     #[test]
@@ -135,11 +122,7 @@ mod tests {
         assert_eq!(asset_to_token_address(&QuoteAsset::mock_with_asset_id(AssetId::from_chain(Chain::Solana), "", 18)).unwrap(), SOLANA_SYSTEM_PROGRAM_ID);
         assert_eq!(asset_to_token_address(&QuoteAsset::mock_with_asset_id(AssetId::from_chain(Chain::Ethereum), "", 18)).unwrap(), EVM_NATIVE_TOKEN_ADDRESS);
         assert_eq!(asset_to_token_address(&QuoteAsset::mock_with_asset_id(ETHEREUM_USDC_ASSET_ID.clone(), "", 18)).unwrap(), ETHEREUM_USDC_TOKEN_ID);
-        assert_eq!(asset_to_token_address(&QuoteAsset::mock_with_asset_id(AssetId::from_chain(Chain::Tron), "", 18)).unwrap(), TRON_BLACK_HOLE_ADDRESS);
-        assert_eq!(
-            asset_to_token_address(&QuoteAsset::mock_with_asset_id(AssetId::from_token(Chain::Tron, TRON_USDT_TOKEN_ID), "", 18)).unwrap(),
-            TRON_USDT_TOKEN_ID
-        );
+        assert_eq!(asset_to_token_address(&QuoteAsset::mock_with_asset_id(AssetId::from_chain(Chain::Tron), "", 18)), Err(SwapperError::NotSupportedChain));
     }
 
     #[test]
@@ -183,19 +166,6 @@ mod tests {
         assert_eq!(sol_params.fee_percent, "0.7");
         assert!(sol_params.from_token_referrer_wallet_address.is_some());
         assert!(sol_params.to_token_referrer_wallet_address.is_none());
-
-        let mut tron_request = mock_quote(
-            QuoteAsset::mock_with_asset_id(AssetId::from_chain(Chain::Tron), "", 18),
-            QuoteAsset::mock_with_asset_id(AssetId::from_token(Chain::Tron, TRON_USDT_TOKEN_ID), "", 18),
-        );
-        tron_request.options.slippage.bps = 100;
-        let tron_route = QuoteData::mock(TRON_BLACK_HOLE_ADDRESS, TRON_USDT_TOKEN_ID);
-        let tron_params = build_swap_params(&tron_request, &tron_route).unwrap();
-        assert_eq!(tron_params.chain_index, "195");
-        assert_eq!(tron_params.fee_percent, "1.5");
-        assert_eq!(tron_params.dex_ids.as_deref(), Some("64,98,596"));
-        assert!(tron_params.from_token_referrer_wallet_address.is_some());
-        assert!(tron_params.to_token_referrer_wallet_address.is_none());
 
         let mut robinhood_request = mock_quote(
             QuoteAsset::mock_with_asset_id(AssetId::from_chain(Chain::Robinhood), "", 18),

@@ -1,5 +1,5 @@
 mod commands;
-mod path;
+pub(super) mod path;
 mod quoter_v2;
 
 pub mod provider;

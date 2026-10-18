@@ -83,7 +83,7 @@ Uniswap, Raydium and Meteora each show as one provider. A provider like this ask
 
 ## On-chain quotes
 
-Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, PumpSwap, Meteora, Cetus, STON.fi, DeDust and Hyperion quote straight from the chain. What a pool is never changes once it exists: its address, its tokens, its fee tier. What it holds changes with every trade: its price, liquidity and reserves. The wallet keeps the first and reads the second again for every quote, so a quote is always priced on live state while the lookups that never change are not repeated. Dynode, the node proxy every wallet talks to, keeps the same unchanging lookups for all users ([how Dynode caches](../DYNODE.md#caching)).
+Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, PumpSwap, Meteora, Cetus, STON.fi, DeDust, Hyperion and SunSwap quote straight from the chain. What a pool is never changes once it exists: its address, its tokens, its fee tier. What it holds changes with every trade: its price, liquidity and reserves. The wallet keeps the first and reads the second again for every quote, so a quote is always priced on live state while the lookups that never change are not repeated. Dynode, the node proxy every wallet talks to, keeps the same unchanging lookups for all users ([how Dynode caches](../DYNODE.md#caching)).
 
 ```mermaid
 flowchart LR
@@ -111,6 +111,7 @@ flowchart LR
 | Uniswap v3, PancakeSwap, Aerodrome, Oku and Wagmi pool lookups | `1 day` |
 | Uniswap v4 pool lookups | `1 day` |
 | Cetus pool lookups | `1 day` |
+| SunSwap pool lookups | `1 day` |
 | The Meteora DAMM v2 and DLMM, Raydium CPMM and Raydium AMM v4 pools for a pair | `1 day` |
 | STON.fi and DeDust pool, vault and jetton wallet addresses | `30 days` |
 | Sui epoch and gas price | `10 minutes` |
@@ -174,6 +175,20 @@ Measured on 2026-10-17, one pair per provider and the same amount, on the build 
 A repeat quote took about `110 ms` to `130 ms` on Ethereum and Sui, most of it the round trip to Dynode. Solana's carry 130 to 230 KB of pool accounts and took `170 ms` to `800 ms`. Meteora was measured on 2026-10-18: its first quote counts the two pool lookups, sent at the same time, and took about `460 ms` to `600 ms`; its repeat quote reads one pool and took `125 ms` to `345 ms`. STON.fi, DeDust and Hyperion ask one pool per request, so their repeat quotes took about `230 ms`, `220 ms` and `270 ms`; a DeDust two-hop quote asks its hops in turn and took about `500 ms`.
 
 Since 2026-10-18 DeDust also asks each hop's stable pool, which holds the liquid-staking pairs: 10 TON to stTON receives `8.31` stTON through the stable pool, against `7.81` through USDT before (`test_ton_to_stton_quote_takes_the_stable_pool`). A first quote now makes twice the lookups and estimates in the table, `4` for TON to USDT and `12` for USDT to NOT, sent at the same time as before. Most pairs have no stable pool, and one that was never deployed is not asked again for an hour, so repeat quotes stay at `1` and `2` (`test_repeat_quote_skips_outpriced_route_and_undeployed_pools`).
+
+## SunSwap on Tron
+
+Tron swaps go through SunSwap's v3 pools and SUN's Universal Router; OKX no longer quotes Tron. SUN pays `99%` of the energy of every swap through its router, the pools and tokens it calls included. On 2026-10-18, mainnet receipts showed a router swap costing its user `0.2` to `0.6` TRX of energy, where swaps through OKX's router cost `17` to `42` TRX. Bandwidth is paid on top when the account has none free: `1.25` TRX for the 23 TRX to USDT swap in `test_map_transaction_sunswap_swap`.
+
+The network fee shown is the share the user pays. For any Tron contract call, the wallet reads the contract's energy share, which Dynode keeps for `1 hour`, and its owner's available energy, and shows the rest; the fee limit stays at the full energy, so a swap still goes through if SUN runs out of energy to pay with (`test_caller_energy`).
+
+| Swap | What the user signs |
+|---|---|
+| TRX for a token | the swap, which sends the TRX |
+| A token for TRX or another token, the first time that token is swapped | an approval for SUN's Permit2, then at Confirm a Permit2 signature for the router, then the swap |
+| A token, later | a Permit2 signature at Confirm when the last one has run out, then the swap |
+
+SUN's router pays a third party only through its referral vault, and only once SUN has whitelisted the recipient. Gem's Tron fee address is not whitelisted yet, so SunSwap swaps carry no Gem fee for now. Once it is, the fee is taken from the amount paid, before the swap; the vault keeps `20%` of it unless SUN sets Gem's share, and Gem claims the rest from the vault.
 
 ## Cross-chain quotes
 

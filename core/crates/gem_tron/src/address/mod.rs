@@ -112,6 +112,18 @@ pub fn validate_address(address: &str) -> bool {
     TronAddress::is_valid(address)
 }
 
+impl From<TronAddress> for alloy_primitives::Address {
+    fn from(address: TronAddress) -> Self {
+        Self::from_slice(address.account_id())
+    }
+}
+
+impl From<alloy_primitives::Address> for TronAddress {
+    fn from(address: alloy_primitives::Address) -> Self {
+        Self::from(address.into_array())
+    }
+}
+
 impl From<[u8; ADDRESS_LEN]> for TronAddress {
     fn from(address: [u8; ADDRESS_LEN]) -> Self {
         let mut bytes = [0u8; PREFIXED_ADDRESS_LEN];

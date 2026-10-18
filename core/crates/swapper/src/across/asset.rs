@@ -1,27 +1,15 @@
-use crate::{SwapperError, eth_address};
-use alloy_primitives::Address;
+use crate::eth_address;
 use gem_evm::across::deployment::AcrossDeployment;
-use gem_tron::address::TronAddress;
 use primitives::{AssetId, Chain};
 
-pub(in crate::across) fn parse_address(chain: Chain, address: &str) -> Result<Address, SwapperError> {
-    match chain {
-        Chain::Tron => {
-            let address = TronAddress::parse_hex_or_base58(address)?;
-            Ok(Address::from_slice(address.account_id()))
-        }
-        _ => eth_address::parse_str(address),
-    }
-}
-
 pub(in crate::across) fn supported_asset_for_token(chain: Chain, token_address: &str) -> Option<AssetId> {
-    let token_address = parse_address(chain, token_address).ok()?;
+    let token_address = eth_address::parse(chain, token_address).ok()?;
     if chain != Chain::Tron {
         return AcrossDeployment::supported_asset_for_token(chain, token_address);
     }
 
     AcrossDeployment::supported_assets().get(&chain)?.iter().find_map(|asset| {
-        let asset_address = parse_address(asset.chain, asset.token_id.as_deref()?).ok()?;
+        let asset_address = eth_address::parse(asset.chain, asset.token_id.as_deref()?).ok()?;
         if asset_address != token_address {
             return None;
         }

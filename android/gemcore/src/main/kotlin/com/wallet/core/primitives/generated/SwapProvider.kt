@@ -63,5 +63,7 @@ enum class SwapProvider(val string: String) {
 	PumpSwap("pump_swap"),
 	@SerialName("meteora_damm_v2")
 	MeteoraDammV2("meteora_damm_v2"),
+	@SerialName("sunswap_v3")
+	SunswapV3("sunswap_v3"),
 }
 

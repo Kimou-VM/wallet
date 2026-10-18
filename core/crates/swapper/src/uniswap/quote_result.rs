@@ -58,7 +58,10 @@ where
 {
     let (pairs, calls): (Vec<_>, Vec<_>) = paths.into_iter().unzip();
     let results: JsonRpcResults<String> = client.requests(calls).await?;
-    let outcomes = path_outcomes(pairs, results, decoder);
+    best_path_quote(outpriced, (from, to), amount_in, path_outcomes(pairs, results, decoder))
+}
+
+pub fn best_path_quote(outpriced: &OutpricedPaths, (from, to): (&(Chain, Address), &(Chain, Address)), amount_in: u128, outcomes: Vec<(Vec<TokenPair>, Option<U256>)>) -> Result<QuoteResult, SwapperError> {
     outpriced.record(from, to, amount_in, outcomes.iter().map(|(pairs, amount_out)| (pairs.clone(), amount_out.map_or(0, |amount_out| amount_out.saturating_to()))));
     outcomes
         .into_iter()

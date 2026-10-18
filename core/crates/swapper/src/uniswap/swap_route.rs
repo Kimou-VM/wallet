@@ -1,4 +1,4 @@
-use crate::Route;
+use crate::{Route, eth_address};
 use alloy_primitives::{Address, U256};
 use gem_evm::uniswap::{
     FeeTier,
@@ -37,8 +37,8 @@ pub fn build_swap_route(chain: Chain, pairs: &[TokenPair], min_amount_out: &U256
                 min_amount_out: min_amount_out.to_string(),
             };
             Route {
-                input: AssetId::from(chain, Some(pair.token_in.to_checksum(None))),
-                output: AssetId::from(chain, Some(pair.token_out.to_checksum(None))),
+                input: AssetId::from(chain, Some(eth_address::token_id(chain, &pair.token_in))),
+                output: AssetId::from(chain, Some(eth_address::token_id(chain, &pair.token_out))),
                 route_data: serde_json::to_string(&route_data).unwrap_or_default(),
             }
         })

@@ -32,7 +32,7 @@ impl ProviderMock {
     }
 
     pub fn mock_tron_constant_result(result: &str) -> Self {
-        Self::new(format!(r#"{{"constant_result":["{result}"]}}"#))
+        Self::new(format!(r#"{{"constant_result":["{result:0>64}"]}}"#))
     }
 }
 

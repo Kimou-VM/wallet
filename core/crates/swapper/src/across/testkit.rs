@@ -1,4 +1,4 @@
-use super::{DEFAULT_FILL_TIMEOUT, asset::parse_address};
+use super::DEFAULT_FILL_TIMEOUT;
 use crate::{ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapperProvider, eth_address, testkit::mock_quote};
 use alloy_primitives::{Address, Bytes, U256, hex::encode_prefixed as HexEncode};
 use alloy_sol_types::SolValue;
@@ -16,10 +16,10 @@ pub const TEST_FILL_DEADLINE: u32 = 1_700_000_000 + DEFAULT_FILL_TIMEOUT;
 
 pub fn mock_v3_relay_data() -> V3RelayData {
     V3RelayData {
-        depositor: parse_address(Chain::Tron, "TJRyWwFs9wTFGZg3JbrVriFbNfCug5tDeC").unwrap(),
+        depositor: eth_address::parse(Chain::Tron, "TJRyWwFs9wTFGZg3JbrVriFbNfCug5tDeC").unwrap(),
         recipient: eth_address::parse_str("0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7").unwrap(),
         exclusiveRelayer: Address::ZERO,
-        inputToken: parse_address(Chain::Tron, TRON_USDT_TOKEN_ID).unwrap(),
+        inputToken: eth_address::parse(Chain::Tron, TRON_USDT_TOKEN_ID).unwrap(),
         outputToken: eth_address::parse_str(ETHEREUM_USDT_TOKEN_ID).unwrap(),
         inputAmount: U256::from(10_000_000),
         outputAmount: U256::from(9_990_000),

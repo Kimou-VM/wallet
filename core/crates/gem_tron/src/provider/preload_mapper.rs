@@ -4,8 +4,8 @@ use std::error::Error;
 use num_bigint::BigInt;
 
 use crate::models::ChainParameter;
-use crate::models::TronAccountUsage;
 use crate::models::account::{TronAccount, TronFrozen};
+use crate::models::{TronAccountUsage, TronContractInfo};
 use crate::rpc::constants::{DEFAULT_BANDWIDTH_BYTES, GET_CREATE_ACCOUNT_FEE, GET_CREATE_NEW_ACCOUNT_FEE_IN_SYSTEM_CONTRACT, GET_ENERGY_FEE, GET_MEMO_FEE, GET_TRANSACTION_FEE};
 use primitives::{AssetId, Chain, StakeType, TransactionFee, TronStakeData, TronUnfreeze, TronVote};
 
@@ -181,11 +181,53 @@ impl TronAccountUsage {
     }
 }
 
+impl TronContractInfo {
+    pub fn pays_all_energy(&self) -> bool {
+        self.consume_user_resource_percent >= 100 || self.origin_address.is_empty()
+    }
+
+    pub fn caller_energy(&self, energy: u64, origin_usage: &TronAccountUsage) -> u64 {
+        let origin_share = energy * (100 - self.consume_user_resource_percent.min(100)) / 100;
+        energy - origin_share.min(self.origin_energy_limit).min(origin_usage.available_energy())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::models::account::{TronAccount, TronFrozen, TronVote as AccountVote};
     use primitives::{Delegation, Resource};
+
+    #[test]
+    fn test_caller_energy() {
+        let router = TronContractInfo {
+            origin_address: "TQqgNg13s2DjvXhW1ky4v6TsR8wZGvb7Y4".to_string(),
+            consume_user_resource_percent: 1,
+            origin_energy_limit: 1_000_000,
+        };
+        let funded = TronAccountUsage::mock(0, 0, 10_000_000);
+
+        assert_eq!(router.caller_energy(400_000, &funded), 4_000);
+        assert_eq!(router.caller_energy(400_000, &TronAccountUsage::mock(0, 0, 0)), 400_000);
+        assert_eq!(router.caller_energy(400_000, &TronAccountUsage::mock(0, 0, 150_000)), 250_000);
+        assert_eq!(
+            TronContractInfo {
+                origin_energy_limit: 100_000,
+                ..router.clone()
+            }
+            .caller_energy(400_000, &funded),
+            300_000
+        );
+        assert!(!router.pays_all_energy());
+        assert!(
+            TronContractInfo {
+                consume_user_resource_percent: 100,
+                ..router
+            }
+            .pays_all_energy()
+        );
+        assert!(TronContractInfo::default().pays_all_energy());
+    }
 
     fn calculate_token_transfer_fee(account_usage: &TronAccountUsage, estimated_energy: u64, energy_price: u64, bandwidth_price: u64) -> TokenTransferFee {
         calculate_token_transfer_fee_for_bandwidth(account_usage, estimated_energy, energy_price, bandwidth_price, DEFAULT_BANDWIDTH_BYTES, 0, FEE_LIMIT_BUFFER_PERCENT)

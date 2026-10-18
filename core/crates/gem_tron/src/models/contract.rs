@@ -4,6 +4,22 @@ use std::error::Error;
 
 use crate::models::{TransactionData, TronContractType};
 
+#[derive(Debug, Clone, Serialize)]
+pub struct TronContractRequest {
+    pub value: String,
+    pub visible: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct TronContractInfo {
+    #[serde(default)]
+    pub origin_address: String,
+    #[serde(default)]
+    pub consume_user_resource_percent: u64,
+    #[serde(default)]
+    pub origin_energy_limit: u64,
+}
+
 #[derive(Deserialize)]
 struct TriggerSmartContractPayload {
     address: Option<String>,

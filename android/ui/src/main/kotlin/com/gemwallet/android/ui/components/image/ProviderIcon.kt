@@ -65,6 +65,8 @@ fun SwapProvider.iconResource(): Int = when (this) {
     SwapProvider.PUMP_SWAP -> R.drawable.swap_provider_pumpswap
 
     SwapProvider.METEORA_DAMM_V2 -> R.drawable.swap_provider_meteora
+
+    SwapProvider.SUNSWAP_V3 -> R.drawable.swap_provider_sunswap
 }
 
 @DrawableRes

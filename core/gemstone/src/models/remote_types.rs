@@ -690,6 +690,7 @@ pub enum SwapProvider {
     Dedust,
     PumpSwap,
     MeteoraDammV2,
+    SunswapV3,
 }
 
 #[uniffi::remote(Enum)]

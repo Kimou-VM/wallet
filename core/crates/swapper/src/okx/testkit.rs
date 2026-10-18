@@ -22,7 +22,6 @@ use serde::{Serialize, de::DeserializeOwned};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub(super) const TEST_TRON_WALLET: &str = "TW1dU4L3eNm7Lw8WvieLKEHpXWAussRG9Z";
 #[cfg(feature = "swap_integration_tests")]
 pub(super) const TEST_EVM_WALLET: &str = "0x1085c5f70F7F7591D97da281A64688385455c2bD";
 

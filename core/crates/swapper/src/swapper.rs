@@ -92,6 +92,7 @@ impl GemSwapper {
             Some(uniswap::default::boxed_wagmi(rpc_provider.clone())),
             stonfi::Stonfi::new(rpc_provider.clone()).map(Self::boxed),
             dedust::Dedust::new(rpc_provider.clone()).map(Self::boxed),
+            Some(Self::boxed(uniswap::sunswap::SunSwap::new(rpc_provider.clone()))),
             Some(Box::new(mayan::Mayan::new(rpc_provider.clone()))),
             Some(Box::new(panora::Panora::default())),
             hyperion::Hyperion::new(rpc_provider.clone()).map(Self::boxed),

@@ -1,3 +1,4 @@
+use super::permit2_approval;
 use crate::{SwapperError, alien::RpcProvider, client_factory::create_client_with_chain, error::INVALID_ADDRESS, eth_address, models::Permit2ApprovalData};
 use gem_client::Client;
 use gem_evm::u256::u256_to_biguint;
@@ -12,10 +13,7 @@ use gem_evm::{
     permit2::IAllowanceTransfer,
 };
 use primitives::{Chain, swap::ApprovalData};
-use std::{
-    sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::sync::Arc;
 
 pub async fn check_approval_erc20_with_client<C>(owner: String, token: String, spender: String, amount: U256, client: &JsonRpcClient<C>) -> Result<Option<ApprovalData>, SwapperError>
 where
@@ -67,22 +65,8 @@ where
     let result: String = client.request(permit2_call).await.map_err(SwapperError::from)?;
 
     let decoded = HexDecode(result).map_err(|_| SwapperError::TransactionError("failed to decode permit2 allowance result".into()))?;
-    let allowance_return = IAllowanceTransfer::allowanceCall::abi_decode_returns(&decoded).map_err(SwapperError::from)?;
-
-    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-    let expiration: u64 = allowance_return._1.try_into().map_err(|_| SwapperError::TransactionError("failed to convert expiration to u64".into()))?;
-
-    if U256::from(allowance_return._0) < amount || expiration < timestamp {
-        return Ok(Some(Permit2ApprovalData {
-            token,
-            spender,
-            value: u256_to_biguint(&amount),
-            permit2_contract: permit2_contract.into(),
-            permit2_nonce: allowance_return._2.try_into().map_err(|_| SwapperError::TransactionError("failed to convert nonce to u64".into()))?,
-        }));
-    }
-
-    Ok(None)
+    let allowance = IAllowanceTransfer::allowanceCall::abi_decode_returns(&decoded).map_err(SwapperError::from)?;
+    permit2_approval(&allowance, token, spender, permit2_contract.into(), amount)
 }
 
 pub async fn check_permit2_approvals<C>(
