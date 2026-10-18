@@ -81,11 +81,9 @@ impl ChainSigner for SolanaChainSigner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::instructions::{program_ids::system_program, system::ADVANCE_NONCE_ACCOUNT_DISCRIMINANT};
     use crate::signer::testkit::SINGLE_SIG_TX;
-    use crate::testkit::mock_legacy_transaction;
-    use crate::testkit::mock_v1_transaction;
-    use crate::{CompiledInstruction, SignatureBytes, VersionedTransaction};
+    use crate::testkit::{mock_durable_nonce_transaction, mock_legacy_transaction, mock_v1_transaction};
+    use crate::{SignatureBytes, VersionedTransaction};
     use gem_encoding::decode_base64;
     use primitives::testkit::signer_mock::TEST_PRIVATE_KEY;
     use primitives::{Chain, ChainSigner, SignerInput, TransactionLoadInput, TransactionLoadMetadata, TransferDataOutputType};
@@ -111,20 +109,12 @@ mod tests {
         *latest_blockhash.recent_blockhash_mut() = [7; 32];
         latest_blockhash.add_signature(SignatureBytes::new([0; 64]));
 
-        let mut durable_nonce = mock_legacy_transaction();
-        *durable_nonce.recent_blockhash_mut() = [7; 32];
-        let message = durable_nonce.message_mut();
-        message.account_keys.push(system_program());
-        message.header.num_readonly_unsigned_accounts += 1;
-        message.instructions.insert(0, CompiledInstruction::mock(2, vec![1], ADVANCE_NONCE_ACCOUNT_DISCRIMINANT.to_vec()));
-        durable_nonce.add_signature(SignatureBytes::new([0; 64]));
-
         let mut wallet_connect = mock_legacy_transaction();
         *wallet_connect.recent_blockhash_mut() = [0; 32];
         wallet_connect.add_signature(SignatureBytes::new([0; 64]));
 
         assert_eq!(signed_blockhash(latest_blockhash, true), [4; 32]);
-        assert_eq!(signed_blockhash(durable_nonce, true), [7; 32]);
+        assert_eq!(signed_blockhash(mock_durable_nonce_transaction([7; 32]), true), [7; 32]);
         assert_eq!(signed_blockhash(wallet_connect, false), [0; 32]);
     }
 

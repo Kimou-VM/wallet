@@ -1,9 +1,9 @@
 use gem_encoding::encode_base64;
 use num_traits::ToPrimitive;
-use primitives::{SignerError, SignerInput, TransactionFee};
+use primitives::{SignerError, SignerInput};
 
-use super::transaction::sign_transaction;
-use crate::decode_transaction;
+use super::transaction::{block_hash, sign_transaction};
+use crate::{VersionedTransactionExt, decode_transaction};
 
 pub(crate) fn sign(input: &SignerInput, private_key: &[u8]) -> Result<Vec<String>, SignerError> {
     let swap_data = input.input_type.get_swap_data()?;
@@ -11,13 +11,17 @@ pub(crate) fn sign(input: &SignerInput, private_key: &[u8]) -> Result<Vec<String
 
     let quote_gas_limit = swap_data.data.gas_limit.as_ref().map(|_| swap_data.data.gas_limit_as_u32()).transpose().map_err(SignerError::invalid_input)?;
 
-    Ok(vec![sign_swap_transaction(transaction_base64, private_key, quote_gas_limit, &input.fee)?])
+    Ok(vec![sign_swap_transaction(transaction_base64, private_key, quote_gas_limit, input)?])
 }
 
-fn sign_swap_transaction(transaction_base64: &str, private_key: &[u8], quote_gas_limit: Option<u32>, fee: &TransactionFee) -> Result<String, SignerError> {
+fn sign_swap_transaction(transaction_base64: &str, private_key: &[u8], quote_gas_limit: Option<u32>, input: &SignerInput) -> Result<String, SignerError> {
+    let fee = &input.fee;
     let mut transaction = decode_transaction(transaction_base64).map_err(SignerError::invalid_input)?;
 
     if transaction.signatures().len() <= 1 {
+        if !transaction.uses_durable_nonce() {
+            *transaction.recent_blockhash_mut() = block_hash(input)?;
+        }
         let gas_limit = match quote_gas_limit.or(transaction.get_compute_unit_limit()) {
             Some(gas_limit) => Some(gas_limit),
             None => {
@@ -47,15 +51,18 @@ fn sign_swap_transaction(transaction_base64: &str, private_key: &[u8], quote_gas
 #[cfg(test)]
 mod tests {
     use crate::SignatureBytes;
+    use crate::VersionedTransaction;
     use crate::signer::{
         SolanaChainSigner,
         testkit::{SINGLE_SIG_TX, transaction_with_wallet_fee_payer},
     };
-    use crate::testkit::{mock_legacy_transaction, mock_v1_transaction};
+    use crate::testkit::{mock_durable_nonce_transaction, mock_legacy_transaction, mock_v1_transaction};
     use gem_encoding::encode_base64;
     use primitives::swap::SwapData;
     use primitives::testkit::signer_mock::TEST_PRIVATE_KEY;
-    use primitives::{Asset, AssetId, Chain, ChainSigner, GasPriceType, SignerInput, SwapProvider, TransactionFee, TransactionInputType, TransactionLoadInput};
+    use primitives::{Asset, AssetId, Chain, ChainSigner, GasPriceType, SignerInput, SwapProvider, TransactionFee, TransactionInputType, TransactionLoadInput, TransactionLoadMetadata};
+
+    const CONFIRMATION_BLOCKHASH: [u8; 32] = [4; 32];
 
     fn swap_input(encoded: &str, gas_limit: Option<&str>, priority_fee: u64, unit_price: u64) -> SignerInput {
         let input_type = TransactionInputType::Swap {
@@ -64,7 +71,26 @@ mod tests {
             swap_data: SwapData::mock_with_provider_data(SwapProvider::Jupiter, encoded, gas_limit),
         };
         let fee = TransactionFee::new_gas_price_type(GasPriceType::solana(5_000u64, priority_fee, unit_price), 5_000u64.into(), 1u64.into(), Default::default(), AssetId::from_chain(Chain::Solana));
-        SignerInput::new(TransactionLoadInput::mock_with_input_type(input_type), fee)
+        let input = TransactionLoadInput {
+            metadata: TransactionLoadMetadata::mock_solana(&bs58::encode(CONFIRMATION_BLOCKHASH).into_string()),
+            ..TransactionLoadInput::mock_with_input_type(input_type)
+        };
+        SignerInput::new(input, fee)
+    }
+
+    #[test]
+    fn test_sign_swap_uses_the_confirmation_blockhash() {
+        let signed_blockhash = |transaction: &VersionedTransaction| {
+            let result = SolanaChainSigner.sign_swap(&swap_input(&encode_base64(&transaction.serialize().unwrap()), None, 0, 0), &TEST_PRIVATE_KEY).unwrap();
+            *crate::decode_transaction(&result[0]).unwrap().recent_blockhash()
+        };
+        let single_signer = crate::decode_transaction(&transaction_with_wallet_fee_payer(SINGLE_SIG_TX)).unwrap();
+        let multi_signer = mock_v1_transaction(2, 1);
+
+        assert_ne!(*single_signer.recent_blockhash(), CONFIRMATION_BLOCKHASH);
+        assert_eq!(signed_blockhash(&single_signer), CONFIRMATION_BLOCKHASH);
+        assert_eq!(signed_blockhash(&multi_signer), *multi_signer.recent_blockhash());
+        assert_eq!(signed_blockhash(&mock_durable_nonce_transaction([7; 32])), [7; 32]);
     }
 
     #[test]

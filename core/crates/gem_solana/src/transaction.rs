@@ -188,8 +188,9 @@ pub fn try_decode_blockhash(blockhash: &str) -> Option<[u8; 32]> {
     bs58::decode(blockhash).into_vec().ok()?.try_into().ok()
 }
 
-pub fn encode_v0_transaction(payer: Pubkey, recent_blockhash: &str, instructions: &[Instruction], lookup_tables: &[AddressLookupTableAccount]) -> Result<String, String> {
-    let recent_blockhash = try_decode_blockhash(recent_blockhash).ok_or_else(|| "Invalid Solana blockhash".to_string())?;
+pub const BLOCKHASH_SET_AT_SIGNING: [u8; 32] = [0; 32];
+
+pub fn encode_v0_transaction(payer: Pubkey, recent_blockhash: [u8; 32], instructions: &[Instruction], lookup_tables: &[AddressLookupTableAccount]) -> Result<String, String> {
     let transaction = TransactionBuilder::build_v0_transaction(payer, recent_blockhash, instructions, lookup_tables).map_err(|err| format!("Solana transaction error: {err}"))?;
     let bytes = transaction.serialize().map_err(|err| format!("Solana transaction error: {err}"))?;
     if bytes.len() > MAX_TRANSACTION_SIZE {

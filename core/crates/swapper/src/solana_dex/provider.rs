@@ -4,13 +4,12 @@ use futures::future::try_join_all;
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
-    DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaDataSlice, SolanaRpc, SolanaRpcConfig,
+    DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaDataSlice, SolanaRpc,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_2022_program, token_program},
-    models::{AccountData, Clock, ProgramAccount, ValueResult, blockhash::SolanaBlockhashResult},
+    models::{AccountData, Clock, ProgramAccount, ValueResult},
 };
 use num_bigint::BigUint;
 use primitives::{Chain, DAY};
-use serde_json::Value;
 use std::{
     cmp::Reverse,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
@@ -56,7 +55,6 @@ impl<Pool: Clone> PoolLookup<Pool> {
 
 type PathLookup<Pool> = (RoutePath<Pubkey>, Vec<PoolLookup<Pool>>);
 
-const SIZE_CHECK_BLOCKHASH: &str = "11111111111111111111111111111111";
 const MAX_QUERIED_POOLS: usize = 4;
 const MAX_ACCOUNTS_PER_REQUEST: usize = 100;
 const TOKEN_AMOUNT_OFFSET: usize = 64;
@@ -326,13 +324,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
                 };
                 (pools.into_iter().map(|(hop, pool)| (hop.pool, pool)).collect::<Vec<_>>(), route)
             })
-            .find(|(pools, route)| {
-                route.received_value() > 0
-                    && self
-                        .transaction(route, pools, input, output, authority, request.options.slippage.bps)
-                        .and_then(|transaction| transaction.encode(SIZE_CHECK_BLOCKHASH))
-                        .is_ok()
-            })
+            .find(|(pools, route)| route.received_value() > 0 && self.transaction(route, pools, input, output, authority, request.options.slippage.bps).and_then(|transaction| transaction.encode()).is_ok())
             .map(|(_, route)| route)
             .ok_or(SwapperError::NoQuoteAvailable)
     }
@@ -382,19 +374,15 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         Ok(addresses.into_iter().zip(response.value).collect())
     }
 
-    async fn fetch_pools_and_blockhash(&self, addresses: Vec<Pubkey>) -> Result<(Vec<(Pubkey, P::Pool)>, String), SwapperError> {
-        let requests = vec![accounts_request(&addresses), SolanaRpc::GetLatestBlockhash(SolanaRpcConfig::Confirmed)];
-        let [accounts, blockhash]: [Value; 2] = self.client.requests(requests).await?.take_all()?.try_into().map_err(|_| SwapperError::transaction_error("Unexpected Solana batch response"))?;
-        let accounts: Accounts = addresses.iter().copied().zip(serde_json::from_value::<AccountsResult>(accounts)?.value).collect();
-        let pools = addresses
+    async fn fetch_pools(&self, addresses: Vec<Pubkey>) -> Result<Vec<(Pubkey, P::Pool)>, SwapperError> {
+        let accounts = self.fetch_accounts(addresses.clone()).await?;
+        addresses
             .into_iter()
             .map(|address| {
                 let data = Self::program_data(&accounts, &address)?.ok_or(SwapperError::InvalidRoute)?;
                 Ok((address, self.protocol.decode_pool(&data)?))
             })
-            .collect::<Result<Vec<_>, SwapperError>>()?;
-        let blockhash: SolanaBlockhashResult = serde_json::from_value(blockhash)?;
-        Ok((pools, blockhash.value.blockhash))
+            .collect()
     }
 
     fn program_data(accounts: &Accounts, address: &Pubkey) -> Result<Option<Vec<u8>>, SwapperError> {
@@ -512,16 +500,10 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
             return Err(SwapperError::InvalidRoute);
         }
         let authority = Pubkey::from_base58(&quote.request.wallet_address).map_err(|_| SwapperError::transaction_error(INVALID_ADDRESS))?;
-        let (pools, blockhash) = self.fetch_pools_and_blockhash(route.hops.iter().map(|hop| hop.pool).collect()).await?;
+        let pools = self.fetch_pools(route.hops.iter().map(|hop| hop.pool).collect()).await?;
         let transaction = self.transaction(&route, &pools, &input, &output, authority, quote.data.slippage_bps)?;
 
-        Ok(SwapperQuoteData::new_contract(
-            P::PROGRAM_ID.to_base58(),
-            BigUint::ZERO,
-            transaction.encode(&blockhash)?,
-            None,
-            Some(DEFAULT_SWAP_GAS_LIMIT.to_string()),
-        ))
+        Ok(SwapperQuoteData::new_contract(P::PROGRAM_ID.to_base58(), BigUint::ZERO, transaction.encode()?, None, Some(DEFAULT_SWAP_GAS_LIMIT.to_string())))
     }
 }
 

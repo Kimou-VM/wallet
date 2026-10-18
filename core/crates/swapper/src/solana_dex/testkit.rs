@@ -35,8 +35,10 @@ pub(crate) fn mock_solana_asset(token_id: Option<&str>, decimals: u32) -> Swappe
 }
 
 pub(crate) const TEST_AUTHORITY: &str = "7g2rVN8fAAQdPh1mkajpvELqYa3gWvFXJsBLnKfEQfqy";
+#[cfg(feature = "swap_integration_tests")]
 pub(crate) const TEST_FUNDED_WALLET: &str = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
 pub(crate) const TEST_TOS_MINT: &str = "HmjCoarLh5duURfJ333DwfFiPyTCgFT35pRSAoP8pump";
+#[cfg(feature = "swap_integration_tests")]
 pub(crate) const TEST_TOS_HOLDER: &str = "2keyaLG5fUBEGFAboUZ7LajhpGygXSxKJBovHyTbJ9KB";
 
 #[cfg(feature = "swap_integration_tests")]
@@ -165,7 +167,6 @@ pub(crate) fn mock_rpc_client(accounts: HashMap<String, Value>, requests: Arc<At
             requests.fetch_add(1, Ordering::SeqCst);
             Ok(Value::Array(accounts.iter().filter_map(|(address, account)| mock_program_account(address, account, params)).collect()))
         }
-        "getLatestBlockhash" => Ok(json!({ "context": { "slot": 1 }, "value": { "blockhash": "11111111111111111111111111111111", "lastValidBlockHeight": 1 } })),
         method => panic!("unexpected method {method}"),
     })
 }

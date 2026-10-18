@@ -1,5 +1,5 @@
 use gem_solana::{
-    DEFAULT_SWAP_GAS_LIMIT, Instruction, Pubkey,
+    BLOCKHASH_SET_AT_SIGNING, DEFAULT_SWAP_GAS_LIMIT, Instruction, Pubkey,
     associated_token::create_associated_token_account_idempotent,
     compute_budget::{set_compute_unit_limit, set_compute_unit_price},
     encode_v0_transaction, system,
@@ -23,8 +23,8 @@ pub(crate) struct DexTransaction<'a> {
 }
 
 impl DexTransaction<'_> {
-    pub fn encode(&self, blockhash: &str) -> Result<String, SwapperError> {
-        encode_v0_transaction(self.swap.authority, blockhash, &self.instructions()?, &[]).map_err(SwapperError::transaction_error)
+    pub fn encode(&self) -> Result<String, SwapperError> {
+        encode_v0_transaction(self.swap.authority, BLOCKHASH_SET_AT_SIGNING, &self.instructions()?, &[]).map_err(SwapperError::transaction_error)
     }
 
     fn instructions(&self) -> Result<Vec<Instruction>, SwapperError> {
@@ -97,8 +97,6 @@ mod tests {
         wrapped_sol::wrapped_sol_mint,
     };
     use primitives::swap::SOLANA_REFERRAL_ADDRESS;
-
-    const TEST_BLOCKHASH: &str = "BZcyEKqjBNG5bEY6i5ev6PfPTgDSB9LwovJE1hJfJoHF";
 
     fn program_ids(transaction: &DexTransaction) -> Vec<Pubkey> {
         transaction.instructions().unwrap().iter().map(|instruction| instruction.program_id).collect()
@@ -179,7 +177,7 @@ mod tests {
     #[test]
     fn test_encode() {
         let usdc = SwapToken::mock();
-        let decoded = decode_transaction(&DexTransaction::mock(&usdc, &usdc).encode(TEST_BLOCKHASH).unwrap()).unwrap();
+        let decoded = decode_transaction(&DexTransaction::mock(&usdc, &usdc).encode().unwrap()).unwrap();
 
         assert_eq!(decoded.num_required_signatures(), 1);
         assert_eq!(decoded.get_compute_unit_limit(), Some(DEFAULT_SWAP_GAS_LIMIT));

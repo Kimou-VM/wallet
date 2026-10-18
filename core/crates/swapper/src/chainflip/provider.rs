@@ -312,14 +312,7 @@ where
             extra_params,
             route_data.dca_parameters,
         );
-        let (response, solana_blockhash) = if source_chain_type == ChainType::Solana {
-            let (response, blockhash) = futures::try_join!(broker, tx_builder::get_solana_blockhash(self.rpc_provider.clone()))?;
-            (response, Some(blockhash))
-        } else {
-            (broker.await?, None)
-        };
-
-        match (source_chain_type, response) {
+        match (source_chain_type, broker.await?) {
             (ChainType::Ethereum, VaultSwapResponse::Evm(response)) => {
                 let (value, approval) = match from_asset.token_id {
                     None => (input_amount, None),
@@ -338,8 +331,7 @@ where
                 tx_builder::build_tron_quote_data(&response, value)
             }
             (ChainType::Solana, VaultSwapResponse::Solana(response)) => {
-                let blockhash = solana_blockhash.ok_or(SwapperError::InvalidRoute)?;
-                let data = tx_builder::build_solana_transaction(&quote.request.wallet_address, &response, blockhash)?;
+                let data = tx_builder::build_solana_transaction(&quote.request.wallet_address, &response)?;
                 Ok(SwapperQuoteData::new_contract(response.program_id, BigUint::ZERO, data, None, Some(DEFAULT_SWAP_GAS_LIMIT.to_string())))
             }
             _ => Err(SwapperError::InvalidRoute),

@@ -1,21 +1,19 @@
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
 
 use gem_encoding::encode_base64;
 use gem_solana::{
-    AccountMeta, DEFAULT_SWAP_GAS_LIMIT, InstructionBuilder, Pubkey, SolanaClient, TransactionBuilder,
+    AccountMeta, BLOCKHASH_SET_AT_SIGNING, DEFAULT_SWAP_GAS_LIMIT, InstructionBuilder, Pubkey, TransactionBuilder,
     compute_budget::{set_compute_unit_limit, set_compute_unit_price},
-    try_decode_blockhash,
 };
 use gem_tron::address::TronAddress;
 use num_bigint::BigUint;
 use primitives::{
-    Chain,
     hex::{decode_hex, encode},
     swap::SwapQuoteDataType::Contract,
 };
 
 use super::broker::{SolanaVaultSwapResponse, TronVaultSwapResponse};
-use crate::{SwapperError, SwapperQuoteData, alien::RpcProvider, client_factory::create_client_with_chain};
+use crate::{SwapperError, SwapperQuoteData};
 
 pub(super) fn build_tron_quote_data(response: &TronVaultSwapResponse, value: BigUint) -> Result<SwapperQuoteData, SwapperError> {
     let address = response.source_token_address.as_deref().unwrap_or(&response.to);
@@ -34,13 +32,7 @@ pub(super) fn build_tron_quote_data(response: &TronVaultSwapResponse, value: Big
     })
 }
 
-pub(super) async fn get_solana_blockhash(provider: Arc<dyn RpcProvider>) -> Result<[u8; 32], SwapperError> {
-    let client = SolanaClient::new(create_client_with_chain(provider, Chain::Solana)?);
-    let blockhash_response = client.get_latest_blockhash().await?;
-    try_decode_blockhash(&blockhash_response.value.blockhash).ok_or_else(|| SwapperError::transaction_error("Invalid Solana blockhash"))
-}
-
-pub(super) fn build_solana_transaction(fee_payer: &str, response: &SolanaVaultSwapResponse, blockhash: [u8; 32]) -> Result<String, SwapperError> {
+pub(super) fn build_solana_transaction(fee_payer: &str, response: &SolanaVaultSwapResponse) -> Result<String, SwapperError> {
     let fee_payer = Pubkey::from_str(fee_payer).map_err(|_| SwapperError::transaction_error("Invalid fee payer"))?;
     let program_id = Pubkey::from_str(&response.program_id).map_err(|_| SwapperError::transaction_error("Invalid program ID"))?;
     let data = decode_hex(&response.data).map_err(|_| SwapperError::transaction_error("Invalid data"))?;
@@ -56,7 +48,7 @@ pub(super) fn build_solana_transaction(fee_payer: &str, response: &SolanaVaultSw
         })
         .collect::<Result<_, SwapperError>>()?;
     let instruction = InstructionBuilder::new(program_id).accounts(accounts).data(data).build();
-    let mut transaction_builder = TransactionBuilder::new(fee_payer, blockhash);
+    let mut transaction_builder = TransactionBuilder::new(fee_payer, BLOCKHASH_SET_AT_SIGNING);
     transaction_builder.add_instructions(vec![set_compute_unit_price(0), set_compute_unit_limit(DEFAULT_SWAP_GAS_LIMIT), instruction]);
 
     let transaction = transaction_builder.build().map_err(SwapperError::transaction_error)?;
@@ -134,14 +126,13 @@ mod tests {
     #[test]
     fn test_build_solana_transaction() -> Result<(), SwapperError> {
         let wallet_address = "A21o4asMbFHYadqXdLusT9Bvx9xaC5YV9gcaidjqtdXC";
-        let blockhash = try_decode_blockhash("BZcyEKqjBNG5bEY6i5ev6PfPTgDSB9LwovJE1hJfJoHF").unwrap();
         let response: JsonRpcResponse<SolanaVaultSwapResponse> = serde_json::from_str(include_str!("./test/chainflip_sol_arb_usdc_quote_data.json"))?;
 
-        let tx_b64 = build_solana_transaction(wallet_address, &response.result, blockhash)?;
+        let tx_b64 = build_solana_transaction(wallet_address, &response.result)?;
 
         assert_eq!(
             tx_b64,
-            "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAQIhfupPuKcYE+oWKNRaIwBKQhB6vsZxjpwpHXTx7w7758q21EdC4D4NruUv9F26xeVqhYm0WXVWkSIjeQIxD3II9tUC6aOjrGBy017zEItREWS3QDEQI/vMhwSVTo/1e2664X/uFi6gx6sRwFnSAPu1ODmcAsu2sf8IuwYArWOf4gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAiKB2TmOdpVByNvc2jO/SqWcRJnwnp6i4PhwcXOdR2sf+adsEMvxMdgZ9RYJ0BKLVq++GfFFu+oFIYBJkEkLMJpzwID++OVGHruXrGUzSEC5Cyny69vOfFr8T0fbCq+HOAwUACQMAAAAAAAAAAAUABQKgaAYABwYGAQADAgS2AaMmXOLzaY3EgB0sBAAAAAAEAAAAFAAAAFFLyx+aq7kE5hBr0QUrZtJwbbu3BwAAAABsAAAAAAoAAACF+6k+4pxgT6hYo1FojAEpCEHq+xnGOnCkddPHvDvvn8qhRbbz/dR46Sb6cwLQdTEAAAAAAAAAAAAAAAAAAAAAAAAeg9KXLT3KOjMNYMJ3fuW40laDxj+jWRFphWCYMPQgVAUABAAtEQAAADiSTMM0VhiQ46gZQHNTcQ4J"
+            "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAQIhfupPuKcYE+oWKNRaIwBKQhB6vsZxjpwpHXTx7w7758q21EdC4D4NruUv9F26xeVqhYm0WXVWkSIjeQIxD3II9tUC6aOjrGBy017zEItREWS3QDEQI/vMhwSVTo/1e2664X/uFi6gx6sRwFnSAPu1ODmcAsu2sf8IuwYArWOf4gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAiKB2TmOdpVByNvc2jO/SqWcRJnwnp6i4PhwcXOdR2sf+adsEMvxMdgZ9RYJ0BKLVq++GfFFu+oFIYBJkEkLMJgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwUACQMAAAAAAAAAAAUABQKgaAYABwYGAQADAgS2AaMmXOLzaY3EgB0sBAAAAAAEAAAAFAAAAFFLyx+aq7kE5hBr0QUrZtJwbbu3BwAAAABsAAAAAAoAAACF+6k+4pxgT6hYo1FojAEpCEHq+xnGOnCkddPHvDvvn8qhRbbz/dR46Sb6cwLQdTEAAAAAAAAAAAAAAAAAAAAAAAAeg9KXLT3KOjMNYMJ3fuW40laDxj+jWRFphWCYMPQgVAUABAAtEQAAADiSTMM0VhiQ46gZQHNTcQ4J"
         );
 
         let transaction = decode_transaction(&tx_b64).unwrap();

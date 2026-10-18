@@ -19,6 +19,22 @@ pub(crate) fn mock_legacy_transaction() -> VersionedTransaction {
     mock_transaction_with_accounts(vec![test_wallet_pubkey(), Pubkey::new([2; 32])], vec![CompiledInstruction::mock(1, vec![0], vec![])])
 }
 
+#[cfg(feature = "signer")]
+pub(crate) fn mock_durable_nonce_transaction(recent_blockhash: [u8; 32]) -> VersionedTransaction {
+    VersionedTransaction::Legacy {
+        signatures: vec![SignatureBytes::default()],
+        message: Message {
+            header: MessageHeader::mock(1, 2),
+            account_keys: vec![test_wallet_pubkey(), Pubkey::new([2; 32]), crate::instructions::program_ids::system_program()],
+            recent_blockhash,
+            instructions: vec![
+                CompiledInstruction::mock(2, vec![1], crate::instructions::system::ADVANCE_NONCE_ACCOUNT_DISCRIMINANT.to_vec()),
+                CompiledInstruction::mock(1, vec![0], vec![]),
+            ],
+        },
+    }
+}
+
 pub(crate) fn mock_transaction_with_accounts(account_keys: Vec<Pubkey>, instructions: Vec<CompiledInstruction>) -> VersionedTransaction {
     VersionedTransaction::Legacy {
         signatures: vec![],

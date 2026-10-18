@@ -1,5 +1,8 @@
+#[cfg(feature = "swap_integration_tests")]
 use crate::{QuoteRequest, SwapperQuoteAsset, testkit::mock_quote};
+#[cfg(feature = "swap_integration_tests")]
 use num_bigint::BigUint;
+#[cfg(feature = "swap_integration_tests")]
 use primitives::{
     AssetId, Chain,
     asset_constants::{BASE_USDC_ASSET_ID, SMARTCHAIN_USDT_ASSET_ID},
@@ -7,6 +10,7 @@ use primitives::{
 
 pub const TEST_EVM_WALLET: &str = "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7";
 
+#[cfg(feature = "swap_integration_tests")]
 pub fn mock_opbnb_to_bsc_usdt_request() -> QuoteRequest {
     QuoteRequest {
         wallet_address: TEST_EVM_WALLET.to_string(),
@@ -19,6 +23,7 @@ pub fn mock_opbnb_to_bsc_usdt_request() -> QuoteRequest {
     }
 }
 
+#[cfg(feature = "swap_integration_tests")]
 pub fn mock_base_usdc_to_bsc_usdt_request() -> QuoteRequest {
     QuoteRequest {
         wallet_address: TEST_EVM_WALLET.to_string(),
@@ -31,6 +36,7 @@ pub fn mock_base_usdc_to_bsc_usdt_request() -> QuoteRequest {
     }
 }
 
+#[cfg(feature = "swap_integration_tests")]
 pub fn mock_stable_to_bsc_usdt_request() -> QuoteRequest {
     QuoteRequest {
         wallet_address: TEST_EVM_WALLET.to_string(),
