@@ -161,7 +161,11 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for ApiError {
             }
             if let Some(ClientError::Http { status, body }) = current_error.downcast_ref::<ClientError>() {
                 let detail = format!("upstream status {status}: {}", String::from_utf8_lossy(body));
-                return if *status == StatusCode::TOO_MANY_REQUESTS.as_u16() { ApiError::unavailable(detail) } else { ApiError::internal(detail) };
+                return if *status == StatusCode::TOO_MANY_REQUESTS.as_u16() {
+                    ApiError::unavailable(detail)
+                } else {
+                    ApiError::internal(detail)
+                };
             }
             match current_error.source() {
                 Some(source) => current_error = source,

@@ -27,12 +27,7 @@ pub async fn get_balances(_permission: ChainRead, Path((chain, address)): Path<(
 
 fn address_balances(coin: AssetBalance, staking: Option<AssetBalance>, assets: Result<Vec<AssetBalance>, Box<dyn Error + Send + Sync>>) -> AddressBalances {
     match assets {
-        Ok(assets) => AddressBalances {
-            coin,
-            staking,
-            assets,
-            assets_error: None,
-        },
+        Ok(assets) => AddressBalances { coin, staking, assets, assets_error: None },
         Err(error) => AddressBalances {
             coin,
             staking,
