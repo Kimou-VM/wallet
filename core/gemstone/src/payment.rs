@@ -87,6 +87,9 @@ impl GemPaymentService {
     }
 
     pub async fn prepare(&self, payment: GemPayment, wallet: Wallet) -> Result<GemPaymentTarget, GemPaymentError> {
+        if !wallet.wallet_type.can_sign() {
+            return Ok(GemPaymentTarget::Unsupported);
+        }
         match payment {
             GemPayment::Request { request } => Ok(self.prepare_request(request, wallet).await?),
             GemPayment::Link { link } => self.prepare_link(link, wallet).await,
@@ -527,6 +530,21 @@ mod tests {
         };
 
         assert_eq!(*balances.added_balances.lock().unwrap(), vec![(wallet.id, vec![solana.id], false)]);
+    }
+
+    #[test]
+    fn test_a_watch_only_wallet_cannot_pay_a_request_or_a_link() {
+        let bitcoin = Asset::from_chain(Chain::Bitcoin);
+        let wallet = Wallet::mock_with_type(primitives::WalletType::View, &[Chain::Bitcoin, Chain::Solana]);
+        let (service, _, _) = service_with(std::slice::from_ref(&bitcoin), &[&bitcoin]);
+        let request = GemPaymentRequest {
+            address: BITCOIN_ADDRESS.to_string(),
+            ..GemPaymentRequest::mock()
+        };
+        let link = GemPaymentLink::SolanaPay { url: "https://shop.example/pay".to_string() };
+
+        assert!(matches!(block_on(service.prepare(GemPayment::Request { request }, wallet.clone())).unwrap(), GemPaymentTarget::Unsupported));
+        assert!(matches!(block_on(service.prepare(GemPayment::Link { link }, wallet)).unwrap(), GemPaymentTarget::Unsupported));
     }
 
     #[test]

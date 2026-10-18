@@ -1,5 +1,5 @@
 use primitives::perpetual::PerpetualData;
-use primitives::{Asset, AssetData, AssetId, AssetType, BalanceMetadata, Banner, BlockExplorerLink, Chain, Currency, NFTData, RecentActivityType, VerificationStatus, Wallet};
+use primitives::{Asset, AssetData, AssetId, AssetProperties, AssetType, BalanceMetadata, Banner, BlockExplorerLink, Chain, Currency, NFTData, RecentActivityType, VerificationStatus, Wallet, WalletType};
 
 use crate::config::image::GemImage;
 use crate::formatted_number::{GemFormattedNumber, GemValueTone};
@@ -349,6 +349,17 @@ impl GemAssetAction {
             Self::Sell => vec![GemAssetFilter::Enabled, GemAssetFilter::Sellable],
             Self::SwapPay => vec![GemAssetFilter::Enabled, GemAssetFilter::Swappable, GemAssetFilter::HasAvailableBalance],
             Self::SwapReceive => vec![GemAssetFilter::Enabled, GemAssetFilter::Swappable],
+        }
+    }
+
+    pub fn is_offered(&self, wallet_type: WalletType, properties: &AssetProperties) -> bool {
+        let can_act = wallet_type.can_sign();
+        match self {
+            Self::Open => true,
+            Self::Send | Self::Receive => can_act,
+            Self::Buy => can_act && properties.is_buyable,
+            Self::Sell => can_act && properties.is_sellable,
+            Self::SwapPay | Self::SwapReceive => can_act && properties.is_swapable,
         }
     }
 
