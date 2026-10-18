@@ -115,54 +115,24 @@ impl ReferralFees {
         };
         Some(fee)
     }
-
-    pub fn bps_for_chain(&self, chain: Chain) -> u32 {
-        self.for_chain(chain).map(|fee| fee.bps).unwrap_or(0)
-    }
 }
 
 pub fn default_referral_fees() -> ReferralFees {
+    let fee = |address: &str| ReferralFee {
+        address: address.into(),
+        bps: DEFAULT_SWAP_FEE_BPS,
+    };
     ReferralFees {
-        evm: ReferralFee {
-            address: EVM_REFERRAL_ADDRESS.into(),
-            bps: DEFAULT_SWAP_FEE_BPS,
-        },
-        solana: ReferralFee {
-            address: SOLANA_REFERRAL_ADDRESS.into(),
-            bps: DEFAULT_SWAP_FEE_BPS,
-        },
-        thorchain: ReferralFee {
-            address: THORCHAIN_REFERRAL_ADDRESS.into(),
-            bps: DEFAULT_SWAP_FEE_BPS,
-        },
-        sui: ReferralFee {
-            address: SUI_REFERRAL_ADDRESS.into(),
-            bps: DEFAULT_SWAP_FEE_BPS,
-        },
-        ton: ReferralFee {
-            address: TON_REFERRAL_ADDRESS.into(),
-            bps: DEFAULT_SWAP_FEE_BPS,
-        },
-        tron: ReferralFee {
-            address: TRON_REFERRAL_ADDRESS.into(),
-            bps: DEFAULT_SWAP_FEE_BPS,
-        },
-        near: ReferralFee {
-            address: NEAR_REFERRAL_ADDRESS.into(),
-            bps: DEFAULT_SWAP_FEE_BPS,
-        },
-        aptos: ReferralFee {
-            address: APTOS_REFERRAL_ADDRESS.into(),
-            bps: DEFAULT_SWAP_FEE_BPS,
-        },
-        cosmos: ReferralFee {
-            address: COSMOS_REFERRAL_ADDRESS.into(),
-            bps: DEFAULT_SWAP_FEE_BPS,
-        },
-        injective: ReferralFee {
-            address: INJECTIVE_REFERRAL_ADDRESS.into(),
-            bps: DEFAULT_SWAP_FEE_BPS,
-        },
+        evm: fee(EVM_REFERRAL_ADDRESS),
+        solana: fee(SOLANA_REFERRAL_ADDRESS),
+        thorchain: fee(THORCHAIN_REFERRAL_ADDRESS),
+        sui: fee(SUI_REFERRAL_ADDRESS),
+        ton: fee(TON_REFERRAL_ADDRESS),
+        tron: fee(TRON_REFERRAL_ADDRESS),
+        near: fee(NEAR_REFERRAL_ADDRESS),
+        aptos: fee(APTOS_REFERRAL_ADDRESS),
+        cosmos: fee(COSMOS_REFERRAL_ADDRESS),
+        injective: fee(INJECTIVE_REFERRAL_ADDRESS),
     }
 }
 

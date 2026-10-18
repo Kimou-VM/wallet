@@ -129,7 +129,7 @@ where
                 to_token: token_id_for_asset(&to_asset)?,
                 to_chain: wormhole_chain::name_for_chain(to_asset.chain)?.to_string(),
                 referrer: default_referral_address(Chain::Solana),
-                referrer_bps: referral_fees.bps_for_chain(from_asset.chain),
+                referrer_bps: referral_fees.for_chain(from_asset.chain).map_or(0, |fee| fee.bps),
                 slippage_bps: request.options.slippage.bps.min(MAYAN_MAX_SLIPPAGE_BPS),
                 slippage_mode: request.options.slippage.mode,
             })
