@@ -2,6 +2,7 @@ use axum::response::{IntoResponse, Response};
 use fiat::error::FiatQuoteError;
 use gem_auth::JwtError;
 use gem_client::ClientError;
+use gem_jsonrpc::types::{ERROR_CLIENT_ERROR, JsonRpcError};
 use http::StatusCode;
 use http_server::{ErrorBody, INTERNAL_ERROR_MESSAGE, status_message};
 use localizer::LanguageLocalizer;
@@ -58,6 +59,14 @@ impl ApiError {
 
     pub fn unprocessable(message: impl Into<String>) -> Self {
         Self::new(StatusCode::UNPROCESSABLE_ENTITY, message)
+    }
+
+    pub fn unavailable(detail: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            message: status_message(StatusCode::SERVICE_UNAVAILABLE),
+            detail: Some(detail.into()),
+        }
     }
 
     pub fn internal(detail: impl Into<String>) -> Self {
@@ -147,8 +156,12 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for ApiError {
             if let Some(db_error) = current_error.downcast_ref::<DatabaseError>() {
                 return db_error.clone().into();
             }
+            if current_error.downcast_ref::<JsonRpcError>().is_some_and(|rpc| rpc.code == ERROR_CLIENT_ERROR) {
+                return ApiError::unavailable(error.to_string());
+            }
             if let Some(ClientError::Http { status, body }) = current_error.downcast_ref::<ClientError>() {
-                return ApiError::internal(format!("upstream status {status}: {}", String::from_utf8_lossy(body)));
+                let detail = format!("upstream status {status}: {}", String::from_utf8_lossy(body));
+                return if *status == StatusCode::TOO_MANY_REQUESTS.as_u16() { ApiError::unavailable(detail) } else { ApiError::internal(detail) };
             }
             match current_error.source() {
                 Some(source) => current_error = source,
@@ -165,6 +178,7 @@ mod tests {
     use super::{ApiError, INTERNAL_ERROR_MESSAGE, fiat_error};
     use fiat::error::FiatQuoteError;
     use gem_client::ClientError;
+    use gem_jsonrpc::types::{ERROR_CLIENT_ERROR, JsonRpcError};
     use http::StatusCode;
     use primitives::RequestError;
     use rewards::RewardsError;
@@ -239,6 +253,30 @@ mod tests {
             assert_eq!(error.message, INTERNAL_ERROR_MESSAGE);
             assert_eq!(error.detail.as_deref(), Some(detail));
         }
+    }
+
+    #[test]
+    fn test_upstream_unavailability_maps_to_service_unavailable() {
+        let no_endpoint: Box<dyn std::error::Error + Send + Sync> = Box::new(JsonRpcError {
+            code: ERROR_CLIENT_ERROR,
+            message: "no endpoint is available".to_string(),
+            cause: None,
+        });
+        let rate_limited: Box<dyn std::error::Error + Send + Sync> = Box::new(ClientError::Http {
+            status: 429,
+            body: b"Too many requests".to_vec(),
+        });
+        let reverted: Box<dyn std::error::Error + Send + Sync> = Box::new(JsonRpcError {
+            code: -32000,
+            message: "execution reverted".to_string(),
+            cause: None,
+        });
+
+        let unavailable = ApiError::from(no_endpoint);
+        assert_eq!((unavailable.status, unavailable.message.as_str()), (StatusCode::SERVICE_UNAVAILABLE, "503 Service Unavailable"));
+        assert_eq!(unavailable, ApiError::unavailable("no endpoint is available (-32900)"));
+        assert_eq!(ApiError::from(rate_limited), ApiError::unavailable("upstream status 429: Too many requests"));
+        assert_eq!(ApiError::from(reverted), ApiError::internal("execution reverted (-32000)"));
     }
 
     #[test]

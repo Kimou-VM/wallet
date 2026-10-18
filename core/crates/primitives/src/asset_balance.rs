@@ -3,12 +3,14 @@ use model_derive::Model;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddressBalances {
     pub coin: AssetBalance,
     pub staking: Option<AssetBalance>,
     pub assets: Vec<AssetBalance>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assets_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Model)]

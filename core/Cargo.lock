@@ -529,6 +529,7 @@ dependencies = [
  "futures",
  "gem_auth",
  "gem_client",
+ "gem_jsonrpc",
  "gem_tracing",
  "hex",
  "http",

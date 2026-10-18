@@ -41,6 +41,7 @@ config_keys = { path = "../../crates/config_keys" }
 defi = { path = "../../crates/defi" }
 nft = { path = "../../crates/nft" }
 gem_client = { path = "../../crates/gem_client", features = ["reqwest"] }
+gem_jsonrpc = { path = "../../crates/gem_jsonrpc" }
 swapper = { path = "../../crates/swapper", features = ["reqwest_provider"] }
 localizer = { path = "../../crates/localizer" }
 
