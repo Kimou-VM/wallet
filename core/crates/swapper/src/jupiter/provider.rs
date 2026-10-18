@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use futures::try_join;
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
@@ -59,19 +60,19 @@ where
     }
 
     async fn get_referral_account(&self, from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset, referral_address: &str) -> Result<String, SwapperError> {
-        let output_mint = Self::asset_mint(&to_asset.id)?;
-        let fee_asset = if SOLANA_FEE_MINTS.contains(&output_mint.as_str()) { to_asset } else { from_asset };
-        let fee_mint = Self::asset_mint(&fee_asset.id)?;
-        let is_preferred_fee_mint = SOLANA_FEE_MINTS.contains(&fee_mint.as_str());
-        let token_program = if is_preferred_fee_mint { TOKEN_PROGRAM.to_string() } else { self.get_token_program(fee_asset).await? };
-        let fee_account = get_token_account(referral_address, &fee_mint, &token_program)?;
-        if is_preferred_fee_mint {
-            return Ok(fee_account);
+        let (input_mint, output_mint) = (Self::asset_mint(&from_asset.id)?, Self::asset_mint(&to_asset.id)?);
+        if let Some(mint) = [&output_mint, &input_mint].into_iter().find(|mint| SOLANA_FEE_MINTS.contains(&mint.as_str())) {
+            return Ok(get_token_account(referral_address, mint, TOKEN_PROGRAM)?);
         }
 
-        let request = SolanaRpc::GetAccountInfo(fee_account.clone(), SolanaAccountEncoding::Base64);
-        let value: ValueResult<Option<AccountData>> = self.rpc_client.request(request).await?;
-        value.value.map(|_| fee_account).ok_or_else(|| SwapperError::compute_quote_error("Jupiter referral fee account is unavailable"))
+        let (input_program, output_program) = try_join!(self.get_token_program(from_asset), self.get_token_program(to_asset))?;
+        let candidates = vec![get_token_account(referral_address, &input_mint, &input_program)?, get_token_account(referral_address, &output_mint, &output_program)?];
+        let accounts: ValueResult<Vec<Option<AccountData>>> = self.rpc_client.request(SolanaRpc::GetMultipleAccounts(candidates.clone())).await?;
+        candidates
+            .into_iter()
+            .zip(accounts.value)
+            .find_map(|(account, data)| data.map(|_| account))
+            .ok_or_else(|| SwapperError::compute_quote_error("Jupiter referral fee account is unavailable"))
     }
 }
 
@@ -141,6 +142,55 @@ where
             None,
             Some(MAX_COMPUTE_UNIT_LIMIT.to_string()),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::solana_dex::testkit::mock_rpc_client;
+    use gem_client::testkit::MockClient;
+    use gem_solana::{USDC_TOKEN_MINT, token_account::get_token_account};
+    use primitives::swap::SOLANA_REFERRAL_ADDRESS;
+    use serde_json::{Value, json};
+    use std::{
+        collections::HashMap,
+        sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        },
+    };
+
+    const JLP_MINT: &str = "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4";
+    const WIF_MINT: &str = "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm";
+
+    fn token(mint: &str) -> SwapperQuoteAsset {
+        SwapperQuoteAsset::from(AssetId::from(Chain::Solana, Some(mint.to_string())))
+    }
+
+    fn referral_account(mint: &str) -> String {
+        get_token_account(SOLANA_REFERRAL_ADDRESS, mint, TOKEN_PROGRAM).unwrap()
+    }
+
+    fn jupiter(existing: &[&str], requests: Arc<AtomicUsize>) -> Jupiter<MockClient, MockClient> {
+        let accounts: HashMap<String, Value> = existing.iter().map(|mint| (referral_account(mint), json!({ "data": ["", "base64"], "owner": TOKEN_PROGRAM }))).collect();
+        Jupiter::with_clients(JupiterClient::new(MockClient::new()), mock_rpc_client(accounts, requests))
+    }
+
+    async fn account(jupiter: Jupiter<MockClient, MockClient>, from: &str, to: &str) -> Result<String, SwapperError> {
+        jupiter.get_referral_account(&token(from), &token(to), SOLANA_REFERRAL_ADDRESS).await
+    }
+
+    #[tokio::test]
+    async fn test_referral_account_uses_whichever_side_has_one() {
+        let requests = Arc::new(AtomicUsize::new(0));
+
+        assert_eq!(account(jupiter(&[], requests.clone()), JLP_MINT, USDC_TOKEN_MINT).await, Ok(referral_account(USDC_TOKEN_MINT)));
+        assert_eq!(requests.load(Ordering::SeqCst), 0);
+        assert_eq!(account(jupiter(&[WIF_MINT], requests.clone()), JLP_MINT, WIF_MINT).await, Ok(referral_account(WIF_MINT)));
+        assert_eq!(account(jupiter(&[JLP_MINT, WIF_MINT], requests.clone()), JLP_MINT, WIF_MINT).await, Ok(referral_account(JLP_MINT)));
+        assert_eq!(requests.load(Ordering::SeqCst), 2);
+        assert!(account(jupiter(&[], requests), JLP_MINT, WIF_MINT).await.is_err());
     }
 }
 
