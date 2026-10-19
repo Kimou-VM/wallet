@@ -9,7 +9,7 @@ use crate::{
     client_factory::create_ton_client,
     fees::{ReferralFee, on_chain_referral_fees, subtract_bps},
     models::nonzero_swap_value,
-    route_cache::{OutpricedCache, amount_key, quote_outcome},
+    route_cache::{OutpricedCache, amount_key, best_quote, quote_outcome},
     route_path::RoutePath,
 };
 use async_trait::async_trait;
@@ -58,9 +58,9 @@ impl<C: Client> Dedust<C> {
 
     async fn quote_paths(&self, paths: Vec<RoutePath<DedustAsset>>, from: &DedustAsset, to: &DedustAsset, value: &BigUint) -> Result<(Vec<Address>, BigUint), SwapperError> {
         let quotes = join_all(paths.into_iter().map(|path| async move { (path.clone(), self.quote_path(path, from, to, value).await) })).await;
-        let outcomes = quotes.iter().filter_map(|(path, quote)| Some((path.clone(), quote_outcome(quote.as_ref().map(|(_, value_out)| amount_key(value_out)))?)));
+        let outcomes = quotes.iter().filter_map(|(path, quote)| Some((path.clone(), quote_outcome(quote.as_ref().map(quoted_value))?)));
         self.outpriced_paths.record(from, to, amount_key(value), outcomes);
-        best_quote(quotes.into_iter().map(|(_, quote)| quote))
+        best_quote(quotes.into_iter().map(|(_, quote)| quote), quoted_value)
     }
 
     async fn quote_path(&self, path: RoutePath<DedustAsset>, from: &DedustAsset, to: &DedustAsset, value: &BigUint) -> Result<(Vec<Address>, BigUint), SwapperError> {
@@ -76,14 +76,12 @@ impl<C: Client> Dedust<C> {
 
     async fn quote_hop(&self, pools: &[Address], asset_in: &DedustAsset, value: &BigUint) -> Result<(Address, BigUint), SwapperError> {
         let quotes = join_all(pools.iter().map(|pool| async move { Ok((*pool, self.client.estimate_swap_out(pool, asset_in, value).await?)) })).await;
-        best_quote(quotes)
+        best_quote(quotes, quoted_value)
     }
 }
 
-fn best_quote<T>(quotes: impl IntoIterator<Item = Result<(T, BigUint), SwapperError>>) -> Result<(T, BigUint), SwapperError> {
-    let (quoted, failed): (Vec<_>, Vec<_>) = quotes.into_iter().partition(Result::is_ok);
-    let best = quoted.into_iter().flatten().max_by(|(_, left), (_, right)| left.cmp(right));
-    best.ok_or_else(|| failed.into_iter().find_map(Result::err).unwrap_or(SwapperError::NoQuoteAvailable))
+fn quoted_value<T>((_, value_out): &(T, BigUint)) -> u128 {
+    amount_key(value_out)
 }
 
 fn route_paths(from: &DedustAsset, to: &DedustAsset) -> Result<Vec<RoutePath<DedustAsset>>, SwapperError> {

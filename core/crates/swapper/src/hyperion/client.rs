@@ -6,7 +6,7 @@ use crate::{
     ProviderType, QuoteRequest, RpcClient, RpcProvider, SwapperError, SwapperProvider,
     client_factory::create_aptos_client,
     fees::{ReferralFee, on_chain_referral_fees},
-    route_cache::{DiscoveryCache, OutpricedCache, quote_outcome},
+    route_cache::{DiscoveryCache, OutpricedCache, best_quote, quote_outcome},
     route_path::RoutePath,
 };
 use futures::future::{join, join_all};
@@ -58,10 +58,11 @@ impl<C: Client> Hyperion<C> {
     }
 
     async fn quote_paths(&self, paths: Vec<RoutePath<String>>, (from, to): (&String, &String), amount_in: u64) -> Result<(PoolRoute, u64), SwapperError> {
+        let value_out = |(_, amount_out): &(PoolRoute, u64)| u128::from(*amount_out);
         let quotes = join_all(paths.into_iter().map(|path| async move { (path.clone(), self.quote_path(path, from, to, amount_in).await) })).await;
-        let outcomes = quotes.iter().filter_map(|(path, quote)| Some((path.clone(), quote_outcome(quote.as_ref().map(|(_, amount_out)| u128::from(*amount_out)))?)));
+        let outcomes = quotes.iter().filter_map(|(path, quote)| Some((path.clone(), quote_outcome(quote.as_ref().map(value_out))?)));
         self.outpriced_paths.record(from, to, u128::from(amount_in), outcomes);
-        quotes.into_iter().filter_map(|(_, quote)| quote.ok()).max_by_key(|(_, amount_out)| *amount_out).ok_or(SwapperError::NoQuoteAvailable)
+        best_quote(quotes.into_iter().map(|(_, quote)| quote), value_out)
     }
 
     pub(super) async fn preload_pair(&self, from: &str, to: &str) {
@@ -225,6 +226,26 @@ mod tests {
 
         assert_eq!(provider.discover_pools(&apt, APTOS_USDC_TOKEN_ID).await, vec![Pool::new(&apt, APTOS_USDC_TOKEN_ID, 0).unwrap()]);
         assert_eq!(provider.discovery_cache.missing_probes(&apt, APTOS_USDC_TOKEN_ID, &HYPERION_FEE_TIERS), vec![3, 4]);
+    }
+
+    #[tokio::test]
+    async fn test_find_route_surfaces_node_error() {
+        let apt = AccountAddress::from_hex("0xa").unwrap().to_string();
+        let pool = |tier: u8| Pool::new(&apt, APTOS_USDC_TOKEN_ID, tier).unwrap().address;
+        let view = |function: &str, arguments: serde_json::Value, status: u16, response: serde_json::Value| json!({ "function": pool_function(function), "arguments": arguments, "status": status, "response": response });
+        let aborted = json!({ "message": "VMError with status ABORTED", "error_code": "invalid_input", "vm_error_code": VM_STATUS_ABORTED });
+        let views = json!([
+            view(FUNCTION_POOL_RESERVE_AMOUNT, json!([pool(0)]), 200, json!(["1000", "2000"])),
+            view(FUNCTION_POOL_RESERVE_AMOUNT, json!([pool(1)]), 400, aborted.clone()),
+            view(FUNCTION_POOL_RESERVE_AMOUNT, json!([pool(2)]), 400, aborted.clone()),
+            view(FUNCTION_POOL_RESERVE_AMOUNT, json!([pool(3)]), 400, aborted.clone()),
+            view(FUNCTION_POOL_RESERVE_AMOUNT, json!([pool(4)]), 400, aborted.clone()),
+            view(FUNCTION_POOL_RESERVE_AMOUNT, json!([pool(5)]), 400, aborted),
+            view(FUNCTION_GET_AMOUNT_OUT, json!([pool(0), apt, "1000"]), 500, json!({ "message": "node unavailable" })),
+        ]);
+        let provider = Hyperion::with_client(mock_aptos_client(&views.to_string()));
+
+        assert_eq!(provider.find_route(&apt, APTOS_USDC_TOKEN_ID, 1_000).await, Err(SwapperError::compute_quote_error("Hyperion pool quote failed")));
     }
 
     #[tokio::test]

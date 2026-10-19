@@ -10,7 +10,7 @@ use crate::{
     client_factory::create_ton_client,
     fees::{ReferralFee, on_chain_referral_fees, subtract_bps},
     models::nonzero_swap_value,
-    route_cache::{DiscoveryCache, OutpricedCache, amount_key, quote_outcome},
+    route_cache::{DiscoveryCache, OutpricedCache, amount_key, best_quote, quote_outcome},
     route_path::RoutePath,
 };
 use async_trait::async_trait;
@@ -129,9 +129,7 @@ where
             quoted if quoted.iter().all(|(_, quote)| quote.is_err()) && !skipped.is_empty() => self.quote_route_paths(&skipped, request, from_value, allow_discovery).await,
             quoted => quoted,
         };
-        let outcomes = quoted
-            .iter()
-            .filter_map(|(path, quote)| Some((path_key(path), quote_outcome(quote.as_ref().map(|path| path.to_value.parse().unwrap_or_default()))?)));
+        let outcomes = quoted.iter().filter_map(|(path, quote)| Some((path_key(path), quote_outcome(quote.as_ref().map(QuotePath::value_out))?)));
         self.outpriced_paths.record(&from_key, &to_key, amount_in, outcomes);
         quoted.into_iter().map(|(_, quote)| quote).collect()
     }
@@ -354,7 +352,7 @@ where
         if let Some(err) = retryable_path_error(paths.iter()) {
             return Err(err);
         }
-        let best = Self::select_best_quote_path(paths);
+        let best = best_quote(paths, QuotePath::value_out);
         if best.is_ok() || self.route_discovery_complete(&request.from_asset, &request.to_asset) {
             return best;
         }
@@ -363,16 +361,7 @@ where
         if let Some(err) = retryable_path_error(paths.iter()) {
             return Err(err);
         }
-        Self::select_best_quote_path(paths)
-    }
-
-    fn select_best_quote_path(paths: impl IntoIterator<Item = Result<QuotePath, SwapperError>>) -> Result<QuotePath, SwapperError> {
-        let (quoted, failed): (Vec<_>, Vec<_>) = paths.into_iter().partition(Result::is_ok);
-        let ranked = quoted.into_iter().flatten().map(|path| Ok((BigUint::from_str(&path.to_value)?, path))).collect::<Result<Vec<_>, SwapperError>>()?;
-        match ranked.into_iter().min_by_key(|(amount, _)| Reverse(amount.clone())) {
-            Some((_, path)) => Ok(path),
-            None => Err(failed.into_iter().find_map(Result::err).unwrap_or(SwapperError::NoQuoteAvailable)),
-        }
+        best_quote(paths, QuotePath::value_out)
     }
 }
 

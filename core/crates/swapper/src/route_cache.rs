@@ -92,6 +92,15 @@ pub(crate) fn quote_outcome(quote: Result<u128, &SwapperError>) -> Option<u128> 
     }
 }
 
+pub(crate) fn best_quote<R>(quotes: impl IntoIterator<Item = Result<R, SwapperError>>, value_out: impl Fn(&R) -> u128) -> Result<R, SwapperError> {
+    let (quoted, failed): (Vec<_>, Vec<_>) = quotes.into_iter().partition(Result::is_ok);
+    quoted
+        .into_iter()
+        .flatten()
+        .max_by_key(value_out)
+        .ok_or_else(|| failed.into_iter().find_map(Result::err).unwrap_or(SwapperError::NoQuoteAvailable))
+}
+
 pub(crate) fn amount_key(amount: &BigUint) -> u128 {
     amount.to_u128().unwrap_or(u128::MAX)
 }
@@ -299,6 +308,18 @@ mod tests {
 
         cache.record(&"sol", &"usdc", 10, [("deep", 0), ("close", 0), ("shallow", 0)]);
         assert_eq!(partition("sol", "usdc", 10), (pools(), vec![]));
+    }
+
+    #[test]
+    fn test_best_quote() {
+        let best = |quotes: Vec<Result<u128, SwapperError>>| best_quote(quotes, |value_out| *value_out);
+
+        assert_eq!(best(vec![Err(SwapperError::InvalidRoute), Ok(5), Ok(9), Err(SwapperError::NoQuoteAvailable)]), Ok(9));
+        assert_eq!(
+            best(vec![Err(SwapperError::compute_quote_error("node unavailable")), Err(SwapperError::NoQuoteAvailable)]),
+            Err(SwapperError::compute_quote_error("node unavailable"))
+        );
+        assert_eq!(best(vec![]), Err(SwapperError::NoQuoteAvailable));
     }
 
     #[test]

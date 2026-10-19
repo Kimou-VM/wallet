@@ -30,3 +30,9 @@ pub(super) struct QuotePath {
     pub(super) to_value: String,
     pub(super) routes: Vec<Route>,
 }
+
+impl QuotePath {
+    pub(super) fn value_out(&self) -> u128 {
+        self.to_value.parse().unwrap_or_default()
+    }
+}
