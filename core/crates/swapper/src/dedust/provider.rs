@@ -7,7 +7,7 @@ use super::{
 use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     client_factory::create_ton_client,
-    fees::{ReferralFee, on_chain_referral_fees, subtract_bps},
+    fees::subtract_bps,
     models::nonzero_swap_value,
     route_cache::{OutpricedCache, amount_key, best_quote},
     route_path::RoutePath,
@@ -44,10 +44,6 @@ impl<C: Client> Dedust<C> {
             client: DedustClient::new(ton_client),
             outpriced_paths: OutpricedCache::default(),
         }
-    }
-
-    fn referral_fee(request: &QuoteRequest) -> ReferralFee {
-        on_chain_referral_fees(request).ton
     }
 
     async fn find_route(&self, from: &DedustAsset, to: &DedustAsset, value: &BigUint) -> Result<(Vec<Address>, BigUint), SwapperError> {
@@ -126,14 +122,14 @@ where
         let request = request.reserve_native_attachment(&BigUint::from(SWAP_GAS))?;
         let from = DedustAsset::from_asset_id(&request.from_asset.asset_id())?;
         let to = DedustAsset::from_asset_id(&request.to_asset.asset_id())?;
-        let swap_value = subtract_bps(&request.value, Self::referral_fee(&request).bps);
+        let swap_value = subtract_bps(&request.value, request.on_chain_referral_fee().bps);
         let (pools, value_out) = self.find_route(&from, &to, nonzero_swap_value(&swap_value)?).await?;
 
         Quote::from_route(&request, self.provider(), value_out, request.options.slippage.bps, &PoolRoute::new(&pools), None)
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
-        let swap = DedustSwap::new(quote, &quote.route_data()?, &Self::referral_fee(&quote.request))?;
+        let swap = DedustSwap::new(quote, &quote.route_data()?, &quote.request.on_chain_referral_fee())?;
         let from = DedustAsset::from_asset_id(&quote.request.from_asset.asset_id())?;
         let messages = match &from {
             DedustAsset::Native => swap.native_messages(&self.client.vault_address(&from).await?)?,

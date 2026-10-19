@@ -3,9 +3,8 @@ use super::{
     model::{INTERMEDIATE_TOKENS, Pool, PoolQuote, PoolRoute},
 };
 use crate::{
-    ProviderType, QuoteRequest, RpcClient, RpcProvider, SwapperError, SwapperProvider,
+    ProviderType, RpcClient, RpcProvider, SwapperError, SwapperProvider,
     client_factory::create_aptos_client,
-    fees::{ReferralFee, on_chain_referral_fees},
     route_cache::{DiscoveryCache, OutpricedCache, best_quote},
     route_path::RoutePath,
 };
@@ -44,10 +43,6 @@ impl<C: Client> Hyperion<C> {
             outpriced_pools: OutpricedCache::default(),
             outpriced_paths: OutpricedCache::default(),
         }
-    }
-
-    pub(super) fn referral_fee(request: &QuoteRequest) -> ReferralFee {
-        on_chain_referral_fees(request).aptos
     }
 
     pub(super) async fn find_route(&self, from: &str, to: &str, amount_in: u64) -> Result<(PoolRoute, u64), SwapperError> {

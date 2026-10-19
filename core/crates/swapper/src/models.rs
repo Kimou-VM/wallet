@@ -1,5 +1,9 @@
 use super::permit2_data::Permit2Data;
-use crate::{SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperSlippage, config::DEFAULT_SLIPPAGE_BPS, fees::reserved_transaction_fees};
+use crate::{
+    SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperSlippage,
+    config::DEFAULT_SLIPPAGE_BPS,
+    fees::{ReferralFee, on_chain_referral_fees, reserved_transaction_fees},
+};
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 pub use primitives::swap::Permit2ApprovalData;
@@ -117,6 +121,10 @@ impl QuoteRequest {
 
     pub fn is_stablecoin_swap(&self) -> bool {
         STABLECOIN_ASSET_IDS.contains(&self.from_asset.asset_id()) && STABLECOIN_ASSET_IDS.contains(&self.to_asset.asset_id())
+    }
+
+    pub fn on_chain_referral_fee(&self) -> ReferralFee {
+        on_chain_referral_fees(self).for_chain(self.from_asset.chain()).cloned().unwrap_or_default()
     }
 
     fn spends_all_native(&self) -> bool {

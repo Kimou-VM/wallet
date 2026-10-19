@@ -3,13 +3,7 @@ use super::{
     model::{DiscoveredPool, Hop, INTERMEDIATE_COIN_TYPES},
     tx_builder,
 };
-use crate::{
-    ProviderType, QuoteRequest, RpcProvider, SwapperError, SwapperProvider,
-    client_factory::create_sui_client,
-    fees::{ReferralFee, on_chain_referral_fees},
-    route_cache::DiscoveryCache,
-    route_path::RoutePath,
-};
+use crate::{ProviderType, RpcProvider, SwapperError, SwapperProvider, client_factory::create_sui_client, route_cache::DiscoveryCache, route_path::RoutePath};
 use gem_sui::{EMPTY_ADDRESS, SUI_COIN_TYPE, SuiClient, coin_type_matches, full_coin_type, models::InspectResult, tx_builder::ObjectResolver};
 use primitives::AssetId;
 use std::{collections::HashMap, sync::Arc};
@@ -51,10 +45,6 @@ impl CetusClmm {
             sui_client,
             discovery_cache: DiscoveryCache::default(),
         }
-    }
-
-    pub(super) fn referral_fee(request: &QuoteRequest) -> ReferralFee {
-        on_chain_referral_fees(request).sui
     }
 
     pub(super) fn coin_type(asset_id: &AssetId) -> String {

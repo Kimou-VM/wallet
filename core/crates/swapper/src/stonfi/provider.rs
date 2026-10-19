@@ -8,7 +8,7 @@ use super::{
 use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
     client_factory::create_ton_client,
-    fees::{ReferralFee, on_chain_referral_fees, subtract_bps},
+    fees::subtract_bps,
     models::nonzero_swap_value,
     route_cache::{DiscoveryCache, OutpricedCache, amount_key, best_quote, quote_outcome},
     route_path::RoutePath,
@@ -77,7 +77,7 @@ where
                 intermediary,
                 &to_intermediary.ask_units,
                 &request.to_asset,
-                (request.options.slippage.bps, Self::referral_fee(request).bps),
+                (request.options.slippage.bps, request.on_chain_referral_fee().bps),
                 allow_discovery,
                 true,
             )
@@ -105,7 +105,7 @@ where
 
     async fn quote_direct(&self, request: &QuoteRequest, from_value: &str, allow_discovery: bool) -> Result<QuotePath, SwapperError> {
         let simulation = self
-            .quote_swap(&request.from_asset, from_value, &request.to_asset, (request.options.slippage.bps, Self::referral_fee(request).bps), allow_discovery, false)
+            .quote_swap(&request.from_asset, from_value, &request.to_asset, (request.options.slippage.bps, request.on_chain_referral_fee().bps), allow_discovery, false)
             .await?;
         Ok(QuotePath {
             to_value: simulation.ask_units.clone(),
@@ -152,10 +152,6 @@ where
 
     fn should_quote_intermediary_path(&self, from_asset: &SwapperQuoteAsset, intermediary: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset, allow_discovery: bool) -> bool {
         allow_discovery || (self.has_known_candidates(from_asset, intermediary) && self.has_known_candidates(intermediary, to_asset))
-    }
-
-    fn referral_fee(request: &QuoteRequest) -> ReferralFee {
-        on_chain_referral_fees(request).ton
     }
 
     async fn quote_swap(&self, from_asset: &SwapperQuoteAsset, from_value: &str, to_asset: &SwapperQuoteAsset, (slippage_bps, referral_bps): (u32, u32), allow_discovery: bool, require_v2: bool) -> Result<SwapSimulation, SwapperError> {
@@ -413,7 +409,7 @@ where
             simulation: next_simulation,
             through_ton: quote.data.routes.first().is_some_and(|route| route.output.is_native()),
         });
-        let referral_fee = Self::referral_fee(&quote.request);
+        let referral_fee = quote.request.on_chain_referral_fee();
         let receiver_address = if quote.request.destination_address.is_empty() {
             &quote.request.wallet_address
         } else {

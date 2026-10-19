@@ -42,7 +42,7 @@ impl Swapper for CetusClmm {
         let to_coin_type = CetusClmm::coin_type(&to_asset);
         let fee_side = fee_side(&from_coin_type, &to_coin_type);
 
-        let referral_fee = CetusClmm::referral_fee(request);
+        let referral_fee = request.on_chain_referral_fee();
         let swap_amount = referral_fee.swap_value(fee_side, amount);
 
         let hops = self.find_route_hops(&from_coin_type, &to_coin_type, swap_amount).await?;
@@ -64,7 +64,7 @@ impl Swapper for CetusClmm {
             return Err(SwapperError::InvalidRoute);
         }
 
-        tx_builder::build_quote_data(&self.sui_client, quote, &route, &CetusClmm::referral_fee(&quote.request), CETUS_CLMM_PUBLISHED_AT).await
+        tx_builder::build_quote_data(&self.sui_client, quote, &route, &quote.request.on_chain_referral_fee(), CETUS_CLMM_PUBLISHED_AT).await
     }
 }
 
