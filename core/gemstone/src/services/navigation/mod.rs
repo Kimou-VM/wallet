@@ -144,8 +144,12 @@ impl GemNavigationService {
         self.preferences.show_perpetuals(wallet.wallet_type, wallet.chains())
     }
 
+    fn hides_asset(&self, wallet: &Wallet, asset: &Asset) -> bool {
+        asset.asset_type == AssetType::PERPETUAL && !self.shows_perpetuals(wallet)
+    }
+
     fn wallet_asset_target(&self, wallet: &Wallet, asset: Asset, wallet_id: Option<WalletId>) -> GemNavigationTarget {
-        match asset.asset_type == AssetType::PERPETUAL && !self.shows_perpetuals(wallet) {
+        match self.hides_asset(wallet, &asset) {
             true => GemNavigationTarget::None,
             false => target(asset, wallet_id),
         }
@@ -165,7 +169,8 @@ impl GemNavigationService {
         let Some(wallet) = self.session.get_wallet(wallet_id.clone()).await? else {
             return Ok(GemNavigationTarget::None);
         };
-        Ok(match self.balance.open_wallet_asset(wallet, asset_id).await? {
+        Ok(match self.balance.open_wallet_asset(wallet.clone(), asset_id).await? {
+            Some(asset) if self.hides_asset(&wallet, &asset) => GemNavigationTarget::None,
             Some(asset) => GemNavigationTarget::Transaction {
                 is_perpetual: asset.asset_type == AssetType::PERPETUAL,
                 asset,
@@ -438,6 +443,41 @@ mod tests {
                 GemNavigationTarget::Asset {
                     asset: perpetual,
                     wallet_id: None,
+                    is_perpetual: true
+                }
+            );
+        });
+    }
+
+    #[test]
+    fn test_a_perpetual_transaction_push_opens_only_where_the_wallet_shows_perpetuals() {
+        block_on(async {
+            let testkit = DiscoveryTestkit::with_status(200);
+            let service = GemNavigationService::new(testkit.assets.clone(), testkit.balance.clone(), testkit.preferences.clone(), testkit.session.clone());
+            let wallet = Wallet::mock_with_chains(&[Chain::HyperCore]);
+            let perpetual = Asset {
+                asset_type: AssetType::PERPETUAL,
+                ..Asset::from_chain(Chain::HyperCore)
+            };
+            let transaction_id = Transaction::mock().id;
+            select_wallet(&testkit, wallet.clone());
+            save_asset(&testkit, perpetual.clone(), false, false).await;
+            let open = || {
+                service.open_notification(GemPushNotification::Transaction {
+                    wallet_id: wallet.id.clone(),
+                    asset_id: perpetual.id.clone(),
+                    transaction_id: transaction_id.clone(),
+                })
+            };
+
+            assert_eq!(open().await.unwrap(), GemNavigationTarget::None, "Perpetuals are switched off");
+            testkit.preferences.set_perpetual_enabled(true).unwrap();
+            assert_eq!(
+                open().await.unwrap(),
+                GemNavigationTarget::Transaction {
+                    asset: perpetual,
+                    wallet_id: wallet.id,
+                    transaction_id,
                     is_perpetual: true
                 }
             );
