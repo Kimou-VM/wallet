@@ -3,7 +3,7 @@ use crate::SwapperError;
 use gem_ton::{
     address::Address,
     models::JettonTransfer,
-    tvm::{BagOfCells, Cell, CellArc, CellBuilder},
+    tvm::{Cell, CellArc, CellBuilder},
 };
 use num_bigint::BigUint;
 use std::str::FromStr;
@@ -33,7 +33,7 @@ fn build_ton_to_jetton(params: SwapTransactionParams<'_>, swap_body: &CellArc) -
     Ok(TxParams {
         to: params.simulation.offer_jetton_wallet.clone(),
         value: value.to_string(),
-        data: BagOfCells::from_root(body).to_base64(true)?,
+        data: body.to_boc_base64()?,
     })
 }
 
@@ -51,7 +51,7 @@ fn build_jetton_swap(params: SwapTransactionParams<'_>, swap_body: &CellArc) -> 
     Ok(TxParams {
         to: sender_jetton_wallet.to_string(),
         value: gas.to_string(),
-        data: BagOfCells::from_root(body).to_base64(true)?,
+        data: body.to_boc_base64()?,
     })
 }
 
@@ -73,6 +73,7 @@ fn build_swap_body(params: &SwapTransactionParams<'_>) -> Result<Cell, SwapperEr
 mod tests {
     use super::*;
     use crate::stonfi::{model::SwapSimulation, tx_builder::SwapTransactionParams};
+    use gem_ton::tvm::BagOfCells;
 
     #[test]
     fn test_build_v1_swap_transaction() {

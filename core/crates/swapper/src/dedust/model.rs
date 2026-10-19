@@ -2,7 +2,7 @@ use crate::SwapperError;
 use gem_ton::{
     address::Address,
     models::StackArg,
-    tvm::{BagOfCells, Cell, CellBuilder, TvmError},
+    tvm::{Cell, CellBuilder, TvmError},
 };
 use primitives::AssetId;
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,7 @@ impl DedustAsset {
     }
 
     pub fn stack_arg(&self) -> Result<StackArg, TvmError> {
-        Ok(StackArg::slice(BagOfCells::from_root(self.cell()?).to_base64(true)?))
+        Ok(StackArg::slice(self.cell()?.to_boc_base64()?))
     }
 
     fn cell(&self) -> Result<Cell, TvmError> {

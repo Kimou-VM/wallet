@@ -5,13 +5,7 @@ use super::{
     message::{InternalMessage, build_internal_message},
     request::{JettonTransferRequest, NftTransferRequest, TransferPayload, TransferRequest},
 };
-use crate::{
-    address::Address,
-    constants::NFT_TRANSFER_FORWARD_AMOUNT,
-    models::TonConnectMessage,
-    signer::signer::TonSigner,
-    tvm::{BagOfCells, CellBuilder},
-};
+use crate::{address::Address, constants::NFT_TRANSFER_FORWARD_AMOUNT, models::TonConnectMessage, signer::signer::TonSigner, tvm::CellBuilder};
 
 const MAX_WALLET_MESSAGES: usize = 4;
 const STATE_INIT_EXPIRE_AT: u32 = u32::MAX;
@@ -73,7 +67,7 @@ impl TonSigner {
         let signed_body = CellBuilder::new().store_slice(&signature)?.store_cell(&external_body)?.end_cell()?;
         let signed_transaction = self.wallet().build_transaction(sequence == 0, signed_body)?;
 
-        Ok(BagOfCells::from_root(signed_transaction).to_base64(true)?)
+        Ok(signed_transaction.to_boc_base64()?)
     }
 }
 

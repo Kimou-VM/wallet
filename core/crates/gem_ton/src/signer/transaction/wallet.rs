@@ -30,7 +30,7 @@ impl WalletV4R2 {
     }
 
     pub fn state_init_base64(&self) -> Result<String, SignerError> {
-        Ok(BagOfCells::from_root(Self::build_state_init(&self.public_key)?).to_base64(true)?)
+        Ok(Self::build_state_init(&self.public_key)?.to_boc_base64()?)
     }
 
     pub(super) fn build_external_body(&self, expire_at: u32, sequence: u32, messages: &[InternalMessage]) -> Result<Cell, SignerError> {

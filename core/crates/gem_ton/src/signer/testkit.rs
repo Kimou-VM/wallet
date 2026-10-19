@@ -8,10 +8,7 @@ use super::{
         request::{JettonTransferRequest, TransferRequest},
     },
 };
-use crate::{
-    address::Address,
-    tvm::{BagOfCells, CellBuilder},
-};
+use crate::{address::Address, tvm::CellBuilder};
 
 pub const TEST_ADDRESS: &str = "UQBY1cVPu4SIr36q0M3HWcqPb_efyVVRBsEzmwN-wKQDR6zg";
 pub const TEST_PRIVATE_KEY: &str = "1e9d38b5274152a78dff1a86fa464ceadc1f4238ca2c17060c3c507349424a34";
@@ -27,7 +24,7 @@ pub fn mock_signer_address() -> String {
 }
 
 pub fn mock_cell() -> String {
-    BagOfCells::from_root(CellBuilder::new().store_u32(32, 0).unwrap().end_cell().unwrap()).to_base64(true).unwrap()
+    CellBuilder::new().store_u32(32, 0).unwrap().end_cell().unwrap().to_boc_base64().unwrap()
 }
 
 impl TransferRequest {

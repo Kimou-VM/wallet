@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::TvmError;
+use super::{BagOfCells, TvmError};
 use gem_hash::sha2::sha256;
 
 pub(super) const MAX_CELL_BITS: usize = 1023;
@@ -47,6 +47,10 @@ impl Cell {
 
     pub fn into_arc(self) -> CellArc {
         Arc::new(self)
+    }
+
+    pub fn to_boc_base64(self) -> Result<String, TvmError> {
+        BagOfCells::from_root(self).to_base64(true)
     }
 
     fn bits_descriptor(bit_len: usize) -> Option<u8> {

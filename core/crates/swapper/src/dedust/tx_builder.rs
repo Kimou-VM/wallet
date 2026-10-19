@@ -9,7 +9,7 @@ use crate::{
 use gem_ton::{
     address::Address,
     models::{JettonTransfer, TonConnectMessage},
-    tvm::{BagOfCells, Cell, CellBuilder},
+    tvm::{Cell, CellBuilder},
 };
 use num_bigint::BigUint;
 
@@ -50,7 +50,7 @@ impl DedustSwap {
             .store_cell(&self.swap_step(&self.pools)?)?
             .store_reference(&self.swap_params()?.into_arc())?
             .end_cell()?;
-        let swap = TonConnectMessage::new(vault.encode_bounceable(), &(&self.amount + SWAP_GAS), Some(boc(body)?));
+        let swap = TonConnectMessage::new(vault.encode_bounceable(), &(&self.amount + SWAP_GAS), Some(body.to_boc_base64()?));
         let fee = TonConnectMessage::new(self.fee_receiver.encode_non_bounceable(), &self.fee, None);
         Ok(self.with_fee(swap, fee))
     }
@@ -63,8 +63,8 @@ impl DedustSwap {
             .end_cell()?;
         let swap_body = JettonTransfer::new(self.amount.clone(), *vault, Some(self.wallet), BigUint::from(SWAP_GAS), Some(payload.into_arc())).to_cell()?;
         let fee_body = JettonTransfer::new(self.fee.clone(), self.fee_receiver, Some(self.wallet), BigUint::from(FEE_JETTON_FORWARD_AMOUNT), None).to_cell()?;
-        let swap = TonConnectMessage::new(jetton_wallet.encode_bounceable(), &BigUint::from(JETTON_SWAP_ATTACHMENT), Some(boc(swap_body)?));
-        let fee = TonConnectMessage::new(jetton_wallet.encode_bounceable(), &BigUint::from(FEE_JETTON_TRANSFER_ATTACHMENT), Some(boc(fee_body)?));
+        let swap = TonConnectMessage::new(jetton_wallet.encode_bounceable(), &BigUint::from(JETTON_SWAP_ATTACHMENT), Some(swap_body.to_boc_base64()?));
+        let fee = TonConnectMessage::new(jetton_wallet.encode_bounceable(), &BigUint::from(FEE_JETTON_TRANSFER_ATTACHMENT), Some(fee_body.to_boc_base64()?));
         Ok(self.with_fee(swap, fee))
     }
 
@@ -97,10 +97,6 @@ impl DedustSwap {
             .store_maybe_reference(None)?
             .end_cell()?)
     }
-}
-
-fn boc(cell: Cell) -> Result<String, SwapperError> {
-    Ok(BagOfCells::from_root(cell).to_base64(true)?)
 }
 
 #[cfg(test)]

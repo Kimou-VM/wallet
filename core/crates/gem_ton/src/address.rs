@@ -116,7 +116,7 @@ impl Address {
 
     #[cfg(feature = "tvm")]
     pub fn to_boc_base64(&self) -> Result<String, TvmError> {
-        BagOfCells::from_root(self.to_cell()?).to_base64(true)
+        self.to_cell()?.to_boc_base64()
     }
 
     #[cfg(feature = "tvm")]
