@@ -410,7 +410,7 @@ indexer:
     key:
       secret: ""
   etherscan:
-    url: "https://api.etherscan.io"
+    url: "https://api.etherscan.io/v2"
     key:
       secret: ""
   fastnear:

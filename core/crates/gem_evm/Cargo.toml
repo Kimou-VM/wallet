@@ -6,7 +6,7 @@ edition = { workspace = true }
 [features]
 default = []
 rpc = ["dep:async-trait", "dep:chain_traits", "dep:futures", "dep:gem_client", "gem_jsonrpc/client"]
-indexer = ["rpc", "dep:alchemy", "dep:ankr", "dep:blockscout"]
+indexer = ["rpc", "dep:alchemy", "dep:ankr", "dep:blockscout", "dep:etherscan"]
 reqwest = ["rpc", "gem_jsonrpc/reqwest", "gem_client/reqwest"]
 signer = ["dep:alloy-consensus", "dep:signer"]
 chain_integration_tests = ["indexer", "reqwest", "primitives/testkit", "settings/testkit"]
@@ -19,6 +19,7 @@ gem_jsonrpc = { path = "../gem_jsonrpc" }
 alchemy = { path = "../alchemy", features = ["rpc"], optional = true }
 ankr = { path = "../ankr", optional = true }
 blockscout = { path = "../blockscout", optional = true }
+etherscan = { path = "../etherscan", optional = true }
 gem_client = { path = "../gem_client", optional = true }
 gem_hash = { path = "../gem_hash" }
 signer = { path = "../signer", optional = true }
@@ -47,6 +48,7 @@ gem_client = { path = "../gem_client", features = ["testkit"] }
 gem_jsonrpc = { path = "../gem_jsonrpc", features = ["testkit"] }
 ankr = { path = "../ankr", features = ["testkit"] }
 blockscout = { path = "../blockscout", features = ["testkit"] }
+etherscan = { path = "../etherscan", features = ["testkit"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 settings = { path = "../settings", features = ["testkit"] }
 async-trait = { workspace = true }

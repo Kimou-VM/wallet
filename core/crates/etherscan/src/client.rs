@@ -5,7 +5,7 @@ use primitives::EVMChain;
 use serde::de::DeserializeOwned;
 
 use crate::{
-    model::{EtherscanResponse, GasOracle},
+    model::{EtherscanResponse, GasOracle, Transaction},
     target::EtherscanTarget,
 };
 
@@ -17,7 +17,7 @@ pub struct EtherscanClient<C: Client> {
 
 impl EtherscanClient<ReqwestClient> {
     pub fn new_with_reqwest_client(client: reqwest::Client, api_key: Option<String>) -> Self {
-        Self::new_with_client(ReqwestClient::new("https://api.etherscan.io".to_string(), client), api_key)
+        Self::new_with_client(ReqwestClient::new("https://api.etherscan.io/v2".to_string(), client), api_key)
     }
 }
 
@@ -28,6 +28,14 @@ impl<C: Client> EtherscanClient<C> {
 
     pub async fn get_gas_oracle(&self, chain: EVMChain) -> Result<GasOracle, Box<dyn Error + Send + Sync>> {
         self.get(EtherscanTarget::GasOracle { chain }).await
+    }
+
+    pub async fn get_transactions(&self, chain: EVMChain, address: &str, limit: usize) -> Result<Vec<Transaction>, Box<dyn Error + Send + Sync>> {
+        self.get(EtherscanTarget::Transactions { chain, address: address.to_string(), limit }).await
+    }
+
+    pub async fn get_token_transfers(&self, chain: EVMChain, address: &str, limit: usize) -> Result<Vec<Transaction>, Box<dyn Error + Send + Sync>> {
+        self.get(EtherscanTarget::TokenTransfers { chain, address: address.to_string(), limit }).await
     }
 
     async fn get<T: DeserializeOwned>(&self, target: EtherscanTarget) -> Result<T, Box<dyn Error + Send + Sync>> {

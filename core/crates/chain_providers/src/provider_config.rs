@@ -9,6 +9,7 @@ pub(crate) struct IndexerProvidersConfig {
     pub(crate) aptos: RemoteProviderConfig,
     pub(crate) ankr: RemoteProviderConfig,
     pub(crate) blockscout: RemoteProviderConfig,
+    pub(crate) etherscan: RemoteProviderConfig,
     pub(crate) fastnear: FastNearProvidersConfig,
     pub(crate) subscan: RemoteProviderConfig,
     pub(crate) sui: RemoteProviderConfig,
@@ -50,6 +51,7 @@ impl ProviderConfig {
                 aptos: settings.indexer.aptos.remote_provider_config(),
                 ankr: settings.indexer.ankr.remote_provider_config(),
                 blockscout: settings.indexer.blockscout.remote_provider_config(),
+                etherscan: settings.indexer.etherscan.remote_provider_config(),
                 fastnear: FastNearProvidersConfig {
                     transfers: settings.indexer.fastnear.transfers.remote_provider_config(),
                     tx: settings.indexer.fastnear.tx.remote_provider_config(),

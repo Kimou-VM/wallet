@@ -3,6 +3,9 @@ name = "etherscan"
 edition = { workspace = true }
 version = { workspace = true }
 
+[features]
+testkit = []
+
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }

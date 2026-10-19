@@ -35,8 +35,10 @@ fn build_test_indexer(chain: EVMChain, rpc_url: &str) -> Arc<EVMIndexer<ReqwestC
                 .clone()
                 .with_base_url(alchemy_url(chain.to_chain(), &settings.indexer.alchemy.url, AlchemyApi::JsonRpc, &settings.indexer.alchemy.key.secret)),
             client.clone().with_base_url(format!("{}/{}", settings.indexer.ankr.url, settings.indexer.ankr.key.secret)),
-            settings.indexer.blockscout.remote_provider_config().configure_client(client),
+            settings.indexer.blockscout.remote_provider_config().configure_client(client.clone()),
             settings.indexer.blockscout.key.secret,
+            client.with_base_url(settings.indexer.etherscan.url.replace("{chain}", chain.to_chain().as_ref())),
+            Some(settings.indexer.etherscan.key.secret).filter(|key| !key.is_empty()),
             chain,
         )
         .unwrap(),

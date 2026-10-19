@@ -3428,6 +3428,7 @@ dependencies = [
  "blockscout",
  "chain_traits",
  "chrono",
+ "etherscan",
  "futures",
  "gem_client",
  "gem_hash",

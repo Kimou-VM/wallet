@@ -7,6 +7,8 @@ mod blockscout;
 mod chain_provider;
 pub mod client;
 #[cfg(feature = "indexer")]
+mod etherscan;
+#[cfg(feature = "indexer")]
 mod indexer;
 pub mod mapper;
 pub mod model;

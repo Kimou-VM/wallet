@@ -1,0 +1,9 @@
+{
+    "address": "0x123",
+    "tokenBalances": [
+        {
+            "contractAddress": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+            "tokenBalance": "0x2a"
+        }
+    ]
+}

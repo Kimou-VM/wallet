@@ -76,8 +76,10 @@ impl ProviderFactory {
                     let indexer = EVMIndexer::for_chain(
                         gem_client.clone().with_base_url(alchemy_url(chain, &config.indexers.alchemy.url, AlchemyApi::JsonRpc, &config.indexers.alchemy.key)),
                         gem_client.clone().with_base_url(format!("{}/{}", config.indexers.ankr.url, config.indexers.ankr.key)),
-                        config.indexers.blockscout.configure_client(gem_client),
+                        config.indexers.blockscout.configure_client(gem_client.clone()),
                         config.indexers.blockscout.key,
+                        gem_client.with_base_url(config.indexers.etherscan.url.replace("{chain}", chain.as_ref())),
+                        Some(config.indexers.etherscan.key).filter(|key| !key.is_empty()),
                         evm_chain,
                     );
                     if let Some(indexer) = indexer {

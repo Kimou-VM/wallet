@@ -16,11 +16,20 @@ pub struct EtherscanResponse {
 
 impl EtherscanResponse {
     pub fn into_result<T: DeserializeOwned>(self) -> Result<T, Box<dyn Error + Send + Sync>> {
-        if self.status != STATUS_OK {
+        let is_empty_list = self.result.as_array().is_some_and(Vec::is_empty);
+        if self.status != STATUS_OK && !is_empty_list {
             return Err(format!("Etherscan {}: {}", self.message, self.result).into());
         }
         Ok(serde_json::from_value(self.result)?)
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Transaction {
+    pub hash: String,
+    #[serde(deserialize_with = "deserialize_u64_from_str")]
+    pub block_number: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -58,5 +67,23 @@ mod tests {
 
         let response: EtherscanResponse = serde_json::from_str(include_str!("../testdata/error.json")).unwrap();
         assert_eq!(response.into_result::<GasOracle>().unwrap_err().to_string(), "Etherscan NOTOK: \"Invalid API Key (#err2)|1\"");
+
+        let response: EtherscanResponse = serde_json::from_str(include_str!("../testdata/no_transactions.json")).unwrap();
+        assert_eq!(response.into_result::<Vec<Transaction>>().unwrap(), vec![]);
+
+        let response: EtherscanResponse = serde_json::from_str(include_str!("../testdata/transactions.json")).unwrap();
+        assert_eq!(
+            response.into_result::<Vec<Transaction>>().unwrap(),
+            vec![
+                Transaction {
+                    hash: "0xnormal".to_string(),
+                    block_number: 10
+                },
+                Transaction {
+                    hash: "0xshared".to_string(),
+                    block_number: 8
+                },
+            ]
+        );
     }
 }

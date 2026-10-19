@@ -217,9 +217,9 @@ The table lists backend address-history providers by chain. Chains marked unsupp
 | Sei | [Cosmos chain client](../core/crates/gem_cosmos/src/rpc/client.rs) |
 | Sei EVM | Unsupported |
 | Manta | Unsupported |
-| Blast | [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
+| Blast | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | Noble | [Cosmos chain client](../core/crates/gem_cosmos/src/rpc/client.rs) |
-| ZKsync | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
+| ZKsync | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | Linea | [Ankr](../core/crates/gem_evm/src/rpc/ankr.rs) |
 | Mantle | Unsupported |
 | Celo | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
@@ -231,20 +231,20 @@ The table lists backend address-history providers by chain. Chains marked unsupp
 | Polkadot | [Subscan](../core/crates/gem_polkadot/src/rpc/indexer/mod.rs) |
 | Plasma | Unsupported |
 | Cardano | [Cardano chain client](../core/crates/gem_cardano/src/rpc/client.rs) |
-| Abstract | [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
-| Berachain | [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
+| Abstract | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
+| Berachain | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | Ink | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | Unichain | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
-| Hyperliquid | [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
+| Hyperliquid | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | HyperCore | [HyperCore chain client](../core/crates/gem_hypercore/src/provider/transactions.rs) |
-| Monad | [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
+| Monad | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | X Layer | [Ankr](../core/crates/gem_evm/src/rpc/ankr.rs) |
 | Robinhood Chain | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | Stable | Unsupported |
 | Tempo | Unsupported |
 | Arc | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 
-<sub>Reviewed 2026-09-17. External method references: [Blockscout PRO chains](https://docs.blockscout.com/devs/pro-api) · [Blockscout transactions](https://docs.blockscout.com/api-reference/get-address-transactions) · [Blockscout token transfers](https://docs.blockscout.com/api-reference/get-address-token-transfers) · [Blockscout token balances](https://docs.blockscout.com/api-reference/get-all-tokens-balances-for-the-address) · [Ankr Advanced API](https://www.ankr.com/docs/advanced-api/overview/) · [Alchemy Transfers API](https://www.alchemy.com/docs/reference/transfers-api-quickstart) · [Alchemy Solana history method](https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-transactions-for-address) · [Sui GraphQL](https://docs.sui.io/develop/accessing-data/graphql/graphql-rpc) · [TronGrid account transactions](https://developers.tron.network/reference/get-transaction-info-by-account-address) · [TronGrid TRC-20 transactions](https://developers.tron.network/reference/get-trc20-transaction-info-by-account-address) · [Algorand Indexer](https://dev.algorand.co/reference/rest-api/indexer/).</sub>
+<sub>Reviewed 2026-09-17. External method references: [Blockscout PRO chains](https://docs.blockscout.com/devs/pro-api) · [Blockscout transactions](https://docs.blockscout.com/api-reference/get-address-transactions) · [Blockscout token transfers](https://docs.blockscout.com/api-reference/get-address-token-transfers) · [Blockscout token balances](https://docs.blockscout.com/api-reference/get-all-tokens-balances-for-the-address) · [Ankr Advanced API](https://www.ankr.com/docs/advanced-api/overview/) · [Etherscan transactions](https://docs.etherscan.io/api-reference/endpoint/txlist) · [Etherscan token transfers](https://docs.etherscan.io/api-reference/endpoint/tokentx) · [Etherscan chains](https://docs.etherscan.io/supported-chains) · [Alchemy Transfers API](https://www.alchemy.com/docs/reference/transfers-api-quickstart) · [Alchemy Solana history method](https://www.alchemy.com/docs/chains/solana/solana-api-endpoints/get-transactions-for-address) · [Sui GraphQL](https://docs.sui.io/develop/accessing-data/graphql/graphql-rpc) · [TronGrid account transactions](https://developers.tron.network/reference/get-transaction-info-by-account-address) · [TronGrid TRC-20 transactions](https://developers.tron.network/reference/get-trc20-transaction-info-by-account-address) · [Algorand Indexer](https://dev.algorand.co/reference/rest-api/indexer/).</sub>
 
 ## Swap providers
 
