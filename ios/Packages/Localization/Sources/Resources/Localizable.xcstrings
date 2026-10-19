@@ -70469,13 +70469,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请抄写私钥，并保存在只有您能取用的安全位置。"
+            "value": "私钥是访问钱包的唯一方式。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "請抄寫私鑰，並保存在只有您能取用的安全位置。"
+            "value": "私鑰是存取錢包的唯一方式。"
           }
         }
       }
@@ -70851,13 +70851,13 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请保管好备份，以免设备丢失或损坏后无法恢复钱包。"
+            "value": "如果丢失私钥，将无法访问钱包。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "請保管好備份，以免裝置遺失或損壞後無法復原錢包。"
+            "value": "若遺失私鑰，將無法存取錢包。"
           }
         }
       }
