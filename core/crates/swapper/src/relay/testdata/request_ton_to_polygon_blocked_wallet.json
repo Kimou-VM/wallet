@@ -3,7 +3,6 @@
         {
             "status": "failure",
             "data": {
-                "claimStatus": "claimed",
                 "route": {
                     "actual": {
                         "origin": {

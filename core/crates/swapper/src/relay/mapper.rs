@@ -120,7 +120,7 @@ pub fn map_swap_result(request: &RelayRequest) -> SwapResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::relay::model::{RelayClaimStatus, RelayQuoteResponse, RelayRequest, RelayRequestsResponse, RelayStatus, Step};
+    use crate::relay::model::{RelayQuoteResponse, RelayRequest, RelayRequestsResponse, RelayStatus, Step};
     use primitives::{
         AssetId, Chain,
         asset_constants::{BASE_USDC_ASSET_ID, ETHEREUM_USDC_ASSET_ID},
@@ -330,15 +330,16 @@ mod tests {
             SwapperProvider::Relay,
         );
 
+        let blocked = RelayRequest::mock_blocked_wallet();
         assert_eq!(
-            map_swap_result(&RelayRequest::mock_blocked_wallet(Some(RelayClaimStatus::Claimed))),
+            map_swap_result(&blocked),
             SwapResult {
                 status: SwapStatus::Failed,
-                metadata: Some(metadata.clone()),
+                metadata: Some(metadata.clone().with_requires_withdrawal(true)),
                 eta_in_seconds: None,
             }
         );
-        assert_eq!(map_swap_result(&RelayRequest::mock_blocked_wallet(None)).metadata, Some(metadata.with_requires_withdrawal(true)));
+        assert_eq!(map_swap_result(&RelayRequest { protocol: None, ..blocked }).metadata, Some(metadata));
     }
 
     #[test]

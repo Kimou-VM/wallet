@@ -48,12 +48,11 @@ pub struct RelayRequest {
 impl RelayRequest {
     pub fn requires_withdrawal(&self) -> bool {
         let is_withdrawable = self.protocol.as_ref().is_some_and(|protocol| protocol.is_withdrawable);
-        let is_claimed = self.data.as_ref().is_some_and(|data| data.claim_status == Some(RelayClaimStatus::Claimed));
         let is_failed = match self.status.clone().into_swap_status() {
             SwapStatus::Failed => true,
             SwapStatus::Pending | SwapStatus::Completed | SwapStatus::Refunded => false,
         };
-        is_failed && is_withdrawable && !is_claimed
+        is_failed && is_withdrawable
     }
 
     pub fn has_input_transaction(&self, transaction_hashes: &[Vec<u8>]) -> bool {
@@ -66,20 +65,10 @@ impl RelayRequest {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RelayRequestData {
-    pub claim_status: Option<RelayClaimStatus>,
     pub route: Option<RelayRoute>,
     #[serde(default)]
     pub in_txs: Vec<RelayRequestTransaction>,
     pub app_fees: Option<RelayRequestAppFees>,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum RelayClaimStatus {
-    Unclaimed,
-    Claimed,
-    #[serde(other)]
-    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -174,13 +163,18 @@ mod tests {
 
     #[test]
     fn test_requires_withdrawal() {
-        let unclaimed = RelayRequest::mock_blocked_wallet(Some(RelayClaimStatus::Unclaimed));
+        let blocked = RelayRequest::mock_blocked_wallet();
 
-        assert!(!RelayRequest::mock_blocked_wallet(Some(RelayClaimStatus::Claimed)).requires_withdrawal());
-        assert!(unclaimed.requires_withdrawal());
-        assert!(RelayRequest::mock_blocked_wallet(None).requires_withdrawal());
-        assert!(!RelayRequest { protocol: None, ..unclaimed.clone() }.requires_withdrawal());
-        assert!(!RelayRequest { status: RelayStatus::Refunded, ..unclaimed }.requires_withdrawal());
+        assert!(blocked.requires_withdrawal(), "a failed deposit Relay holds for its owner needs a withdrawal, whatever its claim status");
+        assert!(
+            !RelayRequest {
+                protocol: Some(RelayRequestProtocol { is_withdrawable: false }),
+                ..blocked.clone()
+            }
+            .requires_withdrawal()
+        );
+        assert!(!RelayRequest { protocol: None, ..blocked.clone() }.requires_withdrawal());
+        assert!(!RelayRequest { status: RelayStatus::Refunded, ..blocked }.requires_withdrawal());
     }
 
     #[test]
