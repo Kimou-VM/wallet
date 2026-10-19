@@ -53,6 +53,12 @@ pub struct SolanaDataSlice {
     pub length: usize,
 }
 
+impl SolanaDataSlice {
+    fn value(&self) -> Value {
+        json!({ "offset": self.offset, "length": self.length })
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub enum SolanaRpcConfig {
     #[default]
@@ -126,7 +132,7 @@ impl ToJsonRpcRequest for SolanaRpc {
                 addresses,
                 confirmed_config(json!({
                     "encoding": SolanaAccountEncoding::Base64.as_str(),
-                    "dataSlice": { "offset": slice.offset, "length": slice.length },
+                    "dataSlice": slice.value(),
                 }))
             ]),
             Self::GetProgramAccounts(program, filters) => json!([
@@ -140,7 +146,7 @@ impl ToJsonRpcRequest for SolanaRpc {
                 program,
                 confirmed_config(json!({
                     "encoding": SolanaAccountEncoding::Base64.as_str(),
-                    "dataSlice": { "offset": slice.offset, "length": slice.length },
+                    "dataSlice": slice.value(),
                     "filters": filters.iter().map(SolanaProgramAccountsFilter::value).collect::<Vec<_>>(),
                 }))
             ]),
