@@ -110,7 +110,7 @@ where
         let (Ok(from), Ok(to)) = (DedustAsset::from_asset_id(from_asset), DedustAsset::from_asset_id(to_asset)) else {
             return;
         };
-        let pairs = route_paths(&from, &to).iter().flat_map(|path| path.pairs(&from, &to)).collect::<Vec<_>>();
+        let pairs = RoutePath::all_pairs(&route_paths(&from, &to), &from, &to);
         stream::iter(pairs)
             .for_each_concurrent(None, |(asset_in, asset_out)| async move {
                 _ = try_join_all(PoolType::ALL.map(|pool_type| self.client.pool_address(pool_type, &asset_in, &asset_out))).await

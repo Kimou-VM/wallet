@@ -19,6 +19,10 @@ impl<T: Clone> RoutePath<T> {
             Self::Intermediary(intermediary) => vec![(from.clone(), intermediary.clone()), (intermediary.clone(), to.clone())],
         }
     }
+
+    pub fn all_pairs(paths: &[Self], from: &T, to: &T) -> Vec<(T, T)> {
+        paths.iter().flat_map(|path| path.pairs(from, to)).collect()
+    }
 }
 
 #[cfg(test)]
@@ -38,5 +42,9 @@ mod tests {
     fn test_pairs() {
         assert_eq!(RoutePath::Direct.pairs(&"bonk", &"jup"), vec![("bonk", "jup")]);
         assert_eq!(RoutePath::Intermediary("sol").pairs(&"bonk", &"jup"), vec![("bonk", "sol"), ("sol", "jup")]);
+        assert_eq!(
+            RoutePath::all_pairs(&[RoutePath::Direct, RoutePath::Intermediary("sol")], &"bonk", &"jup"),
+            vec![("bonk", "jup"), ("bonk", "sol"), ("sol", "jup")]
+        );
     }
 }

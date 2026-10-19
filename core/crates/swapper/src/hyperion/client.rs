@@ -181,7 +181,7 @@ fn route_paths(from: &str, to: &str) -> Vec<RoutePath<String>> {
 }
 
 fn discovery_pairs(from: &str, to: &str) -> Vec<(String, String)> {
-    route_paths(from, to).iter().flat_map(|path| path.pairs(&from.to_string(), &to.to_string())).collect()
+    RoutePath::all_pairs(&route_paths(from, to), &from.to_string(), &to.to_string())
 }
 
 #[cfg(test)]
