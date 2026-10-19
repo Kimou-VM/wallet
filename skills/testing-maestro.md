@@ -40,7 +40,7 @@ maestro --device <id> test -e APP_ID=com.gemwallet.android flow.yaml
 
 ## Smoke Suite
 
-`just maestro-smoke <ios|android> [device id]` runs every top-level flow in `maestro/smoke` with the dedicated test seed showing each step live, and writes screenshots and failure details to `build/maestro/<platform>`. Without a device id it boots the automation device (the "Gem Maestro" simulator on the newest iPhone Pro and iOS, or the `Gem_Maestro` emulator), creating it if missing, and installs the current local build.
+`just maestro-smoke <ios|android> [device id]` runs every top-level flow in `maestro/smoke` with the dedicated test seed showing each step live, and writes screenshots and failure details to `build/maestro/<platform>`. Without a device id it boots the automation device (an available "Gem Maestro" simulator on any iOS runtime, created on the newest iPhone Pro and iOS if there is none, or the `Gem_Maestro` emulator, created if missing) and installs the current local build.
 
 - Run it only on a simulator or emulator kept for automation: every flow clears app data.
 - Run one platform at a time: the iOS and Android drivers both use local port 7001, and a concurrent run fails every flow at once.
