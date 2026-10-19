@@ -28,7 +28,7 @@ impl ProviderType {
         Self {
             id,
             name: id.name().to_string(),
-            protocol: id.protocol_name().to_string(),
+            protocol: id.name().to_string(),
             protocol_id: id.id().to_string(),
             mode: ProviderType::mode(id),
             slippage_mode: ProviderType::slippage_mode(id),

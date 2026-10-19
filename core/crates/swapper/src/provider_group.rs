@@ -12,13 +12,7 @@ pub(crate) struct ProviderGroup {
 
 impl ProviderGroup {
     pub fn new(id: SwapperProvider, members: Vec<(&'static str, Box<dyn Swapper>)>) -> Self {
-        Self {
-            provider: ProviderType {
-                protocol: id.name().to_string(),
-                ..ProviderType::new(id)
-            },
-            members,
-        }
+        Self { provider: ProviderType::new(id), members }
     }
 
     fn members_for(&self, chain: Chain) -> impl Iterator<Item = &(&'static str, Box<dyn Swapper>)> {

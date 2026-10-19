@@ -91,7 +91,7 @@ fn mock_swap_input(chain: BitcoinChain, provider: SwapProvider, use_max_amount: 
                 to_value: value.clone(),
                 provider_data: SwapProviderData {
                     provider,
-                    protocol_name: provider.protocol_name().to_string(),
+                    protocol_name: provider.name().to_string(),
                 },
                 slippage_bps: 50,
                 slippage_mode: SlippageMode::Exact,

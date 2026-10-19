@@ -109,40 +109,6 @@ impl SwapProvider {
             Self::SunswapV3 => "SunSwap",
         }
     }
-
-    pub fn protocol_name(&self) -> &str {
-        match self {
-            Self::UniswapV3 => "Uniswap v3",
-            Self::UniswapV4 => "Uniswap v4",
-            Self::PancakeswapV3 => "PancakeSwap v3",
-            Self::Panora => "Panora",
-            Self::Across => "Across v3",
-            Self::Oku => "Oku",
-            Self::StonfiV2 => "STON.fi v2",
-            Self::CetusClmm => "Cetus",
-            Self::RaydiumClmm => "Raydium CLMM",
-            Self::SunswapV3 => "SunSwap v3",
-            Self::Thorchain
-            | Self::Mayachain
-            | Self::Jupiter
-            | Self::Okx
-            | Self::Wagmi
-            | Self::Mayan
-            | Self::Chainflip
-            | Self::NearIntents
-            | Self::Aerodrome
-            | Self::Relay
-            | Self::Hyperliquid
-            | Self::Orca
-            | Self::Squid
-            | Self::SwapsXyz
-            | Self::Bridgers
-            | Self::Hyperion
-            | Self::Dedust
-            | Self::PumpSwap
-            | Self::MeteoraDammV2 => self.name(),
-        }
-    }
 }
 
 #[cfg(test)]

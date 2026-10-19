@@ -189,7 +189,7 @@ impl SwapProviderData {
     pub fn mock_with_provider(provider: SwapProvider) -> Self {
         SwapProviderData {
             provider,
-            protocol_name: provider.protocol_name().to_string(),
+            protocol_name: provider.name().to_string(),
         }
     }
 }
