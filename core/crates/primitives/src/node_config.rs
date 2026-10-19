@@ -165,7 +165,7 @@ pub fn get_nodes_for_chain(chain: Chain) -> Vec<Node> {
         Chain::Robinhood => vec![Node::new("https://rpc.mainnet.chain.robinhood.com", NodePriority::High)],
         Chain::Stable => vec![Node::new("https://rpc.stable.xyz", NodePriority::High)],
         Chain::Tempo => vec![Node::new("https://rpc.tempo.xyz", NodePriority::High)],
-        Chain::Arc => vec![Node::new("https://rpc.mainnet.arc.io", NodePriority::High), Node::new("https://rpc.blockdaemon.mainnet.arc.io", NodePriority::High)],
+        Chain::Arc => vec![Node::new("https://rpc.mainnet.arc.io", NodePriority::High), Node::new("https://rpc.blockdaemon.mainnet.arc.io", NodePriority::Low)],
     }
 }
 
