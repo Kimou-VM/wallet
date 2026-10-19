@@ -55,7 +55,7 @@ pub fn parse_support_message_display_content(markdown: &str) -> SupportMessageDi
             Some(link) => {
                 append_text_and_labeled_links(text_before_link, &mut text, &mut links);
                 if label_prefix.is_none() && !link_stands_alone(&markdown[..title_start], &markdown[next_index..]) {
-                    text.push_str(title);
+                    text.push_str(&title.replace(['[', ']'], ""));
                 }
                 links.push(link);
             }
@@ -418,5 +418,16 @@ mod tests {
         );
         let unclosed = "Open [Bitcoin](<https://gemwallet.com/tokens/bitcoin)";
         assert_eq!(parse_support_message_display_content(unclosed), SupportMessageDisplayContent { text: unclosed.to_string(), links: vec![] });
+    }
+
+    #[test]
+    fn test_parse_support_message_display_content_nested_link_title() {
+        assert_eq!(
+            parse_support_message_display_content("[[evil](https://good.example)](https://phish.example)"),
+            SupportMessageDisplayContent {
+                text: "evil](https://phish.example)".to_string(),
+                links: vec![SupportMessageLink::mock("[evil", "https://good.example", Some("good.example"))],
+            }
+        );
     }
 }
