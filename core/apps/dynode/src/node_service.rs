@@ -387,7 +387,7 @@ mod tests {
 
     use super::*;
     use crate::config::{AllowlistConfig, Override, RPC_ROUTE};
-    use crate::jsonrpc_types::JsonRpcCall;
+    use crate::testkit::server_mock::spawn_node;
 
     #[tokio::test]
     async fn test_broadcast_metrics_count_final_response_without_webhook() {
@@ -445,9 +445,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_failed_override_falls_back_to_nodes() {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let node = format!("http://{}", listener.local_addr().unwrap());
-        tokio::spawn(async move { axum::serve(listener, axum::Router::new().fallback(|| async { r#"{"jsonrpc":"2.0","result":null,"id":1}"# })).await });
+        let node = spawn_node("node").await;
         let config = |fallback| ChainConfig {
             urls: vec![Url::mock(&node)],
             overrides: Some(vec![Override {
@@ -468,20 +466,6 @@ mod tests {
             let result = service.proxy_request_to_node(&request, Some(RPC_ROUTE), &mut None).await;
             assert_eq!(result.is_ok_and(|response| response.status == StatusCode::OK.as_u16()), falls_back);
         }
-    }
-
-    async fn spawn_node(tag: &'static str) -> String {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let url = format!("http://{}", listener.local_addr().unwrap());
-        let router = axum::Router::new().fallback(move |body: String| async move {
-            let answer = |call: &JsonRpcCall, shape: &str| serde_json::json!({ "jsonrpc": "2.0", "result": format!("{tag} {} {shape}", call.method), "id": call.id });
-            match serde_json::from_str::<Vec<JsonRpcCall>>(&body) {
-                Ok(calls) => serde_json::to_string(&calls.iter().map(|call| answer(call, "batch")).collect::<Vec<_>>()).unwrap(),
-                Err(_) => answer(&serde_json::from_str(&body).unwrap(), "single").to_string(),
-            }
-        });
-        tokio::spawn(async move { axum::serve(listener, router).await });
-        url
     }
 
     #[tokio::test]
