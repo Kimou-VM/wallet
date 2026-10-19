@@ -363,10 +363,10 @@ mod tests {
         testkit::mock_quote,
         uniswap::{
             self,
-            testkit::{mock_batch_provider, mock_reserves_result},
+            testkit::{Posts, mock_reserves_result, mock_taxed_token_provider},
         },
     };
-    use alloy_primitives::hex::encode as hex_encode;
+    use alloy_primitives::{Bytes, hex::encode as hex_encode};
     use alloy_sol_types::SolCall;
     use chrono::DateTime;
     use gem_evm::rpc::{
@@ -379,7 +379,6 @@ mod tests {
         contracts::{
             IUniversalRouter,
             solidly::{ISolidlyPoolFactory, ISolidlyRouter},
-            v3::IUniswapV3Factory,
         },
         deployment::v3::{get_aerodrome_router_deployment_by_chain, get_pancakeswap_router_deployment_by_chain},
     };
@@ -389,7 +388,7 @@ mod tests {
         decode_hex,
         hex::encode_with_0x,
     };
-    use serde_json::{Value, json};
+    use serde_json::json;
     use std::mem::take;
 
     #[tokio::test]
@@ -399,44 +398,18 @@ mod tests {
         let v2 = get_pancakeswap_router_deployment_by_chain(&Chain::SmartChain).unwrap().v2_deployment.unwrap();
         let pairs = [v2.pair_address(&wrapped, &clean), v2.pair_address(&wrapped, &taxed)].map(|pair| pair.to_checksum(None));
         let reserves = mock_reserves_result(100_000_000_000_000_000_000, 1_000_000_000_000_000_000_000_000);
-        let no_pool = encode_with_0x(&IUniswapV3Factory::getPoolCall::abi_encode_returns(&Address::ZERO));
-        let respond = move |request: &Value| {
-            let call = &request["params"][0];
-            let data = call["data"].as_str().unwrap_or_default();
-            let result = match (request["params"].as_array().map(Vec::len), data.get(..10)) {
-                (Some(3), _) if data.contains(&hex_encode(taxed)) => return json!({"jsonrpc": "2.0", "id": request["id"], "error": {"code": 3, "message": "execution reverted"}}),
-                (Some(3), _) => "0x".to_string(),
-                (_, Some("0x0902f1ac")) if pairs.iter().any(|pair| call["to"].as_str() == Some(pair.as_str())) => reserves.clone(),
-                (_, Some("0x0902f1ac")) => "0x".to_string(),
-                _ => no_pool.clone(),
-            };
-            json!({"jsonrpc": "2.0", "id": request["id"], "result": result})
-        };
-        let (provider, posts) = mock_batch_provider(respond);
+        let (provider, posts) = mock_taxed_token_provider(taxed, move |to, data| match data.get(..10) {
+            Some("0x0902f1ac") if pairs.iter().any(|pair| pair == to) => Some(reserves.clone()),
+            Some("0x0902f1ac") => Some("0x".to_string()),
+            _ => None,
+        });
         let swapper = uniswap::universal_router::new_pancakeswap(Arc::new(provider));
-        let clean_request = QuoteRequest {
-            value: BigUint::from(1_000_000_000_000_000_000u64),
-            ..mock_quote(AssetId::from_chain(Chain::SmartChain).into(), AssetId::from_token(Chain::SmartChain, &clean.to_checksum(None)).into())
-        };
-        let taxed_request = QuoteRequest {
-            to_asset: AssetId::from_token(Chain::SmartChain, &taxed.to_checksum(None)).into(),
-            ..clean_request.clone()
-        };
 
-        let quote = swapper.get_quote(&clean_request).await.unwrap();
+        let quote = assert_tax_checked_quotes(&swapper, &posts, Chain::SmartChain, (clean, taxed), [vec![20, 1, 1], vec![12, 1, 1]]).await;
         let route_data: RouteData = quote.route_data().unwrap();
+
         assert_eq!(quote.to_value, BigUint::from(9_827_584_990_520_955_699_562u128));
         assert_eq!((route_data.protocol, quote.data.routes.len()), (Protocol::V2, 1));
-        assert_eq!(take(&mut *posts.lock().unwrap()), vec![20, 1, 1]);
-
-        assert_eq!(swapper.get_quote(&clean_request).await.unwrap().to_value, quote.to_value);
-        assert_eq!(take(&mut *posts.lock().unwrap()), vec![1]);
-
-        assert_eq!(swapper.get_quote(&taxed_request).await, Err(SwapperError::NoQuoteAvailable));
-        assert_eq!(take(&mut *posts.lock().unwrap()), vec![12, 1, 1]);
-
-        assert_eq!(swapper.get_quote(&taxed_request).await, Err(SwapperError::NoQuoteAvailable));
-        assert_eq!(take(&mut *posts.lock().unwrap()), Vec::<usize>::new());
     }
 
     #[tokio::test]
@@ -448,18 +421,12 @@ mod tests {
             value: BigUint::from(1_000_000_000_000_000_000u64),
             ..mock_quote(AssetId::from_chain(Chain::SmartChain).into(), AssetId::from_token(Chain::SmartChain, SMARTCHAIN_USDT_TOKEN_ID).into())
         };
-        let quote = QuoteResult {
-            amount_out: U256::from(2_000_000u64),
-            path: PoolPath::new(Protocol::V2, TokenPair::new_two_hop(&wrapped, &usdc, &usdt, [FeeTier::TwoThousandFiveHundred; 2])),
-        }
-        .into_quote(&request, swapper.provider().clone(), true, U256::from(1));
+        let path = PoolPath::new(Protocol::V2, TokenPair::new_two_hop(&wrapped, &usdc, &usdt, [FeeTier::TwoThousandFiveHundred; 2]));
 
-        let quote_data = swapper.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
-        let execute = IUniversalRouter::executeCall::abi_decode(&decode_hex(&quote_data.data).unwrap()).unwrap();
+        let input = assert_wrapped_swap(&swapper, &request, path, SwapperProvider::PancakeswapV3).await;
 
-        assert_eq!(execute.commands.to_vec(), vec![WRAP_ETH_COMMAND, TRANSFER_COMMAND, V2_SWAP_EXACT_IN_COMMAND]);
         assert_eq!(
-            V2SwapExactIn::abi_decode(&execute.inputs[2]).unwrap(),
+            V2SwapExactIn::abi_decode(&input).unwrap(),
             V2SwapExactIn {
                 recipient: request.wallet_address.parse().unwrap(),
                 amount_in: U256::from(995_000_000_000_000_000u64),
@@ -467,16 +434,6 @@ mod tests {
                 path: vec![wrapped, usdc, usdt],
                 payer_is_user: false,
             }
-        );
-        assert_eq!(
-            parsed_swap(Chain::SmartChain, &request, &quote_data),
-            TransactionSwapMetadata::new(
-                AssetId::from_chain(Chain::SmartChain),
-                BigUint::from(995_000_000_000_000_000u64),
-                AssetId::from_token(Chain::SmartChain, SMARTCHAIN_USDT_TOKEN_ID),
-                BigUint::from(1_990_000u64),
-                SwapperProvider::PancakeswapV3,
-            )
         );
     }
 
@@ -487,49 +444,23 @@ mod tests {
         let solidly_deployment = get_aerodrome_router_deployment_by_chain(&Chain::Base).unwrap().solidly_deployment.unwrap();
         let pools = [clean, taxed].map(|token| solidly_deployment.pool_address(&wrapped, &token, false).to_checksum(None));
         let volatile_pool = encode_with_0x(&ISolidlyPoolFactory::getPoolCall::abi_encode_returns(&Address::repeat_byte(0x55)));
-        let no_pool = encode_with_0x(&IUniswapV3Factory::getPoolCall::abi_encode_returns(&Address::ZERO));
         let amounts_out = encode_with_0x(&ISolidlyRouter::getAmountsOutCall::abi_encode_returns(&vec![U256::from(995_000_000_000_000_000u64), U256::from(2_380_000_000u64)]));
         let reserves = mock_reserves_result(100_000_000_000_000_000_000, 1_000_000_000_000_000_000_000_000);
         let fee = encode_with_0x(&ISolidlyPoolFactory::getFeeCall::abi_encode_returns(&U256::from(30)));
-        let respond = move |request: &Value| {
-            let call = &request["params"][0];
-            let data = call["data"].as_str().unwrap_or_default();
-            let result = match (request["params"].as_array().map(Vec::len), data.get(..10)) {
-                (Some(3), _) if data.contains(&hex_encode(taxed)) => return json!({"jsonrpc": "2.0", "id": request["id"], "error": {"code": 3, "message": "execution reverted"}}),
-                (Some(3), _) => "0x".to_string(),
-                (_, Some("0x79bc57d5")) if data.contains(&hex_encode(wrapped)) && data.ends_with(&"0".repeat(64)) => volatile_pool.clone(),
-                (_, Some("0x5509a1ac")) => amounts_out.clone(),
-                (_, Some("0x0902f1ac")) if pools.iter().any(|pool| call["to"].as_str() == Some(pool.as_str())) => reserves.clone(),
-                (_, Some("0xcc56b2c5")) => fee.clone(),
-                _ => no_pool.clone(),
-            };
-            json!({"jsonrpc": "2.0", "id": request["id"], "result": result})
-        };
-        let (provider, posts) = mock_batch_provider(respond);
+        let (provider, posts) = mock_taxed_token_provider(taxed, move |to, data| match data.get(..10) {
+            Some("0x79bc57d5") if data.contains(&hex_encode(wrapped)) && data.ends_with(&"0".repeat(64)) => Some(volatile_pool.clone()),
+            Some("0x5509a1ac") => Some(amounts_out.clone()),
+            Some("0x0902f1ac") if pools.iter().any(|pool| pool == to) => Some(reserves.clone()),
+            Some("0xcc56b2c5") => Some(fee.clone()),
+            _ => None,
+        });
         let swapper = uniswap::universal_router::new_aerodrome(Arc::new(provider));
-        let clean_request = QuoteRequest {
-            value: BigUint::from(1_000_000_000_000_000_000u64),
-            ..mock_quote(AssetId::from_chain(Chain::Base).into(), AssetId::from_token(Chain::Base, &clean.to_checksum(None)).into())
-        };
-        let taxed_request = QuoteRequest {
-            to_asset: AssetId::from_token(Chain::Base, &taxed.to_checksum(None)).into(),
-            ..clean_request.clone()
-        };
 
-        let quote = swapper.get_quote(&clean_request).await.unwrap();
+        let quote = assert_tax_checked_quotes(&swapper, &posts, Chain::Base, (clean, taxed), [vec![40, 3, 1], vec![24, 3, 1]]).await;
         let route_data: RouteData = quote.route_data().unwrap();
+
         assert_eq!(quote.to_value, BigUint::from(2_380_000_000u64));
         assert_eq!((route_data.protocol, route_data.fee_tier.as_str(), quote.data.routes.len()), (Protocol::Solidly, "3000", 1));
-        assert_eq!(take(&mut *posts.lock().unwrap()), vec![40, 3, 1]);
-
-        assert_eq!(swapper.get_quote(&clean_request).await.unwrap().to_value, quote.to_value);
-        assert_eq!(take(&mut *posts.lock().unwrap()), vec![1]);
-
-        assert_eq!(swapper.get_quote(&taxed_request).await, Err(SwapperError::NoQuoteAvailable));
-        assert_eq!(take(&mut *posts.lock().unwrap()), vec![24, 3, 1]);
-
-        assert_eq!(swapper.get_quote(&taxed_request).await, Err(SwapperError::NoQuoteAvailable));
-        assert_eq!(take(&mut *posts.lock().unwrap()), Vec::<usize>::new());
     }
 
     #[tokio::test]
@@ -540,18 +471,12 @@ mod tests {
             value: BigUint::from(1_000_000_000_000_000_000u64),
             ..mock_quote(AssetId::from_chain(Chain::Base).into(), AssetId::from_token(Chain::Base, &token.to_checksum(None)).into())
         };
-        let quote = QuoteResult {
-            amount_out: U256::from(2_000_000u64),
-            path: PoolPath::new(Protocol::Solidly, TokenPair::new_two_hop(&wrapped, &usdc, &token, [SolidlyRoute::VOLATILE, SolidlyRoute::STABLE])),
-        }
-        .into_quote(&request, swapper.provider().clone(), true, U256::from(1));
+        let path = PoolPath::new(Protocol::Solidly, TokenPair::new_two_hop(&wrapped, &usdc, &token, [SolidlyRoute::VOLATILE, SolidlyRoute::STABLE]));
 
-        let quote_data = swapper.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
-        let execute = IUniversalRouter::executeCall::abi_decode(&decode_hex(&quote_data.data).unwrap()).unwrap();
+        let input = assert_wrapped_swap(&swapper, &request, path, SwapperProvider::Aerodrome).await;
 
-        assert_eq!(execute.commands.to_vec(), vec![WRAP_ETH_COMMAND, TRANSFER_COMMAND, V2_SWAP_EXACT_IN_COMMAND]);
         assert_eq!(
-            V2SwapExactInSolidly::abi_decode(&execute.inputs[2]).unwrap(),
+            V2SwapExactInSolidly::abi_decode(&input).unwrap(),
             V2SwapExactInSolidly {
                 recipient: request.wallet_address.parse().unwrap(),
                 amount_in: U256::from(995_000_000_000_000_000u64),
@@ -560,19 +485,36 @@ mod tests {
                 payer_is_user: false,
             }
         );
-        assert_eq!(
-            parsed_swap(Chain::Base, &request, &quote_data),
-            TransactionSwapMetadata::new(
-                AssetId::from_chain(Chain::Base),
-                BigUint::from(995_000_000_000_000_000u64),
-                AssetId::from_token(Chain::Base, &token.to_checksum(None)),
-                BigUint::from(1_990_000u64),
-                SwapperProvider::Aerodrome,
-            )
-        );
     }
 
-    fn parsed_swap(chain: Chain, request: &QuoteRequest, quote_data: &SwapperQuoteData) -> TransactionSwapMetadata {
+    async fn assert_tax_checked_quotes(swapper: &UniswapV3, posts: &Posts, chain: Chain, (clean, taxed): (Address, Address), [clean_posts, taxed_posts]: [Vec<usize>; 2]) -> Quote {
+        let clean_request = QuoteRequest {
+            value: BigUint::from(1_000_000_000_000_000_000u64),
+            ..mock_quote(AssetId::from_chain(chain).into(), AssetId::from_token(chain, &clean.to_checksum(None)).into())
+        };
+        let taxed_request = QuoteRequest {
+            to_asset: AssetId::from_token(chain, &taxed.to_checksum(None)).into(),
+            ..clean_request.clone()
+        };
+
+        let quote = swapper.get_quote(&clean_request).await.unwrap();
+        assert_eq!(take(&mut *posts.lock().unwrap()), clean_posts);
+
+        assert_eq!(swapper.get_quote(&clean_request).await.unwrap().to_value, quote.to_value);
+        assert_eq!(take(&mut *posts.lock().unwrap()), vec![1]);
+
+        assert_eq!(swapper.get_quote(&taxed_request).await, Err(SwapperError::NoQuoteAvailable));
+        assert_eq!(take(&mut *posts.lock().unwrap()), taxed_posts);
+
+        assert_eq!(swapper.get_quote(&taxed_request).await, Err(SwapperError::NoQuoteAvailable));
+        assert_eq!(take(&mut *posts.lock().unwrap()), Vec::<usize>::new());
+        quote
+    }
+
+    async fn assert_wrapped_swap(swapper: &UniswapV3, request: &QuoteRequest, path: PoolPath, provider: SwapperProvider) -> Bytes {
+        let quote = QuoteResult { amount_out: U256::from(2_000_000u64), path }.into_quote(request, swapper.provider().clone(), true, U256::from(1));
+        let quote_data = swapper.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
+        let execute = IUniversalRouter::executeCall::abi_decode(&decode_hex(&quote_data.data).unwrap()).unwrap();
         let transaction: Transaction = serde_json::from_value(json!({
             "from": request.wallet_address,
             "gas": "0x0",
@@ -582,9 +524,14 @@ mod tests {
             "value": format!("0x{:x}", quote_data.value),
         }))
         .unwrap();
-        let receipt: TransactionReceipt = serde_json::from_value(json!({"gasUsed": "0x0", "effectiveGasPrice": "0x0", "logs": [], "status": "0x1", "blockHash": "0x0"})).unwrap();
-        let transaction = ProtocolParsers::map_transaction(&chain, &transaction, &receipt, DateTime::default()).unwrap();
-        transaction.swap_metadata().unwrap()
+        let parsed = ProtocolParsers::map_transaction(&request.from_asset.chain(), &transaction, &TransactionReceipt::mock(), DateTime::default()).unwrap();
+
+        assert_eq!(execute.commands.to_vec(), vec![WRAP_ETH_COMMAND, TRANSFER_COMMAND, V2_SWAP_EXACT_IN_COMMAND]);
+        assert_eq!(
+            parsed.swap_metadata().unwrap(),
+            TransactionSwapMetadata::new(request.from_asset.asset_id(), BigUint::from(995_000_000_000_000_000u64), request.to_asset.asset_id(), BigUint::from(1_990_000u64), provider,)
+        );
+        execute.inputs[2].clone()
     }
 
     #[test]

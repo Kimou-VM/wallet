@@ -567,9 +567,7 @@ mod tests {
                 payer_is_user: false,
             }),
         ];
-        let receipt: TransactionReceipt = serde_json::from_value(serde_json::json!({"gasUsed": "0x0", "effectiveGasPrice": "0x0", "logs": [], "status": "0x1", "blockHash": "0x0"})).unwrap();
-
-        let metadata = decode_execute_swap(&Chain::Ethereum, UniversalRouterAbi::V2, SwapProvider::UniswapV3, wallet, &encode_commands(&commands, U256::ZERO), &receipt).unwrap();
+        let metadata = decode_execute_swap(&Chain::Ethereum, UniversalRouterAbi::V2, SwapProvider::UniswapV3, wallet, &encode_commands(&commands, U256::ZERO), &TransactionReceipt::mock()).unwrap();
 
         assert_eq!(
             metadata,

@@ -1,6 +1,6 @@
-use alloy_primitives::{Address, U256, aliases::U112};
+use alloy_primitives::{Address, U256, aliases::U112, hex};
 use alloy_sol_types::SolCall;
-use gem_evm::uniswap::contracts::v2::IUniswapV2Pair;
+use gem_evm::uniswap::contracts::{v2::IUniswapV2Pair, v3::IUniswapV3Factory};
 use primitives::hex::encode_with_0x;
 
 use serde_json::{Value, json};
@@ -53,4 +53,18 @@ pub fn mock_batch_provider(respond: impl Fn(&Value) -> Value + Send + Sync + 'st
         })),
     };
     (provider, posts)
+}
+
+pub fn mock_taxed_token_provider(taxed: Address, respond: impl Fn(&str, &str) -> Option<String> + Send + Sync + 'static) -> (ProviderMock, Posts) {
+    let no_pool = encode_with_0x(&IUniswapV3Factory::getPoolCall::abi_encode_returns(&Address::ZERO));
+    mock_batch_provider(move |request| {
+        let call = &request["params"][0];
+        let data = call["data"].as_str().unwrap_or_default();
+        let result = match request["params"].as_array().map(Vec::len) {
+            Some(3) if data.contains(&hex::encode(taxed)) => return json!({"jsonrpc": "2.0", "id": request["id"], "error": {"code": 3, "message": "execution reverted"}}),
+            Some(3) => "0x".to_string(),
+            _ => respond(call["to"].as_str().unwrap_or_default(), data).unwrap_or_else(|| no_pool.clone()),
+        };
+        json!({"jsonrpc": "2.0", "id": request["id"], "result": result})
+    })
 }

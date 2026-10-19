@@ -62,6 +62,7 @@ tokio.workspace = true
 primitives = { path = "../primitives", features = ["testkit"] }
 gem_client = { path = "../gem_client", features = ["testkit"] }
 gem_jsonrpc = { path = "../gem_jsonrpc", features = ["testkit"] }
+gem_evm = { path = "../gem_evm", features = ["testkit"] }
 gem_hypercore = { path = "../gem_hypercore", features = ["testkit", "signer"] }
 gem_sui = { path = "../gem_sui", features = ["reqwest"] }
 gem_aptos = { path = "../gem_aptos", features = ["testkit"] }
