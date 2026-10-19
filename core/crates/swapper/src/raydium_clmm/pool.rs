@@ -4,9 +4,7 @@ use gem_solana::{Pubkey, anchor::AnchorAccount, find_program_address, instructio
 use super::tick_math::{MAX_SQRT_PRICE, MIN_SQRT_PRICE};
 use crate::{SwapperError, clmm::ClmmSwap, solana_dex::DexPool};
 
-const AMM_CONFIG_INDEXES: [u16; 8] = [
-    4, 1, 19, 10, 5, 3, 8, 15, // 2, 6, 7, 9, 11, 12, 13, 14, 16, 17, 18
-];
+const AMM_CONFIG_INDEXES: [u16; 8] = [4, 1, 19, 10, 5, 3, 8, 15];
 pub(super) const TICK_ARRAY_SIZE: i32 = 60;
 const TICK_ARRAY_BITMAP_SIZE: i32 = 512;
 const SWAP_TICK_ARRAYS: usize = 3;

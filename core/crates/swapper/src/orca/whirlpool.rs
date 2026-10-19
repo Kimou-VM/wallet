@@ -9,10 +9,7 @@ use crate::{
 };
 
 const WHIRLPOOLS_CONFIG: Pubkey = Pubkey::new(hex!("13e441f83913ca68b0634fb025fdeaa88737e84110d1255e357b3377ddee1ccd"));
-pub(super) const FEE_TIER_INDEXES: [u16; 9] = [
-    1, 4, 8, 16, 64, // 2, 96, 128, 256, 32896
-    1025, 1026, 1028, 1030, // 1027, 1029, 1031, 1032, 1033, 1034, 1035, 1036, 2049, 2050, 2051
-];
+pub(super) const FEE_TIER_INDEXES: [u16; 9] = [1, 4, 8, 16, 64, 1025, 1026, 1028, 1030];
 pub(super) const TICK_ARRAY_SIZE: i32 = 88;
 
 #[derive(Debug, Clone, PartialEq, BorshDeserialize)]
