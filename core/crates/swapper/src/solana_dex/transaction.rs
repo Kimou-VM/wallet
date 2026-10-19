@@ -1,5 +1,5 @@
 use gem_solana::{
-    AddressLookupTableAccount, BLOCKHASH_SET_AT_SIGNING, DEFAULT_SWAP_GAS_LIMIT, Instruction, Pubkey, SolanaAddress, SolanaClient,
+    AddressLookupTableAccount, BLOCKHASH_SET_AT_SIGNING, Instruction, Pubkey, SolanaAddress, SolanaClient,
     associated_token::create_associated_token_account_idempotent,
     compute_budget::{self, set_compute_unit_limit, set_compute_unit_price},
     encode_v0_transaction, system,
@@ -17,6 +17,8 @@ use crate::{
     client_factory::create_client_with_chain,
     fees::{FeeSide, ReferralTransfer},
 };
+
+pub(crate) const POOL_SWAP_COMPUTE_UNIT_LIMIT: u32 = 600_000;
 
 #[derive(Debug)]
 pub(crate) struct SolanaTransaction {
@@ -87,7 +89,7 @@ impl DexTransaction<'_> {
         };
         let output_fee = self.fee_instructions(FeeSide::Output, output)?;
         Ok([
-            vec![set_compute_unit_price(0), set_compute_unit_limit(DEFAULT_SWAP_GAS_LIMIT)],
+            vec![set_compute_unit_price(0), set_compute_unit_limit(POOL_SWAP_COMPUTE_UNIT_LIMIT)],
             input_fee,
             wrap,
             token_accounts,
@@ -211,7 +213,7 @@ mod tests {
         let decoded = decode_transaction(&DexTransaction::mock(&usdc, &usdc).encode().unwrap()).unwrap();
 
         assert_eq!(decoded.num_required_signatures(), 1);
-        assert_eq!(decoded.get_compute_unit_limit(), Some(DEFAULT_SWAP_GAS_LIMIT));
+        assert_eq!(decoded.get_compute_unit_limit(), Some(POOL_SWAP_COMPUTE_UNIT_LIMIT));
         assert_eq!(decoded.get_compute_unit_price(), Some(0));
     }
 }

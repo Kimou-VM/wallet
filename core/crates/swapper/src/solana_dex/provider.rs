@@ -4,7 +4,7 @@ use futures::future::{join_all, try_join_all};
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
-    DEFAULT_SWAP_GAS_LIMIT, Pubkey, SolanaDataSlice, SolanaRpc,
+    Pubkey, SolanaDataSlice, SolanaRpc,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_2022_program, token_program},
     models::{AccountData, Clock, ProgramAccount, ValueResult},
 };
@@ -21,7 +21,7 @@ use super::{
     protocol::{DexProtocol, PoolDepth, PoolQuery, PoolSwap, QuoteAccount},
     route::{DexHop, DexRoute, minimum_value, preferred_fee_side},
     token::{SwapToken, decode_mint},
-    transaction::DexTransaction,
+    transaction::{DexTransaction, POOL_SWAP_COMPUTE_UNIT_LIMIT},
 };
 use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData,
@@ -538,7 +538,13 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         let pools = self.fetch_pools(route.hops.iter().map(|hop| hop.pool).collect()).await?;
         let transaction = self.transaction(&route, &pools, &input, &output, authority, quote.data.slippage_bps)?;
 
-        Ok(SwapperQuoteData::new_contract(P::PROGRAM_ID.to_base58(), BigUint::ZERO, transaction.encode()?, None, Some(DEFAULT_SWAP_GAS_LIMIT.to_string())))
+        Ok(SwapperQuoteData::new_contract(
+            P::PROGRAM_ID.to_base58(),
+            BigUint::ZERO,
+            transaction.encode()?,
+            None,
+            Some(POOL_SWAP_COMPUTE_UNIT_LIMIT.to_string()),
+        ))
     }
 }
 
