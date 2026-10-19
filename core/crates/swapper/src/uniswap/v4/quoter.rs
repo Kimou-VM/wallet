@@ -2,7 +2,7 @@ use crate::SwapperError;
 use alloy_primitives::{Address, Bytes, U256, hex::decode as HexDecode};
 use alloy_sol_types::SolCall;
 use gem_evm::{
-    jsonrpc::{BlockParameter, EthereumRpc, TransactionObject},
+    jsonrpc::EthereumRpc,
     uniswap::contracts::v4::{IV4Quoter, PoolKey},
 };
 use gem_jsonrpc::types::JsonRpcResponse;
@@ -17,19 +17,13 @@ pub fn build_quote_exact_single_request(token_in: &Address, v4_quoter: &str, amo
     };
     let quote_single = IV4Quoter::quoteExactInputSingleCall { params };
     let call_data: Vec<u8> = quote_single.abi_encode();
-    EthereumRpc::Call {
-        transaction: TransactionObject::new_call(v4_quoter, call_data),
-        block: BlockParameter::Latest,
-    }
+    EthereumRpc::call(v4_quoter, call_data)
 }
 
 pub fn build_quote_exact_request(v4_quoter: &str, params: &IV4Quoter::QuoteExactParams) -> EthereumRpc {
     let quote = IV4Quoter::quoteExactInputCall { params: params.clone() };
     let call_data: Vec<u8> = quote.abi_encode();
-    EthereumRpc::Call {
-        transaction: TransactionObject::new_call(v4_quoter, call_data),
-        block: BlockParameter::Latest,
-    }
+    EthereumRpc::call(v4_quoter, call_data)
 }
 
 pub fn decode_quoter_response(response: &JsonRpcResponse<String>) -> Result<U256, SwapperError> {

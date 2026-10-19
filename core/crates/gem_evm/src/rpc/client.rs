@@ -52,8 +52,7 @@ impl<C: Client + Clone> EthereumClient<C> {
 
     pub async fn eth_call(&self, contract_address: &str, call_data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         let to_address = Address::from_str(contract_address)?;
-        let transaction = TransactionObject::new_call(&to_address.to_string(), call_data.to_vec());
-        let result: String = self.client.request(EthereumRpc::Call { transaction, block: BlockParameter::Latest }).await?;
+        let result: String = self.client.request(EthereumRpc::call(&to_address.to_string(), call_data.to_vec())).await?;
         Ok(hex::decode(result)?)
     }
 
@@ -146,12 +145,7 @@ impl<C: Client + Clone> EthereumClient<C> {
     pub async fn batch_eth_call<const N: usize>(&self, contract_address: &str, function_selectors: [&str; N]) -> Result<[String; N], Box<dyn std::error::Error + Sync + Send>> {
         let requests: Vec<EthereumRpc> = function_selectors
             .iter()
-            .map(|selector| {
-                hex::decode(selector).map(|data| EthereumRpc::Call {
-                    transaction: TransactionObject::new_call(contract_address, data),
-                    block: BlockParameter::Latest,
-                })
-            })
+            .map(|selector| hex::decode(selector).map(|data| EthereumRpc::call(contract_address, data)))
             .collect::<Result<_, _>>()?;
         let results = self.client.requests::<String, _>(requests).await?.take_all()?;
         results.try_into().map_err(|_| "Array conversion failed".into())
@@ -163,13 +157,7 @@ impl<C: Client + Clone> EthereumClient<C> {
 
     pub async fn batch_token_balance_calls(&self, address: &str, contracts: &[String]) -> Result<Vec<String>, Box<dyn std::error::Error + Sync + Send>> {
         let data = hex::decode(format!("0x70a08231000000000000000000000000{:0>40}", address.strip_prefix("0x").unwrap_or(address)))?;
-        let requests: Vec<EthereumRpc> = contracts
-            .iter()
-            .map(|contract| EthereumRpc::Call {
-                transaction: TransactionObject::new_call(contract, data.clone()),
-                block: BlockParameter::Latest,
-            })
-            .collect();
+        let requests: Vec<EthereumRpc> = contracts.iter().map(|contract| EthereumRpc::call(contract, data.clone())).collect();
         Ok(self.client.requests(requests).await?.take_all()?)
     }
 

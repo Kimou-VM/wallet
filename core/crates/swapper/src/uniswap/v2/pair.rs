@@ -1,7 +1,7 @@
 use alloy_primitives::{Address, U256};
 use alloy_sol_types::SolCall;
 use gem_evm::{
-    jsonrpc::{BlockParameter, EthereumRpc, TransactionObject},
+    jsonrpc::EthereumRpc,
     uniswap::{contracts::v2::IUniswapV2Pair, deployment::v2::V2Deployment, path::TokenPair},
 };
 use primitives::decode_hex;
@@ -39,10 +39,7 @@ impl PairReserves {
 
 pub fn reserves_request(v2: &V2Deployment, pair: &TokenPair) -> EthereumRpc {
     let address = v2.pair_address(&pair.token_in, &pair.token_out);
-    EthereumRpc::Call {
-        transaction: TransactionObject::new_call(&address.to_checksum(None), IUniswapV2Pair::getReservesCall {}.abi_encode()),
-        block: BlockParameter::Latest,
-    }
+    EthereumRpc::call(&address.to_checksum(None), IUniswapV2Pair::getReservesCall {}.abi_encode())
 }
 
 pub fn path_amount_out(v2: &V2Deployment, pairs: &[TokenPair], reserves: &HashMap<Address, PairReserves>, amount_in: U256) -> Option<Option<U256>> {

@@ -1,7 +1,7 @@
 use alloy_primitives::{Address, U256};
 use alloy_sol_types::SolCall;
 use gem_evm::{
-    jsonrpc::{BlockParameter, EthereumRpc, TransactionObject},
+    jsonrpc::EthereumRpc,
     uniswap::{
         FeeTier,
         command::SolidlyRoute,
@@ -19,13 +19,6 @@ use crate::{Route, SwapperError};
 pub const POOL_TYPES: [FeeTier; 2] = [SolidlyRoute::STABLE, SolidlyRoute::VOLATILE];
 const FEE_SCALE: u32 = 100;
 
-fn call(contract: Address, data: Vec<u8>) -> EthereumRpc {
-    EthereumRpc::Call {
-        transaction: TransactionObject::new_call(&contract.to_checksum(None), data),
-        block: BlockParameter::Latest,
-    }
-}
-
 pub fn pool_request(solidly: &SolidlyDeployment, pair: &TokenPair) -> EthereumRpc {
     let data = ISolidlyPoolFactory::getPoolCall {
         tokenA: pair.token_in,
@@ -33,7 +26,7 @@ pub fn pool_request(solidly: &SolidlyDeployment, pair: &TokenPair) -> EthereumRp
         stable: SolidlyRoute::from(pair).stable,
     }
     .abi_encode();
-    call(solidly.factory, data)
+    EthereumRpc::call(&solidly.factory.to_checksum(None), data)
 }
 
 pub fn quote_request(solidly: &SolidlyDeployment, pairs: &[TokenPair], amount_in: U256) -> EthereumRpc {
@@ -46,7 +39,7 @@ pub fn quote_request(solidly: &SolidlyDeployment, pairs: &[TokenPair], amount_in
             factory: Address::ZERO,
         })
         .collect();
-    call(solidly.router, ISolidlyRouter::getAmountsOutCall { amountIn: amount_in, routes }.abi_encode())
+    EthereumRpc::call(&solidly.router.to_checksum(None), ISolidlyRouter::getAmountsOutCall { amountIn: amount_in, routes }.abi_encode())
 }
 
 pub fn decode_quote_response(response: &JsonRpcResponse<String>) -> Result<U256, SwapperError> {
@@ -58,8 +51,8 @@ pub fn decode_quote_response(response: &JsonRpcResponse<String>) -> Result<U256,
 pub fn volatile_pool_requests(solidly: &SolidlyDeployment, token_a: &Address, token_b: &Address) -> [EthereumRpc; 2] {
     let pool = solidly.pool_address(token_a, token_b, false);
     [
-        call(pool, ISolidlyPool::getReservesCall {}.abi_encode()),
-        call(solidly.factory, ISolidlyPoolFactory::getFeeCall { pool, stable: false }.abi_encode()),
+        EthereumRpc::call(&pool.to_checksum(None), ISolidlyPool::getReservesCall {}.abi_encode()),
+        EthereumRpc::call(&solidly.factory.to_checksum(None), ISolidlyPoolFactory::getFeeCall { pool, stable: false }.abi_encode()),
     ]
 }
 

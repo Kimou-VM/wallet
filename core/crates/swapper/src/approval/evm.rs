@@ -7,11 +7,7 @@ use gem_jsonrpc::client::JsonRpcClient;
 use alloy_primitives::{Address, U256, hex::decode as HexDecode};
 use alloy_sol_types::SolCall;
 
-use gem_evm::{
-    contracts::erc20::IERC20,
-    jsonrpc::{BlockParameter, EthereumRpc, TransactionObject},
-    permit2::IAllowanceTransfer,
-};
+use gem_evm::{contracts::erc20::IERC20, jsonrpc::EthereumRpc, permit2::IAllowanceTransfer};
 use primitives::{Chain, swap::ApprovalData};
 use std::sync::Arc;
 
@@ -22,10 +18,7 @@ where
     let owner: Address = owner.as_str().parse().map_err(|_| SwapperError::TransactionError(format!("{}: {owner}", INVALID_ADDRESS)))?;
     let spender: Address = spender.as_str().parse().map_err(|_| SwapperError::TransactionError(format!("{}: {spender}", INVALID_ADDRESS)))?;
     let allowance_data = IERC20::allowanceCall { owner, spender }.abi_encode();
-    let allowance_call = EthereumRpc::Call {
-        transaction: TransactionObject::new_call(&token, allowance_data),
-        block: BlockParameter::Latest,
-    };
+    let allowance_call = EthereumRpc::call(&token, allowance_data);
 
     let result: String = client.request(allowance_call).await.map_err(SwapperError::from)?;
 
@@ -57,10 +50,7 @@ where
         _2: eth_address::parse_str(&spender)?,
     }
     .abi_encode();
-    let permit2_call = EthereumRpc::Call {
-        transaction: TransactionObject::new_call(permit2_contract, permit2_data),
-        block: BlockParameter::Latest,
-    };
+    let permit2_call = EthereumRpc::call(permit2_contract, permit2_data);
 
     let result: String = client.request(permit2_call).await.map_err(SwapperError::from)?;
 

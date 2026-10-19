@@ -100,10 +100,7 @@ mod tests {
         routed_asset::Protocol,
         testkit::{Posts, mock_batch_provider},
     };
-    use gem_evm::{
-        jsonrpc::{BlockParameter, TransactionObject},
-        uniswap::{FeeTier, path::TokenPair},
-    };
+    use gem_evm::uniswap::{FeeTier, path::TokenPair};
     use gem_jsonrpc::alien::create_client;
     use serde_json::{Value, json};
     use std::{mem::take, str::FromStr, sync::Arc};
@@ -130,10 +127,7 @@ mod tests {
             token_out: TOKEN_OUT,
             fee_tier,
         }];
-        let call = EthereumRpc::Call {
-            transaction: TransactionObject::new_call("0x0000000000000000000000000000000000000004", vec![data]),
-            block: BlockParameter::Latest,
-        };
+        let call = EthereumRpc::call("0x0000000000000000000000000000000000000004", vec![data]);
         (PoolPath::new(Protocol::V3, pairs), call)
     }
 

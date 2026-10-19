@@ -2,7 +2,7 @@ use crate::{RpcClient, SwapperError, route_cache::DiscoveryCache};
 use alloy_primitives::{Address, B256};
 use alloy_sol_types::{SolCall, SolType, sol_data};
 use gem_evm::{
-    jsonrpc::{BlockParameter, EthereumRpc, TransactionObject},
+    jsonrpc::EthereumRpc,
     uniswap::{
         FeeTier,
         contracts::{
@@ -74,10 +74,7 @@ pub(super) fn v3_pool_request(deployment: &V3Deployment, pool: &TokenPair) -> Et
         }
         .abi_encode(),
     };
-    EthereumRpc::Call {
-        transaction: TransactionObject::new_call(deployment.factory, data),
-        block: BlockParameter::Latest,
-    }
+    EthereumRpc::call(deployment.factory, data)
 }
 
 pub(super) async fn discover_pools<T>(client: &JsonRpcClient<RpcClient>, pools: Vec<(T, EthereumRpc)>) -> Result<Vec<(T, bool)>, SwapperError> {
@@ -95,13 +92,7 @@ pub(super) async fn discover_pools<T>(client: &JsonRpcClient<RpcClient>, pools: 
 }
 
 pub(super) async fn discover_v4_pools(client: &JsonRpcClient<RpcClient>, state_view: &str, pools: &[(TokenPair, B256)]) -> Result<Vec<(TokenPair, bool)>, SwapperError> {
-    let requests = pools.iter().map(|(_, pool_id)| {
-        let data = IUniswapV4StateView::getSlot0Call { poolId: *pool_id }.abi_encode();
-        EthereumRpc::Call {
-            transaction: TransactionObject::new_call(state_view, data),
-            block: BlockParameter::Latest,
-        }
-    });
+    let requests = pools.iter().map(|(_, pool_id)| EthereumRpc::call(state_view, IUniswapV4StateView::getSlot0Call { poolId: *pool_id }.abi_encode()));
     let responses = client.requests::<String, _>(requests.collect()).await?;
     Ok(decode_v4_discoveries(pools, responses))
 }

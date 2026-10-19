@@ -144,6 +144,15 @@ pub enum EthereumRpc {
     },
 }
 
+impl EthereumRpc {
+    pub fn call(to: &str, data: Vec<u8>) -> Self {
+        Self::Call {
+            transaction: TransactionObject::new_call(to, data),
+            block: BlockParameter::Latest,
+        }
+    }
+}
+
 impl ToJsonRpcRequest for EthereumRpc {
     fn method(&self) -> &'static str {
         match self {
@@ -216,14 +225,7 @@ mod tests {
 
     #[test]
     fn builds_call_request() {
-        assert_request(
-            EthereumRpc::Call {
-                transaction: TransactionObject::new_call("0x1234", vec![0xab, 0xcd]),
-                block: BlockParameter::Latest,
-            },
-            method::ETH_CALL,
-            json!([{"to": "0x1234", "data": "0xabcd"}, "latest"]),
-        );
+        assert_request(EthereumRpc::call("0x1234", vec![0xab, 0xcd]), method::ETH_CALL, json!([{"to": "0x1234", "data": "0xabcd"}, "latest"]));
     }
 
     #[test]
