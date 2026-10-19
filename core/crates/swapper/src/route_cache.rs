@@ -8,13 +8,12 @@ use std::{
 use futures::future::join_all;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
-use primitives::{DAY, HOUR, MINUTE, WEEK};
+use primitives::{DAY, HOUR, MINUTE, WEEK, swap::HUNDRED_PERCENT_IN_BPS};
 
 use crate::SwapperError;
 
-const OUTPRICED_BPS: u128 = 300;
+const OUTPRICED_BPS: u32 = 300;
 const OUTPRICED_TTL: Duration = Duration::from_secs(5 * MINUTE.as_secs());
-const BPS: u128 = 10_000;
 
 type PairKey<Key> = (Key, Key);
 type Discoveries<Key, Probe, Candidate> = HashMap<PairKey<Key>, HashMap<Probe, Cached<Option<Candidate>>>>;
@@ -90,7 +89,7 @@ where
         let quotes = quotes.into_iter().collect::<Vec<_>>();
         let best = quotes.iter().map(|(_, amount_out)| *amount_out).max().unwrap_or_default();
         quotes.into_iter().for_each(|(probe, amount_out)| {
-            let lost = amount_out.saturating_mul(BPS) < best.saturating_mul(BPS - OUTPRICED_BPS);
+            let lost = amount_out.saturating_mul(u128::from(HUNDRED_PERCENT_IN_BPS)) < best.saturating_mul(u128::from(HUNDRED_PERCENT_IN_BPS - OUTPRICED_BPS));
             self.lost_at.put((from.clone(), to.clone(), probe), lost.then_some(amount_in));
         });
     }
