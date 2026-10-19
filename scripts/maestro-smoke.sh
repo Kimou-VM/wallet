@@ -22,7 +22,7 @@ newest() {
 ios_device() {
     local runtime udid
     runtime="$(xcrun simctl list runtimes | grep -E '^iOS [0-9.]+ ' | grep -v unavailable | newest)"
-    udid="$(xcrun simctl list devices | sed -n "/^-- ${runtime%% (*} --/,/^-- /p" | grep -F "$SIMULATOR (" | grep -oE '[0-9A-F-]{36}' | head -1 || true)"
+    udid="$(xcrun simctl list devices available | grep -F "$SIMULATOR (" | grep -oE '[0-9A-F-]{36}' | tail -1 || true)"
     [ -n "$udid" ] || udid="$(xcrun simctl create "$SIMULATOR" "$(xcrun simctl list devicetypes | grep -E '^iPhone [0-9]+ Pro \(' | newest | grep -oE 'com\.apple[^)]+')" "${runtime##* - }")"
     xcrun simctl boot "$udid" 2>/dev/null || true
     xcrun simctl bootstatus "$udid" -b >/dev/null

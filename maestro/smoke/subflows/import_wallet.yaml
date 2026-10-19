@@ -16,6 +16,7 @@ appId: ${APP_ID}
 - tapOn:
     id: "importInputField"
 - inputText: ${TEST_PHRASE}
+- hideKeyboard
 - tapOn:
     id: "main_action"
 - runFlow: finish_onboarding.yaml

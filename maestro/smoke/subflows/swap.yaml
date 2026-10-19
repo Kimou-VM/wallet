@@ -8,6 +8,7 @@ appId: ${APP_ID}
     id: "swap_button"
 - waitForAnimationToEnd
 - inputText: "1"
+- hideKeyboard
 - assertVisible:
     id: "main_action"
     enabled: false
