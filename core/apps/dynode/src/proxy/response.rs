@@ -31,12 +31,17 @@ pub struct ProxyResponse {
     pub status: u16,
     pub headers: HeaderMap,
     pub body: Bytes,
-    from_cache: bool,
+    cache_status: CacheStatus,
 }
 
 impl ProxyResponse {
     pub fn new(status: u16, headers: HeaderMap, body: Bytes) -> Self {
-        Self { status, headers, body, from_cache: false }
+        Self {
+            status,
+            headers,
+            body,
+            cache_status: CacheStatus::Miss,
+        }
     }
 
     pub(crate) fn with_content_type(status: u16, body: Bytes, content_type: &str) -> Self {
@@ -49,25 +54,20 @@ impl ProxyResponse {
         self.headers.insert(X_CACHE, cache_status.value());
         self.headers
             .insert(X_UPSTREAM_LATENCY, HeaderValue::from_str(&format!("{}ms", latency.as_millis())).unwrap_or_else(|_| HeaderValue::from_static("0ms")));
-        self.from_cache = cache_status == CacheStatus::Hit;
+        self.cache_status = cache_status;
         self
     }
 
-    pub(crate) fn into_cached(mut self) -> Self {
-        self.from_cache = true;
-        self
+    pub(crate) fn into_cached(self) -> Self {
+        Self { cache_status: CacheStatus::Hit, ..self }
     }
 
     pub(crate) fn is_from_cache(&self) -> bool {
-        self.from_cache
+        self.cache_status == CacheStatus::Hit
     }
 
     pub(crate) fn cache_status(&self) -> CacheStatus {
-        match self.headers.get(X_CACHE).and_then(|value| value.to_str().ok()) {
-            Some("HIT") => CacheStatus::Hit,
-            Some("PARTIAL") => CacheStatus::Partial,
-            _ => CacheStatus::Miss,
-        }
+        self.cache_status
     }
 }
 
