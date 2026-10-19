@@ -602,7 +602,7 @@ mod swap_integration_tests {
     const TEST_ETHEREUM_PEPE_TOKEN: &str = "0x6982508145454Ce325dDbE47a25d4ec3d2311933";
     const TEST_ROBINHOOD_ASTRO_TOKEN: &str = "0x5b81efE5E0ba2b31c0Ed843B908a2c45Fe6E14c5";
     const TEST_ROBINHOOD_KEK_TOKEN: &str = "0x86E5D8818eFf06f0dEA9E5eCa87f056Bc44c7777";
-    const TEST_BASE_WELL_TOKEN: &str = "0xA88594D404727625A9437C3f886C7643872296AE";
+    const TEST_BASE_IDRISS_TOKEN: &str = "0x000096630066820566162C94874A776532705231";
     const TEST_BASE_MORPHO_TOKEN: &str = "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842";
 
     fn v2_request(from_asset: AssetId, to_asset: AssetId, value: u64) -> QuoteRequest {
@@ -705,7 +705,7 @@ mod swap_integration_tests {
     async fn test_base_solidly_swap_simulates() -> Result<(), SwapperError> {
         let swap_provider = uniswap::default::boxed_aerodrome(dynode_provider([Chain::Base]));
 
-        assert_eq!(simulate_native_to_token(Chain::Base, swap_provider.as_ref(), TEST_BASE_WELL_TOKEN, 10_000_000_000_000_000).await?, Protocol::Solidly);
+        assert_eq!(simulate_native_to_token(Chain::Base, swap_provider.as_ref(), TEST_BASE_IDRISS_TOKEN, 10_000_000_000_000_000).await?, Protocol::Solidly);
         Ok(())
     }
 
