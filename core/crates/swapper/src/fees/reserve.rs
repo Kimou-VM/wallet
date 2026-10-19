@@ -3,31 +3,31 @@ use primitives::{Chain, ChainType};
 
 pub fn reserved_transaction_fees(chain: Chain) -> Option<BigUint> {
     let reserve: u64 = match chain {
-        Chain::Ethereum => 1_000_000_000_000_000,    // 0.001 ETH
-        Chain::Arbitrum => 300_000_000_000_000,      // 0.0003 ARB ETH
-        Chain::Base => 300_000_000_000_000,          // 0.0003 BASE ETH
-        Chain::Optimism => 500_000_000_000_000,      // 0.0005 OP ETH
-        Chain::AvalancheC => 3_000_000_000_000_000,  // 0.003 AVAX
-        Chain::SmartChain => 2_000_000_000_000_000,  // 0.002 BNB
-        Chain::Polygon => 20_000_000_000_000_000,    // 0.02 MATIC
-        Chain::Gnosis => 5_000_000_000_000_000,      // 0.005 XDAI
-        Chain::Berachain => 5_000_000_000_000_000,   // 0.005 BERA
-        Chain::Sui => 50_000_000,                    // 0.05 SUI
-        Chain::Solana => 5_000_000,                  // 0.005 SOL: base + priority fees + wSOL ATA rent
-        Chain::Tron => 2_000_000,                    // 2 TRX: native Chainflip memo transfer fee plus buffer
-        Chain::Ton => 20_000_000,                    // 0.02 TON
-        Chain::Aptos => 20_000_000,                  // 0.2 APT
-        Chain::Monad => 5_000_000_000_000_000,       // 0.005 MON
-        Chain::XLayer => 5_000_000_000_000_000,      // 0.005 OKB
-        Chain::Plasma => 5_000_000_000_000_000,      // 0.005 XPL
-        Chain::OpBNB => 100_000_000_000_000,         // 0.0001 BNB
-        Chain::Mantle => 50_000_000_000_000_000,     // 0.05 MNT
-        Chain::Linea => 300_000_000_000_000,         // 0.0003 ETH
-        Chain::Celo => 10_000_000_000_000_000,       // 0.01 CELO
-        Chain::Sonic => 50_000_000_000_000_000,      // 0.05 S
-        Chain::Robinhood => 100_000_000_000_000,     // 0.0001 ETH
-        Chain::Hyperliquid => 1_000_000_000_000_000, // 0.001 HYPE
-        Chain::Stable => 10_000_000_000_000_000,     // 0.01 USDT0
+        Chain::Ethereum => 1_000_000_000_000_000,
+        Chain::Arbitrum => 300_000_000_000_000,
+        Chain::Base => 300_000_000_000_000,
+        Chain::Optimism => 500_000_000_000_000,
+        Chain::AvalancheC => 3_000_000_000_000_000,
+        Chain::SmartChain => 2_000_000_000_000_000,
+        Chain::Polygon => 20_000_000_000_000_000,
+        Chain::Gnosis => 5_000_000_000_000_000,
+        Chain::Berachain => 5_000_000_000_000_000,
+        Chain::Sui => 50_000_000,
+        Chain::Solana => 5_000_000,
+        Chain::Tron => 2_000_000,
+        Chain::Ton => 20_000_000,
+        Chain::Aptos => 20_000_000,
+        Chain::Monad => 5_000_000_000_000_000,
+        Chain::XLayer => 5_000_000_000_000_000,
+        Chain::Plasma => 5_000_000_000_000_000,
+        Chain::OpBNB => 100_000_000_000_000,
+        Chain::Mantle => 50_000_000_000_000_000,
+        Chain::Linea => 300_000_000_000_000,
+        Chain::Celo => 10_000_000_000_000_000,
+        Chain::Sonic => 50_000_000_000_000_000,
+        Chain::Robinhood => 100_000_000_000_000,
+        Chain::Hyperliquid => 1_000_000_000_000_000,
+        Chain::Stable => 10_000_000_000_000_000,
         _ => return None,
     };
     Some(BigUint::from(reserve))
