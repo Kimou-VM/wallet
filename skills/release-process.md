@@ -3,13 +3,8 @@
 Use when versioning, tagging, committing for review, rebasing, publishing, or triggering store builds.
 ## Branching
 
-The repo follows a GitFlow-like release model:
-
-- `main` tracks the latest production release
-- `develop` is the primary integration branch
-- `feature/...` branches start from `develop`
-- `release/...` branches prepare production releases
-- `hotfix/...` branches handle production fixes
+- All work lands on `main`: small changes push straight to it, larger ones arrive through PRs from short-lived branches
+- Every store build, internal or production, is a tag that `just bump` cuts from `main`. Never bump on another branch: `main`'s next bump would reuse that branch's build numbers, and the stores refuse a build number they already have
 
 ## Versioning
 
