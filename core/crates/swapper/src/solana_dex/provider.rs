@@ -4,7 +4,7 @@ use futures::future::{join_all, try_join_all};
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
-    Pubkey, SolanaDataSlice, SolanaRpc,
+    MAX_COMPUTE_UNIT_LIMIT, Pubkey, SolanaDataSlice, SolanaRpc,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_2022_program, token_program},
     models::{AccountData, Clock, ProgramAccount, ValueResult},
 };
@@ -379,7 +379,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             referral: Pubkey::from_base58(&default_referral_fees().solana.address)?,
             fee: route.fee,
             intermediate_token_account: P::INTERMEDIATE_TOKEN_ACCOUNT,
-            compute_unit_limit: P::COMPUTE_UNIT_LIMIT,
+            compute_unit_limit: compute_unit_limit(P::COMPUTE_UNIT_LIMIT, route.hops.len()),
         })
     }
 
@@ -539,8 +539,18 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         let pools = self.fetch_pools(route.hops.iter().map(|hop| hop.pool).collect()).await?;
         let transaction = self.transaction(&route, &pools, &input, &output, authority, quote.data.slippage_bps)?;
 
-        Ok(SwapperQuoteData::new_contract(P::PROGRAM_ID.to_base58(), BigUint::ZERO, transaction.encode()?, None, Some(P::COMPUTE_UNIT_LIMIT.to_string())))
+        Ok(SwapperQuoteData::new_contract(
+            P::PROGRAM_ID.to_base58(),
+            BigUint::ZERO,
+            transaction.encode()?,
+            None,
+            Some(transaction.compute_unit_limit.to_string()),
+        ))
     }
+}
+
+fn compute_unit_limit(hop_limit: u32, hops: usize) -> u32 {
+    u32::try_from(hops).map_or(MAX_COMPUTE_UNIT_LIMIT, |hops| hop_limit.saturating_mul(hops).min(MAX_COMPUTE_UNIT_LIMIT))
 }
 
 #[cfg(test)]
@@ -548,6 +558,13 @@ mod tests {
     use super::*;
     use gem_solana::{SYSTEM_PROGRAM_ID, TOKEN_PROGRAM};
     use primitives::swap::SOLANA_REFERRAL_ADDRESS;
+
+    #[test]
+    fn test_compute_unit_limit() {
+        assert_eq!(compute_unit_limit(420_000, 1), 420_000);
+        assert_eq!(compute_unit_limit(600_000, 2), 1_200_000);
+        assert_eq!(compute_unit_limit(600_000, 3), MAX_COMPUTE_UNIT_LIMIT);
+    }
 
     #[test]
     fn test_referral_fee_side() {
