@@ -12,7 +12,7 @@ use crate::proxy::ProxyResponse;
 use crate::proxy::constants::JSON_CONTENT_TYPE;
 use crate::proxy::proxy_request::ProxyRequest;
 
-const EMPTY_HEX: &str = "0x";
+const HEX_PREFIX: &str = "0x";
 
 pub(super) fn get(call: &JsonRpcCall, request: &ProxyRequest, cache: &RequestCache) -> Option<JsonRpcResult> {
     cache.get(&request.chain, &call.cache_key(&request.host, &request.path_with_query)).and_then(|response| result(call, &response))
@@ -67,7 +67,8 @@ pub(super) fn set_many(calls: &[JsonRpcCall], ttls: &[Option<Duration>], respons
 fn is_empty_answer(result: &Value) -> bool {
     match result {
         Value::Null => true,
-        Value::String(value) => value == EMPTY_HEX,
+        Value::String(value) => value.strip_prefix(HEX_PREFIX).is_some_and(|digits| digits.bytes().all(|digit| digit == b'0')),
+        Value::Array(values) => values.is_empty(),
         _ => false,
     }
 }
@@ -120,7 +121,15 @@ mod tests {
         let cache = RequestCache::for_chains(&CacheConfig::mock(), &policies, [ChainConfig::mock(Chain::Ethereum)].iter());
         let request = ProxyRequest::from_http(Method::POST, HeaderMap::from_iter([(HOST, HeaderValue::from_static("example.com"))]), Bytes::new(), "/ethereum", Chain::Ethereum).unwrap();
 
-        for (id, answer, cached) in [(1, json!("0x6080"), true), (2, json!("0x"), false), (3, Value::Null, false), (4, json!([]), true)] {
+        for (id, answer, cached) in [
+            (1, json!("0x6080"), true),
+            (2, json!("0x"), false),
+            (3, Value::Null, false),
+            (4, json!([]), false),
+            (5, json!(format!("0x{:064}", 0)), false),
+            (6, json!(format!("0x{:064}", 1)), true),
+            (7, json!([{ "pubkey": "pool" }]), true),
+        ] {
             let call = JsonRpcCall::mock_with_params(id, "eth_getCode", json!([format!("0x{id:040}"), "latest"]));
             set_result(&call, &answer, MINUTE, &request, &cache).unwrap();
             assert_eq!(get(&call, &request, &cache).is_some(), cached, "{answer}");
