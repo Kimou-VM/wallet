@@ -33,49 +33,46 @@ pub fn build_commands(
     let payer_is_user = input.funding == Funding::Permit2;
     let pay_fees = fee_options.bps > 0;
 
-    let mut commands: Vec<UniversalRouterCommand> = vec![];
-
     let amount_out = quote_amount;
-    if payer_is_user && let Some(permit) = permit {
-        commands.push(UniversalRouterCommand::PERMIT2_PERMIT(permit));
-    }
+    let permit = permit.filter(|_| payer_is_user).map(UniversalRouterCommand::PERMIT2_PERMIT);
 
-    if pay_fees {
-        if fee_token_is_input {
+    let swap = match (pay_fees, fee_token_is_input) {
+        (true, true) => {
             let fee = bps_of(&amount_in, fee_options.bps);
             let fee_transfer = Transfer {
                 token: token_in,
                 recipient: eth_address::parse_str(&fee_options.address)?,
                 value: U256::from(fee),
             };
-            commands.push(match input.funding {
+            let fee_command = match input.funding {
                 Funding::Value | Funding::RouterBalance => UniversalRouterCommand::TRANSFER(fee_transfer),
                 Funding::Permit2 => UniversalRouterCommand::PERMIT2_TRANSFER_FROM(fee_transfer),
-            });
-            let command = build_v4_swap_command(&token_in, &token_out, amount_in - fee, amount_out, swap_routes, &recipient, payer_is_user, universal_router_abi)?;
-            commands.push(command);
-        } else {
-            let address_this = eth_address::parse_str(ADDRESS_THIS)?;
-            let command = build_v4_swap_command(&token_in, &token_out, amount_in, 0, swap_routes, &address_this, payer_is_user, universal_router_abi)?;
-            commands.push(command);
-
-            commands.push(UniversalRouterCommand::PAY_PORTION(PayPortion {
-                token: token_out,
-                recipient: eth_address::parse_str(&fee_options.address)?,
-                bips: U256::from(fee_options.bps),
-            }));
-
-            commands.push(UniversalRouterCommand::SWEEP(Sweep {
-                token: token_out,
-                recipient,
-                amount_min: U256::from(amount_out),
-            }));
+            };
+            vec![
+                fee_command,
+                build_v4_swap_command(&token_in, &token_out, amount_in - fee, amount_out, swap_routes, &recipient, payer_is_user, universal_router_abi)?,
+            ]
         }
-    } else {
-        let command = build_v4_swap_command(&token_in, &token_out, amount_in, amount_out, swap_routes, &recipient, payer_is_user, universal_router_abi)?;
-        commands.push(command);
-    }
-    Ok(commands)
+        (true, false) => {
+            let address_this = eth_address::parse_str(ADDRESS_THIS)?;
+            vec![
+                build_v4_swap_command(&token_in, &token_out, amount_in, 0, swap_routes, &address_this, payer_is_user, universal_router_abi)?,
+                UniversalRouterCommand::PAY_PORTION(PayPortion {
+                    token: token_out,
+                    recipient: eth_address::parse_str(&fee_options.address)?,
+                    bips: U256::from(fee_options.bps),
+                }),
+                UniversalRouterCommand::SWEEP(Sweep {
+                    token: token_out,
+                    recipient,
+                    amount_min: U256::from(amount_out),
+                }),
+            ]
+        }
+        (false, _) => vec![build_v4_swap_command(&token_in, &token_out, amount_in, amount_out, swap_routes, &recipient, payer_is_user, universal_router_abi)?],
+    };
+
+    Ok(permit.into_iter().chain(swap).collect())
 }
 
 fn build_v4_swap_command(
