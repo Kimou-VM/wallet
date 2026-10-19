@@ -1,6 +1,6 @@
 use gem_encoding::encode_base64;
 use gem_solana::{
-    AddressLookupTableAccount, Base64InstructionData, DEFAULT_SWAP_GAS_LIMIT, JUPITER_PROGRAM_ID, MAX_TRANSACTION_SIZE, Pubkey, TransactionBuilder,
+    AddressLookupTableAccount, Base64InstructionData, JUPITER_PROGRAM_ID, MAX_COMPUTE_UNIT_LIMIT, MAX_TRANSACTION_SIZE, Pubkey, TransactionBuilder,
     compute_budget::{parse_compute_unit_limit_data, set_compute_unit_limit, with_compute_unit_price},
     instruction_from_primitive, instructions_from_primitives,
 };
@@ -29,7 +29,7 @@ impl BuildResponse {
             .map_err(SwapperError::transaction_error)?
             .into_iter()
             .filter(|instruction| parse_compute_unit_limit_data(&instruction.data).is_none());
-        let compute_budget = with_compute_unit_price(std::iter::once(set_compute_unit_limit(DEFAULT_SWAP_GAS_LIMIT)).chain(compute_budget_instructions).collect(), 0);
+        let compute_budget = with_compute_unit_price(std::iter::once(set_compute_unit_limit(MAX_COMPUTE_UNIT_LIMIT)).chain(compute_budget_instructions).collect(), 0);
         let setup = instructions_from_primitives::<Base64InstructionData>(self.setup_instructions).map_err(SwapperError::transaction_error)?;
         let swap = instruction_from_primitive::<Base64InstructionData>(self.swap_instruction).map_err(SwapperError::transaction_error)?;
         let cleanup = self.cleanup_instruction.map(instruction_from_primitive::<Base64InstructionData>).transpose().map_err(SwapperError::transaction_error)?;
@@ -59,14 +59,14 @@ impl BuildResponse {
 mod tests {
     use super::super::testkit::{TEST_FEE_ACCOUNT, TEST_PAYER};
     use super::*;
-    use gem_solana::{DEFAULT_SWAP_GAS_LIMIT, USDC_TOKEN_MINT, decode_transaction};
+    use gem_solana::{USDC_TOKEN_MINT, decode_transaction};
     use primitives::SolanaAccountMeta;
 
     #[test]
     fn test_into_transaction() {
         let transaction = BuildResponse::mock().into_transaction(TEST_PAYER, TEST_FEE_ACCOUNT).unwrap();
         let decoded = decode_transaction(&transaction).unwrap();
-        assert_eq!(decoded.get_compute_unit_limit(), Some(DEFAULT_SWAP_GAS_LIMIT));
+        assert_eq!(decoded.get_compute_unit_limit(), Some(MAX_COMPUTE_UNIT_LIMIT));
         assert_eq!(decoded.get_compute_unit_price(), Some(0));
 
         assert_eq!(
