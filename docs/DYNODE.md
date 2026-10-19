@@ -57,8 +57,8 @@ The cache key is the request's own content, never its caller, so every wallet as
 
 | Request | Key |
 |---|---|
-| JSON-RPC call | host, path, method and params; the call `id` is left out |
-| Any other request | host, HTTP method, path and the full body |
+| JSON-RPC call | host, path with its query, method and params; the call `id` is left out |
+| Any other request | host, HTTP method, path with its query and the full body |
 
 A JSON-RPC answer of `null`, an empty or all-zero hex string such as `0x` or a zero word, or an empty list `[]` is never kept: it says nothing exists yet, and a pending transaction, a contract not deployed yet, a pool not created yet or a token at a precomputed address would otherwise stay missing for the whole TTL (`test_empty_answers_are_not_cached`).
 
