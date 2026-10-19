@@ -614,22 +614,32 @@ mod swap_integration_tests {
         client_factory::{create_client_with_chain, create_eth_client},
         eth_address,
         fees::{bps_of, default_referral_fees},
-        uniswap::{self, routed_asset::Protocol, swap_route::RouteData},
+        uniswap::{
+            self,
+            routed_asset::{Protocol, base_pair},
+            swap_route::RouteData,
+            v2::{
+                pair::{PairReserves, reserves_request},
+                tax_check::RoundTrip,
+            },
+        },
     };
-    use alloy_primitives::U256;
+    use alloy_primitives::{Address, U256};
     use alloy_sol_types::SolCall;
     use gem_evm::{
         jsonrpc::{BlockParameter, EthereumRpc, TransactionObject},
         uniswap::{
             command::{TRANSFER_COMMAND, Transfer},
             contracts::IUniversalRouter,
+            deployment::v3::get_uniswap_router_deployment_by_chain,
+            path::TokenPair,
         },
     };
     use num_bigint::BigUint;
     use num_traits::ToPrimitive;
     use primitives::{
-        AssetId, Chain,
-        asset_constants::{ARC_EURC_ASSET_ID, ARC_USDC_TOKEN_ID, ETHEREUM_USDC_ASSET_ID, ROBINHOOD_USDG_TOKEN_ID, STABLE_TOKEN_ID},
+        AssetId, Chain, EVMChain,
+        asset_constants::{ARC_EURC_ASSET_ID, ARC_USDC_TOKEN_ID, BASE_USDC_TOKEN_ID, ETHEREUM_USDC_ASSET_ID, ETHEREUM_USDC_TOKEN_ID, POLYGON_USDT_TOKEN_ID, ROBINHOOD_USDG_TOKEN_ID, STABLE_TOKEN_ID},
         decode_hex,
         swap::EVM_REFERRAL_ADDRESS,
     };
@@ -711,6 +721,36 @@ mod swap_integration_tests {
         let swap_provider = uniswap::default::boxed_uniswap_v3(dynode_provider([Chain::Robinhood]));
 
         assert_eq!(simulate_native_to_token(Chain::Robinhood, swap_provider.as_ref(), TEST_ROBINHOOD_ASTRO_TOKEN, 1_000_000_000_000_000).await?, Protocol::V2);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_v2_deployments_round_trip_through_the_router() -> Result<(), SwapperError> {
+        let cases = [
+            (Chain::Ethereum, ETHEREUM_USDC_TOKEN_ID),
+            (Chain::Robinhood, ROBINHOOD_USDG_TOKEN_ID),
+            (Chain::Polygon, POLYGON_USDT_TOKEN_ID),
+            (Chain::Base, BASE_USDC_TOKEN_ID),
+        ];
+        for (chain, token) in cases {
+            let deployment = get_uniswap_router_deployment_by_chain(&chain).unwrap();
+            let v2 = deployment.v2_deployment.unwrap();
+            let wrapped = base_pair(EVMChain::from_chain(chain).unwrap(), Protocol::V2).unwrap().primary;
+            let token: Address = token.parse().unwrap();
+            let client = create_client_with_chain(dynode_provider([chain]), chain)?;
+            let pair = TokenPair {
+                token_in: wrapped,
+                token_out: token,
+                fee_tier: v2.fee_tier,
+            };
+            let result = client.request::<String, _>(reserves_request(&v2, &pair)).await.map_err(SwapperError::compute_quote_error)?;
+            let reserves = PairReserves::decode(&result)?.unwrap();
+            println!("{chain} pair {} reserves {:?}", v2.pair_address(&wrapped, &token), reserves.oriented(&wrapped, &token));
+
+            let round_trip = RoundTrip::v2(&v2, wrapped, token, &reserves).unwrap();
+            let request = round_trip.request(deployment.universal_router, deployment.universal_router_abi, TEST_V2_WALLET);
+            client.request::<String, _>(request).await.map_err(SwapperError::compute_quote_error)?;
+        }
         Ok(())
     }
 

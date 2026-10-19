@@ -79,7 +79,7 @@ Uniswap, PancakeSwap, Aerodrome, Raydium and Meteora each show as one provider. 
 
 | Provider | Pool types |
 |---|---|
-| Uniswap | v2 on Ethereum and Robinhood Chain, v3, v4 |
+| Uniswap | v2 on Ethereum, Robinhood Chain, Base and Polygon, v3, v4 |
 | PancakeSwap | v2 on BNB Chain, v3 |
 | Raydium | CLMM, CPMM, AMM v4 |
 | Meteora | DAMM v2, DLMM |
@@ -158,8 +158,10 @@ The v2 pairs quote inside the Uniswap and PancakeSwap providers, so a pair compe
 | BNB Chain | PancakeSwap v2 | `0.25%` |
 | Robinhood Chain | Uniswap v2 | `0.3%` |
 | Ethereum | Uniswap v2 | `0.3%` |
+| Base | Uniswap v2 | `0.3%` |
+| Polygon | Uniswap v2 | `0.3%` |
 
-The swap goes through the same Universal Router as a v3 swap, with the same Permit2 approval and Gem fee; the router finds each pair from the v2 factory built into it (`test_get_quote_data_v2_path`). History names a v2 swap after its router's provider: Uniswap v3 on Ethereum and Robinhood Chain, PancakeSwap v3 on BNB Chain.
+The swap goes through the same Universal Router as a v3 swap, with the same Permit2 approval and Gem fee; the router finds each pair from the v2 factory built into it (`test_get_quote_data_v2_path`). Each network's v2 factory and pair hash are the ones compiled into its Universal Router, and a buy and sell back through the router on its main pair passes (`test_v2_deployments_round_trip_through_the_router`). History names a v2 swap after its router's provider: Uniswap v3 on Ethereum, Robinhood Chain, Base and Polygon, PancakeSwap v3 on BNB Chain.
 
 A token that takes a fee when it moves gets no v2 quote. The constant-product price assumes the pair receives and pays the full amount, so for such a token the quote would promise more than the swap pays, and the swap would fail its slippage check. The first time a token's v2 route gives the most, the wallet asks the router, in a call that changes nothing, to spend `0.1%` of the coin in the token's pair buying the token and to sell everything it got straight back. A buy and sell back through one constant-product pair always returns at least the amount less the pair's fee taken twice, whatever the pair holds by then, so the call requires that much, less `0.01%` for rounding (`test_round_trip_minimum`); a fee of `0.01%` or more on either side, or a transfer the token refuses, makes it fail. The answer is kept for a day, so the check costs one request per token per day; a token that adds a fee after its check is still quoted until the next day, and the swap's minimum still holds. A token with no v2 pair against the network's coin cannot be checked and gets no v2 quote. On 2026-10-19 the check caught SafeMoon and FLOKI's `0.3%` fee on BNB Chain, and KEK, VOLT and CNPY on Robinhood Chain, which take `1%` to `3%`. FLOKI's v2 pair paid `0.4%` more than its best v3 route, so without the check FLOKI would have been quoted a swap that fails (`test_tax_tokens_get_no_v2_quote`).
 
