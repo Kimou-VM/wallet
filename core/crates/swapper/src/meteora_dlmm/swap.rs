@@ -9,7 +9,7 @@ use hex_lit::hex;
 use super::{bin::BinArray, pair::Pair};
 use crate::{
     SwapperError,
-    solana_dex::{DexPool, PoolSwap},
+    solana_dex::{DexPool, PoolSwap, SwapAmounts},
 };
 
 const SWAP2: &str = "swap2";
@@ -18,8 +18,7 @@ pub(super) const SWAP_BIN_ARRAYS: usize = 3;
 
 #[derive(BorshSerialize)]
 struct SwapParameters {
-    amount_in: u64,
-    minimum_amount_out: u64,
+    amounts: SwapAmounts,
     remaining_accounts_slices: Vec<(u8, u8)>,
 }
 
@@ -54,8 +53,7 @@ pub(super) fn swap2_instruction(address: &Pubkey, pair: &Pair, swap: &PoolSwap) 
     ]
     .concat();
     let parameters = SwapParameters {
-        amount_in: swap.amount,
-        minimum_amount_out: swap.minimum_out,
+        amounts: swap.amounts(),
         remaining_accounts_slices: vec![],
     };
     Ok(Instruction {

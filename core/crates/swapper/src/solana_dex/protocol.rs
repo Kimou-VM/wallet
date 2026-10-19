@@ -1,4 +1,4 @@
-use borsh::BorshDeserialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use gem_solana::{
     DEFAULT_SWAP_GAS_LIMIT, Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter,
     models::{Clock, TokenAccount},
@@ -96,6 +96,21 @@ pub(crate) struct PoolSwap<'a> {
     pub intermediate: Option<&'a SwapToken>,
     pub output: &'a SwapToken,
     pub amount: u64,
+    pub minimum_out: u64,
+}
+
+impl PoolSwap<'_> {
+    pub fn amounts(&self) -> SwapAmounts {
+        SwapAmounts {
+            amount_in: self.amount,
+            minimum_out: self.minimum_out,
+        }
+    }
+}
+
+#[derive(BorshSerialize)]
+pub(crate) struct SwapAmounts {
+    pub amount_in: u64,
     pub minimum_out: u64,
 }
 

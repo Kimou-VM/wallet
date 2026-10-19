@@ -1,4 +1,3 @@
-use borsh::BorshSerialize;
 use gem_solana::{AccountMeta, Instruction, Pubkey, anchor::instruction_data, instructions::program_ids::meteora_damm_v2_program};
 use hex_lit::hex;
 
@@ -11,12 +10,6 @@ use crate::{
 const SWAP: &str = "swap";
 const POOL_AUTHORITY: Pubkey = Pubkey::new(hex!("f2ccd535aca5f1736ac822dd0773e4d92fbd8a59b29403500295a9011c73a9e5"));
 const EVENT_AUTHORITY: Pubkey = Pubkey::new(hex!("2a76e7b344640a1cfc594c8bcad0a091011cac7dd156bf83a833fb2208eb77ad"));
-
-#[derive(BorshSerialize)]
-struct SwapParameters {
-    amount_in: u64,
-    minimum_amount_out: u64,
-}
 
 pub(super) fn swap_instruction(address: &Pubkey, pool: &Pool, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
     let a_to_b = pool.swap_direction(&swap.input.mint, &swap.output.mint)?;
@@ -37,14 +30,10 @@ pub(super) fn swap_instruction(address: &Pubkey, pool: &Pool, swap: &PoolSwap) -
         AccountMeta::new_readonly(EVENT_AUTHORITY),
         AccountMeta::new_readonly(meteora_damm_v2_program()),
     ];
-    let parameters = SwapParameters {
-        amount_in: swap.amount,
-        minimum_amount_out: swap.minimum_out,
-    };
     Ok(Instruction {
         program_id: meteora_damm_v2_program(),
         accounts,
-        data: instruction_data(SWAP, &parameters),
+        data: instruction_data(SWAP, &swap.amounts()),
     })
 }
 

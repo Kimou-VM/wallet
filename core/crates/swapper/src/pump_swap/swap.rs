@@ -1,4 +1,3 @@
-use borsh::BorshSerialize;
 use gem_solana::{
     AccountMeta, Instruction, Pubkey,
     anchor::instruction_data,
@@ -10,7 +9,7 @@ use hex_lit::hex;
 use super::{fee_config::FEE_CONFIG, pool::Pool};
 use crate::{
     SwapperError,
-    solana_dex::{DexPool, PoolSwap},
+    solana_dex::{DexPool, PoolSwap, SwapAmounts},
 };
 
 const SELL_V2: &str = "sell_v2";
@@ -19,12 +18,6 @@ const GLOBAL_CONFIG: Pubkey = Pubkey::new(hex!("890ba644fe1f55aa19f11cd2d2ec14d3
 const EVENT_AUTHORITY: Pubkey = Pubkey::new(hex!("e54a709528839f61c0b9b86079891c139216e47a71b62fb73bec72169458745e"));
 const BUYBACK_FEE_RECIPIENT: Pubkey = Pubkey::new(hex!("439e6510c03d65fad931e89d04be0bb70d51971f51c415fb344c07db419f2122"));
 const MIN_BUY_OUTPUT: u64 = 1;
-
-#[derive(BorshSerialize)]
-struct SwapArgs {
-    amount_in: u64,
-    minimum_out: u64,
-}
 
 pub(super) fn swap_v2_instruction(address: &Pubkey, pool: &Pool, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
     let sells_base = pool.swap_direction(&swap.input.mint, &swap.output.mint)?;
@@ -52,11 +45,10 @@ pub(super) fn swap_v2_instruction(address: &Pubkey, pool: &Pool, swap: &PoolSwap
         AccountMeta::new_readonly(EVENT_AUTHORITY),
         AccountMeta::new_readonly(pump_amm_program()),
     ];
-    let args = SwapArgs { amount_in: swap.amount, minimum_out };
     Ok(Instruction {
         program_id: pump_amm_program(),
         accounts,
-        data: instruction_data(name, &args),
+        data: instruction_data(name, &SwapAmounts { minimum_out, ..swap.amounts() }),
     })
 }
 

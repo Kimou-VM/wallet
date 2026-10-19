@@ -1,4 +1,3 @@
-use borsh::BorshSerialize;
 use gem_solana::{AccountMeta, Instruction, Pubkey, anchor::instruction_data, instructions::program_ids::raydium_cpmm_program};
 use hex_lit::hex;
 
@@ -10,12 +9,6 @@ use crate::{
 
 const SWAP_BASE_INPUT: &str = "swap_base_input";
 const AUTHORITY: Pubkey = Pubkey::new(hex!("eb00d9f5b292b4214ac7d037b4d6f06450b964600df373052bb5e84f2f8e9a67"));
-
-#[derive(BorshSerialize)]
-struct SwapParameters {
-    amount_in: u64,
-    minimum_amount_out: u64,
-}
 
 pub(super) fn swap_base_input_instruction(address: &Pubkey, pool: &Pool, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
     let (input_vault, output_vault) = pool.vaults(pool.swap_direction(&swap.input.mint, &swap.output.mint)?);
@@ -34,14 +27,10 @@ pub(super) fn swap_base_input_instruction(address: &Pubkey, pool: &Pool, swap: &
         AccountMeta::new_readonly(swap.output.mint),
         AccountMeta::new_writable(pool.observation_key),
     ];
-    let parameters = SwapParameters {
-        amount_in: swap.amount,
-        minimum_amount_out: swap.minimum_out,
-    };
     Ok(Instruction {
         program_id: raydium_cpmm_program(),
         accounts,
-        data: instruction_data(SWAP_BASE_INPUT, &parameters),
+        data: instruction_data(SWAP_BASE_INPUT, &swap.amounts()),
     })
 }
 

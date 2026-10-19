@@ -1,3 +1,4 @@
+use borsh::to_vec;
 use gem_solana::{
     AccountMeta, Instruction, Pubkey,
     instructions::program_ids::{raydium_amm_program, token_program},
@@ -28,7 +29,7 @@ pub(super) fn swap_base_in_v2_instruction(address: &Pubkey, pool: &Pool, swap: &
     Ok(Instruction {
         program_id: raydium_amm_program(),
         accounts,
-        data: [vec![SWAP_BASE_IN_V2], swap.amount.to_le_bytes().to_vec(), swap.minimum_out.to_le_bytes().to_vec()].concat(),
+        data: [vec![SWAP_BASE_IN_V2], to_vec(&swap.amounts()).unwrap_or_default()].concat(),
     })
 }
 
