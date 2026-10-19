@@ -162,13 +162,14 @@ A Meteora DLMM pair holds no figure for its depth, and SOL/USDC alone has `140` 
 
 PumpSwap, Meteora DAMM v2 and DLMM, and Raydium CPMM and AMM v4 have no instruction that passes one pool's output into the next, so a trade between two tokens that needs SOL in the middle goes as two swaps in one transaction. The second swap spends what the first is guaranteed to give at the trade's slippage; whatever the first gives beyond that is wrapped SOL that comes back as SOL when the transaction closes the wrapped-SOL account, and so does any wrapped SOL the wallet already held there. The quote is priced the same way, so a two-pool route is up to the slippage below one that chains exact amounts, and the minimum received is still the quote less the slippage (`test_two_hop_through_sol_spends_the_first_hop_minimum`). These routes go only through SOL, so nothing is left behind in another token, and a route through any other token is refused when the swap is built. A trade between two tokens also looks up each token's pools against SOL, at the same time as the pair; a lookup that fails only drops the route through SOL, never the direct one. Every pairing of the two legs' pools is priced, at most `16`, because these lookups keep at most `4` pools a pair; picking each leg's pool by its depth alone chose a USDT/SOL pair that could not fill the trade. A pool is skipped on the next quote only when no route that won still uses it. A route whose transaction would not fit Solana's 1,232-byte limit is not offered: two PumpSwap swaps take about `1,056` bytes and two DLMM swaps about `1,196`. Orca and Raydium CLMM chain their two pools in one instruction, as before.
 
-Each Solana pool swap asks for a fixed compute limit, and the quote reports the same limit the transaction sets, so the priority fee on the confirmation screen, priced per unit of the limit, matches the swap (`test_swap_requests`). Swaps are sent without the node's own check, so a swap that runs out of units fails on chain and still pays its network fee. A Meteora DLMM trade costs more the more bins it crosses, so it gets more room; the others use a fraction of theirs. The most a swap used in the live tests on 2026-10-19:
+Each Solana pool swap asks for a fixed compute limit, and the quote reports the same limit the transaction sets, so the priority fee on the confirmation screen, priced per unit of the limit, matches the swap (`test_swap_requests`). Swaps are sent without the node's own check, so a swap that runs out of units fails on chain and still pays its network fee. A Meteora DLMM trade costs more the more bins it crosses, so each DLMM swap in the transaction gets `600,000`, and a route through SOL, which swaps twice, gets `1,200,000` (`test_compute_unit_limit`); the others use a fraction of theirs whatever the route. Each live test checks that the swap stays within its limit (`assert_swaps_simulate`). The most a swap used in the live tests on 2026-10-19:
 
 | Protocol | Compute limit | Most used |
 |---|---|---|
-| Meteora DLMM | `600,000` | `465,754`, USDT to SOL to JUP |
+| Meteora DLMM, one swap | `600,000` | `49,795` |
+| Meteora DLMM, through SOL | `1,200,000` | `465,975`, USDT to SOL to JUP |
 | PumpSwap | `420,000` | `144,018` |
-| Raydium CLMM | `420,000` | `108,065` |
+| Raydium CLMM | `420,000` | `111,114` |
 | Orca | `420,000` | `65,404` |
 | Meteora DAMM v2 | `420,000` | `36,845` |
 | Raydium CPMM | `420,000` | `35,974` |
