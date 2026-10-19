@@ -19,13 +19,15 @@ public struct TransactionSwapMetadata: Codable, Equatable, Hashable, Sendable {
 	public let toValue: String
 	public let provider: String?
 	public let referralFee: TransactionSwapReferralFee?
+	public let requiresWithdrawal: Bool?
 
-	public init(fromAsset: AssetId, fromValue: String, toAsset: AssetId, toValue: String, provider: String?, referralFee: TransactionSwapReferralFee?) {
+	public init(fromAsset: AssetId, fromValue: String, toAsset: AssetId, toValue: String, provider: String?, referralFee: TransactionSwapReferralFee?, requiresWithdrawal: Bool?) {
 		self.fromAsset = fromAsset
 		self.fromValue = fromValue
 		self.toAsset = toAsset
 		self.toValue = toValue
 		self.provider = provider
 		self.referralFee = referralFee
+		self.requiresWithdrawal = requiresWithdrawal
 	}
 }

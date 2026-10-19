@@ -38,6 +38,8 @@ pub struct TransactionSwapMetadata {
     pub provider: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub referral_fee: Option<TransactionSwapReferralFee>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requires_withdrawal: Option<bool>,
 }
 
 impl TransactionSwapMetadata {
@@ -49,6 +51,13 @@ impl TransactionSwapMetadata {
         Self { referral_fee, ..self }
     }
 
+    pub fn with_requires_withdrawal(self, requires_withdrawal: bool) -> Self {
+        Self {
+            requires_withdrawal: requires_withdrawal.then_some(true),
+            ..self
+        }
+    }
+
     pub fn from_provider_id(from_asset: AssetId, from_value: BigUint, to_asset: AssetId, to_value: BigUint, provider: Option<String>) -> Self {
         Self {
             from_asset,
@@ -57,6 +66,7 @@ impl TransactionSwapMetadata {
             to_value,
             provider,
             referral_fee: None,
+            requires_withdrawal: None,
         }
     }
 }

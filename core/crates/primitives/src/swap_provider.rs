@@ -109,6 +109,40 @@ impl SwapProvider {
             Self::SunswapV3 => "SunSwap",
         }
     }
+
+    pub fn withdraw_url(&self) -> Option<&'static str> {
+        match self {
+            Self::Relay => Some("https://support.relay.link/en/articles/15100985-how-to-withdraw-funds"),
+            Self::UniswapV3
+            | Self::UniswapV4
+            | Self::PancakeswapV3
+            | Self::Aerodrome
+            | Self::Panora
+            | Self::Thorchain
+            | Self::Mayachain
+            | Self::Jupiter
+            | Self::Okx
+            | Self::Across
+            | Self::Oku
+            | Self::Wagmi
+            | Self::CetusClmm
+            | Self::StonfiV2
+            | Self::Mayan
+            | Self::Chainflip
+            | Self::NearIntents
+            | Self::Hyperliquid
+            | Self::Orca
+            | Self::Squid
+            | Self::SwapsXyz
+            | Self::Bridgers
+            | Self::Hyperion
+            | Self::RaydiumClmm
+            | Self::Dedust
+            | Self::PumpSwap
+            | Self::MeteoraDammV2
+            | Self::SunswapV3 => None,
+        }
+    }
 }
 
 #[cfg(test)]

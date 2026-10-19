@@ -105,7 +105,8 @@ pub fn map_swap_result(request: &RelayRequest) -> SwapResult {
                 BigUint::from_str(currency_out.amount.as_deref()?).ok()?,
                 SwapperProvider::Relay,
             )
-            .with_referral_fee(map_referral_fee(data.app_fees.as_ref())),
+            .with_referral_fee(map_referral_fee(data.app_fees.as_ref()))
+            .with_requires_withdrawal(request.requires_withdrawal()),
         )
     });
 
@@ -119,7 +120,7 @@ pub fn map_swap_result(request: &RelayRequest) -> SwapResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::relay::model::{RelayQuoteResponse, RelayRequest, RelayRequestsResponse, RelayStatus, Step};
+    use crate::relay::model::{RelayClaimStatus, RelayQuoteResponse, RelayRequest, RelayRequestsResponse, RelayStatus, Step};
     use primitives::{
         AssetId, Chain,
         asset_constants::{BASE_USDC_ASSET_ID, ETHEREUM_USDC_ASSET_ID},
@@ -320,6 +321,24 @@ mod tests {
         let failed = map_swap_result(&RelayRequest::mock_with_status(RelayStatus::Failure));
         assert_eq!(failed.status, SwapStatus::Failed);
         assert!(failed.metadata.is_none());
+
+        let metadata = TransactionSwapMetadata::new(
+            AssetId::from_chain(Chain::Ton),
+            BigUint::from(1255552499u64),
+            AssetId::from_chain(Chain::Polygon),
+            BigUint::from(17334207781357481841u64),
+            SwapperProvider::Relay,
+        );
+
+        assert_eq!(
+            map_swap_result(&RelayRequest::mock_blocked_wallet(Some(RelayClaimStatus::Claimed))),
+            SwapResult {
+                status: SwapStatus::Failed,
+                metadata: Some(metadata.clone()),
+                eta_in_seconds: None,
+            }
+        );
+        assert_eq!(map_swap_result(&RelayRequest::mock_blocked_wallet(None)).metadata, Some(metadata.with_requires_withdrawal(true)));
     }
 
     #[test]

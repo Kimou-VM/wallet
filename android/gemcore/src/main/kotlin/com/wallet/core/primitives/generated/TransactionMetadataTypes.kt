@@ -18,6 +18,7 @@ data class TransactionSwapMetadata (
 	val toAsset: AssetId,
 	val toValue: String,
 	val provider: String? = null,
-	val referralFee: TransactionSwapReferralFee? = null
+	val referralFee: TransactionSwapReferralFee? = null,
+	val requiresWithdrawal: Boolean? = null
 )
 

@@ -28,6 +28,7 @@ flowchart LR
 | A transaction is sent | a Pending row at once, tracked until the network settles it, whatever screen the user is on | |
 | The network settles it | Successful, or Failed or Reverted | amounts and status come from the network, never from the app's guess |
 | A swap | listed under both the asset paid and the asset received | the user looks for it under either |
+| A Relay swap failed and its refund waits for the user to withdraw it | Failed, with "Withdraw" under the swap progress opening Relay's withdrawal guide, which links to relay.link/withdraw and Relay's support chat (`test_withdraw_url`, `test_requires_withdrawal`) | Relay keeps the deposit until its owner withdraws it, for example after a wallet screening block; nothing reaches the wallet on its own; Gem can't connect to relay.link from its in-app browser, so the guide is where the user learns to connect the depositing wallet or contact Relay |
 | The wallet switches while details are open, such as a push for another wallet | the details stay on the wallet they were opened for | an open details screen never blanks or swaps |
 | A transaction is deleted while its details are open | the details keep showing it | an open details screen never blanks or swaps |
 | A transaction push is tapped | its details open at once; until the wallet has the transaction, a loader shows while it comes from Gem's server | the wallet shows only what its history or Gem's server holds, never what a push carries |

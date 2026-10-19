@@ -1,0 +1,35 @@
+{
+    "requests": [
+        {
+            "status": "failure",
+            "data": {
+                "claimStatus": "claimed",
+                "route": {
+                    "actual": {
+                        "origin": {
+                            "inputCurrency": {
+                                "currency": {
+                                    "chainId": 224235520,
+                                    "address": "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
+                                },
+                                "amount": "1255552499"
+                            }
+                        },
+                        "destination": {
+                            "outputCurrency": {
+                                "currency": {
+                                    "chainId": 137,
+                                    "address": "0x0000000000000000000000000000000000000000"
+                                },
+                                "amount": "17334207781357481841"
+                            }
+                        }
+                    }
+                }
+            },
+            "protocol": {
+                "isWithdrawable": true
+            }
+        }
+    ]
+}

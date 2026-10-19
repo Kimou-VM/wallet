@@ -1,6 +1,6 @@
 use num_bigint::BigInt;
 
-use super::model::{CurrencyAmount, EvmStepData, QuoteDetails, RelayChainInfo, RelayQuoteResponse, RelayRequest, RelayStatus, Step, StepData, StepItem};
+use super::model::{CurrencyAmount, EvmStepData, QuoteDetails, RelayChainInfo, RelayClaimStatus, RelayQuoteResponse, RelayRequest, RelayRequestData, RelayRequestsResponse, RelayStatus, Step, StepData, StepItem};
 
 impl RelayQuoteResponse {
     pub fn mock_with_steps(steps: Vec<Step>) -> Self {
@@ -31,7 +31,16 @@ impl EvmStepData {
 
 impl RelayRequest {
     pub fn mock_with_status(status: RelayStatus) -> Self {
-        Self { status, data: None }
+        Self { status, data: None, protocol: None }
+    }
+
+    pub fn mock_blocked_wallet(claim_status: Option<RelayClaimStatus>) -> Self {
+        let response: RelayRequestsResponse = serde_json::from_str(include_str!("testdata/request_ton_to_polygon_blocked_wallet.json")).unwrap();
+        let request = response.requests[0].clone();
+        Self {
+            data: request.data.map(|data| RelayRequestData { claim_status, ..data }),
+            ..request
+        }
     }
 }
 

@@ -408,6 +408,7 @@ mod tests {
                     asset_id: Chain::Aptos.as_asset_id(),
                     value: BigUint::from(500_000u64),
                 }),
+                requires_withdrawal: None,
             }
         );
     }

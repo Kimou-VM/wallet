@@ -846,6 +846,7 @@ fun mockTransactionSwapMetadata(
     toValue: String = "0",
     provider: String? = null,
     referralFee: TransactionSwapReferralFee? = null,
+    requiresWithdrawal: Boolean? = null,
 ) = TransactionSwapMetadata(
     fromAsset = fromAsset,
     fromValue = fromValue,
@@ -853,6 +854,7 @@ fun mockTransactionSwapMetadata(
     toValue = toValue,
     provider = provider,
     referralFee = referralFee,
+    requiresWithdrawal = requiresWithdrawal,
 )
 
 fun mockTransactionsFilter(
@@ -1828,6 +1830,7 @@ fun mockGemTransactionDetailRows(
     headerAction: uniffi.gemstone.GemTransactionHeaderAction? = null,
     swapProgress: uniffi.gemstone.GemSwapProgress? = null,
     swapAgain: uniffi.gemstone.GemSwapAgain? = null,
+    withdrawUrl: String? = null,
     estimatedConfirmationSeconds: UInt? = null,
     participant: uniffi.gemstone.GemAddressRow? = null,
     providerName: String? = null,
@@ -1853,6 +1856,7 @@ fun mockGemTransactionDetailRows(
     headerAction = headerAction,
     swapProgress = swapProgress,
     swapAgain = swapAgain,
+    withdrawUrl = withdrawUrl,
     estimatedConfirmationSeconds = estimatedConfirmationSeconds,
     participant = participant,
     providerName = providerName,

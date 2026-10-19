@@ -937,6 +937,7 @@ public extension TransactionSwapMetadata {
         toValue: String = "0",
         provider: String? = nil,
         referralFee: TransactionSwapReferralFee? = nil,
+        requiresWithdrawal: Bool? = nil,
     ) -> TransactionSwapMetadata {
         TransactionSwapMetadata(
             fromAsset: fromAsset,
@@ -945,6 +946,7 @@ public extension TransactionSwapMetadata {
             toValue: toValue,
             provider: provider,
             referralFee: referralFee,
+            requiresWithdrawal: requiresWithdrawal,
         )
     }
 }

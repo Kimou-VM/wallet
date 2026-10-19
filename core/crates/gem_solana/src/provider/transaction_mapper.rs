@@ -396,6 +396,7 @@ mod tests {
                     asset_id: AssetId::from_chain(Chain::Solana),
                     value: BigUint::from(47_196u32),
                 }),
+                requires_withdrawal: None,
             })
         );
     }
@@ -417,6 +418,7 @@ mod tests {
                     asset_id: AssetId::from_chain(Chain::Solana),
                     value: BigUint::from(47_893u32),
                 }),
+                requires_withdrawal: None,
             })
         );
     }
@@ -438,6 +440,7 @@ mod tests {
                     asset_id: AssetId::from_chain(Chain::Solana),
                     value: BigUint::from(50_000u32),
                 }),
+                requires_withdrawal: None,
             })
         );
     }

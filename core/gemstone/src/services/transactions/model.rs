@@ -301,6 +301,7 @@ pub struct GemTransactionDetailRows {
     pub header_action: Option<GemTransactionHeaderAction>,
     pub swap_progress: Option<GemSwapProgress>,
     pub swap_again: Option<GemSwapAgain>,
+    pub withdraw_url: Option<String>,
     pub estimated_confirmation_seconds: Option<u32>,
     pub participant: Option<GemAddressRow>,
     pub provider_name: Option<String>,
@@ -343,6 +344,7 @@ pub enum GemTransactionHeaderKind {
 pub struct GemTransactionDetails {
     pub swap_progress: Option<GemSwapProgress>,
     pub swap_again: Option<GemSwapAgain>,
+    pub withdraw_url: Option<String>,
     pub provider_name: Option<String>,
     pub estimated_confirmation_seconds: Option<u32>,
     pub pnl: Option<f64>,
