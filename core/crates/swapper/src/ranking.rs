@@ -1,14 +1,19 @@
 use num_bigint::BigUint;
+use primitives::swap::HUNDRED_PERCENT_IN_BPS;
 
 use crate::config::QuotePreference;
 use crate::fees::{max_amount_spends_all_but_fee, subtract_bps};
 use crate::{Quote, QuoteRequest, SwapAmountMode};
+
+const MAX_SHORTFALL_BPS: u32 = 5_000;
 
 pub(crate) fn rank_quotes(request: &QuoteRequest, mut quotes: Vec<Quote>, preferences: &[QuotePreference], amount_mode: impl Fn(&Quote) -> Option<SwapAmountMode>) -> Vec<Quote> {
     quotes.sort_by(|a, b| b.to_value.cmp(&a.to_value));
     let Some(best) = quotes.first().map(|quote| quote.to_value.clone()) else {
         return quotes;
     };
+    let floor = &best * (HUNDRED_PERCENT_IN_BPS - MAX_SHORTFALL_BPS);
+    quotes.retain(|quote| &quote.to_value * HUNDRED_PERCENT_IN_BPS >= floor);
     for preference in preferences {
         match preference {
             QuotePreference::Providers { providers, tolerance_bps } => prefer(&mut quotes, &best, *tolerance_bps, |quote| providers.contains(&quote.data.provider.id)),
@@ -83,9 +88,40 @@ mod tests {
             vec![SwapperProvider::UniswapV3, SwapperProvider::UniswapV4, SwapperProvider::PancakeswapV3]
         );
         assert_eq!(
-            rank([(SwapperProvider::UniswapV3, "9999999999999999999"), (SwapperProvider::Jupiter, "10000000000000000000"), (SwapperProvider::Okx, "1")]),
+            rank([
+                (SwapperProvider::UniswapV3, "9999999999999999999"),
+                (SwapperProvider::Jupiter, "10000000000000000000"),
+                (SwapperProvider::Okx, "5000000000000000000")
+            ]),
             vec![SwapperProvider::Jupiter, SwapperProvider::UniswapV3, SwapperProvider::Okx],
             "whole amounts are compared, not their text"
+        );
+    }
+
+    #[test]
+    fn test_quotes_giving_less_than_half_of_the_best_are_dropped() {
+        let request = request(AssetId::from_chain(Chain::Solana), false);
+        let rank = |outs: [(SwapperProvider, &str); 3]| {
+            providers(rank_quotes(
+                &request,
+                outs.into_iter().map(|(provider, out)| quote(&request, provider, out)).collect(),
+                &quote_preferences(),
+                deposit_only_near_intents,
+            ))
+        };
+
+        assert_eq!(
+            rank([(SwapperProvider::Jupiter, "10000"), (SwapperProvider::MeteoraDammV2, "16"), (SwapperProvider::RaydiumClmm, "4999")]),
+            vec![SwapperProvider::Jupiter]
+        );
+        assert_eq!(
+            rank([(SwapperProvider::Jupiter, "10000"), (SwapperProvider::Orca, "5000"), (SwapperProvider::Okx, "9995")]),
+            vec![SwapperProvider::Jupiter, SwapperProvider::Okx, SwapperProvider::Orca],
+            "exactly half of the best stays"
+        );
+        assert_eq!(
+            rank([(SwapperProvider::PumpSwap, "1"), (SwapperProvider::Orca, "0"), (SwapperProvider::Okx, "1")]),
+            vec![SwapperProvider::PumpSwap, SwapperProvider::Okx]
         );
     }
 

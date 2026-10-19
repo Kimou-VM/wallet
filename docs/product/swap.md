@@ -64,6 +64,8 @@ flowchart LR
 
 The quote that gives the most wins. A provider that runs on-chain, with no third-party service between the wallet and the trade, wins instead when its quote is within `0.1%` of the best, or within `0.05%` for the Solana pools: Orca, Raydium, PumpSwap and Meteora (`test_solana_pools_are_preferred_within_5_bps_of_the_best_quote`). When more than one of them is that close, the one that gives the most wins. For a 100% swap, a provider that leaves nothing behind within `0.25%` still comes before all of them.
 
+A quote that gives less than half of the best one is not shown. Quotes that far behind come from nearly empty pools: in 82 pairs quoted with every provider on 2026-10-18, `30` of the `118` quotes that lost were more than half behind and `18` of those more than `90%` behind, while three-quarters of the rest were within `3%` (`test_quotes_giving_less_than_half_of_the_best_are_dropped`).
+
 | Provider | Runs on-chain because |
 |---|---|
 | Across | the deposit goes straight to its SpokePool contract on the paying network and settles in seconds |
