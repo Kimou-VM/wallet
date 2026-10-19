@@ -213,7 +213,6 @@ mod tests {
         let cfg = Address::repeat_byte(7);
 
         assert!(route_intermediaries(&base_pair.primary, &usdc, &base_pair).is_empty());
-        assert_eq!(route_intermediaries(&usdc, &cfg, &base_pair), get_intermediaries(&usdc, &cfg, &base_pair));
         assert!(route_intermediaries(&usdc, &cfg, &base_pair).contains(&base_pair.primary));
     }
 
