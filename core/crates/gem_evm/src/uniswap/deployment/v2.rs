@@ -74,7 +74,7 @@ pub fn constant_product_amount_out(fee: u32, amount_in: U256, reserve_in: U256, 
     Some(numerator / denominator)
 }
 
-fn sort_tokens<'a>(token_a: &'a Address, token_b: &'a Address) -> (&'a Address, &'a Address) {
+pub fn sort_tokens<'a>(token_a: &'a Address, token_b: &'a Address) -> (&'a Address, &'a Address) {
     if token_a < token_b { (token_a, token_b) } else { (token_b, token_a) }
 }
 

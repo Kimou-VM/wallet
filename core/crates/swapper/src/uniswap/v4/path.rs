@@ -2,6 +2,7 @@ use alloy_primitives::{Address, Bytes};
 use gem_evm::uniswap::{
     FeeTier,
     contracts::v4::{IV4Quoter::QuoteExactParams, PathKey, PoolKey},
+    deployment::v2::sort_tokens,
     path::TokenPair,
 };
 
@@ -12,19 +13,15 @@ use crate::{
     uniswap::swap_route::{route_fee_tier, two_hop_pairs},
 };
 
-fn sort_addresses(token_in: &Address, token_out: &Address) -> (Address, Address) {
-    if token_in.0 < token_out.0 { (*token_in, *token_out) } else { (*token_out, *token_in) }
-}
-
 pub fn build_pool_key(token_in: &Address, token_out: &Address, fee_tier: &FeeTier) -> (PoolKey, bool) {
-    let (currency0, currency1) = sort_addresses(token_in, token_out);
-    let zero_for_one = currency0.0 == token_in.0;
+    let (currency0, currency1) = sort_tokens(token_in, token_out);
+    let zero_for_one = currency0 == token_in;
     let fee = fee_tier.as_u24();
     let tick_spacing = fee_tier.default_tick_spacing();
     (
         PoolKey {
-            currency0,
-            currency1,
+            currency0: *currency0,
+            currency1: *currency1,
             fee,
             tickSpacing: tick_spacing,
             hooks: Address::ZERO,
