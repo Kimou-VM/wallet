@@ -358,7 +358,7 @@ mod tests {
         assert_eq!(transaction.asset_id, dust);
         assert_eq!(transaction.value, BigUint::from(2263786603u64));
         assert_eq!(
-            serde_json::from_value::<TransactionSwapMetadata>(transaction.metadata.clone().unwrap()).unwrap(),
+            transaction.swap_metadata().unwrap(),
             TransactionSwapMetadata::from_provider_id(dust, BigUint::from(2263786603u64), Chain::Ton.as_asset_id(), BigUint::from(726191509u64), Some("stonfi_v2".to_string())).with_referral_fee(Some(TransactionSwapReferralFee {
                 asset_id: Chain::Ton.as_asset_id(),
                 value: BigUint::from(727647u64),
@@ -380,7 +380,7 @@ mod tests {
         assert_eq!(transaction.asset_id, Chain::Ton.as_asset_id());
         assert_eq!(transaction.value, BigUint::from(1000000000u64));
         assert_eq!(
-            serde_json::from_value::<TransactionSwapMetadata>(transaction.metadata.clone().unwrap()).unwrap(),
+            transaction.swap_metadata().unwrap(),
             TransactionSwapMetadata::from_provider_id(
                 Chain::Ton.as_asset_id(),
                 BigUint::from(1000000000u64),
@@ -397,7 +397,7 @@ mod tests {
         let usdt = AssetId::from_token(Chain::Ton, "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");
 
         let transactions = map_trace_transactions(traces.traces);
-        let metadata = serde_json::from_value::<TransactionSwapMetadata>(transactions[0].metadata.clone().unwrap()).unwrap();
+        let metadata = transactions[0].swap_metadata().unwrap();
 
         assert_eq!(transactions[0].transaction_type, TransactionType::Swap);
         assert_eq!(
@@ -419,7 +419,6 @@ mod tests {
             details: Some(json!({"source": swap.root_transaction().unwrap().out_msgs[0].source, "destination": base64_to_hex_address(TON_REFERRAL_ADDRESS).unwrap(), "value": "17456959"})),
         };
         let usdt = AssetId::from_token(Chain::Ton, "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs");
-        let metadata = |transaction: &Transaction| serde_json::from_value::<TransactionSwapMetadata>(transaction.metadata.clone().unwrap()).unwrap();
 
         let without_fee = map_trace_transactions(traces.traces);
         let with_fee = map_trace_transactions(vec![Trace {
@@ -429,11 +428,11 @@ mod tests {
 
         assert_eq!(without_fee[0].transaction_type, TransactionType::Swap);
         assert_eq!(
-            metadata(&without_fee[0]),
+            without_fee[0].swap_metadata().unwrap(),
             TransactionSwapMetadata::from_provider_id(Chain::Ton.as_asset_id(), BigUint::from(3473734802u64), usdt, BigUint::from(4748974u64), Some("dedust".to_string()))
         );
         assert_eq!(
-            metadata(&with_fee[0]).referral_fee,
+            with_fee[0].swap_metadata().unwrap().referral_fee,
             Some(TransactionSwapReferralFee {
                 asset_id: Chain::Ton.as_asset_id(),
                 value: BigUint::from(17456959u64),
@@ -564,8 +563,7 @@ mod tests {
         assert_eq!(transaction.from, "UQAzoUpalAaXnVm5MoiYWRZguLFzY0KxFjLv3MkRq5BXz3VV");
         assert_eq!(transaction.from, transaction.to);
 
-        let metadata = transaction.metadata.as_ref().expect("swap metadata");
-        let swap: TransactionSwapMetadata = serde_json::from_value(metadata.clone()).unwrap();
+        let swap = transaction.swap_metadata().unwrap();
         assert_eq!(swap.from_asset, AssetId::from_chain(Chain::Ton));
         assert_eq!(swap.from_value, BigUint::from(1000000000u64));
         assert_eq!(swap.to_asset.chain, Chain::Ton);
@@ -590,8 +588,7 @@ mod tests {
         assert_eq!(transaction.asset_id.token_id.as_deref(), Some("EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"));
         assert_eq!(transaction.value, BigUint::from(1000000u64));
 
-        let metadata = transaction.metadata.as_ref().unwrap();
-        let swap: TransactionSwapMetadata = serde_json::from_value(metadata.clone()).unwrap();
+        let swap = transaction.swap_metadata().unwrap();
         assert_eq!(swap.from_asset, AssetId::from_token(Chain::Ton, "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs"));
         assert_eq!(swap.from_value, BigUint::from(1000000u64));
         assert_eq!(swap.to_asset, AssetId::from_chain(Chain::Ton));

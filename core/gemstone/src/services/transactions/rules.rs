@@ -5,8 +5,7 @@ use strum::IntoEnumIterator;
 use number_formatter::BigNumberFormatter;
 use primitives::{
     AddressName, Asset, AssetId, AssetPrice, AssetType, BlockExplorerLink, Chain, ChainAsset, Currency, OptionStringExt, PerpetualDirection, Price, Transaction, TransactionDirection, TransactionExtended, TransactionListItem,
-    TransactionNFTTransferMetadata, TransactionPerpetualMetadata, TransactionResourceTypeMetadata, TransactionState, TransactionSwapMetadata, TransactionType, TransactionWalletConnectMetadata, TransactionsFilter, TransferDataOutputAction,
-    WalletType,
+    TransactionNFTTransferMetadata, TransactionResourceTypeMetadata, TransactionState, TransactionSwapMetadata, TransactionType, TransactionWalletConnectMetadata, TransactionsFilter, TransferDataOutputAction, WalletType,
 };
 
 use super::model::{
@@ -549,7 +548,7 @@ fn transaction_subtitle(transaction: &Transaction) -> GemTransactionSubtitle {
         TransactionType::StakeUndelegate | TransactionType::EarnWithdraw => GemTransactionSubtitle::FromAddress { address: transaction.to.clone() },
         TransactionType::StakeFreeze => resource(transaction).map_or(GemTransactionSubtitle::None, |resource| GemTransactionSubtitle::ToResource { resource }),
         TransactionType::StakeUnfreeze => resource(transaction).map_or(GemTransactionSubtitle::None, |resource| GemTransactionSubtitle::FromResource { resource }),
-        TransactionType::PerpetualOpenPosition | TransactionType::PerpetualClosePosition | TransactionType::PerpetualModifyPosition => match perpetual_metadata(transaction).map(|metadata| metadata.price).filter(|price| *price > 0.0) {
+        TransactionType::PerpetualOpenPosition | TransactionType::PerpetualClosePosition | TransactionType::PerpetualModifyPosition => match transaction.perpetual_metadata().map(|metadata| metadata.price).filter(|price| *price > 0.0) {
             Some(value) => GemTransactionSubtitle::Price { value },
             None => GemTransactionSubtitle::None,
         },
@@ -594,7 +593,7 @@ fn transaction_value(transaction: &Transaction) -> GemTransactionValue {
         TransactionType::Swap => GemTransactionValue::SwapReceived,
         TransactionType::TokenApproval => GemTransactionValue::AssetSymbol,
         TransactionType::PerpetualOpenPosition => GemTransactionValue::PerpetualNotional,
-        TransactionType::PerpetualClosePosition => match perpetual_metadata(transaction).map(|metadata| metadata.pnl).filter(|pnl| *pnl != 0.0) {
+        TransactionType::PerpetualClosePosition => match transaction.perpetual_metadata().map(|metadata| metadata.pnl).filter(|pnl| *pnl != 0.0) {
             Some(value) => GemTransactionValue::PerpetualPnl { value },
             None => GemTransactionValue::None,
         },
@@ -668,7 +667,7 @@ pub fn details(extended: &TransactionExtended, wallet_type: WalletType) -> GemTr
         .and_then(|id| SwapperProvider::from_str(id).ok())
         .map(SwapperProviderType::new);
     let swap_progress = swap_progress(extended, swap_metadata.as_ref(), provider.as_ref());
-    let perpetual = perpetual_metadata(transaction);
+    let perpetual = transaction.perpetual_metadata();
     GemTransactionDetails {
         estimated_confirmation_seconds: extended.confirmation_eta_seconds.filter(|seconds| *seconds > 0 && transaction.state == TransactionState::Pending && swap_progress.is_none()),
         swap_again: swap_again(transaction, swap_metadata.as_ref(), wallet_type),
@@ -722,13 +721,8 @@ fn wallet_connect_metadata(transaction: &Transaction) -> Option<TransactionWalle
     serde_json::from_value::<TransactionWalletConnectMetadata>(metadata).ok()
 }
 
-fn perpetual_metadata(transaction: &Transaction) -> Option<TransactionPerpetualMetadata> {
-    let metadata = transaction.metadata.clone()?;
-    serde_json::from_value::<TransactionPerpetualMetadata>(metadata).ok()
-}
-
 fn perpetual_direction(transaction: &Transaction) -> Option<PerpetualDirection> {
-    perpetual_metadata(transaction).map(|metadata| metadata.direction)
+    transaction.perpetual_metadata().map(|metadata| metadata.direction)
 }
 
 pub const TRANSACTION_FILTERS: &[GemTransactionFilter] = &[
@@ -838,7 +832,7 @@ mod tests {
     use super::super::model::GemSwapProgressMarker;
     use super::*;
     use chrono::Utc;
-    use primitives::{Chain, Resource};
+    use primitives::{Chain, Resource, TransactionPerpetualMetadata};
 
     fn signing_details(extended: &TransactionExtended) -> GemTransactionDetails {
         details(extended, WalletType::Multicoin)

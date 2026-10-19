@@ -113,7 +113,7 @@ mod tests {
         let receipt = load_json_rpc_result::<TransactionReceipt>(include_str!("../../../testdata/pancakeswap_bsc_swap_tx_receipt.json"));
 
         let swap_tx = map_transaction(&Chain::SmartChain, &transaction, &receipt);
-        let metadata: TransactionSwapMetadata = serde_json::from_value(swap_tx.metadata.unwrap()).unwrap();
+        let metadata = swap_tx.swap_metadata().unwrap();
 
         assert_eq!(swap_tx.transaction_type, TransactionType::Swap);
         assert_eq!(swap_tx.state, TransactionState::Confirmed);
@@ -134,7 +134,7 @@ mod tests {
         let receipt = load_json_rpc_result::<TransactionReceipt>(include_str!("../../../testdata/pancakeswap_bsc_bnb_cake_tx_receipt.json"));
 
         let swap_tx = map_transaction(&Chain::SmartChain, &transaction, &receipt);
-        let metadata: TransactionSwapMetadata = serde_json::from_value(swap_tx.metadata.unwrap()).unwrap();
+        let metadata = swap_tx.swap_metadata().unwrap();
 
         assert_eq!(swap_tx.transaction_type, TransactionType::Swap);
         assert_eq!(swap_tx.state, TransactionState::Confirmed);

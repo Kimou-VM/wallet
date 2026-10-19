@@ -248,7 +248,7 @@ mod tests {
     fn test_map_swap_referral_fee() {
         let digest: Digest = serde_json::from_str(include_str!("../../testdata/swap_cetus_referral_fee.json")).unwrap();
         let transaction = map_transaction(digest).unwrap();
-        let metadata: TransactionSwapMetadata = serde_json::from_value(transaction.metadata.unwrap()).unwrap();
+        let metadata = transaction.swap_metadata().unwrap();
         let usdc = AssetId::from_token(Chain::Sui, "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC");
 
         assert_eq!(transaction.transaction_type, TransactionType::Swap);
@@ -348,7 +348,7 @@ mod tests {
         assert_eq!(swap.contract.as_deref(), Some("0x00000000000000000000000000000000000000000000000000000000000000cc"));
         assert_eq!(swap.asset_id, AssetId::from_token(Chain::Sui, TOKEN_A));
         assert_eq!(swap.value, BigUint::from(200u64));
-        let metadata: TransactionSwapMetadata = serde_json::from_value(swap.metadata.unwrap()).unwrap();
+        let metadata = swap.swap_metadata().unwrap();
         assert_eq!(metadata.from_asset, AssetId::from_token(Chain::Sui, TOKEN_A));
         assert_eq!(metadata.from_value, BigUint::from(200u64));
         assert_eq!(metadata.to_asset, AssetId::from_token(Chain::Sui, TOKEN_B));

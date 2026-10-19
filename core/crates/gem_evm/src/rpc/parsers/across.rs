@@ -61,7 +61,7 @@ mod tests {
         parsers::ProtocolParsers,
     };
     use primitives::{
-        Chain, SwapProvider, TransactionState, TransactionSwapMetadata, TransactionSwapReferralFee, TransactionType,
+        Chain, SwapProvider, TransactionState, TransactionSwapReferralFee, TransactionType,
         asset_constants::{BASE_USDC_ASSET_ID, ETHEREUM_USDC_ASSET_ID, POLYGON_USDC_ASSET_ID},
         testkit::json_rpc::load_json_rpc_result,
     };
@@ -71,7 +71,7 @@ mod tests {
         let transaction = load_json_rpc_result::<Transaction>(include_str!("../../../testdata/across_polygon_deposit_transaction.json"));
         let receipt = load_json_rpc_result::<TransactionReceipt>(include_str!("../../../testdata/across_polygon_deposit_receipt.json"));
         let parsed = ProtocolParsers::map_transaction(&Chain::Polygon, &transaction, &receipt, DateTime::default()).unwrap();
-        let metadata = serde_json::from_value::<TransactionSwapMetadata>(parsed.metadata.unwrap()).unwrap();
+        let metadata = parsed.swap_metadata().unwrap();
 
         assert_eq!(parsed.transaction_type, TransactionType::Swap);
         assert_eq!(parsed.state, TransactionState::InTransit);
@@ -90,7 +90,7 @@ mod tests {
         let transaction = load_json_rpc_result::<Transaction>(include_str!("../../../testdata/across_arc_deposit_transaction.json"));
         let receipt = load_json_rpc_result::<TransactionReceipt>(include_str!("../../../testdata/across_arc_deposit_receipt.json"));
         let parsed = ProtocolParsers::map_transaction(&Chain::Arc, &transaction, &receipt, DateTime::default()).unwrap();
-        let metadata = serde_json::from_value::<TransactionSwapMetadata>(parsed.metadata.unwrap()).unwrap();
+        let metadata = parsed.swap_metadata().unwrap();
 
         assert_eq!(metadata.from_asset, Chain::Arc.as_asset_id());
         assert_eq!(metadata.from_value, BigUint::from(5_000_000_000_000_000_000u64));

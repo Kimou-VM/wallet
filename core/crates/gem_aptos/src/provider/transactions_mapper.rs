@@ -356,7 +356,7 @@ mod tests {
         assert_eq!(mapped.fee, BigUint::from(142_600u32));
         assert!(mapped.metadata.is_some());
 
-        let metadata: primitives::TransactionSwapMetadata = serde_json::from_value(mapped.metadata.unwrap()).unwrap();
+        let metadata = mapped.swap_metadata().unwrap();
         assert_eq!(metadata.from_asset, AssetId::from_token(Chain::Aptos, APTOS_USDT_TOKEN_ID));
         assert_eq!(metadata.from_value, BigUint::from(2346314u64));
         assert_eq!(metadata.to_asset, Chain::Aptos.as_asset_id());
@@ -370,7 +370,7 @@ mod tests {
         let transaction: Transaction = serde_json::from_str(include_str!("../../testdata/transaction_swap_panora_referral_fee.json")).unwrap();
 
         let mapped = map_transaction(transaction).unwrap();
-        let metadata: primitives::TransactionSwapMetadata = serde_json::from_value(mapped.metadata.unwrap()).unwrap();
+        let metadata = mapped.swap_metadata().unwrap();
 
         assert_eq!(mapped.transaction_type, TransactionType::Swap);
         assert_eq!(metadata.from_asset, Chain::Aptos.as_asset_id());
@@ -390,7 +390,7 @@ mod tests {
         let transaction: Transaction = serde_json::from_str(include_str!("../../testdata/transaction_swap_hyperion_referral_fee.json")).unwrap();
 
         let mapped = map_transaction(transaction).unwrap();
-        let metadata: primitives::TransactionSwapMetadata = serde_json::from_value(mapped.metadata.clone().unwrap()).unwrap();
+        let metadata = mapped.swap_metadata().unwrap();
 
         assert_eq!(mapped.transaction_type, TransactionType::Swap);
         assert_eq!(mapped.contract.as_deref(), Some(HYPERION_CONTRACT));

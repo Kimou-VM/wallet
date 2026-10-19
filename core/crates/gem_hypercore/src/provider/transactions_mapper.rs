@@ -179,7 +179,7 @@ mod tests {
     use crate::models::spot::SpotMeta;
     use crate::provider::testkit::TEST_TRANSACTION_ID;
     use primitives::{
-        PerpetualDirection, TransactionPerpetualMetadata, TransactionType,
+        PerpetualDirection, TransactionType,
         asset_constants::{HYPERCORE_PERPETUAL_USDC_ASSET_ID, HYPERCORE_SPOT_HYPE_ASSET_ID, HYPERCORE_SPOT_USDC_ASSET_ID},
     };
 
@@ -260,7 +260,7 @@ mod tests {
         assert_eq!(transaction.from, "0xabc");
         assert_eq!(transaction.to, "0xabc");
 
-        let metadata: TransactionPerpetualMetadata = serde_json::from_value(transaction.metadata.clone().unwrap()).unwrap();
+        let metadata = transaction.perpetual_metadata().unwrap();
         assert_eq!(metadata.direction, PerpetualDirection::Long);
         assert_eq!(metadata.is_liquidation, Some(false));
     }
@@ -334,7 +334,7 @@ mod tests {
         assert_eq!(transactions.len(), 1);
         assert_eq!(transactions[0].transaction_type, TransactionType::PerpetualClosePosition);
 
-        let metadata: TransactionPerpetualMetadata = serde_json::from_value(transactions[0].metadata.clone().unwrap()).unwrap();
+        let metadata = transactions[0].perpetual_metadata().unwrap();
         assert_eq!(metadata.direction, PerpetualDirection::Long);
         assert_eq!(metadata.is_liquidation, Some(true));
     }
@@ -367,7 +367,7 @@ mod tests {
         assert!(transactions[0].asset_ids().contains(&HYPERCORE_SPOT_USDC_ASSET_ID.clone()));
         assert!(transactions[0].asset_ids().contains(&HYPERCORE_SPOT_HYPE_ASSET_ID.clone()));
 
-        let metadata: TransactionSwapMetadata = serde_json::from_value(transactions[0].metadata.clone().unwrap()).unwrap();
+        let metadata = transactions[0].swap_metadata().unwrap();
         assert_eq!(metadata.from_asset, HYPERCORE_SPOT_HYPE_ASSET_ID.clone());
         assert_eq!(metadata.from_value, BigUint::from(30000000u64));
         assert_eq!(metadata.to_asset, HYPERCORE_SPOT_USDC_ASSET_ID.clone());
@@ -396,7 +396,7 @@ mod tests {
         assert!(transactions[0].asset_ids().contains(&HYPERCORE_SPOT_USDC_ASSET_ID.clone()));
         assert!(transactions[0].asset_ids().contains(&HYPERCORE_SPOT_HYPE_ASSET_ID.clone()));
 
-        let metadata: TransactionSwapMetadata = serde_json::from_value(transactions[0].metadata.clone().unwrap()).unwrap();
+        let metadata = transactions[0].swap_metadata().unwrap();
         assert_eq!(metadata.from_asset, HYPERCORE_SPOT_USDC_ASSET_ID.clone());
         assert_eq!(metadata.from_value, BigUint::from(1197900000u64));
         assert_eq!(metadata.to_asset, HYPERCORE_SPOT_HYPE_ASSET_ID.clone());

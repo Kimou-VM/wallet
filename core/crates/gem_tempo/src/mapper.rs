@@ -26,7 +26,7 @@ mod tests {
     use num_bigint::BigUint;
     use primitives::testkit::json_rpc::load_json_rpc_result;
     use primitives::{
-        Chain, TransactionSwapMetadata, TransactionType,
+        Chain, TransactionType,
         asset_constants::{TEMPO_BRIDGED_USDC_ASSET_ID, TEMPO_BRIDGED_USDC_TOKEN_ID, TEMPO_PATHUSD_ASSET_ID, TEMPO_PATHUSD_TOKEN_ID},
     };
 
@@ -46,7 +46,7 @@ mod tests {
         assert_eq!(mapped_transaction.fee, BigUint::from(595u64));
         assert_eq!(mapped_transaction.fee_asset_id, TEMPO_BRIDGED_USDC_ASSET_ID.clone());
 
-        let metadata: TransactionSwapMetadata = serde_json::from_value(mapped_transaction.metadata.unwrap()).unwrap();
+        let metadata = mapped_transaction.swap_metadata().unwrap();
         assert_eq!(metadata.from_asset, TEMPO_BRIDGED_USDC_ASSET_ID.clone());
         assert_eq!(metadata.from_value, BigUint::from(200000u64));
         assert_eq!(metadata.to_asset, TEMPO_PATHUSD_ASSET_ID.clone());

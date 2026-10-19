@@ -454,7 +454,7 @@ mod tests {
         let receipt: TransactionReceiptData = serde_json::from_str(include_str!("../../testdata/transaction_okx_swap_receipt.json")).unwrap();
 
         let transaction = map_transaction(Chain::Tron, transaction, receipt).unwrap();
-        let metadata: TransactionSwapMetadata = serde_json::from_value(transaction.metadata.unwrap()).unwrap();
+        let metadata = transaction.swap_metadata().unwrap();
 
         assert_eq!(transaction.transaction_type, TransactionType::Swap);
         assert_eq!(metadata.provider, Some(SwapProvider::Okx.id().to_string()));
@@ -478,7 +478,7 @@ mod tests {
         let logs = receipt.log.clone().unwrap();
 
         let transaction = map_transaction(Chain::Tron, transaction, receipt).unwrap();
-        let metadata: TransactionSwapMetadata = serde_json::from_value(transaction.metadata.unwrap()).unwrap();
+        let metadata = transaction.swap_metadata().unwrap();
 
         assert_eq!(transaction.transaction_type, TransactionType::Swap);
         assert_eq!(metadata.provider, Some(SwapProvider::SunswapV3.id().to_string()));
@@ -613,7 +613,7 @@ mod tests {
         assert_eq!(transaction.asset_id, Chain::Tron.as_asset_id());
         assert_eq!(transaction.value, BigUint::from(1000000u64));
         let output_token = TronAddress::from_hex("4e4bee11cea0070f957b98fd8cf4138ef3295e0e").unwrap().encode();
-        let metadata: TransactionSwapMetadata = serde_json::from_value(transaction.metadata.unwrap()).unwrap();
+        let metadata = transaction.swap_metadata().unwrap();
         assert_eq!(metadata.from_asset, Chain::Tron.as_asset_id());
         assert_eq!(metadata.from_value, BigUint::from(1000000u64));
         assert_eq!(
@@ -646,7 +646,7 @@ mod tests {
         assert_eq!(transaction.transaction_type, TransactionType::Swap);
         assert_eq!(transaction.contract.as_deref(), Some("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"));
 
-        let metadata: TransactionSwapMetadata = serde_json::from_value(transaction.metadata.unwrap()).unwrap();
+        let metadata = transaction.swap_metadata().unwrap();
         let usdt = TronAddress::from_hex("41a614f803b6fd780986a42c78ec9c7f77e6ded13c").unwrap().encode();
         assert_eq!(metadata.from_asset, AssetId { chain: Chain::Tron, token_id: Some(usdt) });
         assert_eq!(metadata.from_value, BigUint::from(25000000u64));

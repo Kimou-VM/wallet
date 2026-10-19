@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use primitives::{Chain, Transaction, TransactionChange, TransactionMetadata, TransactionState, TransactionStateRequest, TransactionSwapMetadata, TransactionType, TransactionUpdate, chain_transaction_timeout, swap_transaction_timeout};
+use primitives::{Chain, Transaction, TransactionChange, TransactionMetadata, TransactionState, TransactionStateRequest, TransactionType, TransactionUpdate, chain_transaction_timeout, swap_transaction_timeout};
 use std::sync::Arc;
 use swapper::{SwapResult, SwapResultRequest, SwapperProvider, swapper::GemSwapper};
 
@@ -255,7 +255,7 @@ mod tests {
 }
 
 fn swap_route(transaction: &Transaction) -> Option<(SwapperProvider, Chain)> {
-    let metadata: TransactionSwapMetadata = serde_json::from_value(transaction.metadata.clone()?).ok()?;
+    let metadata = transaction.swap_metadata()?;
     let provider = metadata.provider?.parse().ok()?;
     Some((provider, metadata.to_asset.chain))
 }

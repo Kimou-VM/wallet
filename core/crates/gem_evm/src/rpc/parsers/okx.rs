@@ -143,7 +143,7 @@ mod tests {
         let receipt_tx = load_json_rpc_result::<Transaction>(include_str!("../../../testdata/okx_base_swap_tx.json"));
         let receipt_only = load_json_rpc_result::<TransactionReceipt>(include_str!("../../../testdata/okx_base_swap_tx_receipt.json"));
         let swap_tx = map_transaction(&Chain::Base, &receipt_tx, &receipt_only);
-        let swap_metadata: TransactionSwapMetadata = serde_json::from_value(swap_tx.metadata.clone().unwrap()).unwrap();
+        let swap_metadata = swap_tx.swap_metadata().unwrap();
         assert_eq!(swap_tx.transaction_type, primitives::TransactionType::Swap);
         assert_eq!(swap_tx.state, TransactionState::Confirmed);
         assert_eq!(swap_metadata.provider, Some(SwapProvider::Okx.id().to_string()));
@@ -184,7 +184,7 @@ mod tests {
             ..TransactionReceipt::mock()
         };
         let transfer_swap_tx = map_transaction(&Chain::Base, &transfer_tx, &transfer_receipt);
-        let transfer_metadata: TransactionSwapMetadata = serde_json::from_value(transfer_swap_tx.metadata.clone().unwrap()).unwrap();
+        let transfer_metadata = transfer_swap_tx.swap_metadata().unwrap();
         assert_eq!(transfer_swap_tx.transaction_type, primitives::TransactionType::Swap);
         assert_eq!(transfer_metadata.provider, Some(SwapProvider::Okx.id().to_string()));
         assert_eq!(
@@ -226,7 +226,7 @@ mod tests {
             ..TransactionReceipt::mock()
         };
         let uniswap_v3_swap_to = map_transaction(&Chain::Ethereum, &uniswap_v3_swap_to_tx, &uniswap_v3_swap_to_receipt);
-        let uniswap_v3_swap_to_metadata: TransactionSwapMetadata = serde_json::from_value(uniswap_v3_swap_to.metadata.clone().unwrap()).unwrap();
+        let uniswap_v3_swap_to_metadata = uniswap_v3_swap_to.swap_metadata().unwrap();
         assert_eq!(uniswap_v3_swap_to.transaction_type, primitives::TransactionType::Swap);
         assert_eq!(uniswap_v3_swap_to_metadata.provider, Some(SwapProvider::Okx.id().to_string()));
         assert_eq!(
@@ -259,7 +259,7 @@ mod tests {
             ..TransactionReceipt::mock()
         };
         let unxswap_by_order_id = map_transaction(&Chain::Ethereum, &unxswap_by_order_id_tx, &unxswap_by_order_id_receipt);
-        let unxswap_by_order_id_metadata: TransactionSwapMetadata = serde_json::from_value(unxswap_by_order_id.metadata.clone().unwrap()).unwrap();
+        let unxswap_by_order_id_metadata = unxswap_by_order_id.swap_metadata().unwrap();
         assert_eq!(unxswap_by_order_id.transaction_type, primitives::TransactionType::Swap);
         assert_eq!(unxswap_by_order_id_metadata.provider, Some(SwapProvider::Okx.id().to_string()));
         assert_eq!(

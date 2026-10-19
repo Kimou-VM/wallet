@@ -156,7 +156,7 @@ mod tests {
         parsers::ProtocolParsers,
     };
     use primitives::{
-        AssetId, Chain, SwapProvider, TransactionSwapMetadata, TransactionType,
+        AssetId, Chain, SwapProvider, TransactionType,
         asset_constants::{POLYGON_USDC_ASSET_ID, POLYGON_USDC_TOKEN_ID},
         hex,
         testkit::json_rpc::load_json_rpc_result,
@@ -194,7 +194,7 @@ mod tests {
             let transaction = load_json_rpc_result::<Transaction>(transaction_json);
             let receipt = load_json_rpc_result::<TransactionReceipt>(receipt_json);
             let parsed = ProtocolParsers::map_transaction(&Chain::Polygon, &transaction, &receipt, DateTime::default()).unwrap();
-            let metadata = serde_json::from_value::<TransactionSwapMetadata>(parsed.metadata.unwrap()).unwrap();
+            let metadata = parsed.swap_metadata().unwrap();
 
             assert_eq!(parsed.transaction_type, TransactionType::Swap);
             assert_eq!(parsed.from, from);
@@ -219,7 +219,7 @@ mod tests {
                 ..Transaction::mock()
             };
             let parsed = ProtocolParsers::map_transaction(&Chain::Polygon, &transaction, &receipt, DateTime::default()).unwrap();
-            let metadata = serde_json::from_value::<TransactionSwapMetadata>(parsed.metadata.unwrap()).unwrap();
+            let metadata = parsed.swap_metadata().unwrap();
             assert_eq!(metadata.from_asset, expected_from);
             assert_eq!(metadata.to_asset, expected_to);
         }

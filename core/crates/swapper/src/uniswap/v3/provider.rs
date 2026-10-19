@@ -584,7 +584,7 @@ mod tests {
         .unwrap();
         let receipt: TransactionReceipt = serde_json::from_value(json!({"gasUsed": "0x0", "effectiveGasPrice": "0x0", "logs": [], "status": "0x1", "blockHash": "0x0"})).unwrap();
         let transaction = ProtocolParsers::map_transaction(&chain, &transaction, &receipt, DateTime::default()).unwrap();
-        serde_json::from_value(transaction.metadata.unwrap()).unwrap()
+        transaction.swap_metadata().unwrap()
     }
 
     #[test]

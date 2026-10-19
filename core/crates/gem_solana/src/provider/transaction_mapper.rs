@@ -582,7 +582,7 @@ mod tests {
         let result: JsonRpcResult<BlockTransaction> = serde_json::from_str(include_str!("../../testdata/swap_jupiter_referral_fee.json")).unwrap();
 
         let transaction = map_transaction(&result.result, 1).unwrap();
-        let metadata: TransactionSwapMetadata = serde_json::from_value(transaction.metadata.unwrap()).unwrap();
+        let metadata = transaction.swap_metadata().unwrap();
 
         assert_eq!(metadata.from_asset, AssetId::from_token(Chain::Solana, "LinkhB3afbBKb2EQQu7s7umdZceV3wcvAUJhQAfQ23L"));
         assert_eq!(metadata.from_value, BigUint::from(3000000000u64));
@@ -602,7 +602,7 @@ mod tests {
         let result: JsonRpcResult<BlockTransaction> = serde_json::from_str(include_str!("../../testdata/swap_jupiter_new_token_account_rent.json")).unwrap();
 
         let transaction = map_transaction(&result.result, 1).unwrap();
-        let metadata: TransactionSwapMetadata = serde_json::from_value(transaction.metadata.unwrap()).unwrap();
+        let metadata = transaction.swap_metadata().unwrap();
 
         assert_eq!(transaction.transaction_type, TransactionType::Swap);
         assert_eq!(metadata.from_asset, AssetId::from_token(Chain::Solana, "CASHx9KJUStyftLFWGvEVf59SGeG9sh5FfcnZMVPCASH"));
