@@ -4,9 +4,9 @@ use futures::future::{join_all, try_join_all};
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
-    Pubkey, SolanaDataSlice, SolanaRpc,
+    Pubkey, SolanaRpc,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_2022_program, token_program},
-    models::{AccountData, Clock, ProgramAccount, ValueResult},
+    models::{AccountData, Clock, ProgramAccount, TokenAccount, ValueResult},
 };
 use num_bigint::BigUint;
 use primitives::{Chain, DAY};
@@ -58,7 +58,6 @@ type PathLookup<Pool> = (RoutePath<Pubkey>, Vec<PoolLookup<Pool>>);
 
 const MAX_QUERIED_POOLS: usize = 4;
 const MAX_ACCOUNTS_PER_REQUEST: usize = 100;
-const TOKEN_AMOUNT_OFFSET: usize = 64;
 
 pub(crate) struct SolanaDex<P: DexProtocol, C: Client + Clone = RpcClient> {
     provider: ProviderType,
@@ -183,19 +182,15 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
     }
 
     async fn fetch_token_amounts(&self, accounts: Vec<Pubkey>) -> Result<HashMap<Pubkey, u64>, SwapperError> {
-        let slice = SolanaDataSlice {
-            offset: TOKEN_AMOUNT_OFFSET,
-            length: size_of::<u64>(),
-        };
         let requests = accounts.chunks(MAX_ACCOUNTS_PER_REQUEST).map(|chunk| async move {
-            let response: AccountsResult = self.client.request(SolanaRpc::GetMultipleAccountsSlice(chunk.iter().map(Pubkey::to_base58).collect(), slice)).await?;
+            let response: AccountsResult = self.client.request(SolanaRpc::GetMultipleAccountsSlice(chunk.iter().map(Pubkey::to_base58).collect(), TokenAccount::AMOUNT_SLICE)).await?;
             Ok::<_, SwapperError>(chunk.iter().copied().zip(response.value).collect::<Vec<_>>())
         });
         Ok(try_join_all(requests)
             .await?
             .into_iter()
             .flatten()
-            .filter_map(|(address, account)| Some((address, u64::from_le_bytes(account?.decoded_data().ok()?.try_into().ok()?))))
+            .filter_map(|(address, account)| Some((address, TokenAccount::decode_amount(&account?.decoded_data().ok()?).ok()?)))
             .collect())
     }
 
