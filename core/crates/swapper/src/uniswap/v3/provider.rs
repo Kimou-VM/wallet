@@ -542,7 +542,7 @@ mod tests {
         };
         let quote = QuoteResult {
             amount_out: U256::from(2_000_000u64),
-            path: PoolPath::new(Protocol::Solidly, TokenPair::new_two_hop(&wrapped, &usdc, &token, [solidly::VOLATILE, solidly::STABLE])),
+            path: PoolPath::new(Protocol::Solidly, TokenPair::new_two_hop(&wrapped, &usdc, &token, [SolidlyRoute::VOLATILE, SolidlyRoute::STABLE])),
         }
         .into_quote(&request, swapper.provider().clone(), true, U256::from(1));
 

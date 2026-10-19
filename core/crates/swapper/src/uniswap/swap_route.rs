@@ -1,6 +1,6 @@
 use crate::{
     Route, SwapperError, eth_address,
-    uniswap::{routed_asset::Protocol, solidly, v2::pair, v3::path::build_paths_with_routes},
+    uniswap::{routed_asset::Protocol, v3::path::build_paths_with_routes},
 };
 use alloy_primitives::{Address, Bytes, U256};
 use gem_evm::uniswap::{
@@ -11,6 +11,7 @@ use gem_evm::uniswap::{
 };
 use primitives::{AssetId, Chain};
 use serde::{Deserialize, Serialize};
+use std::iter::once;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RouteData {
@@ -39,13 +40,13 @@ pub enum RouterPath {
 
 impl RouterPath {
     pub fn from_routes(protocol: Protocol, routes: &[Route]) -> Result<Self, SwapperError> {
-        if routes.is_empty() {
+        let Some(first) = routes.first() else {
             return Err(SwapperError::InvalidRoute);
-        }
+        };
         match protocol {
-            Protocol::V2 => Ok(Self::V2(pair::build_path_with_routes(routes)?)),
+            Protocol::V2 => Ok(Self::V2(once(&first.input).chain(routes.iter().map(|route| &route.output)).map(eth_address::parse_asset_id).collect::<Result<_, _>>()?)),
             Protocol::V3 => Ok(Self::V3(build_paths_with_routes(routes)?)),
-            Protocol::Solidly => Ok(Self::Solidly(solidly::build_routes(routes)?)),
+            Protocol::Solidly => Ok(Self::Solidly(routes.iter().map(SolidlyRoute::try_from).collect::<Result<_, _>>()?)),
             Protocol::V4 => Err(SwapperError::InvalidRoute),
         }
     }
@@ -135,6 +136,18 @@ pub fn build_swap_route(chain: Chain, path: &PoolPath, min_amount_out: &U256) ->
             }
         })
         .collect()
+}
+
+impl TryFrom<&Route> for TokenPair {
+    type Error = SwapperError;
+
+    fn try_from(route: &Route) -> Result<Self, Self::Error> {
+        Ok(Self {
+            token_in: eth_address::parse_asset_id(&route.input)?,
+            token_out: eth_address::parse_asset_id(&route.output)?,
+            fee_tier: route_fee_tier(route)?,
+        })
+    }
 }
 
 pub fn route_fee_tier(route: &Route) -> Result<FeeTier, crate::SwapperError> {

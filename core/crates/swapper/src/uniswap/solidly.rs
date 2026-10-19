@@ -14,16 +14,10 @@ use gem_jsonrpc::types::{JsonRpcResponse, JsonRpcResult};
 use primitives::decode_hex;
 
 use super::v2::pair::PairReserves;
-use crate::{Route, SwapperError, eth_address, uniswap::swap_route::route_fee_tier};
+use crate::{Route, SwapperError};
 
-pub const STABLE: FeeTier = FeeTier::FiveHundred;
-pub const VOLATILE: FeeTier = FeeTier::ThreeThousand;
-pub const POOL_TYPES: [FeeTier; 2] = [STABLE, VOLATILE];
+pub const POOL_TYPES: [FeeTier; 2] = [SolidlyRoute::STABLE, SolidlyRoute::VOLATILE];
 const FEE_SCALE: u32 = 100;
-
-fn is_stable(fee_tier: FeeTier) -> bool {
-    fee_tier == STABLE
-}
 
 fn call(contract: Address, data: Vec<u8>) -> EthereumRpc {
     EthereumRpc::Call {
@@ -36,7 +30,7 @@ pub fn pool_request(solidly: &SolidlyDeployment, pair: &TokenPair) -> EthereumRp
     let data = ISolidlyPoolFactory::getPoolCall {
         tokenA: pair.token_in,
         tokenB: pair.token_out,
-        stable: is_stable(pair.fee_tier),
+        stable: SolidlyRoute::from(pair).stable,
     }
     .abi_encode();
     call(solidly.factory, data)
@@ -48,7 +42,7 @@ pub fn quote_request(solidly: &SolidlyDeployment, pairs: &[TokenPair], amount_in
         .map(|pair| ISolidlyRouter::Route {
             from: pair.token_in,
             to: pair.token_out,
-            stable: is_stable(pair.fee_tier),
+            stable: SolidlyRoute::from(pair).stable,
             factory: Address::ZERO,
         })
         .collect();
@@ -78,23 +72,10 @@ pub fn decode_volatile_pool(results: &[JsonRpcResult<String>]) -> Option<(PairRe
     Some((PairReserves::new(reserves.reserve0, reserves.reserve1), u32::try_from(fee).ok()?.checked_mul(FEE_SCALE)?))
 }
 
-pub fn route(pair: &TokenPair) -> SolidlyRoute {
-    SolidlyRoute {
-        from: pair.token_in,
-        to: pair.token_out,
-        stable: is_stable(pair.fee_tier),
-    }
-}
+impl TryFrom<&Route> for SolidlyRoute {
+    type Error = SwapperError;
 
-pub fn build_routes(routes: &[Route]) -> Result<Vec<SolidlyRoute>, SwapperError> {
-    routes
-        .iter()
-        .map(|route| {
-            Ok(SolidlyRoute {
-                from: eth_address::parse_asset_id(&route.input)?,
-                to: eth_address::parse_asset_id(&route.output)?,
-                stable: is_stable(route_fee_tier(route)?),
-            })
-        })
-        .collect()
+    fn try_from(route: &Route) -> Result<Self, Self::Error> {
+        Ok(Self::from(&TokenPair::try_from(route)?))
+    }
 }

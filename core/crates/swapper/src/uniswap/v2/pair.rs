@@ -5,9 +5,9 @@ use gem_evm::{
     uniswap::{contracts::v2::IUniswapV2Pair, deployment::v2::V2Deployment, path::TokenPair},
 };
 use primitives::decode_hex;
-use std::{collections::HashMap, iter::once};
+use std::collections::HashMap;
 
-use crate::{Route, SwapperError, eth_address};
+use crate::SwapperError;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PairReserves {
@@ -50,11 +50,6 @@ pub fn path_amount_out(v2: &V2Deployment, pairs: &[TokenPair], reserves: &HashMa
         let (reserve_in, reserve_out) = reserves.get(&v2.pair_address(&pair.token_in, &pair.token_out))?.oriented(&pair.token_in, &pair.token_out);
         Some(amount.and_then(|amount| v2.amount_out(amount, reserve_in, reserve_out)))
     })
-}
-
-pub fn build_path_with_routes(routes: &[Route]) -> Result<Vec<Address>, SwapperError> {
-    let first = routes.first().ok_or(SwapperError::InvalidRoute)?;
-    once(&first.input).chain(routes.iter().map(|route| &route.output)).map(eth_address::parse_asset_id).collect()
 }
 
 #[cfg(test)]

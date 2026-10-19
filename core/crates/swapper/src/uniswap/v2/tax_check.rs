@@ -3,7 +3,7 @@ use gem_evm::{
     jsonrpc::{BlockParameter, EthereumRpc, TransactionObject},
     slippage::subtract_bps,
     uniswap::{
-        command::{ADDRESS_THIS, CONTRACT_BALANCE, MSG_SENDER, UniversalRouterCommand, WrapEth, encode_commands},
+        command::{ADDRESS_THIS, CONTRACT_BALANCE, MSG_SENDER, SolidlyRoute, UniversalRouterCommand, WrapEth, encode_commands},
         deployment::{
             UniversalRouterAbi,
             v2::{V2Deployment, constant_product_amount_out, round_trip_floor},
@@ -14,7 +14,7 @@ use gem_evm::{
 use gem_jsonrpc::types::JsonRpcResult;
 
 use super::pair::PairReserves;
-use crate::uniswap::{deadline::get_sig_deadline, quote_result::is_reverted, solidly, swap_route::RouterPath};
+use crate::uniswap::{deadline::get_sig_deadline, quote_result::is_reverted, swap_route::RouterPath};
 
 const CHECK_RESERVE_DIVISOR: u64 = 1_000;
 const CHECK_MIN_UNITS: u64 = 1_000_000;
@@ -44,13 +44,7 @@ impl RoundTrip {
     }
 
     pub fn solidly(fee: u32, wrapped: Address, token: Address, reserves: &PairReserves) -> Option<Self> {
-        Self::new(fee, (wrapped, token), reserves, |from, to| {
-            RouterPath::Solidly(vec![solidly::route(&TokenPair {
-                token_in: from,
-                token_out: to,
-                fee_tier: solidly::VOLATILE,
-            })])
-        })
+        Self::new(fee, (wrapped, token), reserves, |from, to| RouterPath::Solidly(vec![SolidlyRoute { from, to, stable: false }]))
     }
 
     fn new(fee: u32, (wrapped, token): (Address, Address), reserves: &PairReserves, path: impl Fn(Address, Address) -> RouterPath) -> Option<Self> {

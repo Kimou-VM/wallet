@@ -1,6 +1,8 @@
 use super::{
+    FeeTier,
     actions::{self, V4Action},
     contracts::IUniversalRouter,
+    path::TokenPair,
 };
 use crate::permit2::IAllowanceTransfer;
 use alloy_primitives::{Address, Bytes, U256};
@@ -236,6 +238,21 @@ pub struct SolidlyRoute {
     pub from: Address,
     pub to: Address,
     pub stable: bool,
+}
+
+impl SolidlyRoute {
+    pub const STABLE: FeeTier = FeeTier::FiveHundred;
+    pub const VOLATILE: FeeTier = FeeTier::ThreeThousand;
+}
+
+impl From<&TokenPair> for SolidlyRoute {
+    fn from(pair: &TokenPair) -> Self {
+        Self {
+            from: pair.token_in,
+            to: pair.token_out,
+            stable: pair.fee_tier == Self::STABLE,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
