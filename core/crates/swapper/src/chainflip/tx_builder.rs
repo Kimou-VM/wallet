@@ -15,13 +15,11 @@ use primitives::{
 use super::broker::{SolanaVaultSwapResponse, TronVaultSwapResponse};
 use crate::{SwapperError, SwapperQuoteData};
 
-pub(super) fn build_tron_quote_data(response: &TronVaultSwapResponse, value: BigUint) -> Result<SwapperQuoteData, SwapperError> {
-    let address = response.source_token_address.as_deref().unwrap_or(&response.to);
-    let to = TronAddress::parse_hex_or_base58(address)?.to_string();
+pub(super) fn build_tron_quote_data(response: &TronVaultSwapResponse, to: TronAddress, value: BigUint) -> Result<SwapperQuoteData, SwapperError> {
     let calldata = decode_hex(&response.calldata).map_err(|_| SwapperError::TransactionError("invalid Tron calldata".to_string()))?;
 
     Ok(SwapperQuoteData {
-        to,
+        to: to.to_string(),
         data_type: Contract,
         value,
         data: encode(calldata),
@@ -76,6 +74,7 @@ mod tests {
                 note: note.to_string(),
                 source_token_address: Some("0xeca9bc828a3005b9a3b909f2cc5c2a54794de05f".to_string()),
             },
+            TronAddress::parse("TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf").unwrap(),
             BigUint::ZERO,
         )
         .unwrap();
@@ -85,20 +84,6 @@ mod tests {
         assert_eq!(data.memo, Some(note.to_string()));
         assert_eq!(data.value, BigUint::from(0u64));
         assert_eq!(data.data, "a9059cbb");
-
-        let data = build_tron_quote_data(
-            &TronVaultSwapResponse {
-                calldata: "0xa9059cbb".to_string(),
-                value: BigUint::from(0u32),
-                to: "TDMakP1fbWc7XXoSWZpujpjRAuePPEn4oi".to_string(),
-                note: note.to_string(),
-                source_token_address: Some("TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf".to_string()),
-            },
-            BigUint::ZERO,
-        )
-        .unwrap();
-
-        assert_eq!(data.to, "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf");
     }
 
     #[test]
@@ -113,6 +98,7 @@ mod tests {
                     note: note.to_string(),
                     source_token_address: None,
                 },
+                TronAddress::parse("TDMakP1fbWc7XXoSWZpujpjRAuePPEn4oi").unwrap(),
                 BigUint::from(50_000_000u64),
             )
             .unwrap();

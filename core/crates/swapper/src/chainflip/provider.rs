@@ -255,26 +255,28 @@ fn tron_trc20_transfer(calldata: &str) -> Result<IERC20::transferCall, SwapperEr
     IERC20::transferCall::abi_decode(&data).map_err(|_| SwapperError::TransactionError("invalid Tron token transfer calldata".to_string()))
 }
 
-fn tron_quote_value(from_asset: &AssetId, input_amount: &BigUint, response: &TronVaultSwapResponse) -> Result<BigUint, SwapperError> {
+fn validate_tron_vault_swap(from_asset: &AssetId, input_amount: &BigUint, response: &TronVaultSwapResponse) -> Result<(TronAddress, BigUint), SwapperError> {
     let vault = TronAddress::parse(vault_address(Chain::Tron)?).map_err(SwapperError::transaction_error)?;
-    let broker_value = match from_asset.token_id.as_deref() {
+    let (destination, broker_value) = match from_asset.token_id.as_deref() {
         None => {
             if TronAddress::from_hex_or_base58(&response.to) != Some(vault) {
                 return Err(vault_mismatch(Chain::Tron, &response.to));
             }
-            response.value.clone()
+            (vault, response.value.clone())
         }
         Some(_) if response.value != BigUint::ZERO => return Err(SwapperError::TransactionError(format!("Tron token swap value must be zero: broker={}", response.value))),
         Some(token_id) => {
-            let source_token = response.source_token_address.as_deref().and_then(TronAddress::from_hex_or_base58);
-            if source_token.is_none_or(|source_token| Some(source_token) != TronAddress::from_hex_or_base58(token_id)) {
-                return Err(SwapperError::TransactionError(format!("Tron source token mismatch: broker={:?}", response.source_token_address)));
-            }
+            let source_token = response
+                .source_token_address
+                .as_deref()
+                .and_then(TronAddress::from_hex_or_base58)
+                .filter(|source_token| TronAddress::from_hex_or_base58(token_id) == Some(*source_token))
+                .ok_or_else(|| SwapperError::TransactionError(format!("Tron source token mismatch: broker={:?}", response.source_token_address)))?;
             let transfer = tron_trc20_transfer(&response.calldata)?;
             if TronAddress::from(transfer.to.into_array()) != vault {
                 return Err(vault_mismatch(Chain::Tron, &transfer.to.to_string()));
             }
-            u256_to_biguint(&transfer.value)
+            (source_token, u256_to_biguint(&transfer.value))
         }
     };
 
@@ -282,7 +284,7 @@ fn tron_quote_value(from_asset: &AssetId, input_amount: &BigUint, response: &Tro
         return Err(SwapperError::TransactionError(format!("Tron swap amount mismatch: quote={input_amount}, broker={broker_value}")));
     }
 
-    Ok(if from_asset.is_native() { input_amount.clone() } else { BigUint::ZERO })
+    Ok((destination, if from_asset.is_native() { input_amount.clone() } else { BigUint::ZERO }))
 }
 
 #[async_trait]
@@ -392,8 +394,8 @@ where
                 Ok(SwapperQuoteData::new_contract(vault_address(from_asset.chain)?.to_string(), value, response.calldata, approval, gas_limit))
             }
             (ChainType::Tron, VaultSwapResponse::Tron(response)) => {
-                let value = tron_quote_value(&from_asset, &input_amount, &response)?;
-                tx_builder::build_tron_quote_data(&response, value)
+                let (to, value) = validate_tron_vault_swap(&from_asset, &input_amount, &response)?;
+                tx_builder::build_tron_quote_data(&response, to, value)
             }
             (ChainType::Solana, VaultSwapResponse::Solana(response)) => {
                 validate_solana_vault_swap(&input_amount, &response)?;
@@ -424,7 +426,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{SwapperQuoteAsset, alien::mock::ProviderMock, chainflip::testkit::mock_routes};
+    use crate::{ProviderData, SwapperQuoteAsset, alien::mock::ProviderMock, chainflip::testkit::mock_routes};
     use gem_client::testkit::MockClient;
     use primitives::AssetId;
     use primitives::Chain;
@@ -575,7 +577,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tron_quote_value_pins_native_amount_to_quote() {
+    fn test_validate_tron_vault_swap_pins_native_amount_to_quote() {
         let from_asset = AssetId::from_chain(Chain::Tron);
         let response = TronVaultSwapResponse {
             calldata: "0x".to_string(),
@@ -585,14 +587,17 @@ mod tests {
             source_token_address: None,
         };
 
-        assert_eq!(tron_quote_value(&from_asset, &BigUint::from(50_000_000u32), &response).unwrap(), BigUint::from(50_000_000u64));
+        assert_eq!(
+            validate_tron_vault_swap(&from_asset, &BigUint::from(50_000_000u32), &response),
+            Ok((TronAddress::parse("TEcDijvKSXcfWT7S6rd44H5vNgufm7Y4XC").unwrap(), BigUint::from(50_000_000u32)))
+        );
 
-        let err = tron_quote_value(&from_asset, &BigUint::from(40_000_000u32), &response).unwrap_err();
+        let err = validate_tron_vault_swap(&from_asset, &BigUint::from(40_000_000u32), &response).unwrap_err();
         assert!(matches!(err, SwapperError::TransactionError(message) if message.contains("Tron swap amount mismatch")));
     }
 
     #[test]
-    fn test_tron_quote_value_rejects_token_native_value() {
+    fn test_validate_tron_vault_swap_rejects_token_native_value() {
         let from_asset = AssetId::from_token(Chain::Tron, primitives::asset_constants::TRON_USDT_TOKEN_ID);
         let response = TronVaultSwapResponse {
             calldata: "0xa9059cbb".to_string(),
@@ -602,29 +607,32 @@ mod tests {
             source_token_address: Some("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".to_string()),
         };
 
-        let err = tron_quote_value(&from_asset, &BigUint::from(10_000_000u32), &response).unwrap_err();
+        let err = validate_tron_vault_swap(&from_asset, &BigUint::from(10_000_000u32), &response).unwrap_err();
         assert!(matches!(err, SwapperError::TransactionError(message) if message.contains("Tron token swap value must be zero")));
     }
 
     #[test]
-    fn test_tron_quote_value_pins_token_amount_to_calldata() {
+    fn test_validate_tron_vault_swap_pins_token_amount_to_calldata() {
         let from_asset = AssetId::from_token(Chain::Tron, primitives::asset_constants::TRON_USDT_TOKEN_ID);
         let response = TronVaultSwapResponse {
             calldata: "0xa9059cbb00000000000000000000000032e07e5dfcb75c2977adddc593eb8d6b6e71f96e0000000000000000000000000000000000000000000000000000000000989680".to_string(),
             value: BigUint::from(0u32),
             to: "TEcDijvKSXcfWT7S6rd44H5vNgufm7Y4XC".to_string(),
             note: "0x0300".to_string(),
-            source_token_address: Some("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t".to_string()),
+            source_token_address: Some("0xa614f803b6fd780986a42c78ec9c7f77e6ded13c".to_string()),
         };
 
-        assert_eq!(tron_quote_value(&from_asset, &BigUint::from(10_000_000u32), &response).unwrap(), BigUint::ZERO);
+        assert_eq!(
+            validate_tron_vault_swap(&from_asset, &BigUint::from(10_000_000u32), &response),
+            Ok((TronAddress::parse(primitives::asset_constants::TRON_USDT_TOKEN_ID).unwrap(), BigUint::ZERO))
+        );
 
-        let err = tron_quote_value(&from_asset, &BigUint::from(9_999_999u32), &response).unwrap_err();
+        let err = validate_tron_vault_swap(&from_asset, &BigUint::from(9_999_999u32), &response).unwrap_err();
         assert!(matches!(err, SwapperError::TransactionError(message) if message.contains("Tron swap amount mismatch")));
     }
 
     #[test]
-    fn test_tron_quote_value_requires_the_vault() {
+    fn test_validate_tron_vault_swap_requires_the_vault() {
         let usdt = AssetId::from_token(Chain::Tron, primitives::asset_constants::TRON_USDT_TOKEN_ID);
         let native = TronVaultSwapResponse {
             calldata: "0x".to_string(),
@@ -646,14 +654,55 @@ mod tests {
         };
 
         assert_eq!(
-            tron_quote_value(&AssetId::from_chain(Chain::Tron), &BigUint::from(50_000_000u32), &native),
+            validate_tron_vault_swap(&AssetId::from_chain(Chain::Tron), &BigUint::from(50_000_000u32), &native),
             Err(vault_mismatch(Chain::Tron, "TDMakP1fbWc7XXoSWZpujpjRAuePPEn4oi"))
         );
-        assert_eq!(tron_quote_value(&usdt, &BigUint::from(10_000_000u32), &token), Err(vault_mismatch(Chain::Tron, "0x2523AE929feCd9D665f472F59B99a8CE6b179510")));
         assert_eq!(
-            tron_quote_value(&usdt, &BigUint::from(10_000_000u32), &other_token),
+            validate_tron_vault_swap(&usdt, &BigUint::from(10_000_000u32), &token),
+            Err(vault_mismatch(Chain::Tron, "0x2523AE929feCd9D665f472F59B99a8CE6b179510"))
+        );
+        assert_eq!(
+            validate_tron_vault_swap(&usdt, &BigUint::from(10_000_000u32), &other_token),
             Err(SwapperError::TransactionError("Tron source token mismatch: broker=Some(\"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf\")".to_string()))
         );
+    }
+
+    #[tokio::test]
+    async fn test_quote_data_sends_native_trx_to_the_vault() {
+        let broker = MockClient::new().with_post(|path, _| {
+            assert_eq!(path, "/rpc");
+            Ok(serde_json::to_vec(&serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": {
+                    "calldata": "0x",
+                    "value": "0xf4240",
+                    "to": "TEcDijvKSXcfWT7S6rd44H5vNgufm7Y4XC",
+                    "note": "0x0300",
+                    "source_token_address": "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"
+                }
+            }))
+            .unwrap())
+        });
+        let provider = ChainflipProvider::with_clients(ChainflipClient::new(MockClient::new()), BrokerClient::new(broker, MockClient::new()), Arc::new(ProviderMock::new(String::new())));
+        let quote = Quote {
+            request: QuoteRequest {
+                to_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Ethereum)),
+                ..QuoteRequest::mock(Chain::Tron, None)
+            },
+            ..Quote::mock(Chain::Tron, None)
+        };
+        let quote = Quote {
+            data: ProviderData {
+                routes: mock_routes(&quote, 1.0),
+                ..quote.data.clone()
+            },
+            ..quote
+        };
+
+        let data = provider.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
+        assert_eq!(data.to, "TEcDijvKSXcfWT7S6rd44H5vNgufm7Y4XC");
+        assert_eq!(data.value, quote.from_value);
     }
 
     #[test]
