@@ -55,7 +55,7 @@ impl SunSwap {
     }
 
     fn referral_fee() -> Option<ReferralFee> {
-        None // Some(default_referral_fees().tron) once SUN's referral vault enables TRON_REFERRAL_ADDRESS
+        None
     }
 
     fn routed_asset(asset_id: &AssetId) -> Result<RoutedAsset, SwapperError> {
