@@ -108,24 +108,26 @@ fn build_next_swap_body(params: &SwapTransactionParams<'_>, next_swap: &NextSwap
 }
 
 fn build_swap_cell(params: SwapCellParams<'_>) -> Result<Cell, SwapperError> {
-    let mut details = CellBuilder::new();
-    details.store_coins(&params.min_ask_amount)?.store_address(&params.receiver_address)?.store_coins(&BigUint::from(params.forward_gas))?;
-    details.store_maybe_reference(params.next_payload)?;
-    details.store_coins(&BigUint::from(0u64))?;
-    details.store_maybe_reference(None)?;
-    details.store_u32(16, params.referral_bps)?;
-    details.store_address(&params.referral_address)?;
-    let details = details.build()?.into_arc();
+    let details = CellBuilder::new()
+        .store_coins(&params.min_ask_amount)?
+        .store_address(&params.receiver_address)?
+        .store_coins(&BigUint::from(params.forward_gas))?
+        .store_maybe_reference(params.next_payload)?
+        .store_coins(&BigUint::from(0u64))?
+        .store_maybe_reference(None)?
+        .store_u32(16, params.referral_bps)?
+        .store_address(&params.referral_address)?
+        .end_cell()?
+        .into_arc();
 
-    let mut builder = CellBuilder::new();
-    builder
+    Ok(CellBuilder::new()
         .store_u32(32, params.opcode)?
         .store_address(&params.ask_wallet)?
         .store_address(&params.refund_address)?
         .store_address(&params.refund_address)?
         .store_u64(64, params.deadline)?
-        .store_reference(&details)?;
-    Ok(builder.build()?)
+        .store_reference(&details)?
+        .end_cell()?)
 }
 
 fn next_swap_forward_gas(params: &SwapTransactionParams<'_>) -> u64 {
@@ -141,10 +143,13 @@ fn is_same_router(params: &SwapTransactionParams<'_>, next_swap: &NextSwapParams
 }
 
 fn build_pton_ton_transfer_body(amount: &BigUint, refund_address: &Address, forward_payload: Option<&CellArc>) -> Result<Cell, SwapperError> {
-    let mut builder = CellBuilder::new();
-    builder.store_u32(32, PTON_V2_TON_TRANSFER_OPCODE)?.store_u64(64, 0)?.store_coins(amount)?.store_address(refund_address)?;
-    builder.store_maybe_reference(forward_payload)?;
-    Ok(builder.build()?)
+    Ok(CellBuilder::new()
+        .store_u32(32, PTON_V2_TON_TRANSFER_OPCODE)?
+        .store_u64(64, 0)?
+        .store_coins(amount)?
+        .store_address(refund_address)?
+        .store_maybe_reference(forward_payload)?
+        .end_cell()?)
 }
 
 #[cfg(test)]

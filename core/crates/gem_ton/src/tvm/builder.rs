@@ -55,12 +55,7 @@ impl CellBuilder {
         }
 
         let (head, tail) = slice.split_at(byte_capacity);
-        self.store_slice(head)?;
-
-        let mut child = Self::new();
-        child.store_slice_snake(tail)?;
-        self.store_child(child.build()?)?;
-        Ok(self)
+        self.store_slice(head)?.store_child(Self::new().store_slice_snake(tail)?.end_cell()?)
     }
 
     pub fn store_string_snake(&mut self, value: &str) -> Result<&mut Self, TvmError> {
@@ -172,11 +167,8 @@ impl CellBuilder {
         MAX_CELL_BITS.saturating_sub(self.writer.bit_len)
     }
 
-    pub fn build(self) -> Result<Cell, TvmError> {
-        Cell::new(self.writer.bytes, self.writer.bit_len, self.references)
-    }
-
     pub fn end_cell(&mut self) -> Result<Cell, TvmError> {
-        std::mem::take(self).build()
+        let Self { writer, references } = std::mem::take(self);
+        Cell::new(writer.bytes, writer.bit_len, references)
     }
 }

@@ -69,19 +69,16 @@ impl TonSignMessageData {
         let payload = BagOfCells::parse_base64_root(cell)?;
         let domain = self.dns_wire_domain()?;
 
-        let mut domain_builder = CellBuilder::new();
-        domain_builder.store_slice_snake(&domain)?;
-
-        let mut builder = CellBuilder::new();
-        builder
+        let cell = CellBuilder::new()
             .store_u32(32, CELL_SIGN_PREFIX)?
             .store_u32(32, SCHEMA_CRC32.checksum(schema.as_bytes()))?
             .store_u64(64, timestamp)?
             .store_address(address)?
-            .store_child(domain_builder.build()?)?
-            .store_reference(&payload)?;
+            .store_child(CellBuilder::new().store_slice_snake(&domain)?.end_cell()?)?
+            .store_reference(&payload)?
+            .end_cell()?;
 
-        Ok(builder.build()?.hash.to_vec())
+        Ok(cell.hash.to_vec())
     }
 
     fn dns_wire_domain(&self) -> Result<Vec<u8>, SignerError> {

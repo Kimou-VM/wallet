@@ -39,7 +39,7 @@ impl WalletV4R2 {
         for message in messages {
             builder.store_u8(8, message.mode)?.store_child(message.message.clone())?;
         }
-        Ok(builder.build()?)
+        Ok(builder.end_cell()?)
     }
 
     pub(super) fn build_transaction(&self, include_state_init: bool, signed_body: Cell) -> Result<Cell, SignerError> {
@@ -52,24 +52,21 @@ impl WalletV4R2 {
             builder.store_bit(false)?;
         }
         builder.store_bit(true)?.store_child(signed_body)?;
-        Ok(builder.build()?)
+        Ok(builder.end_cell()?)
     }
 
     fn build_state_init(public_key: &[u8; 32]) -> Result<Cell, SignerError> {
-        let mut data = CellBuilder::new();
-        data.store_u32(32, 0)?.store_i32(32, DEFAULT_WALLET_ID)?.store_slice(public_key)?.store_bit(false)?;
-        let data = data.build()?.into_arc();
+        let data = CellBuilder::new().store_u32(32, 0)?.store_i32(32, DEFAULT_WALLET_ID)?.store_slice(public_key)?.store_bit(false)?.end_cell()?.into_arc();
 
-        let mut state_init = CellBuilder::new();
-        state_init
+        Ok(CellBuilder::new()
             .store_bit(false)?
             .store_bit(false)?
             .store_bit(true)?
             .store_bit(true)?
             .store_bit(false)?
             .store_reference(&WALLET_V4R2_CODE)?
-            .store_reference(&data)?;
-        Ok(state_init.build()?)
+            .store_reference(&data)?
+            .end_cell()?)
     }
 }
 

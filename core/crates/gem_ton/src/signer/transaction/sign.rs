@@ -70,9 +70,8 @@ impl TonSigner {
         let internal_messages: Vec<InternalMessage> = requests.iter().map(build_internal_message).collect::<Result<_, _>>()?;
         let external_body = self.wallet().build_external_body(expire_at, sequence, &internal_messages)?;
         let signature = self.sign(&external_body.hash);
-        let mut body_builder = CellBuilder::new();
-        body_builder.store_slice(&signature)?.store_cell(&external_body)?;
-        let signed_transaction = self.wallet().build_transaction(sequence == 0, body_builder.build()?)?;
+        let signed_body = CellBuilder::new().store_slice(&signature)?.store_cell(&external_body)?.end_cell()?;
+        let signed_transaction = self.wallet().build_transaction(sequence == 0, signed_body)?;
 
         Ok(BagOfCells::from_root(signed_transaction).to_base64(true)?)
     }

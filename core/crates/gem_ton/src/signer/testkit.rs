@@ -27,9 +27,7 @@ pub fn mock_signer_address() -> String {
 }
 
 pub fn mock_cell() -> String {
-    let mut builder = CellBuilder::new();
-    builder.store_u32(32, 0).unwrap();
-    BagOfCells::from_root(builder.build().unwrap()).to_base64(true).unwrap()
+    BagOfCells::from_root(CellBuilder::new().store_u32(32, 0).unwrap().end_cell().unwrap()).to_base64(true).unwrap()
 }
 
 impl TransferRequest {

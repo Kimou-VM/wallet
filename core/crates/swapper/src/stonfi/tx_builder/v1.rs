@@ -59,16 +59,14 @@ fn build_swap_body(params: &SwapTransactionParams<'_>) -> Result<Cell, SwapperEr
     let ask_wallet = Address::parse(&params.simulation.ask_jetton_wallet)?;
     let min_ask_amount = BigUint::from_str(&params.simulation.min_ask_units)?;
 
-    let mut builder = CellBuilder::new();
-    builder
+    Ok(CellBuilder::new()
         .store_u32(32, V1_SWAP_OPCODE)?
         .store_address(&ask_wallet)?
         .store_coins(&min_ask_amount)?
         .store_address(&params.wallet_address)?
         .store_bit(true)?
-        .store_address(&params.referral.address)?;
-
-    Ok(builder.build()?)
+        .store_address(&params.referral.address)?
+        .end_cell()?)
 }
 
 #[cfg(test)]

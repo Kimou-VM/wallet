@@ -111,9 +111,7 @@ impl Address {
 
     #[cfg(feature = "tvm")]
     pub fn to_cell(&self) -> Result<Cell, TvmError> {
-        let mut builder = CellBuilder::new();
-        builder.store_address(self)?;
-        builder.build()
+        CellBuilder::new().store_address(self)?.end_cell()
     }
 
     #[cfg(feature = "tvm")]

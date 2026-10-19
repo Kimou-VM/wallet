@@ -51,7 +51,7 @@ pub(super) fn build_internal_message(request: &TransferRequest) -> Result<Intern
 
     Ok(InternalMessage {
         mode: request.mode,
-        message: builder.build()?,
+        message: builder.end_cell()?,
     })
 }
 
@@ -62,15 +62,13 @@ fn build_payload(request: &TransferRequest) -> Result<CellArc, SignerError> {
         Some(TransferPayload::Custom(payload)) => Ok(payload.clone()),
         None => match &request.comment {
             Some(comment) => build_comment_payload(comment),
-            None => Ok(CellBuilder::new().build()?.into_arc()),
+            None => Ok(CellBuilder::new().end_cell()?.into_arc()),
         },
     }
 }
 
 fn build_comment_payload(comment: &str) -> Result<CellArc, SignerError> {
-    let mut builder = CellBuilder::new();
-    builder.store_u32(32, 0)?.store_string_snake(comment)?;
-    Ok(builder.build()?.into_arc())
+    Ok(CellBuilder::new().store_u32(32, 0)?.store_string_snake(comment)?.end_cell()?.into_arc())
 }
 
 fn build_jetton_payload(request: &JettonTransferRequest) -> Result<CellArc, SignerError> {
@@ -87,15 +85,15 @@ fn build_jetton_payload(request: &JettonTransferRequest) -> Result<CellArc, Sign
 }
 
 fn build_nft_payload(request: &NftTransferRequest) -> Result<CellArc, SignerError> {
-    let mut builder = CellBuilder::new();
-    builder
+    let forward_payload = request.comment.as_deref().map(build_comment_payload).transpose()?;
+    Ok(CellBuilder::new()
         .store_u32(32, NFT_TRANSFER_OPCODE)?
         .store_u64(64, request.query_id)?
         .store_address(&request.new_owner)?
         .store_address(&request.response_destination)?
-        .store_maybe_reference(None)?;
-
-    let forward_payload = request.comment.as_deref().map(build_comment_payload).transpose()?;
-    builder.store_coins(&request.forward_amount)?.store_maybe_reference(forward_payload.as_ref())?;
-    Ok(builder.build()?.into_arc())
+        .store_maybe_reference(None)?
+        .store_coins(&request.forward_amount)?
+        .store_maybe_reference(forward_payload.as_ref())?
+        .end_cell()?
+        .into_arc())
 }
