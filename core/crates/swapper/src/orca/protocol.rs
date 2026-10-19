@@ -1,4 +1,4 @@
-use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::orca_whirlpool_program};
+use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::orca_whirlpool_program, models::Clock};
 
 use super::{
     oracle::Oracle,
@@ -29,7 +29,7 @@ impl DexProtocol for Orca {
         Ok(Whirlpool::decode(data)?)
     }
 
-    fn is_tradable(&self, pool: &Whirlpool, _timestamp: u64) -> bool {
+    fn is_tradable(&self, pool: &Whirlpool, _clock: &Clock) -> bool {
         pool.liquidity > 0
     }
 
@@ -43,7 +43,7 @@ impl DexProtocol for Orca {
         Ok(tick_arrays.into_iter().chain(oracle).map(|address| QuoteAccount::Owned { address, owner: Self::PROGRAM_ID }).collect())
     }
 
-    fn quote(&self, address: &Pubkey, pool: &Whirlpool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError> {
+    fn quote(&self, address: &Pubkey, pool: &Whirlpool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], clock: &Clock) -> Result<u64, SwapperError> {
         let a_to_b = pool.is_a_to_b(input_mint)?;
         let (oracle, tick_arrays) = if pool.has_adaptive_fee() {
             accounts.split_last().map(|(oracle, tick_arrays)| (oracle.as_ref(), tick_arrays)).ok_or(SwapperError::NoQuoteAvailable)?
@@ -54,7 +54,7 @@ impl DexProtocol for Orca {
         let swap = pool.clmm_swap(a_to_b);
         match oracle {
             Some(data) => {
-                let fee = Oracle::decode_for_whirlpool(data, address)?.adaptive_fee(pool.fee_rate, pool.tick_current_index, a_to_b, timestamp)?;
+                let fee = Oracle::decode_for_whirlpool(data, address)?.adaptive_fee(pool.fee_rate, pool.tick_current_index, a_to_b, clock.timestamp())?;
                 quote_exact_in(&swap, fee, amount_in, &ticks)
             }
             None => quote_exact_in(&swap, StaticFee(u32::from(pool.fee_rate)), amount_in, &ticks),
@@ -129,7 +129,7 @@ mod tests {
         },
         solana_dex::{
             SolanaDex,
-            testkit::{mock_rpc_accounts, mock_rpc_client, mock_rpc_client_with_sizes, mock_solana_asset},
+            testkit::{mock_clock, mock_rpc_accounts, mock_rpc_client, mock_rpc_client_with_sizes, mock_solana_asset},
         },
         testkit::mock_quote,
     };
@@ -320,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_quote_adaptive_fee() {
-        let (address, accounts, timestamp) = mock_adaptive_snapshot();
+        let (address, accounts, clock) = mock_adaptive_snapshot();
         let whirlpool = Whirlpool::decode(accounts[&address].as_ref().unwrap()).unwrap();
         let (mint_a, mint_b) = (whirlpool.token_mint_a, whirlpool.token_mint_b);
         let quote = |input_mint: &Pubkey, amount_in: u64, with_oracle: bool| {
@@ -331,7 +331,7 @@ mod tests {
                 .map(|account| accounts.get(&account.address()).cloned().flatten())
                 .chain([with_oracle.then(|| accounts[&oracle.address()].clone()).flatten()])
                 .collect::<Vec<_>>();
-            Orca.quote(&address, &whirlpool, input_mint, amount_in, &data, timestamp)
+            Orca.quote(&address, &whirlpool, input_mint, amount_in, &data, &clock)
         };
 
         assert_eq!(quote(&mint_a, 5_000_000_000, true), Ok(16_699_318_026));
@@ -343,7 +343,7 @@ mod tests {
         assert_eq!(quote(&mint_b, 3_000_000_000_000, true), Err(SwapperError::NoQuoteAvailable));
         let oracle = accounts[&Whirlpool::oracle_address(&address).unwrap()].clone();
         assert_eq!(
-            Orca.quote(&address, &whirlpool, &mint_a, 1, &[None, None, None, oracle], 0),
+            Orca.quote(&address, &whirlpool, &mint_a, 1, &[None, None, None, oracle], &mock_clock()),
             Err(SwapperError::compute_quote_error("Oracle is ahead of the chain clock"))
         );
     }
@@ -355,7 +355,7 @@ mod tests {
         let (sol, usdc) = (whirlpool.token_mint_a, whirlpool.token_mint_b);
         let quote = |input_mint: &Pubkey, amount_in: u64| {
             let accounts = mock_tick_array_accounts(&whirlpool.swap_start_tick_indexes(*input_mint == sol));
-            Orca.quote(&address, &whirlpool, input_mint, amount_in, &accounts, 0)
+            Orca.quote(&address, &whirlpool, input_mint, amount_in, &accounts, &mock_clock())
         };
 
         assert_eq!(quote(&sol, 1_000_000_000), Ok(105_154_941));

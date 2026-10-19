@@ -1,10 +1,4 @@
-use borsh::BorshDeserialize;
-use gem_solana::{
-    Instruction, Pubkey,
-    anchor::AnchorAccount,
-    instructions::program_ids::{meteora_damm_v2_program, sysvar_clock, sysvar_program},
-    models::Clock,
-};
+use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::meteora_damm_v2_program, models::Clock};
 
 use super::{
     pool::{LAYOUT, Pool},
@@ -27,7 +21,7 @@ impl DexProtocol for MeteoraDammV2 {
         Ok(Pool::decode(data)?)
     }
 
-    fn is_tradable(&self, pool: &Pool, _timestamp: u64) -> bool {
+    fn is_tradable(&self, pool: &Pool, _clock: &Clock) -> bool {
         pool.is_tradable()
     }
 
@@ -36,19 +30,11 @@ impl DexProtocol for MeteoraDammV2 {
     }
 
     fn quote_accounts(&self, _address: &Pubkey, _pool: &Pool, _input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
-        Ok(vec![QuoteAccount::Owned {
-            address: sysvar_clock(),
-            owner: sysvar_program(),
-        }])
+        Ok(vec![])
     }
 
-    fn quote(&self, _address: &Pubkey, pool: &Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], _timestamp: u64) -> Result<u64, SwapperError> {
-        let a_to_b = pool.is_a_to_b(input_mint)?;
-        let [Some(clock)] = accounts else {
-            return Err(SwapperError::NoQuoteAvailable);
-        };
-        let clock = Clock::try_from_slice(clock).map_err(SwapperError::compute_quote_error)?;
-        pool.quote(a_to_b, amount_in, &clock).ok_or(SwapperError::NoQuoteAvailable)
+    fn quote(&self, _address: &Pubkey, pool: &Pool, input_mint: &Pubkey, amount_in: u64, _accounts: &[Option<Vec<u8>>], clock: &Clock) -> Result<u64, SwapperError> {
+        pool.quote(pool.is_a_to_b(input_mint)?, amount_in, clock).ok_or(SwapperError::NoQuoteAvailable)
     }
 
     fn swap_instruction(&self, address: &Pubkey, pool: &Pool, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
@@ -95,7 +81,7 @@ mod tests {
             let snapshot = mock_pool_snapshot(snapshot);
             let input_mint = if a_to_b { snapshot.pool.token_a_mint } else { snapshot.pool.token_b_mint };
             let data = snapshot.quote_data(&MeteoraDammV2.quote_accounts(&snapshot.address, &snapshot.pool, &input_mint).unwrap());
-            MeteoraDammV2.quote(&snapshot.address, &snapshot.pool, &input_mint, amount_in, &data, snapshot.timestamp)
+            MeteoraDammV2.quote(&snapshot.address, &snapshot.pool, &input_mint, amount_in, &data, &snapshot.clock)
         };
 
         assert_eq!(quote(TEST_BOTH_TOKEN_POOL, true, 326_754_966), Ok(9_936_136));

@@ -9,6 +9,12 @@ pub struct Clock {
     pub unix_timestamp: i64,
 }
 
+impl Clock {
+    pub fn timestamp(&self) -> u64 {
+        u64::try_from(self.unix_timestamp).unwrap_or_default()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

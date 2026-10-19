@@ -108,6 +108,16 @@ impl<'a> DexTransaction<'a> {
     }
 }
 
+pub(crate) fn mock_clock() -> Clock {
+    Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    }
+}
+
 pub(crate) fn mock_rpc_snapshot(snapshot: &str) -> Vec<(String, Value)> {
     let snapshot: Value = serde_json::from_str(snapshot).unwrap();
     snapshot["addresses"]
@@ -119,7 +129,7 @@ pub(crate) fn mock_rpc_snapshot(snapshot: &str) -> Vec<(String, Value)> {
         .collect()
 }
 
-pub(crate) fn mock_account_snapshot(snapshot: &str) -> (Vec<Pubkey>, HashMap<Pubkey, Option<Vec<u8>>>, u64) {
+pub(crate) fn mock_account_snapshot(snapshot: &str) -> (Vec<Pubkey>, HashMap<Pubkey, Option<Vec<u8>>>, Clock) {
     let snapshot = mock_rpc_snapshot(snapshot);
     let addresses = snapshot.iter().map(|(address, _)| Pubkey::from_base58(address).unwrap()).collect::<Vec<_>>();
     let accounts = snapshot
@@ -127,14 +137,14 @@ pub(crate) fn mock_account_snapshot(snapshot: &str) -> (Vec<Pubkey>, HashMap<Pub
         .map(|(address, account)| (Pubkey::from_base58(address).unwrap(), account["data"][0].as_str().map(|data| decode_base64(data).unwrap())))
         .collect::<HashMap<_, _>>();
     let clock = Clock::try_from_slice(accounts[&sysvar_clock()].as_ref().unwrap()).unwrap();
-    (addresses, accounts, u64::try_from(clock.unix_timestamp).unwrap())
+    (addresses, accounts, clock)
 }
 
 pub(crate) struct PoolSnapshot<Pool> {
     pub address: Pubkey,
     pub pool: Pool,
     pub accounts: HashMap<Pubkey, Option<Vec<u8>>>,
-    pub timestamp: u64,
+    pub clock: Clock,
 }
 
 impl<Pool> PoolSnapshot<Pool> {
@@ -144,12 +154,12 @@ impl<Pool> PoolSnapshot<Pool> {
 }
 
 pub(crate) fn mock_dex_pool_snapshot<P: DexProtocol>(protocol: &P, snapshot: &str) -> PoolSnapshot<P::Pool> {
-    let (addresses, accounts, timestamp) = mock_account_snapshot(snapshot);
+    let (addresses, accounts, clock) = mock_account_snapshot(snapshot);
     PoolSnapshot {
         address: addresses[0],
         pool: protocol.decode_pool(accounts[&addresses[0]].as_ref().unwrap()).unwrap(),
         accounts,
-        timestamp,
+        clock,
     }
 }
 

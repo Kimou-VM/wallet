@@ -1,4 +1,9 @@
-use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::pump_amm_program, models::Mint};
+use gem_solana::{
+    Instruction, Pubkey,
+    anchor::AnchorAccount,
+    instructions::program_ids::pump_amm_program,
+    models::{Clock, Mint},
+};
 
 use super::{
     fee_config::{FEE_CONFIG, FeeConfig, PUMP_FEES_PROGRAM},
@@ -30,7 +35,7 @@ impl DexProtocol for PumpSwap {
         vec![FEE_CONFIG]
     }
 
-    fn is_tradable(&self, pool: &Pool, _timestamp: u64) -> bool {
+    fn is_tradable(&self, pool: &Pool, _clock: &Clock) -> bool {
         pool.lp_supply > 0 && !pool.is_cashback_coin
     }
 
@@ -46,7 +51,7 @@ impl DexProtocol for PumpSwap {
         ])
     }
 
-    fn quote(&self, _address: &Pubkey, pool: &Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], _timestamp: u64) -> Result<u64, SwapperError> {
+    fn quote(&self, _address: &Pubkey, pool: &Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], _clock: &Clock) -> Result<u64, SwapperError> {
         let sells_base = pool.is_a_to_b(input_mint)?;
         let [fee_config, base_vault, quote_vault, base_mint] = accounts else {
             return Err(SwapperError::NoQuoteAvailable);
@@ -104,7 +109,7 @@ mod tests {
         pump_swap::testkit::{TEST_CASHBACK_POOL, TEST_MAYHEM_POOL, TEST_SOL_POOL, TEST_TOKEN_2022_MINT, TEST_USDC_POOL, mock_pool_snapshot},
         solana_dex::{
             SolanaDex, SwapToken,
-            testkit::{PoolSnapshot, TEST_TOS_MINT, mock_rpc_accounts, mock_rpc_client, mock_solana_asset},
+            testkit::{PoolSnapshot, TEST_TOS_MINT, mock_clock, mock_rpc_accounts, mock_rpc_client, mock_solana_asset},
         },
         testkit::mock_quote,
     };
@@ -122,7 +127,7 @@ mod tests {
             let snapshot = mock_pool_snapshot(snapshot);
             let input_mint = if sells_base { snapshot.pool.base_mint } else { snapshot.pool.quote_mint };
             let data = snapshot.quote_data(&PumpSwap.quote_accounts(&snapshot.address, &snapshot.pool, &input_mint).unwrap());
-            PumpSwap.quote(&snapshot.address, &snapshot.pool, &input_mint, amount_in, &data, snapshot.timestamp)
+            PumpSwap.quote(&snapshot.address, &snapshot.pool, &input_mint, amount_in, &data, &snapshot.clock)
         };
 
         assert_eq!(quote(TEST_SOL_POOL, false, 10_000_000), Ok(328_453_047));
@@ -140,8 +145,8 @@ mod tests {
 
     #[test]
     fn test_is_tradable() {
-        assert!(PumpSwap.is_tradable(&mock_pool_snapshot(TEST_SOL_POOL).pool, 0));
-        assert!(!PumpSwap.is_tradable(&mock_pool_snapshot(TEST_CASHBACK_POOL).pool, 0));
+        assert!(PumpSwap.is_tradable(&mock_pool_snapshot(TEST_SOL_POOL).pool, &mock_clock()));
+        assert!(!PumpSwap.is_tradable(&mock_pool_snapshot(TEST_CASHBACK_POOL).pool, &mock_clock()));
     }
 
     #[tokio::test]
@@ -168,7 +173,7 @@ mod tests {
         };
         let quote = |snapshot: &PoolSnapshot<Pool>, input_mint: &Pubkey, amount: u64| {
             let data = snapshot.quote_data(&PumpSwap.quote_accounts(&snapshot.address, &snapshot.pool, input_mint).unwrap());
-            PumpSwap.quote(&snapshot.address, &snapshot.pool, input_mint, amount, &data, snapshot.timestamp).unwrap()
+            PumpSwap.quote(&snapshot.address, &snapshot.pool, input_mint, amount, &data, &snapshot.clock).unwrap()
         };
 
         let result = pump_swap.get_quote(&request).await.unwrap();

@@ -1,4 +1,4 @@
-use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::raydium_clmm_program};
+use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::raydium_clmm_program, models::Clock};
 
 use super::{
     dynamic_fee::DynamicFee,
@@ -32,8 +32,8 @@ impl DexProtocol for RaydiumClmm {
         vec![pool.amm_config]
     }
 
-    fn is_tradable(&self, pool: &PoolState, timestamp: u64) -> bool {
-        pool.is_tradable(timestamp)
+    fn is_tradable(&self, pool: &PoolState, clock: &Clock) -> bool {
+        pool.is_tradable(clock.timestamp())
     }
 
     fn intermediate_tokens(&self) -> &'static [SwapToken] {
@@ -45,14 +45,14 @@ impl DexProtocol for RaydiumClmm {
         Ok([vec![pool.amm_config], tick_arrays].concat().into_iter().map(|address| QuoteAccount::Owned { address, owner: Self::PROGRAM_ID }).collect())
     }
 
-    fn quote(&self, address: &Pubkey, pool: &PoolState, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError> {
+    fn quote(&self, address: &Pubkey, pool: &PoolState, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], clock: &Clock) -> Result<u64, SwapperError> {
         let zero_for_one = pool.is_a_to_b(input_mint)?;
         let (config, tick_arrays) = accounts.split_first().ok_or(SwapperError::NoQuoteAvailable)?;
         let config = AmmConfig::decode(account_data(config)?)?;
         let ticks = swap_ticks(address, pool, zero_for_one, tick_arrays)?;
         let swap = pool.clmm_swap(zero_for_one);
         match pool.dynamic_fee()? {
-            Some(info) => quote_exact_in(&swap, DynamicFee::new(info, config.trade_fee_rate, pool.tick_spacing, pool.tick_current, zero_for_one, timestamp), amount_in, &ticks),
+            Some(info) => quote_exact_in(&swap, DynamicFee::new(info, config.trade_fee_rate, pool.tick_spacing, pool.tick_current, zero_for_one, clock.timestamp()), amount_in, &ticks),
             None => quote_exact_in(&swap, StaticFee(config.trade_fee_rate), amount_in, &ticks),
         }
     }
@@ -128,7 +128,7 @@ mod tests {
         let quote = |snapshot: &str, amount_in: u64| {
             let snapshot = mock_pool_snapshot(snapshot);
             let data = snapshot.quote_data(&RaydiumClmm.quote_accounts(&snapshot.address, &snapshot.pool, &usdc).unwrap());
-            RaydiumClmm.quote(&snapshot.address, &snapshot.pool, &usdc, amount_in, &data, snapshot.timestamp)
+            RaydiumClmm.quote(&snapshot.address, &snapshot.pool, &usdc, amount_in, &data, &snapshot.clock)
         };
 
         assert_eq!(quote(TEST_EXTENSION_POOL, 100_000_000), Ok(2_859_215_037));

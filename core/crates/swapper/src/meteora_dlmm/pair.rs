@@ -9,7 +9,7 @@ use gem_solana::{
 use super::bin::{BinArray, array_index};
 use crate::{
     clmm::{accumulated_volatility, decayed_volatility, fee_amount},
-    solana_dex::{DexPool, PoolLayout},
+    solana_dex::{ActivationType, DexPool, PoolLayout},
 };
 
 pub(super) const LAYOUT: PoolLayout = PoolLayout {
@@ -24,8 +24,6 @@ const BITMAP_ARRAYS: i64 = 512;
 const ENABLED: u8 = 0;
 const PERMISSION: u8 = 1;
 const CUSTOMIZABLE_PERMISSIONLESS: u8 = 2;
-const ACTIVATION_BY_SLOT: u8 = 0;
-const ACTIVATION_BY_TIMESTAMP: u8 = 1;
 const LIQUIDITY_MINING: u8 = 1;
 const LIMIT_ORDER: u8 = 2;
 const FEE_ONLY_Y: u8 = 1;
@@ -85,7 +83,7 @@ pub(crate) struct Pair {
     status: u8,
     _require_base_factor_seed: u8,
     _base_factor_seed: [u8; 2],
-    activation_type: u8,
+    activation_type: ActivationType,
     _creator_pool_on_off_control: u8,
     pub token_x_mint: Pubkey,
     pub token_y_mint: Pubkey,
@@ -135,24 +133,15 @@ impl Pair {
         self.bin_array_bitmap.iter().map(|limb| limb.count_ones()).sum()
     }
 
-    pub fn is_tradable(&self, timestamp: u64) -> bool {
-        let opened = match (self.pair_type, self.activation_type) {
-            (PERMISSION | CUSTOMIZABLE_PERMISSIONLESS, ACTIVATION_BY_TIMESTAMP) => timestamp >= self.activation_point,
-            _ => true,
-        };
-        self.status == ENABLED && opened && (-BITMAP_ARRAYS..BITMAP_ARRAYS).contains(&array_index(self.active_id)) && self.arrays_with_liquidity() > 0
+    pub fn is_tradable(&self, clock: &Clock) -> bool {
+        self.status == ENABLED && self.is_open(clock) && (-BITMAP_ARRAYS..BITMAP_ARRAYS).contains(&array_index(self.active_id)) && self.arrays_with_liquidity() > 0
     }
 
     fn is_open(&self, clock: &Clock) -> bool {
-        let now = match self.activation_type {
-            ACTIVATION_BY_SLOT => clock.slot,
-            ACTIVATION_BY_TIMESTAMP => u64::try_from(clock.unix_timestamp).unwrap_or_default(),
-            _ => return false,
-        };
-        match self.pair_type {
+        self.activation_type.current_point(clock).is_some_and(|now| match self.pair_type {
             PERMISSION | CUSTOMIZABLE_PERMISSIONLESS => now >= self.activation_point,
             _ => true,
-        }
+        })
     }
 
     fn has_liquidity(&self, index: i64) -> bool {

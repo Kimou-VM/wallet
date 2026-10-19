@@ -1,4 +1,4 @@
-use gem_solana::{Instruction, Pubkey, instructions::program_ids::raydium_amm_program};
+use gem_solana::{Instruction, Pubkey, instructions::program_ids::raydium_amm_program, models::Clock};
 
 use super::{
     pool::{LAYOUT, Pool},
@@ -21,8 +21,8 @@ impl DexProtocol for RaydiumAmm {
         Pool::decode(data)
     }
 
-    fn is_tradable(&self, pool: &Pool, timestamp: u64) -> bool {
-        pool.is_tradable(timestamp)
+    fn is_tradable(&self, pool: &Pool, clock: &Clock) -> bool {
+        pool.is_tradable(clock.timestamp())
     }
 
     fn pool_query(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Option<PoolQuery> {
@@ -33,7 +33,7 @@ impl DexProtocol for RaydiumAmm {
         Ok(vec![QuoteAccount::Token(pool.coin_vault), QuoteAccount::Token(pool.pc_vault)])
     }
 
-    fn quote(&self, _address: &Pubkey, pool: &Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], _timestamp: u64) -> Result<u64, SwapperError> {
+    fn quote(&self, _address: &Pubkey, pool: &Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], _clock: &Clock) -> Result<u64, SwapperError> {
         let coin_to_pc = pool.is_a_to_b(input_mint)?;
         let [coin_vault, pc_vault] = accounts else {
             return Err(SwapperError::NoQuoteAvailable);

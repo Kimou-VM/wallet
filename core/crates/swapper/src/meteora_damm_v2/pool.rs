@@ -5,7 +5,7 @@ use gem_solana::{Pubkey, SolanaDataSlice, anchor::AnchorAccount, models::Clock};
 use super::fee::{BaseFee, DynamicFee, FeePoint};
 use crate::{
     clmm::{constant_product_output, divide, fee_amount},
-    solana_dex::{DexPool, PoolLayout},
+    solana_dex::{ActivationType, DexPool, PoolLayout},
 };
 
 pub(super) const LAYOUT: PoolLayout = PoolLayout {
@@ -14,8 +14,6 @@ pub(super) const LAYOUT: PoolLayout = PoolLayout {
     depth: SolanaDataSlice { offset: 360, length: size_of::<u128>() },
 };
 const FEE_DENOMINATOR: u32 = 1_000_000_000;
-const ACTIVATION_SLOT: u8 = 0;
-const ACTIVATION_TIMESTAMP: u8 = 1;
 const POOL_ENABLED: u8 = 0;
 const BOTH_TOKEN: u8 = 0;
 const ONLY_B: u8 = 1;
@@ -65,7 +63,7 @@ pub(crate) struct Pool {
     sqrt_max_price: u128,
     sqrt_price: u128,
     activation_point: u64,
-    activation_type: u8,
+    activation_type: ActivationType,
     pool_status: u8,
     _token_a_flag: u8,
     _token_b_flag: u8,
@@ -102,11 +100,7 @@ impl Pool {
     }
 
     pub fn quote(&self, a_to_b: bool, amount_in: u64, clock: &Clock) -> Option<u64> {
-        let current = match self.activation_type {
-            ACTIVATION_SLOT => clock.slot,
-            ACTIVATION_TIMESTAMP => u64::try_from(clock.unix_timestamp).unwrap_or_default(),
-            _ => return None,
-        };
+        let current = self.activation_type.current_point(clock)?;
         if !self.is_tradable() || current < self.activation_point {
             return None;
         }
@@ -166,15 +160,12 @@ impl Pool {
 mod tests {
     use super::*;
     use crate::meteora_damm_v2::testkit::{TEST_BOTH_TOKEN_POOL, mock_pool_snapshot};
-    use borsh::BorshDeserialize;
-    use gem_solana::instructions::program_ids::sysvar_clock;
 
     #[test]
     fn test_quote_pool_state() {
         let snapshot = mock_pool_snapshot(TEST_BOTH_TOKEN_POOL);
-        let pool = snapshot.pool;
-        let clock = Clock::try_from_slice(snapshot.accounts[&sysvar_clock()].as_ref().unwrap()).unwrap();
-        let timestamp = u64::try_from(clock.unix_timestamp).unwrap();
+        let (pool, clock) = (snapshot.pool, snapshot.clock);
+        let timestamp = clock.timestamp();
 
         assert_eq!(pool.quote(true, 326_754_966, &clock), Some(9_936_136));
         assert_eq!(Pool { pool_status: 1, ..pool.clone() }.quote(true, 326_754_966, &clock), None);

@@ -4,7 +4,7 @@ use gem_solana::{
     Pubkey, USDT_TOKEN_MINT,
     anchor::AnchorAccount,
     instructions::program_ids::{sysvar_clock, sysvar_program, token_program},
-    models::{AccountData, ValueResult},
+    models::{AccountData, Clock, ValueResult},
 };
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -96,7 +96,7 @@ pub(super) fn mock_aqua_whirlpool() -> (Pubkey, Whirlpool) {
     (Pubkey::from_base58(TEST_AQUA_WHIRLPOOL).unwrap(), Whirlpool::decode(&data).unwrap())
 }
 
-pub(super) fn mock_adaptive_snapshot() -> (Pubkey, HashMap<Pubkey, Option<Vec<u8>>>, u64) {
-    let (addresses, accounts, timestamp) = mock_account_snapshot(include_str!("../../testdata/orca/adaptive_snapshot.json"));
-    (addresses[0], accounts, timestamp)
+pub(super) fn mock_adaptive_snapshot() -> (Pubkey, HashMap<Pubkey, Option<Vec<u8>>>, Clock) {
+    let (addresses, accounts, clock) = mock_account_snapshot(include_str!("../../testdata/orca/adaptive_snapshot.json"));
+    (addresses[0], accounts, clock)
 }

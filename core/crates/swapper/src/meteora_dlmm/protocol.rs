@@ -1,10 +1,5 @@
 use borsh::BorshDeserialize;
-use gem_solana::{
-    Instruction, MAX_COMPUTE_UNIT_LIMIT, Pubkey,
-    anchor::AnchorAccount,
-    instructions::program_ids::{meteora_dlmm_program, sysvar_clock, sysvar_program},
-    models::Clock,
-};
+use gem_solana::{Instruction, MAX_COMPUTE_UNIT_LIMIT, Pubkey, anchor::AnchorAccount, instructions::program_ids::meteora_dlmm_program, models::Clock};
 
 use super::{
     bin::BinArray,
@@ -30,8 +25,8 @@ impl DexProtocol for MeteoraDlmm {
         Ok(Pair::decode(data)?)
     }
 
-    fn is_tradable(&self, pair: &Pair, timestamp: u64) -> bool {
-        pair.is_tradable(timestamp)
+    fn is_tradable(&self, pair: &Pair, clock: &Clock) -> bool {
+        pair.is_tradable(clock)
     }
 
     fn pool_query(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Option<PoolQuery> {
@@ -51,8 +46,7 @@ impl DexProtocol for MeteoraDlmm {
 
     fn quote_accounts(&self, address: &Pubkey, pair: &Pair, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {
         let swap_for_y = pair.is_a_to_b(input_mint)?;
-        let bin_arrays = pair
-            .arrays_for_swap(swap_for_y, SWAP_BIN_ARRAYS)
+        pair.arrays_for_swap(swap_for_y, SWAP_BIN_ARRAYS)
             .into_iter()
             .map(|index| {
                 Ok(QuoteAccount::Owned {
@@ -60,27 +54,18 @@ impl DexProtocol for MeteoraDlmm {
                     owner: Self::PROGRAM_ID,
                 })
             })
-            .collect::<Result<Vec<_>, SwapperError>>()?;
-        let clock = QuoteAccount::Owned {
-            address: sysvar_clock(),
-            owner: sysvar_program(),
-        };
-        Ok([bin_arrays, vec![clock]].concat())
+            .collect()
     }
 
-    fn quote(&self, address: &Pubkey, pair: &Pair, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], _timestamp: u64) -> Result<u64, SwapperError> {
+    fn quote(&self, address: &Pubkey, pair: &Pair, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], clock: &Clock) -> Result<u64, SwapperError> {
         let swap_for_y = pair.is_a_to_b(input_mint)?;
-        let [bin_arrays @ .., Some(clock)] = accounts else {
-            return Err(SwapperError::NoQuoteAvailable);
-        };
-        let clock = Clock::try_from_slice(clock).map_err(SwapperError::compute_quote_error)?;
         let expected = pair.arrays_for_swap(swap_for_y, SWAP_BIN_ARRAYS);
-        let bin_arrays = bin_arrays
+        let bin_arrays = accounts
             .iter()
             .zip(expected)
             .map_while(|(data, index)| BinArray::decode(data.as_deref()?).ok().filter(|array| array.index == index && array.lb_pair == *address))
             .collect::<Vec<_>>();
-        pair.quote(&bin_arrays, swap_for_y, amount_in, &clock).ok_or(SwapperError::NoQuoteAvailable)
+        pair.quote(&bin_arrays, swap_for_y, amount_in, clock).ok_or(SwapperError::NoQuoteAvailable)
     }
 
     fn swap_instruction(&self, address: &Pubkey, pair: &Pair, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
@@ -141,7 +126,7 @@ mod tests {
         let (address, pair) = (snapshot.address, snapshot.pool.clone());
         let quote = |input_mint: Pubkey, amount_in: u64| {
             let data = snapshot.quote_data(&MeteoraDlmm.quote_accounts(&address, &pair, &input_mint).unwrap());
-            MeteoraDlmm.quote(&address, &pair, &input_mint, amount_in, &data, snapshot.timestamp)
+            MeteoraDlmm.quote(&address, &pair, &input_mint, amount_in, &data, &snapshot.clock)
         };
         let (sol, usdc) = (pair.token_x_mint, pair.token_y_mint);
 

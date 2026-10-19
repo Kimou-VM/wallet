@@ -1,4 +1,4 @@
-use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::raydium_cpmm_program};
+use gem_solana::{Instruction, Pubkey, anchor::AnchorAccount, instructions::program_ids::raydium_cpmm_program, models::Clock};
 
 use super::{
     pool::{AmmConfig, LAYOUT, Pool},
@@ -25,8 +25,8 @@ impl DexProtocol for RaydiumCpmm {
         vec![pool.amm_config]
     }
 
-    fn is_tradable(&self, pool: &Pool, timestamp: u64) -> bool {
-        pool.is_tradable(timestamp)
+    fn is_tradable(&self, pool: &Pool, clock: &Clock) -> bool {
+        pool.is_tradable(clock.timestamp())
     }
 
     fn pool_query(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Option<PoolQuery> {
@@ -44,7 +44,7 @@ impl DexProtocol for RaydiumCpmm {
         ])
     }
 
-    fn quote(&self, _address: &Pubkey, pool: &Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], _timestamp: u64) -> Result<u64, SwapperError> {
+    fn quote(&self, _address: &Pubkey, pool: &Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], _clock: &Clock) -> Result<u64, SwapperError> {
         let zero_for_one = pool.is_a_to_b(input_mint)?;
         let [config, vault_0, vault_1] = accounts else {
             return Err(SwapperError::NoQuoteAvailable);

@@ -1,7 +1,14 @@
-use gem_solana::{DEFAULT_SWAP_GAS_LIMIT, Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter, models::TokenAccount};
+use borsh::BorshDeserialize;
+use gem_solana::{
+    DEFAULT_SWAP_GAS_LIMIT, Instruction, Pubkey, SolanaDataSlice, SolanaProgramAccountsFilter,
+    models::{Clock, TokenAccount},
+};
 
 use super::token::{SOL_INTERMEDIATE, SwapToken};
 use crate::{SwapperError, SwapperProvider};
+
+const ACTIVATION_BY_SLOT: u8 = 0;
+const ACTIVATION_BY_TIMESTAMP: u8 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum QuoteAccount {
@@ -23,6 +30,19 @@ pub(crate) fn account_data(account: &Option<Vec<u8>>) -> Result<&[u8], SwapperEr
 
 pub(crate) fn token_amount(account: &Option<Vec<u8>>) -> Result<u64, SwapperError> {
     Ok(TokenAccount::decode(account_data(account)?)?.amount)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, BorshDeserialize)]
+pub(crate) struct ActivationType(u8);
+
+impl ActivationType {
+    pub fn current_point(&self, clock: &Clock) -> Option<u64> {
+        match self.0 {
+            ACTIVATION_BY_SLOT => Some(clock.slot),
+            ACTIVATION_BY_TIMESTAMP => Some(clock.timestamp()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -121,7 +141,7 @@ pub(crate) trait DexProtocol: Send + Sync {
     const INTERMEDIATE_TOKEN_ACCOUNT: bool = true;
 
     fn decode_pool(&self, data: &[u8]) -> Result<Self::Pool, SwapperError>;
-    fn is_tradable(&self, pool: &Self::Pool, timestamp: u64) -> bool;
+    fn is_tradable(&self, pool: &Self::Pool, clock: &Clock) -> bool;
 
     fn pool_addresses(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         Ok(vec![])
@@ -148,7 +168,7 @@ pub(crate) trait DexProtocol: Send + Sync {
     }
 
     fn quote_accounts(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError>;
-    fn quote(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError>;
+    fn quote(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], clock: &Clock) -> Result<u64, SwapperError>;
     fn swap_instruction(&self, address: &Pubkey, pool: &Self::Pool, swap: &PoolSwap) -> Result<Instruction, SwapperError>;
 
     fn native_two_hop(&self) -> Option<&dyn NativeTwoHop<Self::Pool>> {

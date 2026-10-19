@@ -207,13 +207,13 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         Ok(PoolLookup { pair, known, addresses })
     }
 
-    fn record_pools(&self, lookup: &PoolLookup<P::Pool>, accounts: &Accounts, timestamp: u64) -> Vec<(Pubkey, P::Pool)> {
+    fn record_pools(&self, lookup: &PoolLookup<P::Pool>, accounts: &Accounts, clock: &Clock) -> Vec<(Pubkey, P::Pool)> {
         let (input_mint, output_mint) = lookup.pair;
         let (usable, unusable): (Vec<_>, Vec<_>) = lookup
             .addresses
             .iter()
             .map(|address| (*address, self.decode_pool(accounts, address)))
-            .partition(|(_, pool)| pool.as_ref().is_none_or(|(_, pool)| self.protocol.is_tradable(pool, timestamp)));
+            .partition(|(_, pool)| pool.as_ref().is_none_or(|(_, pool)| self.protocol.is_tradable(pool, clock)));
         let pools = usable.iter().filter_map(|(_, pool)| pool.clone()).collect();
         self.pools.record_discovery(input_mint, output_mint, usable);
         self.pools.record_unusable(input_mint, output_mint, unusable.into_iter().map(|(address, _)| address));
@@ -264,7 +264,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         routes.iter().filter_map(|route| self.route_quote_accounts(route)).flatten().flatten().map(|account| account.address()).collect()
     }
 
-    async fn quote_routes(&self, routes: Vec<PoolRoute<P::Pool>>, amount_in: u64, slippage_bps: u32, accounts: Accounts, timestamp: u64) -> Result<Vec<(PoolRoute<P::Pool>, Option<RouteOutput>)>, SwapperError> {
+    async fn quote_routes(&self, routes: Vec<PoolRoute<P::Pool>>, amount_in: u64, slippage_bps: u32, accounts: Accounts, clock: &Clock) -> Result<Vec<(PoolRoute<P::Pool>, Option<RouteOutput>)>, SwapperError> {
         let route_accounts = routes.iter().map(|route| self.route_quote_accounts(route)).collect::<Vec<_>>();
         let missing = route_accounts.iter().flatten().flatten().flatten().map(QuoteAccount::address).filter(|address| !accounts.contains_key(address)).collect();
         let constants = self.constant_route_accounts(routes.iter().flatten().map(|(_, pool)| pool));
@@ -278,7 +278,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
                         let chained = index > 0 && self.protocol.native_two_hop().is_none();
                         let amount = if chained { minimum_value(amount, slippage_bps) } else { amount };
                         let data = quote_accounts.iter().map(|account| quote_data(&accounts, account)).collect::<Result<Vec<_>, _>>().ok()?;
-                        let value = self.protocol.quote(&hop.pool, pool, &hop.input_mint, amount, &data, timestamp).ok()?;
+                        let value = self.protocol.quote(&hop.pool, pool, &hop.input_mint, amount, &data, clock).ok()?;
                         Some((value, if chained { Some(amount) } else { intermediate_value }))
                     })
                 });
@@ -303,8 +303,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         let constants = constant_extras.iter().copied().chain(self.constant_route_accounts(known_pools)).collect();
         let accounts = self.load_accounts(requested, &constants).await?;
         let clock = chain_clock(&accounts)?;
-        let timestamp = u64::try_from(clock.unix_timestamp).unwrap_or_default();
-        let pools = paths.iter().flat_map(|(_, lookups)| lookups).map(|lookup| (lookup.pair, self.record_pools(lookup, &accounts, timestamp))).collect();
+        let pools = paths.iter().flat_map(|(_, lookups)| lookups).map(|lookup| (lookup.pair, self.record_pools(lookup, &accounts, &clock))).collect();
         let routes = self.routes(paths.iter().map(|(path, _)| path), pair, &pools);
         let mint = |token: &SwapToken| decode_mint(owned_data(&accounts, &token.mint, &token.token_program)?);
         let (input_mint, output_mint) = (mint(input)?, mint(output)?);
@@ -315,7 +314,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         let swap_value = referral_fee.swap_value(fee_side, value);
         let pool_input = swap_value.saturating_sub(input_mint.transfer_fee(clock.epoch, swap_value));
         let authority = Pubkey::from_base58(&request.wallet_address).map_err(|_| SwapperError::transaction_error(INVALID_ADDRESS))?;
-        let quotes = self.quote_routes(routes, pool_input, request.options.slippage.bps, accounts, timestamp).await?;
+        let quotes = self.quote_routes(routes, pool_input, request.options.slippage.bps, accounts, &clock).await?;
         self.outpriced_routes.record(
             &input.mint,
             &output.mint,
