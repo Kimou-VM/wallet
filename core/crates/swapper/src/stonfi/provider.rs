@@ -117,32 +117,31 @@ where
         })
     }
 
-    async fn quote_paths(&self, request: &QuoteRequest, from_value: &str, allow_discovery: bool) -> Vec<Result<QuotePath, SwapperError>> {
-        let (from_key, to_key) = (request.from_asset.asset_id().to_string(), request.to_asset.asset_id().to_string());
+    async fn quote_paths(&self, request: &QuoteRequest, from_value: &str, allow_discovery: bool) -> Result<QuotePath, SwapperError> {
+        let keys = (&request.from_asset.asset_id().to_string(), &request.to_asset.asset_id().to_string());
         let amount_in = BigUint::from_str(from_value).map_or(u128::MAX, |value| amount_key(&value));
         let path_key = |path: &RoutePath<SwapperQuoteAsset>| match path {
             RoutePath::Direct => RoutePath::Direct,
             RoutePath::Intermediary(intermediary) => RoutePath::Intermediary(intermediary.asset_id()),
         };
-        let (paths, skipped) = self.outpriced_paths.partition(&from_key, &to_key, amount_in, Self::route_paths(&request.from_asset, &request.to_asset), path_key);
-        let quoted = match self.quote_route_paths(&paths, request, from_value, allow_discovery).await {
-            quoted if quoted.iter().all(|(_, quote)| quote.is_err()) && !skipped.is_empty() => self.quote_route_paths(&skipped, request, from_value, allow_discovery).await,
-            quoted => quoted,
+        let quote = |paths: Vec<RoutePath<SwapperQuoteAsset>>| async move {
+            let quotes = self
+                .outpriced_paths
+                .quote_each(keys, amount_in, paths, path_key, |path| self.quote_path(path, request, from_value, allow_discovery), QuotePath::value_out)
+                .await;
+            match retryable_path_error(&quotes) {
+                Some(error) => Err(error),
+                None => best_quote(quotes, QuotePath::value_out),
+            }
         };
-        let outcomes = quoted.iter().filter_map(|(path, quote)| Some((path_key(path), quote_outcome(quote.as_ref().map(QuotePath::value_out))?)));
-        self.outpriced_paths.record(&from_key, &to_key, amount_in, outcomes);
-        quoted.into_iter().map(|(_, quote)| quote).collect()
+        self.outpriced_paths.quote_live_first(keys, amount_in, Self::route_paths(&request.from_asset, &request.to_asset), path_key, quote).await
     }
 
-    async fn quote_route_paths(&self, paths: &[RoutePath<SwapperQuoteAsset>], request: &QuoteRequest, from_value: &str, allow_discovery: bool) -> Vec<(RoutePath<SwapperQuoteAsset>, Result<QuotePath, SwapperError>)> {
-        join_all(paths.iter().map(|path| async move {
-            let quote = match path {
-                RoutePath::Direct => self.quote_direct(request, from_value, allow_discovery).await,
-                RoutePath::Intermediary(intermediary) => self.quote_path_via_intermediary(intermediary, from_value, request, allow_discovery).await,
-            };
-            (path.clone(), quote)
-        }))
-        .await
+    async fn quote_path(&self, path: RoutePath<SwapperQuoteAsset>, request: &QuoteRequest, from_value: &str, allow_discovery: bool) -> Result<QuotePath, SwapperError> {
+        match path {
+            RoutePath::Direct => self.quote_direct(request, from_value, allow_discovery).await,
+            RoutePath::Intermediary(intermediary) => self.quote_path_via_intermediary(&intermediary, from_value, request, allow_discovery).await,
+        }
     }
 
     fn has_known_candidates(&self, from_asset: &SwapperQuoteAsset, to_asset: &SwapperQuoteAsset) -> bool {
@@ -348,20 +347,10 @@ where
     }
 
     async fn get_quotes(&self, request: &QuoteRequest, from_value: &str) -> Result<QuotePath, SwapperError> {
-        let paths = self.quote_paths(request, from_value, false).await;
-        if let Some(err) = retryable_path_error(paths.iter()) {
-            return Err(err);
+        match self.quote_paths(request, from_value, false).await {
+            Err(error) if !is_retryable_get_method_error(&error) && !self.route_discovery_complete(&request.from_asset, &request.to_asset) => self.quote_paths(request, from_value, true).await,
+            result => result,
         }
-        let best = best_quote(paths, QuotePath::value_out);
-        if best.is_ok() || self.route_discovery_complete(&request.from_asset, &request.to_asset) {
-            return best;
-        }
-
-        let paths = self.quote_paths(request, from_value, true).await;
-        if let Some(err) = retryable_path_error(paths.iter()) {
-            return Err(err);
-        }
-        best_quote(paths, QuotePath::value_out)
     }
 }
 

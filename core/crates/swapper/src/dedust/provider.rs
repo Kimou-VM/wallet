@@ -9,7 +9,7 @@ use crate::{
     client_factory::create_ton_client,
     fees::{ReferralFee, on_chain_referral_fees, subtract_bps},
     models::nonzero_swap_value,
-    route_cache::{OutpricedCache, amount_key, best_quote, quote_outcome},
+    route_cache::{OutpricedCache, amount_key, best_quote},
     route_path::RoutePath,
 };
 use async_trait::async_trait;
@@ -57,10 +57,11 @@ impl<C: Client> Dedust<C> {
     }
 
     async fn quote_paths(&self, paths: Vec<RoutePath<DedustAsset>>, from: &DedustAsset, to: &DedustAsset, value: &BigUint) -> Result<(Vec<Address>, BigUint), SwapperError> {
-        let quotes = join_all(paths.into_iter().map(|path| async move { (path.clone(), self.quote_path(path, from, to, value).await) })).await;
-        let outcomes = quotes.iter().filter_map(|(path, quote)| Some((path.clone(), quote_outcome(quote.as_ref().map(quoted_value))?)));
-        self.outpriced_paths.record(from, to, amount_key(value), outcomes);
-        best_quote(quotes.into_iter().map(|(_, quote)| quote), quoted_value)
+        let quotes = self
+            .outpriced_paths
+            .quote_each((from, to), amount_key(value), paths, Clone::clone, |path| self.quote_path(path, from, to, value), quoted_value)
+            .await;
+        best_quote(quotes, quoted_value)
     }
 
     async fn quote_path(&self, path: RoutePath<DedustAsset>, from: &DedustAsset, to: &DedustAsset, value: &BigUint) -> Result<(Vec<Address>, BigUint), SwapperError> {

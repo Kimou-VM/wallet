@@ -5,6 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use futures::future::join_all;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 use primitives::{DAY, HOUR, MINUTE, WEEK};
@@ -72,6 +73,17 @@ where
             Err(SwapperError::NoQuoteAvailable) if !skipped.is_empty() => quote(skipped).await,
             result => result,
         }
+    }
+
+    pub async fn quote_each<T, R, Fut>(&self, (from, to): (&Key, &Key), amount_in: u128, items: Vec<T>, probe: impl Fn(&T) -> Probe, quote: impl Fn(T) -> Fut, value_out: impl Fn(&R) -> u128) -> Vec<Result<R, SwapperError>>
+    where
+        Fut: Future<Output = Result<R, SwapperError>>,
+    {
+        let probes = items.iter().map(probe).collect::<Vec<_>>();
+        let quotes = join_all(items.into_iter().map(quote)).await;
+        let outcomes = probes.into_iter().zip(&quotes).filter_map(|(probe, quote)| Some((probe, quote_outcome(quote.as_ref().map(&value_out))?)));
+        self.record(from, to, amount_in, outcomes);
+        quotes
     }
 
     pub fn record(&self, from: &Key, to: &Key, amount_in: u128, quotes: impl IntoIterator<Item = (Probe, u128)>) {
@@ -308,6 +320,24 @@ mod tests {
 
         cache.record(&"sol", &"usdc", 10, [("deep", 0), ("close", 0), ("shallow", 0)]);
         assert_eq!(partition("sol", "usdc", 10), (pools(), vec![]));
+    }
+
+    #[tokio::test]
+    async fn test_quote_each_records_outcomes() {
+        let cache = OutpricedCache::<&str, &str>::default();
+        let pools = || vec!["deep", "shallow", "down"];
+        let quote = |pool| async move {
+            match pool {
+                "deep" => Ok(1_000),
+                "shallow" => Ok(500),
+                _ => Err(SwapperError::compute_quote_error("node unavailable")),
+            }
+        };
+
+        let quotes = cache.quote_each((&"sol", &"usdc"), 100, pools(), |pool| *pool, quote, |value_out: &u128| *value_out).await;
+
+        assert_eq!(quotes, vec![Ok(1_000), Ok(500), Err(SwapperError::compute_quote_error("node unavailable"))]);
+        assert_eq!(cache.partition(&"sol", &"usdc", 100, pools(), |pool| *pool), (vec!["deep", "down"], vec!["shallow"]));
     }
 
     #[test]
