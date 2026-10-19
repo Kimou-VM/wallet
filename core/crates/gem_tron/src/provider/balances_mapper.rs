@@ -73,17 +73,9 @@ pub fn map_balance_staking(account: &TronAccount, reward: &TronReward, usage: &T
 
 fn new_stake_balance(frozen: BigUint, locked: BigUint, staked: BigUint, pending: BigUint, rewards: BigUint, metadata: BalanceMetadata) -> Balance {
     Balance {
-        available: BigUint::from(0u32),
         frozen,
         locked,
-        staked,
-        pending,
-        pending_unconfirmed: BigUint::from(0u32),
-        rewards,
-        reserved: BigUint::from(0u32),
-        earn: BigUint::from(0u32),
-        withdrawable: BigUint::from(0u32),
-        metadata: Some(metadata),
+        ..Balance::stake_balance_with_metadata(staked, pending, Some(rewards), Some(metadata))
     }
 }
 

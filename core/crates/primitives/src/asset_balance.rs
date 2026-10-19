@@ -153,34 +153,13 @@ impl Balance {
 
     pub fn with_pending_unconfirmed(available: BigUint, pending_unconfirmed: BigUint) -> Self {
         Self {
-            available,
             pending_unconfirmed,
-            frozen: BigUint::from(0u32),
-            locked: BigUint::from(0u32),
-            staked: BigUint::from(0u32),
-            pending: BigUint::from(0u32),
-            rewards: BigUint::from(0u32),
-            reserved: BigUint::from(0u32),
-            earn: BigUint::from(0u32),
-            withdrawable: BigUint::from(0u32),
-            metadata: None,
+            ..Self::coin_balance(available)
         }
     }
 
     pub fn with_reserved(available: BigUint, reserved: BigUint) -> Self {
-        Self {
-            available,
-            reserved,
-            frozen: BigUint::from(0u32),
-            locked: BigUint::from(0u32),
-            staked: BigUint::from(0u32),
-            pending: BigUint::from(0u32),
-            pending_unconfirmed: BigUint::from(0u32),
-            rewards: BigUint::from(0u32),
-            earn: BigUint::from(0u32),
-            withdrawable: BigUint::from(0u32),
-            metadata: None,
-        }
+        Self { reserved, ..Self::coin_balance(available) }
     }
 
     pub fn stake_balance(staked: BigUint, pending: BigUint, rewards: Option<BigUint>) -> Self {
@@ -189,17 +168,11 @@ impl Balance {
 
     pub fn stake_balance_with_metadata(staked: BigUint, pending: BigUint, rewards: Option<BigUint>, metadata: Option<BalanceMetadata>) -> Self {
         Self {
-            available: BigUint::from(0u32),
-            frozen: BigUint::from(0u32),
-            locked: BigUint::from(0u32),
             staked,
             pending,
-            pending_unconfirmed: BigUint::from(0u32),
             rewards: rewards.unwrap_or_else(|| BigUint::from(0u32)),
-            reserved: BigUint::from(0u32),
-            earn: BigUint::from(0u32),
-            withdrawable: BigUint::from(0u32),
             metadata,
+            ..Self::coin_balance(BigUint::from(0u32))
         }
     }
 }
@@ -233,6 +206,47 @@ mod tests {
             })
         );
         assert_eq!(serde_json::from_value::<Balance>(value).unwrap(), balance);
+    }
+
+    #[test]
+    fn test_balance_constructors_leave_other_amounts_zero() {
+        let zero = Balance::coin_balance(BigUint::ZERO);
+        let metadata = BalanceMetadata { votes: 1, ..BalanceMetadata::default() };
+
+        assert_eq!(
+            Balance::with_pending_unconfirmed(BigUint::from(5u32), BigUint::from(2u32)),
+            Balance {
+                available: BigUint::from(5u32),
+                pending_unconfirmed: BigUint::from(2u32),
+                ..zero.clone()
+            }
+        );
+        assert_eq!(
+            Balance::with_reserved(BigUint::from(5u32), BigUint::from(2u32)),
+            Balance {
+                available: BigUint::from(5u32),
+                reserved: BigUint::from(2u32),
+                ..zero.clone()
+            }
+        );
+        assert_eq!(
+            Balance::stake_balance_with_metadata(BigUint::from(3u32), BigUint::from(4u32), Some(BigUint::from(1u32)), Some(metadata.clone())),
+            Balance {
+                staked: BigUint::from(3u32),
+                pending: BigUint::from(4u32),
+                rewards: BigUint::from(1u32),
+                metadata: Some(metadata),
+                ..zero.clone()
+            }
+        );
+        assert_eq!(
+            Balance::stake_balance(BigUint::from(3u32), BigUint::from(4u32), None),
+            Balance {
+                staked: BigUint::from(3u32),
+                pending: BigUint::from(4u32),
+                ..zero
+            }
+        );
     }
 
     #[test]
