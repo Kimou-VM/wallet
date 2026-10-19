@@ -21,7 +21,7 @@ use super::{
     protocol::{DexProtocol, PoolDepth, PoolQuery, PoolSwap, QuoteAccount},
     route::{DexHop, DexRoute, minimum_value, preferred_fee_side},
     token::{SwapToken, decode_mint},
-    transaction::{DexTransaction, POOL_SWAP_COMPUTE_UNIT_LIMIT},
+    transaction::DexTransaction,
 };
 use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData,
@@ -379,6 +379,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             referral: Pubkey::from_base58(&default_referral_fees().solana.address)?,
             fee: route.fee,
             intermediate_token_account: P::INTERMEDIATE_TOKEN_ACCOUNT,
+            compute_unit_limit: P::COMPUTE_UNIT_LIMIT,
         })
     }
 
@@ -538,13 +539,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> Swapper for Sola
         let pools = self.fetch_pools(route.hops.iter().map(|hop| hop.pool).collect()).await?;
         let transaction = self.transaction(&route, &pools, &input, &output, authority, quote.data.slippage_bps)?;
 
-        Ok(SwapperQuoteData::new_contract(
-            P::PROGRAM_ID.to_base58(),
-            BigUint::ZERO,
-            transaction.encode()?,
-            None,
-            Some(POOL_SWAP_COMPUTE_UNIT_LIMIT.to_string()),
-        ))
+        Ok(SwapperQuoteData::new_contract(P::PROGRAM_ID.to_base58(), BigUint::ZERO, transaction.encode()?, None, Some(P::COMPUTE_UNIT_LIMIT.to_string())))
     }
 }
 

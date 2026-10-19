@@ -18,8 +18,6 @@ use crate::{
     fees::{FeeSide, ReferralTransfer},
 };
 
-pub(crate) const POOL_SWAP_COMPUTE_UNIT_LIMIT: u32 = 600_000;
-
 #[derive(Debug)]
 pub(crate) struct SolanaTransaction {
     instructions: Vec<Instruction>,
@@ -53,6 +51,7 @@ pub(crate) struct DexTransaction<'a> {
     pub fee: ReferralTransfer,
     pub swap_instructions: Vec<Instruction>,
     pub intermediate_token_account: bool,
+    pub compute_unit_limit: u32,
 }
 
 impl DexTransaction<'_> {
@@ -89,7 +88,7 @@ impl DexTransaction<'_> {
         };
         let output_fee = self.fee_instructions(FeeSide::Output, output)?;
         Ok([
-            vec![set_compute_unit_price(0), set_compute_unit_limit(POOL_SWAP_COMPUTE_UNIT_LIMIT)],
+            vec![set_compute_unit_price(0), set_compute_unit_limit(self.compute_unit_limit)],
             input_fee,
             wrap,
             token_accounts,
@@ -125,7 +124,7 @@ mod tests {
     use super::*;
     use crate::solana_dex::testkit::TEST_AUTHORITY;
     use gem_solana::{
-        decode_transaction,
+        DEFAULT_SWAP_GAS_LIMIT, decode_transaction,
         instructions::program_ids::{associated_token_program, compute_budget_program, system_program, token_program},
         wrapped_sol::wrapped_sol_mint,
     };
@@ -213,7 +212,7 @@ mod tests {
         let decoded = decode_transaction(&DexTransaction::mock(&usdc, &usdc).encode().unwrap()).unwrap();
 
         assert_eq!(decoded.num_required_signatures(), 1);
-        assert_eq!(decoded.get_compute_unit_limit(), Some(POOL_SWAP_COMPUTE_UNIT_LIMIT));
+        assert_eq!(decoded.get_compute_unit_limit(), Some(DEFAULT_SWAP_GAS_LIMIT));
         assert_eq!(decoded.get_compute_unit_price(), Some(0));
     }
 }

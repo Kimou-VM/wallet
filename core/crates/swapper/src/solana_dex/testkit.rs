@@ -3,7 +3,7 @@ use gem_client::testkit::MockClient;
 use gem_encoding::{decode_base64, encode_base64};
 use gem_jsonrpc::{client::JsonRpcClient, testkit::mock_jsonrpc_client};
 use gem_solana::{
-    Instruction, Pubkey, USDC_TOKEN_MINT,
+    DEFAULT_SWAP_GAS_LIMIT, Instruction, Pubkey, USDC_TOKEN_MINT,
     instructions::program_ids::{sysvar_clock, token_program},
     models::Clock,
 };
@@ -100,6 +100,7 @@ impl<'a> DexTransaction<'a> {
                 data: vec![],
             }],
             intermediate_token_account: false,
+            compute_unit_limit: DEFAULT_SWAP_GAS_LIMIT,
         }
     }
 }

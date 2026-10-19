@@ -23,6 +23,7 @@ impl DexProtocol for MeteoraDlmm {
 
     const PROVIDER: SwapperProvider = SwapperProvider::MeteoraDammV2;
     const PROGRAM_ID: Pubkey = meteora_dlmm_program();
+    const COMPUTE_UNIT_LIMIT: u32 = 600_000;
 
     fn decode_pool(&self, data: &[u8]) -> Result<Pair, SwapperError> {
         Ok(Pair::decode(data)?)
@@ -125,7 +126,7 @@ mod tests {
         },
         testkit::mock_quote,
     };
-    use gem_solana::USDC_TOKEN_MINT;
+    use gem_solana::{USDC_TOKEN_MINT, decode_transaction};
     use num_bigint::BigUint;
     use primitives::testkit::signer_mock::TEST_SOLANA_SENDER;
     use std::sync::{
@@ -191,5 +192,6 @@ mod tests {
         let quote_data = dlmm.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
         assert_eq!(requests.load(Ordering::SeqCst), 7);
         assert_eq!(quote_data.to, meteora_dlmm_program().to_base58());
+        assert_eq!(decode_transaction(&quote_data.data).unwrap().get_compute_unit_limit().map(|limit| limit.to_string()), quote_data.gas_limit);
     }
 }
