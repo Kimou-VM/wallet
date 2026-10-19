@@ -16,6 +16,7 @@ just test                              # run the whole unit test plan
 just build-for-testing                 # build every test target once
 just test-without-building AssetsTests # re-run tests without building; omit the target for the whole plan
 just test-ui                           # run the UI test plan on a reset simulator
+just test-upgrade <tag>                # import a wallet on an older build, then verify it on this one
 ```
 
 Run these commands from `ios/`, or prefix them with `just ios` from the repo root. The test recipes boot the simulator first. Package and targeted app-plan runs execute serially on that simulator; the whole app plan runs in parallel clones.

@@ -23,12 +23,11 @@ final class ImportWalletReceiveBitcoinUITests: XCTestCase {
 
         importFlow(app: app, words: UITestKitConstants.words)
 
-        app.buttons["receive_button"].firstMatch.tap()
+        app.tap("receive_button")
+        app.tap("bitcoin")
 
-        app.buttons["Bitcoin, BTC"].firstMatch.tap()
-
-        app.buttons["Copy"].firstMatch.tap()
-        XCTAssertTrue(app.buttons[UITestKitConstants.bitcoinAddress].exists)
+        XCTAssertTrue(app.element(UITestKitConstants.bitcoinAddress).waitForExistence(timeout: 10))
+        app.tapMainAction()
 
         app.tapBack()
         app.tapBack()
@@ -40,10 +39,11 @@ final class ImportWalletReceiveBitcoinUITests: XCTestCase {
     }
 
     func importFlow(app: XCUIApplication, words: String) {
-        app.buttons["Multi-Coin"].firstMatch.tap()
+        app.tap("multicoin_item")
 
-        app.textFields["importInputField"].typeText(words)
-        app.buttons["Import"].firstMatch.tap()
+        app.tap("importInputField")
+        app.element("importInputField").typeText(words)
+        app.tapMainAction()
         app.skipEnableAuthentication()
     }
 }

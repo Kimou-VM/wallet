@@ -23,11 +23,11 @@ final class CreateWalletUITests: XCTestCase {
 
         app.tapWalletBar()
 
-        app.buttons["gearshape"].firstMatch.tap()
+        app.tapWalletSettings()
 
         app.buttons["Show Secret Phrase"].firstMatch.tap()
 
-        app.tapContinue()
+        app.tapMainAction()
 
         let displayedWords = app.getWords()
         XCTAssertEqual(words, displayedWords)
@@ -44,19 +44,19 @@ final class CreateWalletUITests: XCTestCase {
     private func creationFlow(app: XCUIApplication, checkShowSecretDataScene: Bool) -> [String] {
         app.acceptTerms()
 
-        app.tapContinue()
+        app.tapMainAction()
 
         let words = app.getWords()
-        app.tapContinue()
+        app.tapMainAction()
 
         if checkShowSecretDataScene {
             app.tapBack()
             words.forEach { XCTAssert(app.staticTexts[$0].exists) }
         }
-        app.tapContinue()
+        app.tapMainAction()
 
         words.forEach { app.buttons[$0].firstMatch.tap() }
-        app.tapContinue()
+        app.tapMainAction()
         app.skipEnableAuthentication()
 
         return words

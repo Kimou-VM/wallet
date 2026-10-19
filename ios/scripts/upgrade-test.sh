@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-COMMIT="${1:?Usage: just upgrade-test <commit-or-tag>}"
+COMMIT="${1:?Usage: just test-upgrade <commit-or-tag>}"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
+IOS_DIR="$REPO_ROOT/ios"
 WORKTREE_DIR="/tmp/gem-upgrade-test-$$"
-SIMULATOR_NAME="${SIMULATOR_NAME:-iPhone 17}"
+OLD_IOS_DIR="$WORKTREE_DIR/ios"
+export SIMULATOR_NAME="${SIMULATOR_NAME:-iPhone 17}"
 SIMULATOR_DEST="platform=iOS Simulator,name=$SIMULATOR_NAME"
-OLD_DERIVED_DATA="$WORKTREE_DIR/build/DerivedData"
 
 cleanup() {
     echo "==> Cleaning up worktree"
@@ -15,60 +16,40 @@ cleanup() {
 }
 trap cleanup EXIT
 
+run_ui_test() {
+    local test_class="$1"
+    set -o pipefail && xcodebuild -project Gem.xcodeproj \
+        -scheme GemUITests \
+        -testPlan ui_tests \
+        -derivedDataPath build/DerivedData \
+        -clonedSourcePackagesDirPath build/SourcePackages \
+        -destination "$SIMULATOR_DEST" \
+        -only-testing "GemUITests/$test_class" \
+        test-without-building | xcbeautify --quieter --is-ci
+}
+
 echo "==> Phase 1: Build old version ($COMMIT)"
 
-git worktree add "$WORKTREE_DIR" "$COMMIT"
+git worktree add --detach "$WORKTREE_DIR" "$COMMIT"
 cd "$WORKTREE_DIR"
 git submodule update --init
 
-echo "==> Generating stone (old)"
+cd "$OLD_IOS_DIR"
 just generate-stone
-
-echo "==> Building old version for UI testing"
-set -o pipefail && xcodebuild -project Gem.xcodeproj \
-    -scheme GemUITests \
-    -testPlan ui_tests \
-    ONLY_ACTIVE_ARCH=YES \
-    -destination "$SIMULATOR_DEST" \
-    -derivedDataPath "$OLD_DERIVED_DATA" \
-    -allowProvisioningUpdates \
-    -allowProvisioningDeviceRegistration \
-    build-for-testing | xcbeautify --quieter --is-ci
+just build-for-testing-integration
 
 echo "==> Resetting simulator"
-cd "$REPO_ROOT"
 just reset-simulator
 
 echo "==> Running ImportWalletReceiveBitcoinUITests (old version)"
-cd "$WORKTREE_DIR"
-set -o pipefail && xcodebuild -project Gem.xcodeproj \
-    -scheme GemUITests \
-    -testPlan ui_tests \
-    ONLY_ACTIVE_ARCH=YES \
-    -destination "$SIMULATOR_DEST" \
-    -derivedDataPath "$OLD_DERIVED_DATA" \
-    -allowProvisioningUpdates \
-    -allowProvisioningDeviceRegistration \
-    -only-testing GemUITests/ImportWalletReceiveBitcoinUITests \
-    test-without-building | xcbeautify --quieter --is-ci
+run_ui_test ImportWalletReceiveBitcoinUITests
 
 echo "==> Phase 2: Build current version"
-cd "$REPO_ROOT"
-
+cd "$IOS_DIR"
+just generate-stone
 just build-for-testing-integration
 
-DERIVED_DATA="build/DerivedData"
-
 echo "==> Running UpgradeVerificationTests (current version)"
-set -o pipefail && xcodebuild -project Gem.xcodeproj \
-    -scheme GemUITests \
-    -testPlan ui_tests \
-    ONLY_ACTIVE_ARCH=YES \
-    -destination "$SIMULATOR_DEST" \
-    -derivedDataPath "$DERIVED_DATA" \
-    -allowProvisioningUpdates \
-    -allowProvisioningDeviceRegistration \
-    -only-testing GemUITests/UpgradeVerificationTests \
-    test-without-building | xcbeautify --quieter --is-ci
+TEST_RUNNER_GEM_UPGRADE_TEST=1 run_ui_test UpgradeVerificationTests
 
 echo "==> Upgrade test passed!"

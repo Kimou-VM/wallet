@@ -9,25 +9,24 @@ final class UpgradeVerificationTests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testWalletSurvivedUpgrade() {
+    func testWalletSurvivedUpgrade() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["GEM_UPGRADE_TEST"] == "1", "Runs from just test-upgrade, after an older build imported the wallet")
+
         let app = XCUIApplication()
         setupPermissionHandler()
         app.launch()
 
         XCTAssertFalse(app.isOnboarding, "App should not show onboarding after upgrade — wallet data was lost")
 
-        app.buttons["Wallet"].firstMatch.tap()
+        app.tapWalletTab()
         app.tapWalletBar()
-
-        let gearButton = app.buttons["gearshape"].firstMatch
-        XCTAssertTrue(gearButton.waitForExistence(timeout: 10), "No wallets found after upgrade")
-        gearButton.tap()
+        app.tapWalletSettings()
 
         let showPhraseButton = app.buttons["Show Secret Phrase"].firstMatch
         XCTAssertTrue(showPhraseButton.waitForExistence(timeout: 10), "Show Secret Phrase not found")
         showPhraseButton.tap()
 
-        app.tapContinue()
+        app.tapMainAction()
 
         let expectedWords = UITestKitConstants.words.components(separatedBy: " ")
         let displayedWords = app.getWords()
