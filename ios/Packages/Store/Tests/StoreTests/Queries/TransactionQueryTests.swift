@@ -91,6 +91,24 @@ struct TransactionQueryTests {
         #expect(query.value?.transaction.id == transactionId)
     }
 
+    @Test
+    func aRecordKeyThrowsOnceItsTransactionIsDeleted() async throws {
+        let db = DB.mock(wallets: [.mock(accounts: [.mock(chain: .ethereum)])], assets: [.mock(asset: .mock(id: .mock(chain: .ethereum), name: "Ethereum", symbol: "ETH", decimals: 18))])
+        let store = TransactionStore(db: db)
+        let transactionId = TransactionId(chain: .ethereum, hash: "deleted")
+        try store.addTransactions(walletId: .mock(), transactions: [.mock(.mock(id: transactionId, assetId: Chain.ethereum.assetId, feeAssetId: Chain.ethereum.assetId))])
+        let stored = try store.getTransaction(walletId: .mock(), transactionId: transactionId)
+        let query = ObservableQuery(TransactionQuery(walletId: .mock(), key: .record(stored.recordId)), initialValue: stored)
+        query.bind(dbQueue: db.dbQueue)
+
+        try store.deleteTransaction(walletId: .mock(), transactionId: transactionId)
+
+        #expect(throws: RecordError.self) {
+            try db.dbQueue.read { try TransactionQuery(walletId: .mock(), key: .record(stored.recordId)).fetch($0) }
+        }
+        #expect(query.value?.transaction.id == transactionId)
+    }
+
     private func expectUpdate(_ query: ObservableQuery<TransactionQuery>, update: () throws -> Void) async throws {
         let expectation = XCTestExpectation(description: "Transaction observation updated")
         withObservationTracking {

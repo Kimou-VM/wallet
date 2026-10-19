@@ -20,11 +20,15 @@ public struct TransactionQuery: DatabaseQueryable {
 
     public func fetch(_ db: Database) throws -> TransactionExtended? {
         let wallet = TransactionRecord.filter(TransactionRecord.Columns.walletId == walletId.id)
-        let request = switch key {
-        case let .record(recordId): wallet.filter(TransactionRecord.Columns.id == recordId)
-        case let .transaction(transactionId): wallet.filter(TransactionRecord.Columns.transactionId == transactionId.identifier)
+        switch key {
+        case let .record(recordId):
+            guard let transaction = try TransactionsQuery.extendedTransactions(db, request: wallet.filter(TransactionRecord.Columns.id == recordId)).first else {
+                throw RecordError.recordNotFound(databaseTableName: TransactionRecord.databaseTableName, key: [:])
+            }
+            return transaction
+        case let .transaction(transactionId):
+            return try TransactionsQuery.extendedTransactions(db, request: wallet.filter(TransactionRecord.Columns.transactionId == transactionId.identifier)).first
         }
-        return try TransactionsQuery.extendedTransactions(db, request: request).first
     }
 }
 

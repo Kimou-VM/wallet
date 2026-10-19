@@ -205,6 +205,22 @@ struct TransactionSceneViewModelLoadTests {
     }
 
     @Test
+    func aLoadedTransactionIsFollowedByItsRecord() {
+        let model = TransactionSceneViewModel(
+            transactionId: .mock(),
+            transaction: nil,
+            wallet: .mock(),
+            service: GemTransactionDetailsService.mock(),
+            transactionsService: GemTransactionsServiceMock(),
+        )
+        #expect(model.query.request.base == TransactionQuery(walletId: Wallet.mock().id, key: .transaction(.mock())))
+
+        model.onRecordChange(7)
+
+        #expect(model.query.request.base == TransactionQuery(walletId: Wallet.mock().id, key: .record(7)))
+    }
+
+    @Test
     func aFailedLoadKeepsItsErrorForTryAgain() async {
         let service = GemTransactionsServiceMock()
         service.loadState = .error(error: .Api(msg: "not found"))

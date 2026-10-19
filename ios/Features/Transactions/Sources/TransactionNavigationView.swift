@@ -20,6 +20,9 @@ public struct TransactionNavigationView: View {
         content
             .bindQuery(model.query)
             .task { await model.load() }
+            .onChange(of: model.details?.transaction.recordId, initial: true) { _, recordId in
+                model.onRecordChange(recordId)
+            }
             .toolbar {
                 if model.explorerLink != nil {
                     ToolbarItem(placement: .navigationBarTrailing) {

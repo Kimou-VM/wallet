@@ -82,6 +82,11 @@ public final class TransactionSceneViewModel {
         loadState = .loading
         loadState = await transactionsService.loadTransaction(walletId: walletId, transactionId: transactionId)
     }
+
+    func onRecordChange(_ recordId: UInt64?) {
+        guard let recordId else { return }
+        query.request.base = TransactionQuery(walletId: walletId, key: .record(recordId))
+    }
 }
 
 // MARK: - Sections
