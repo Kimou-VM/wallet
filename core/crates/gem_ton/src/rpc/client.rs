@@ -71,10 +71,7 @@ impl<C: Client> TonClient<C> {
     pub async fn get_jetton_wallet_address(&self, owner: &str, jetton: &str) -> Result<Address, Box<dyn Error + Send + Sync>> {
         let owner = Address::parse(owner)?;
         let result = self.run_get_method(jetton, GET_WALLET_ADDRESS_METHOD, vec![StackArg::slice(owner.to_boc_base64()?)]).await?;
-        if result.exit_code != 0 {
-            return Err(format!("TON get-method {GET_WALLET_ADDRESS_METHOD} exit code {}", result.exit_code).into());
-        }
-        Ok(result.stack_address(0)?)
+        Ok(result.ok(GET_WALLET_ADDRESS_METHOD)?.stack_address(0)?)
     }
 
     pub async fn get_traces_by_message(&self, hash: String) -> Result<TraceResponse, Box<dyn Error + Send + Sync>> {

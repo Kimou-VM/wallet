@@ -46,9 +46,11 @@ where
         let token0 = Address::parse(wallet0)?;
         let token1 = Address::parse(wallet1)?;
         let result = self
-            .run_validated_get_method(router.address, GET_POOL_ADDRESS_METHOD, vec![StackArg::slice(token0.to_boc_base64()?), StackArg::slice(token1.to_boc_base64()?)])
-            .await?;
-        stack_cell_address(&result, 0)
+            .ton_client
+            .run_get_method(router.address, GET_POOL_ADDRESS_METHOD, vec![StackArg::slice(token0.to_boc_base64()?), StackArg::slice(token1.to_boc_base64()?)])
+            .await
+            .map_err(SwapperError::compute_quote_error)?;
+        stack_cell_address(&result.ok(GET_POOL_ADDRESS_METHOD)?, 0)
     }
 
     pub(super) async fn get_pool_data(&self, pool_address: &str) -> Result<PoolData, SwapperError> {
@@ -76,18 +78,6 @@ where
         self.jetton_wallet_cache.put(key, wallet.clone());
         Ok(wallet)
     }
-
-    async fn run_validated_get_method(&self, address: &str, method: &str, stack: Vec<StackArg>) -> Result<RunGetMethodResult, SwapperError> {
-        let result = self.ton_client.run_get_method(address, method, stack).await.map_err(SwapperError::compute_quote_error)?;
-        validate_run_get_method(method, result)
-    }
-}
-
-fn validate_run_get_method(method: &str, result: RunGetMethodResult) -> Result<RunGetMethodResult, SwapperError> {
-    if result.exit_code != 0 {
-        return Err(SwapperError::ComputeQuoteError(format!("TON get-method {method} exit code {}", result.exit_code)));
-    }
-    Ok(result)
 }
 
 fn parse_pool_data(result: &RunGetMethodResult) -> Result<PoolData, SwapperError> {

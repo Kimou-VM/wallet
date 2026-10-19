@@ -4,12 +4,7 @@ use super::{
 };
 use crate::{SwapperError, route_cache::Cache};
 use gem_client::Client;
-use gem_ton::{
-    address::Address,
-    models::{RunGetMethodResult, StackArg},
-    rpc::client::TonClient,
-    tvm::TvmError,
-};
+use gem_ton::{address::Address, models::StackArg, rpc::client::TonClient, tvm::TvmError};
 use num_bigint::BigUint;
 use primitives::{HOUR, WEEK};
 
@@ -90,16 +85,9 @@ impl<C: Client> DedustClient<C> {
         if let Some(address) = self.addresses.get(&key) {
             return Ok(address);
         }
-        let address = self.run_factory_method(key.method(), key.stack()?).await?.stack_address(0)?;
+        let result = self.ton_client.run_get_method(FACTORY, key.method(), key.stack()?).await.map_err(SwapperError::compute_quote_error)?;
+        let address = result.ok(key.method())?.stack_address(0)?;
         self.addresses.put(key, address);
         Ok(address)
-    }
-
-    async fn run_factory_method(&self, method: &str, stack: Vec<StackArg>) -> Result<RunGetMethodResult, SwapperError> {
-        let result = self.ton_client.run_get_method(FACTORY, method, stack).await.map_err(SwapperError::compute_quote_error)?;
-        match result.exit_code {
-            0 => Ok(result),
-            exit_code => Err(SwapperError::ComputeQuoteError(format!("DeDust factory {method} exit code {exit_code}"))),
-        }
     }
 }

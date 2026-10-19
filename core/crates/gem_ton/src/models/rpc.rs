@@ -42,6 +42,13 @@ pub struct RunGetMethodResult {
 
 #[cfg(feature = "tvm")]
 impl RunGetMethodResult {
+    pub fn ok(self, method: &str) -> Result<Self, TvmError> {
+        match self.exit_code {
+            0 => Ok(self),
+            exit_code => Err(TvmError::new(format!("TON get-method {method} exit code {exit_code}"))),
+        }
+    }
+
     pub fn stack_num(&self, index: usize) -> Result<BigUint, TvmError> {
         let value = self.stack.get(index).and_then(StackEntry::as_num).ok_or_else(|| TvmError::new("missing TON number stack entry"))?;
         match value.strip_prefix("0x") {
@@ -111,5 +118,14 @@ mod tests {
         for invalid in [r#"{"type":"num","value":7}"#, r#"{"type":"cell"}"#] {
             assert!(serde_json::from_str::<StackEntry>(invalid).is_err());
         }
+    }
+
+    #[cfg(feature = "tvm")]
+    #[test]
+    fn test_run_get_method_result_ok() {
+        let result = |exit_code| RunGetMethodResult { stack: vec![], exit_code };
+
+        assert_eq!(result(0).ok("get_wallet_address").unwrap(), result(0));
+        assert_eq!(result(1).ok("get_wallet_address").unwrap_err().to_string(), "TON get-method get_wallet_address exit code 1");
     }
 }
