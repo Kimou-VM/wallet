@@ -52,18 +52,14 @@ impl<C: Client> TronClient<C> {
         Ok(Some(serde_json::from_value(response)?))
     }
 
-    pub async fn trigger_constant_contract(&self, contract_address: &str, function_selector: &str, parameter: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
-        self.trigger_constant_contract_with_owner(DEFAULT_OWNER_ADDRESS, contract_address, function_selector, parameter).await
-    }
-
     pub async fn call_contract<T: SolCall + Sync>(&self, contract_address: &str, call: &T) -> Result<T::Return, Box<dyn Error + Send + Sync>> {
         let result = self.trigger_constant_contract(contract_address, T::SIGNATURE, &hex::encode(&call.abi_encode()[4..])).await?;
         Ok(T::abi_decode_returns(&decode_hex(&result)?)?)
     }
 
-    pub async fn trigger_constant_contract_with_owner(&self, owner_address: &str, contract_address: &str, function_selector: &str, parameter: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
+    pub async fn trigger_constant_contract(&self, contract_address: &str, function_selector: &str, parameter: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
         let request = TriggerConstantContractRequest {
-            owner_address: owner_address.to_owned(),
+            owner_address: DEFAULT_OWNER_ADDRESS.to_owned(),
             contract_address: contract_address.to_string(),
             function_selector: function_selector.to_string(),
             parameter: parameter.to_string(),

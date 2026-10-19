@@ -3,7 +3,7 @@ use alloy_primitives::{Address, hex::decode as HexDecode};
 use alloy_sol_types::SolCall;
 use gem_evm::{
     across::{contracts::AcrossConfigStore, fees},
-    jsonrpc::{BlockParameter, EthereumRpc, TransactionObject},
+    jsonrpc::EthereumRpc,
 };
 use primitives::{AssetId, contract_constants::ETHEREUM_ACROSS_CONFIG_STORE_CONTRACT};
 use serde::Deserialize;
@@ -31,10 +31,7 @@ pub(super) struct TokenConfig {
 impl TokenConfig {
     pub(super) fn request(l1_token: &Address) -> EthereumRpc {
         let data = AcrossConfigStore::l1TokenConfigCall { l1Token: *l1_token }.abi_encode();
-        EthereumRpc::Call {
-            transaction: TransactionObject::new_call(ETHEREUM_ACROSS_CONFIG_STORE_CONTRACT, data),
-            block: BlockParameter::Latest,
-        }
+        EthereumRpc::call(ETHEREUM_ACROSS_CONFIG_STORE_CONTRACT, data)
     }
 
     pub(super) fn decode(result: String) -> Result<Self, SwapperError> {

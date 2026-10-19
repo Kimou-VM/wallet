@@ -26,7 +26,7 @@ use gem_evm::{
         fees::{self, LpFeeCalculator, RelayerFeeCalculator},
     },
     contracts::erc20::IERC20,
-    jsonrpc::{BlockParameter, EthereumRpc, TransactionObject},
+    jsonrpc::{EthereumRpc, TransactionObject},
     multicall3::{IMulticall3, deployment_by_chain},
     u256::biguint_to_u256,
     weth::WETH9,
@@ -80,10 +80,7 @@ impl Across {
     fn multicall_request(chain: Chain, calls: Vec<IMulticall3::Call3>) -> Result<EthereumRpc, SwapperError> {
         let chain = EVMChain::from_chain(chain).ok_or(SwapperError::NotSupportedChain)?;
         let data = IMulticall3::aggregate3Call { calls }.abi_encode();
-        Ok(EthereumRpc::Call {
-            transaction: TransactionObject::new_call(deployment_by_chain(&chain), data),
-            block: BlockParameter::Latest,
-        })
+        Ok(EthereumRpc::call(deployment_by_chain(&chain), data))
     }
 
     fn decode_multicall(result: String) -> Result<Vec<IMulticall3::Result>, SwapperError> {
