@@ -122,13 +122,9 @@ pub fn default_referral_fees() -> ReferralFees {
 }
 
 pub fn on_chain_referral_fees(request: &QuoteRequest) -> ReferralFees {
-    referral_fees(on_chain_fee_bps(request, DEFAULT_SWAP_FEE_BPS))
-}
-
-pub fn on_chain_fee_bps(request: &QuoteRequest, bps: u32) -> u32 {
     match request.is_stablecoin_swap() {
-        true => STABLECOIN_SWAP_FEE_BPS,
-        false => bps,
+        true => referral_fees(STABLECOIN_SWAP_FEE_BPS),
+        false => default_referral_fees(),
     }
 }
 
@@ -159,22 +155,23 @@ pub fn default_referral_address(chain: Chain) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{SwapperQuoteAsset, fees::DEFAULT_AGGREGATOR_FEE_BPS, testkit::mock_quote};
+    use crate::{SwapperQuoteAsset, testkit::mock_quote};
     use primitives::{AssetId, asset_constants::*};
 
     #[test]
-    fn test_on_chain_fee_bps() {
+    fn test_on_chain_referral_fees() {
         let asset = |chain: Chain, token_id: &str, symbol: &str| SwapperQuoteAsset::mock_with_asset_id(AssetId::from_token(chain, token_id), symbol, 6);
         let usdt = asset(Chain::Ethereum, ETHEREUM_USDT_TOKEN_ID, "USDT");
         let usdc = asset(Chain::Ethereum, ETHEREUM_USDC_TOKEN_ID, "USDC");
         let named_usdc = asset(Chain::Ethereum, "0x0000000000000000000000000000000000000001", "USDC");
         let eth = SwapperQuoteAsset::from(AssetId::from_chain(Chain::Ethereum));
 
-        assert_eq!(on_chain_fee_bps(&mock_quote(usdt.clone(), usdc.clone()), DEFAULT_SWAP_FEE_BPS), STABLECOIN_SWAP_FEE_BPS);
-        assert_eq!(on_chain_fee_bps(&mock_quote(usdt.clone(), usdc.clone()), DEFAULT_AGGREGATOR_FEE_BPS), STABLECOIN_SWAP_FEE_BPS);
-        assert_eq!(on_chain_fee_bps(&mock_quote(usdt.clone(), eth), DEFAULT_SWAP_FEE_BPS), DEFAULT_SWAP_FEE_BPS);
-        assert_eq!(on_chain_fee_bps(&mock_quote(named_usdc, usdt.clone()), DEFAULT_AGGREGATOR_FEE_BPS), DEFAULT_AGGREGATOR_FEE_BPS);
-        assert_eq!(on_chain_referral_fees(&mock_quote(usdc, usdt)).evm.bps, STABLECOIN_SWAP_FEE_BPS);
+        let bps = |from: &SwapperQuoteAsset, to: &SwapperQuoteAsset| on_chain_referral_fees(&mock_quote(from.clone(), to.clone())).evm.bps;
+
+        assert_eq!(bps(&usdt, &usdc), STABLECOIN_SWAP_FEE_BPS);
+        assert_eq!(bps(&usdc, &usdt), STABLECOIN_SWAP_FEE_BPS);
+        assert_eq!(bps(&usdt, &eth), DEFAULT_SWAP_FEE_BPS);
+        assert_eq!(bps(&named_usdc, &usdt), DEFAULT_SWAP_FEE_BPS);
     }
 
     #[test]

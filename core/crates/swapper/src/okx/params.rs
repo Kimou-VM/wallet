@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     QuoteRequest, SwapperError,
-    fees::{DEFAULT_AGGREGATOR_FEE_BPS, bps_to_percent_string, on_chain_fee_bps},
+    fees::{DEFAULT_AGGREGATOR_FEE_BPS, bps_to_percent_string},
 };
 use primitives::{
     Chain, ChainType,
@@ -51,7 +51,7 @@ pub(super) fn build_quote_params(request: &QuoteRequest) -> Result<QuoteParams, 
         to_token_address: asset_to_token_address(&request.to_asset)?,
         slippage_percent: bps_to_percent_string(limit_slippage_bps(request.options.slippage.bps, chain))?,
         dex_ids: dex_ids(chain).map(str::to_string),
-        fee_percent: bps_to_percent_string(on_chain_fee_bps(request, DEFAULT_AGGREGATOR_FEE_BPS))?,
+        fee_percent: bps_to_percent_string(DEFAULT_AGGREGATOR_FEE_BPS)?,
     })
 }
 
@@ -73,7 +73,7 @@ pub(super) fn build_swap_params(request: &QuoteRequest, route: &QuoteData) -> Re
         auto_slippage: Some(is_auto),
         max_auto_slippage_percent: is_auto.then(|| bps_to_percent_string(max_slippage_bps(request))).transpose()?,
         dex_ids: dex_ids(chain).map(str::to_string),
-        fee_percent: bps_to_percent_string(on_chain_fee_bps(request, DEFAULT_AGGREGATOR_FEE_BPS))?,
+        fee_percent: bps_to_percent_string(DEFAULT_AGGREGATOR_FEE_BPS)?,
         from_token_referrer_wallet_address: referrers.from_token,
         to_token_referrer_wallet_address: referrers.to_token,
     })

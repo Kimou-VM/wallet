@@ -94,9 +94,9 @@ Gem takes `0.5%` of every swap and bridge, with these exceptions:
 | A stablecoin to another stablecoin on one network | `0.25%` |
 | A bridge through Across | `0.25%` |
 | Chainflip | `0.45%` |
-| OKX, except a stablecoin pair | `0.7%` |
+| OKX | `0.7%` |
 
-The stablecoin rate applies to every provider that swaps on one network: Uniswap, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, PumpSwap, Meteora, Cetus, STON.fi, DeDust, Hyperion, Jupiter and OKX. A stablecoin is a token on the official list: USDT, USDC, USDS, USDe, USD1, USDG and PYUSD, on the networks their issuers deploy them to; a token that only carries one of those names pays the full fee (`test_on_chain_fee_bps`). On a stablecoin pair the pool's own fee is about `0.01%`, so Gem's fee is nearly the whole cost: on 2026-10-19, 10,000 USDT to USDC on Ethereum received `9,963.03` USDC at `0.25%`, against `9,937.99` at `0.5%`. A stablecoin moved to another network pays `0.5%` like any cross-chain swap, unless it goes through Across.
+The stablecoin rate applies to every provider that swaps on one network: Uniswap, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, PumpSwap, Meteora, Cetus, STON.fi, DeDust, Hyperion and Jupiter; OKX keeps `0.7%`. A stablecoin is a token on the official list: USDT, USDC, USDS, USDe, USD1, USDG and PYUSD, on the networks their issuers deploy them to; a token that only carries one of those names pays the full fee (`test_on_chain_fee_bps`). On a stablecoin pair the pool's own fee is about `0.01%`, so Gem's fee is nearly the whole cost: on 2026-10-19, 10,000 USDT to USDC on Ethereum received `9,963.03` USDC at `0.25%`, against `9,937.99` at `0.5%`. A stablecoin moved to another network pays `0.5%` like any cross-chain swap, unless it goes through Across.
 
 NEAR Intents gives half of every app fee to NEAR's buyback wallet: its docs set a 50/50 split for partners with an API key, with NEAR keeping at least `0.2%`, or `0.01%` on stablecoin and same-asset routes. So the wallet asks NEAR for `1%`, Gem receives `0.5%` and NEAR's buyback wallet `0.5%`. On 2026-10-19 a quote with no app fee for 1 ETH to SOL paid NEAR `0.2%`; a `0.5%` app fee showed in NEAR's explorer as `0.25%` to Gem and `0.25%` to the buyback wallet, and a `1%` app fee as `0.5%` to each. Until 2026-10-19 the wallet asked for `0.5%`, so Gem received `0.25%` from NEAR Intents.
 
