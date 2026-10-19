@@ -21,7 +21,7 @@ These need no further answer; work them in this order, one family per change.
 
 1. **App models to Core records:** VM269 to VM287 (second round) area by area as grouped in section 5, then VM294 (scenes) in the same way.
 
-Waiting on the owner: BD29 (server), VM79, VM296 (review first), VM181, VM183, D175 (on hold), X171, CLN455, and everything under [Needs review](#needs-review). Waiting on a date or a release: X168, X169, X170, X163, X172, X173, X174, X176.
+Waiting on the owner: BD29 (server), VM79, VM296 (review first), VM181, VM183, D175 (on hold), X171, CLN455, and everything under [Needs review](#needs-review). Waiting on a date or a release: X168, X169, X170, X163, X172, X173, X174, X176, X526.
 
 ## Screen coverage and existing infrastructure
 
