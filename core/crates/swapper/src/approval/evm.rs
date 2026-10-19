@@ -1,4 +1,4 @@
-use super::permit2_approval;
+use super::{join_permit2_approvals, permit2_approval};
 use crate::{SwapperError, alien::RpcProvider, client_factory::create_client_with_chain, error::INVALID_ADDRESS, eth_address, models::Permit2ApprovalData};
 use gem_client::Client;
 use gem_evm::u256::u256_to_biguint;
@@ -70,14 +70,12 @@ pub async fn check_permit2_approvals<C>(
 where
     C: Client + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
-    let approval = check_approval_erc20_with_client(owner.to_string(), token.to_string(), permit2_contract.to_string(), amount, client);
-    let permit2 = async {
-        match signed_permit {
-            true => Ok(None),
-            false => check_approval_permit2_with_client(permit2_contract, owner.to_string(), token.to_string(), router.to_string(), amount, client).await,
-        }
-    };
-    futures::try_join!(approval, permit2)
+    join_permit2_approvals(
+        check_approval_erc20_with_client(owner.to_string(), token.to_string(), permit2_contract.to_string(), amount, client),
+        check_approval_permit2_with_client(permit2_contract, owner.to_string(), token.to_string(), router.to_string(), amount, client),
+        signed_permit,
+    )
+    .await
 }
 
 #[cfg(test)]

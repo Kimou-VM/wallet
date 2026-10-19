@@ -41,6 +41,20 @@ pub(crate) fn permit2_approval(allowance: &IAllowanceTransfer::allowanceReturn, 
     Ok(None)
 }
 
+pub(crate) async fn join_permit2_approvals(
+    approval: impl Future<Output = Result<Option<ApprovalData>, SwapperError>>,
+    permit2: impl Future<Output = Result<Option<Permit2ApprovalData>, SwapperError>>,
+    signed_permit: bool,
+) -> Result<(Option<ApprovalData>, Option<Permit2ApprovalData>), SwapperError> {
+    let permit2 = async {
+        match signed_permit {
+            true => Ok(None),
+            false => permit2.await,
+        }
+    };
+    futures::try_join!(approval, permit2)
+}
+
 /// Returns the swap transaction gas limit only when a separate approval transaction is required.
 pub fn get_swap_gas_limit_with_approval(approval: &Option<ApprovalData>, swap_gas_limit: Option<String>, default_swap_gas_limit: u64) -> Option<String> {
     approval.as_ref().map(|_| swap_gas_limit.unwrap_or_else(|| default_swap_gas_limit.to_string()))
