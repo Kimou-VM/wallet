@@ -50,15 +50,12 @@ impl Relay<RpcClient> {
     }
 }
 
-fn app_fees() -> Vec<RelayAppFee> {
+fn app_fee() -> RelayAppFee {
     let fee = default_referral_fees().evm;
-    if fee.address.is_empty() {
-        return vec![];
-    }
-    vec![RelayAppFee {
+    RelayAppFee {
         recipient: fee.address,
         fee: fee.bps.to_string(),
-    }]
+    }
 }
 
 #[async_trait]
@@ -87,7 +84,6 @@ where
 
         let origin_currency = asset_to_currency(&from_asset_id)?;
         let destination_currency = asset_to_currency(&to_asset_id)?;
-        let app_fees = app_fees();
         let from_value = request.value.clone();
         let slippage_tolerance = match request.options.slippage.mode {
             SlippageMode::Auto => None,
@@ -105,8 +101,8 @@ where
             trade_type: "EXACT_INPUT".to_string(),
             include_compute_unit_limit: true,
             slippage_tolerance,
-            referrer: if app_fees.is_empty() { None } else { Some(DEFAULT_REFERRER.to_string()) },
-            app_fees,
+            referrer: DEFAULT_REFERRER.to_string(),
+            app_fees: vec![app_fee()],
             refund_to: request.wallet_address.clone(),
             max_route_length: 6,
             use_deposit_address: from_chain.uses_deposit_address(),

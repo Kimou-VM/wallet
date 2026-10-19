@@ -77,15 +77,12 @@ impl<C> NearIntents<C>
 where
     C: gem_client::Client + Clone + Send + Sync + Debug + 'static,
 {
-    fn build_app_fee() -> Option<Vec<AppFee>> {
+    fn build_app_fee() -> AppFee {
         let fee = default_referral_fees().near;
-        if fee.address.is_empty() || fee.bps == 0 {
-            return None;
-        }
-        Some(vec![AppFee {
+        AppFee {
             recipient: fee.address,
             fee: fee.bps * APP_FEE_SPLIT,
-        }])
+        }
     }
 
     fn build_quote_request(request: &QuoteRequest, dry: bool) -> Result<NearQuoteRequest, SwapperError> {
@@ -109,7 +106,7 @@ where
             recipient: request.destination_address.clone(),
             swap_type: chain::swap_type(from_chain),
             slippage_tolerance: request.options.slippage.bps,
-            app_fees: Self::build_app_fee(),
+            app_fees: Some(vec![Self::build_app_fee()]),
             deposit_type: DEPOSIT_TYPE_ORIGIN.to_string(),
             refund_to: request.wallet_address.clone(),
             refund_type: DEPOSIT_TYPE_ORIGIN.to_string(),
