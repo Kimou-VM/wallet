@@ -189,6 +189,7 @@ Findings from reviewing commits that nobody has accepted yet, and not all of the
   - **Expected:** needs a decision (design).
 - **CLN510** **S** **Orca and Raydium each build their swap instruction.** `whirlpool_instruction` ([`orca/swap.rs`](../core/crates/swapper/src/orca/swap.rs)) and `raydium_instruction` ([`raydium_clmm/swap.rs`](../core/crates/swapper/src/raydium_clmm/swap.rs)) are the same body over a different program id (68d9dfe937, f22d437b75). Wallet-critical.
 - **CLN519** **S** **Dependabot's Swift job fails every day.** [`dependabot.yml`](../.github/dependabot.yml) points `swift` at `/ios`, which has no `Package.swift` or `Package.resolved`, so iOS packages get no update or advisory checks.
+- **CLN530** **S** **Every swap provider carries its name twice.** Since 0d094e9f9a dropped `SwapProvider::protocol_name`, `ProviderType.protocol` is always `id.name()`, the same value as `name` ([`models.rs`](../core/crates/swapper/src/models.rs)), and `SwapProviderData.protocol_name` copies it ([`rules.rs`](../core/gemstone/src/services/swap/rules.rs)); dropping both changes the swap FFI records on both apps.
 
 ## Blocked upstream
 
