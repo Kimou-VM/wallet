@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use crate::AssetId;
 use model_derive::Model;
 use num_bigint::BigUint;
@@ -11,6 +13,20 @@ pub struct AddressBalances {
     pub assets: Vec<AssetBalance>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assets_error: Option<String>,
+}
+
+impl AddressBalances {
+    pub fn new(coin: AssetBalance, staking: Option<AssetBalance>, assets: Result<Vec<AssetBalance>, Box<dyn Error + Send + Sync>>) -> Self {
+        match assets {
+            Ok(assets) => Self { coin, staking, assets, assets_error: None },
+            Err(error) => Self {
+                coin,
+                staking,
+                assets: vec![],
+                assets_error: Some(error.to_string()),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Model)]
@@ -193,6 +209,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use crate::Chain;
 
     #[test]
     fn test_balance_json_uses_decimal_strings() {
@@ -216,5 +233,30 @@ mod tests {
             })
         );
         assert_eq!(serde_json::from_value::<Balance>(value).unwrap(), balance);
+    }
+
+    #[test]
+    fn test_address_balances_new() {
+        let coin = AssetBalance::new_zero_balance(AssetId::from_chain(Chain::Monad));
+        let token = AssetBalance::new_zero_balance(AssetId::from_token(Chain::Monad, "0x754704Bc059F8C67012fEd69BC8A327a5aafb603"));
+
+        assert_eq!(
+            AddressBalances::new(coin.clone(), None, Ok(vec![token.clone()])),
+            AddressBalances {
+                coin: coin.clone(),
+                staking: None,
+                assets: vec![token],
+                assets_error: None,
+            }
+        );
+        assert_eq!(
+            AddressBalances::new(coin.clone(), None, Err("Alchemy: no endpoint is available (-32900)".into())),
+            AddressBalances {
+                coin,
+                staking: None,
+                assets: vec![],
+                assets_error: Some("Alchemy: no endpoint is available (-32900)".to_string()),
+            }
+        );
     }
 }
