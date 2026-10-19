@@ -11,6 +11,7 @@ use primitives::{AssetId, Chain, StakeType, TransactionFee, TronStakeData, TronU
 
 pub(crate) const FEE_LIMIT_BUFFER_PERCENT: u64 = 20;
 pub(crate) const SMART_CONTRACT_FEE_LIMIT_BUFFER_PERCENT: u64 = 30;
+const CREATOR_DEFAULT_ENERGY_LIMIT: u64 = 10_000_000;
 
 pub(crate) struct FeeEstimateContext<'a> {
     pub(crate) chain_parameters: &'a [ChainParameter],
@@ -188,7 +189,11 @@ impl TronContractInfo {
 
     pub fn caller_energy(&self, energy: u64, origin_usage: &TronAccountUsage) -> u64 {
         let origin_share = energy * (100 - self.consume_user_resource_percent.min(100)) / 100;
-        energy - origin_share.min(self.origin_energy_limit).min(origin_usage.available_energy())
+        let origin_energy_limit = match self.origin_energy_limit {
+            0 => CREATOR_DEFAULT_ENERGY_LIMIT,
+            limit => limit,
+        };
+        energy - origin_share.min(origin_energy_limit).min(origin_usage.available_energy())
     }
 }
 
@@ -227,6 +232,11 @@ mod tests {
             .caller_pays_all_energy()
         );
         assert!(TronContractInfo::default().caller_pays_all_energy());
+
+        let unlimited: TronContractInfo = serde_json::from_str(r#"{"origin_address":"TQqgNg13s2DjvXhW1ky4v6TsR8wZGvb7Y4","consume_user_resource_percent":1}"#).unwrap();
+
+        assert_eq!(unlimited.caller_energy(400_000, &funded), 4_000);
+        assert_eq!(unlimited.caller_energy(20_000_000, &TronAccountUsage::mock(0, 0, 20_000_000)), 10_000_000);
     }
 
     fn calculate_token_transfer_fee(account_usage: &TronAccountUsage, estimated_energy: u64, energy_price: u64, bandwidth_price: u64) -> TokenTransferFee {
