@@ -30,10 +30,6 @@ impl DexProtocol for MeteoraDlmm {
         Ok(Pair::decode(data)?)
     }
 
-    fn liquidity(&self, pair: &Pair) -> u128 {
-        u128::from(pair.arrays_with_liquidity())
-    }
-
     fn is_tradable(&self, pair: &Pair, timestamp: u64) -> bool {
         pair.is_tradable(timestamp)
     }

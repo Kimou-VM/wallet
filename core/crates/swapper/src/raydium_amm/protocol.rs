@@ -21,10 +21,6 @@ impl DexProtocol for RaydiumAmm {
         Pool::decode(data)
     }
 
-    fn liquidity(&self, pool: &Pool) -> u128 {
-        u128::from(pool.lp_amount)
-    }
-
     fn is_tradable(&self, pool: &Pool, timestamp: u64) -> bool {
         pool.is_tradable(timestamp)
     }

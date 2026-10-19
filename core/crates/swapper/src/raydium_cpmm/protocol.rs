@@ -21,10 +21,6 @@ impl DexProtocol for RaydiumCpmm {
         Ok(Pool::decode(data)?)
     }
 
-    fn liquidity(&self, pool: &Pool) -> u128 {
-        u128::from(pool.lp_supply)
-    }
-
     fn constant_accounts(&self, pool: &Pool) -> Vec<Pubkey> {
         vec![pool.amm_config]
     }

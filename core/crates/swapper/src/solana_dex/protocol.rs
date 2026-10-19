@@ -108,16 +108,20 @@ pub(crate) trait DexPool {
     }
 }
 
+pub(crate) trait NativeTwoHop<Pool> {
+    fn liquidity(&self, pool: &Pool) -> u128;
+    fn two_hop_swap_instruction(&self, first: &(Pubkey, Pool), second: &(Pubkey, Pool), swap: &PoolSwap, intermediate: &SwapToken) -> Result<Instruction, SwapperError>;
+}
+
 pub(crate) trait DexProtocol: Send + Sync {
     type Pool: Clone + PartialEq + Send + Sync;
 
     const PROVIDER: SwapperProvider;
     const PROGRAM_ID: Pubkey;
-    const NATIVE_TWO_HOP: bool = false;
-    const INTERMEDIATE_TOKEN_ACCOUNT: bool = !Self::NATIVE_TWO_HOP;
+    const INTERMEDIATE_TOKEN_ACCOUNT: bool = true;
 
     fn decode_pool(&self, data: &[u8]) -> Result<Self::Pool, SwapperError>;
-    fn liquidity(&self, pool: &Self::Pool) -> u128;
+    fn is_tradable(&self, pool: &Self::Pool, timestamp: u64) -> bool;
 
     fn pool_addresses(&self, _input_mint: &Pubkey, _output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         Ok(vec![])
@@ -125,10 +129,6 @@ pub(crate) trait DexProtocol: Send + Sync {
 
     fn constant_accounts(&self, _pool: &Self::Pool) -> Vec<Pubkey> {
         vec![]
-    }
-
-    fn is_tradable(&self, pool: &Self::Pool, _timestamp: u64) -> bool {
-        self.liquidity(pool) > 0
     }
 
     fn compute_unit_limit(&self, _swap_instructions: usize) -> u32 {
@@ -151,7 +151,7 @@ pub(crate) trait DexProtocol: Send + Sync {
     fn quote(&self, address: &Pubkey, pool: &Self::Pool, input_mint: &Pubkey, amount_in: u64, accounts: &[Option<Vec<u8>>], timestamp: u64) -> Result<u64, SwapperError>;
     fn swap_instruction(&self, address: &Pubkey, pool: &Self::Pool, swap: &PoolSwap) -> Result<Instruction, SwapperError>;
 
-    fn two_hop_swap_instruction(&self, _first: &(Pubkey, Self::Pool), _second: &(Pubkey, Self::Pool), _swap: &PoolSwap, _intermediate: &SwapToken) -> Result<Instruction, SwapperError> {
-        Err(SwapperError::InvalidRoute)
+    fn native_two_hop(&self) -> Option<&dyn NativeTwoHop<Self::Pool>> {
+        None
     }
 }

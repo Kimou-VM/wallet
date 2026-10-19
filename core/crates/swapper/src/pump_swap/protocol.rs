@@ -26,16 +26,12 @@ impl DexProtocol for PumpSwap {
         Pool::decode_padded(data)
     }
 
-    fn liquidity(&self, pool: &Pool) -> u128 {
-        u128::from(pool.lp_supply)
-    }
-
     fn constant_accounts(&self, _pool: &Pool) -> Vec<Pubkey> {
         vec![FEE_CONFIG]
     }
 
     fn is_tradable(&self, pool: &Pool, _timestamp: u64) -> bool {
-        self.liquidity(pool) > 0 && !pool.is_cashback_coin
+        pool.lp_supply > 0 && !pool.is_cashback_coin
     }
 
     fn quote_accounts(&self, _address: &Pubkey, pool: &Pool, _input_mint: &Pubkey) -> Result<Vec<QuoteAccount>, SwapperError> {

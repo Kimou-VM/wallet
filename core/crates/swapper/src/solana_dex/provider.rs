@@ -243,14 +243,11 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             .into_iter()
             .flat_map(|path| {
                 let legs = path.pairs(&input_mint, &output_mint).into_iter().map(|pair| hops(pair).collect::<Vec<_>>()).collect::<Vec<_>>();
-                let deepest_only = P::NATIVE_TWO_HOP && legs.len() > 1;
+                let native_two_hop = self.protocol.native_two_hop().filter(|_| legs.len() > 1);
                 legs.into_iter()
-                    .map(|leg| {
-                        if deepest_only {
-                            leg.into_iter().max_by_key(|(_, pool)| self.protocol.liquidity(pool)).into_iter().collect()
-                        } else {
-                            leg
-                        }
+                    .map(|leg| match native_two_hop {
+                        Some(two_hop) => leg.into_iter().max_by_key(|(_, pool)| two_hop.liquidity(pool)).into_iter().collect(),
+                        None => leg,
                     })
                     .fold(vec![vec![]], |routes: Vec<PoolRoute<P::Pool>>, leg| {
                         routes.iter().flat_map(|route| leg.iter().map(move |hop| [route.clone(), vec![hop.clone()]].concat())).collect()
@@ -278,7 +275,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             .map(|(route, hop_accounts)| {
                 let output = hop_accounts.and_then(|hop_accounts| {
                     route.iter().zip(hop_accounts).enumerate().try_fold((amount_in, None), |(amount, intermediate_value), (index, ((hop, pool), quote_accounts))| {
-                        let chained = index > 0 && !P::NATIVE_TWO_HOP;
+                        let chained = index > 0 && self.protocol.native_two_hop().is_none();
                         let amount = if chained { minimum_value(amount, slippage_bps) } else { amount };
                         let data = quote_accounts.iter().map(|account| quote_data(&accounts, account)).collect::<Result<Vec<_>, _>>().ok()?;
                         let value = self.protocol.quote(&hop.pool, pool, &hop.input_mint, amount, &data, timestamp).ok()?;
@@ -352,10 +349,10 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
             amount: route.swap_value,
             minimum_out: route.minimum_output(slippage_bps),
         };
-        let swap_instructions = match (pools, swap.intermediate) {
-            ([(address, pool)], None) => vec![self.protocol.swap_instruction(address, pool, &swap)?],
-            ([first, second], Some(intermediate)) if P::NATIVE_TWO_HOP => vec![self.protocol.two_hop_swap_instruction(first, second, &swap, intermediate)?],
-            ([(first_address, first_pool), (second_address, second_pool)], Some(intermediate)) => {
+        let swap_instructions = match (pools, swap.intermediate, self.protocol.native_two_hop()) {
+            ([(address, pool)], None, _) => vec![self.protocol.swap_instruction(address, pool, &swap)?],
+            ([first, second], Some(intermediate), Some(two_hop)) => vec![two_hop.two_hop_swap_instruction(first, second, &swap, intermediate)?],
+            ([(first_address, first_pool), (second_address, second_pool)], Some(intermediate), None) => {
                 let intermediate_value = route.intermediate_value.ok_or(SwapperError::InvalidRoute)?;
                 let first = PoolSwap {
                     intermediate: None,

@@ -131,7 +131,7 @@ impl DexPool for Pair {
 }
 
 impl Pair {
-    pub fn arrays_with_liquidity(&self) -> u32 {
+    fn arrays_with_liquidity(&self) -> u32 {
         self.bin_array_bitmap.iter().map(|limb| limb.count_ones()).sum()
     }
 

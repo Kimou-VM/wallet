@@ -27,10 +27,6 @@ impl DexProtocol for MeteoraDammV2 {
         Ok(Pool::decode(data)?)
     }
 
-    fn liquidity(&self, pool: &Pool) -> u128 {
-        pool.liquidity
-    }
-
     fn is_tradable(&self, pool: &Pool, _timestamp: u64) -> bool {
         pool.is_tradable()
     }

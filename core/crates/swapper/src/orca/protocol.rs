@@ -9,7 +9,7 @@ use super::{
 use crate::{
     SwapperError, SwapperProvider,
     clmm::{StaticFee, quote_exact_in},
-    solana_dex::{DexPool, DexProtocol, INTERMEDIATE_TOKENS, PoolSwap, QuoteAccount, SwapToken},
+    solana_dex::{DexPool, DexProtocol, INTERMEDIATE_TOKENS, NativeTwoHop, PoolSwap, QuoteAccount, SwapToken},
 };
 
 pub(crate) struct Orca;
@@ -19,7 +19,7 @@ impl DexProtocol for Orca {
 
     const PROVIDER: SwapperProvider = SwapperProvider::Orca;
     const PROGRAM_ID: Pubkey = orca_whirlpool_program();
-    const NATIVE_TWO_HOP: bool = true;
+    const INTERMEDIATE_TOKEN_ACCOUNT: bool = false;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         Whirlpool::addresses(input_mint, output_mint)
@@ -29,8 +29,8 @@ impl DexProtocol for Orca {
         Ok(Whirlpool::decode(data)?)
     }
 
-    fn liquidity(&self, pool: &Whirlpool) -> u128 {
-        pool.liquidity
+    fn is_tradable(&self, pool: &Whirlpool, _timestamp: u64) -> bool {
+        pool.liquidity > 0
     }
 
     fn intermediate_tokens(&self) -> &'static [SwapToken] {
@@ -63,6 +63,16 @@ impl DexProtocol for Orca {
 
     fn swap_instruction(&self, address: &Pubkey, pool: &Whirlpool, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
         swap_v2_instruction(address, pool, swap)
+    }
+
+    fn native_two_hop(&self) -> Option<&dyn NativeTwoHop<Whirlpool>> {
+        Some(self)
+    }
+}
+
+impl NativeTwoHop<Whirlpool> for Orca {
+    fn liquidity(&self, pool: &Whirlpool) -> u128 {
+        pool.liquidity
     }
 
     fn two_hop_swap_instruction(&self, first: &(Pubkey, Whirlpool), second: &(Pubkey, Whirlpool), swap: &PoolSwap, intermediate: &SwapToken) -> Result<Instruction, SwapperError> {

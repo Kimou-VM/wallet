@@ -9,7 +9,7 @@ use super::{
 use crate::{
     SwapperError, SwapperProvider,
     clmm::{StaticFee, quote_exact_in},
-    solana_dex::{DexPool, DexProtocol, INTERMEDIATE_TOKENS, PoolSwap, QuoteAccount, SwapToken, account_data},
+    solana_dex::{DexPool, DexProtocol, INTERMEDIATE_TOKENS, NativeTwoHop, PoolSwap, QuoteAccount, SwapToken, account_data},
 };
 
 pub(crate) struct RaydiumClmm;
@@ -19,8 +19,6 @@ impl DexProtocol for RaydiumClmm {
 
     const PROVIDER: SwapperProvider = SwapperProvider::RaydiumClmm;
     const PROGRAM_ID: Pubkey = raydium_clmm_program();
-    const INTERMEDIATE_TOKEN_ACCOUNT: bool = true;
-    const NATIVE_TWO_HOP: bool = true;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         PoolState::addresses(input_mint, output_mint)
@@ -28,10 +26,6 @@ impl DexProtocol for RaydiumClmm {
 
     fn decode_pool(&self, data: &[u8]) -> Result<PoolState, SwapperError> {
         Ok(PoolState::decode(data)?)
-    }
-
-    fn liquidity(&self, pool: &PoolState) -> u128 {
-        pool.liquidity
     }
 
     fn constant_accounts(&self, pool: &PoolState) -> Vec<Pubkey> {
@@ -65,6 +59,16 @@ impl DexProtocol for RaydiumClmm {
 
     fn swap_instruction(&self, address: &Pubkey, pool: &PoolState, swap: &PoolSwap) -> Result<Instruction, SwapperError> {
         swap_v2_instruction(address, pool, swap)
+    }
+
+    fn native_two_hop(&self) -> Option<&dyn NativeTwoHop<PoolState>> {
+        Some(self)
+    }
+}
+
+impl NativeTwoHop<PoolState> for RaydiumClmm {
+    fn liquidity(&self, pool: &PoolState) -> u128 {
+        pool.liquidity
     }
 
     fn two_hop_swap_instruction(&self, first: &(Pubkey, PoolState), second: &(Pubkey, PoolState), swap: &PoolSwap, intermediate: &SwapToken) -> Result<Instruction, SwapperError> {
