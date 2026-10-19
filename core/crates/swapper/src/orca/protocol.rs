@@ -126,7 +126,7 @@ mod tests {
     use gem_encoding::{decode_base64, encode_base64};
     use gem_solana::{USDC_TOKEN_MINT, USDT_TOKEN_MINT, instructions::program_ids::token_program};
     use num_bigint::BigUint;
-    use primitives::{AssetType, testkit::signer_mock::TEST_SOLANA_SENDER};
+    use primitives::{AssetType, swap::SOLANA_REFERRAL_ADDRESS, testkit::signer_mock::TEST_SOLANA_SENDER};
     use std::sync::{
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
@@ -192,19 +192,25 @@ mod tests {
                 .zip(FEE_TIER_INDEXES)
                 .map(move |(address, tier)| (address.to_base58(), account(mock_whirlpool_account(&mint_a, &mint_b, tier), orca_whirlpool_program())))
         });
-        let mints = [input, output].map(|mint| (mint.to_base58(), account(vec![0; 82], token_program())));
+        let referral = Pubkey::from_base58(SOLANA_REFERRAL_ADDRESS).unwrap();
+        let tokens = [input, output].map(|mint| SwapToken { mint, ..SwapToken::mock() });
+        let mints = tokens
+            .iter()
+            .flat_map(|token| [token.mint, token.account(&referral).unwrap()])
+            .map(|address| (address.to_base58(), account(vec![0; 82], token_program())));
         let accounts = mock_snapshot_rpc_accounts().into_iter().chain(pools).chain(mints).collect();
         let sizes = Arc::new(Mutex::new(Vec::new()));
         let orca = SolanaDex::with_client(Orca, mock_rpc_client_with_sizes(accounts, Arc::default(), sizes.clone()));
         let request = QuoteRequest {
+            wallet_address: TEST_SOLANA_SENDER.to_string(),
+            destination_address: TEST_SOLANA_SENDER.to_string(),
             value: BigUint::from(1_000_000u64),
             ..mock_quote(mock_solana_asset(Some(&input.to_base58()), 6), mock_solana_asset(Some(&output.to_base58()), 6))
         };
 
-        let _ = orca.get_quote(&request).await;
-        let _ = orca.get_quote(&request).await;
-
-        assert_eq!(*sizes.lock().unwrap(), [50, 93]);
+        assert_eq!(orca.get_quote(&request).await, Err(SwapperError::NoQuoteAvailable));
+        assert_eq!(orca.get_quote(&request).await, Err(SwapperError::NoQuoteAvailable));
+        assert_eq!(*sizes.lock().unwrap(), [50, 47, 93]);
     }
 
     #[tokio::test]

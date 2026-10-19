@@ -1,7 +1,7 @@
 use gem_solana::Pubkey;
 use serde::{Deserialize, Serialize};
 
-use super::token::{INTERMEDIATE_TOKENS, SwapToken};
+use super::token::SwapToken;
 use crate::{
     SwapperError,
     fees::{FeeSide, ReferralTransfer, SOLANA_FEE_MINTS, subtract_bps},
@@ -25,11 +25,11 @@ pub(crate) struct DexRoute {
 }
 
 impl DexRoute {
-    pub fn intermediate(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Option<&'static SwapToken>, SwapperError> {
+    pub fn intermediate(&self, input_mint: &Pubkey, output_mint: &Pubkey, tokens: &'static [SwapToken]) -> Result<Option<&'static SwapToken>, SwapperError> {
         match self.hops.as_slice() {
             [hop] if hop.input_mint == *input_mint && hop.output_mint == *output_mint => Ok(None),
             [first, second] if first.input_mint == *input_mint && second.output_mint == *output_mint && first.output_mint == second.input_mint => {
-                INTERMEDIATE_TOKENS.iter().find(|token| token.mint == first.output_mint).map(Some).ok_or(SwapperError::InvalidRoute)
+                tokens.iter().find(|token| token.mint == first.output_mint).map(Some).ok_or(SwapperError::InvalidRoute)
             }
             _ => Err(SwapperError::InvalidRoute),
         }
@@ -63,6 +63,7 @@ pub(crate) fn preferred_fee_side(input_mint: &Pubkey, output_mint: &Pubkey) -> O
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::solana_dex::token::{INTERMEDIATE_TOKENS, SOL_INTERMEDIATE};
     use gem_solana::{USDC_TOKEN_MINT, USDS_TOKEN_MINT, USDT_TOKEN_MINT, WSOL_TOKEN_ADDRESS};
 
     const BONK: &str = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
@@ -97,12 +98,18 @@ mod tests {
             intermediate_value: None,
         };
 
-        assert_eq!(route(vec![hop(bonk, sol)]).intermediate(&bonk, &sol), Ok(None));
-        assert_eq!(route(vec![hop(bonk, usdc), hop(usdc, sol)]).intermediate(&bonk, &sol), Ok(Some(&INTERMEDIATE_TOKENS[1])));
-        assert_eq!(route(vec![hop(bonk, sol)]).intermediate(&sol, &bonk), Err(SwapperError::InvalidRoute));
-        assert_eq!(route(vec![hop(bonk, usdc), hop(sol, usdc)]).intermediate(&bonk, &usdc), Err(SwapperError::InvalidRoute));
-        assert_eq!(route(vec![hop(sol, bonk), hop(bonk, usdc)]).intermediate(&sol, &usdc), Err(SwapperError::InvalidRoute));
-        assert_eq!(route(vec![]).intermediate(&sol, &usdc), Err(SwapperError::InvalidRoute));
+        let tokens = &INTERMEDIATE_TOKENS;
+        assert_eq!(route(vec![hop(bonk, sol)]).intermediate(&bonk, &sol, tokens), Ok(None));
+        assert_eq!(route(vec![hop(bonk, usdc), hop(usdc, sol)]).intermediate(&bonk, &sol, tokens), Ok(Some(&INTERMEDIATE_TOKENS[1])));
+        assert_eq!(
+            route(vec![hop(bonk, usdc), hop(usdc, sol)]).intermediate(&bonk, &sol, &SOL_INTERMEDIATE),
+            Err(SwapperError::InvalidRoute),
+            "a protocol that routes only through SOL rejects USDC"
+        );
+        assert_eq!(route(vec![hop(bonk, sol)]).intermediate(&sol, &bonk, tokens), Err(SwapperError::InvalidRoute));
+        assert_eq!(route(vec![hop(bonk, usdc), hop(sol, usdc)]).intermediate(&bonk, &usdc, tokens), Err(SwapperError::InvalidRoute));
+        assert_eq!(route(vec![hop(sol, bonk), hop(bonk, usdc)]).intermediate(&sol, &usdc, tokens), Err(SwapperError::InvalidRoute));
+        assert_eq!(route(vec![]).intermediate(&sol, &usdc, tokens), Err(SwapperError::InvalidRoute));
     }
 
     #[test]
@@ -128,7 +135,7 @@ mod tests {
     }
 
     #[test]
-    fn test_intermediate_value_is_kept_only_for_chained_hops() {
+    fn test_intermediate_value_round_trips_and_is_left_out_when_absent() {
         let route = DexRoute {
             hops: vec![],
             swap_value: 1,

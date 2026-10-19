@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-use futures::future::try_join_all;
+use futures::future::{join_all, try_join_all};
 use gem_client::Client;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_solana::{
@@ -118,7 +118,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         if live.is_empty() && !outpriced.is_empty() {
             lookups.iter().flat_map(|lookup| &lookup.known).map(|(address, _)| *address).collect()
         } else {
-            outpriced.iter().flat_map(|route| route_pools(route)).collect()
+            pools_only_in(&outpriced, &live)
         }
     }
 
@@ -136,8 +136,8 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
 
     async fn query_route_pools(&self, pair: Pair) -> Result<(), SwapperError> {
         let pairs = self.route_paths(pair).iter().flat_map(|path| path.pairs(&pair.0, &pair.1)).collect::<BTreeSet<_>>();
-        try_join_all(pairs.into_iter().map(|pair| self.query_pools(pair))).await?;
-        Ok(())
+        let results = join_all(pairs.iter().map(|pair| self.query_pools(*pair))).await;
+        pairs.into_iter().zip(results).find(|(queried, _)| *queried == pair).map_or(Ok(()), |(_, result)| result)
     }
 
     async fn query_pools(&self, (input_mint, output_mint): Pair) -> Result<(), SwapperError> {
@@ -241,20 +241,20 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         };
         paths
             .into_iter()
-            .flat_map(|path| match path {
-                RoutePath::Direct => hops((input_mint, output_mint)).map(|hop| vec![hop]).collect::<Vec<_>>(),
-                RoutePath::Intermediary(_) => {
-                    let legs = path.pairs(&input_mint, &output_mint).into_iter().map(|pair| hops(pair).collect::<Vec<_>>()).collect::<Vec<_>>();
-                    match legs.as_slice() {
-                        [first, second] if !P::NATIVE_TWO_HOP => first.iter().flat_map(|first| second.iter().map(move |second| vec![first.clone(), second.clone()])).collect(),
-                        _ => legs
-                            .into_iter()
-                            .map(|leg| leg.into_iter().max_by_key(|(_, pool)| self.protocol.liquidity(pool)))
-                            .collect::<Option<Vec<_>>>()
-                            .into_iter()
-                            .collect(),
-                    }
-                }
+            .flat_map(|path| {
+                let legs = path.pairs(&input_mint, &output_mint).into_iter().map(|pair| hops(pair).collect::<Vec<_>>()).collect::<Vec<_>>();
+                let deepest_only = P::NATIVE_TWO_HOP && legs.len() > 1;
+                legs.into_iter()
+                    .map(|leg| {
+                        if deepest_only {
+                            leg.into_iter().max_by_key(|(_, pool)| self.protocol.liquidity(pool)).into_iter().collect()
+                        } else {
+                            leg
+                        }
+                    })
+                    .fold(vec![vec![]], |routes: Vec<PoolRoute<P::Pool>>, leg| {
+                        routes.iter().flat_map(|route| leg.iter().map(move |hop| [route.clone(), vec![hop.clone()]].concat())).collect()
+                    })
             })
             .collect()
     }
@@ -347,42 +347,38 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
         let swap = PoolSwap {
             authority,
             input,
-            intermediate: route.intermediate(&input.mint, &output.mint)?,
+            intermediate: route.intermediate(&input.mint, &output.mint, self.protocol.intermediate_tokens())?,
             output,
             amount: route.swap_value,
             minimum_out: route.minimum_output(slippage_bps),
         };
         let swap_instructions = match (pools, swap.intermediate) {
-            ([(address, pool)], None) => Ok(vec![self.protocol.swap_instruction(address, pool, &swap)?]),
-            ([first, second], Some(intermediate)) if P::NATIVE_TWO_HOP => Ok(vec![self.protocol.two_hop_swap_instruction(first, second, &swap, intermediate)?]),
+            ([(address, pool)], None) => vec![self.protocol.swap_instruction(address, pool, &swap)?],
+            ([first, second], Some(intermediate)) if P::NATIVE_TWO_HOP => vec![self.protocol.two_hop_swap_instruction(first, second, &swap, intermediate)?],
             ([(first_address, first_pool), (second_address, second_pool)], Some(intermediate)) => {
                 let intermediate_value = route.intermediate_value.ok_or(SwapperError::InvalidRoute)?;
                 let first = PoolSwap {
-                    authority,
-                    input,
                     intermediate: None,
                     output: intermediate,
-                    amount: swap.amount,
                     minimum_out: intermediate_value,
+                    ..swap
                 };
                 let second = PoolSwap {
-                    authority,
                     input: intermediate,
                     intermediate: None,
-                    output,
                     amount: intermediate_value,
-                    minimum_out: swap.minimum_out,
+                    ..swap
                 };
-                Ok(vec![self.protocol.swap_instruction(first_address, first_pool, &first)?, self.protocol.swap_instruction(second_address, second_pool, &second)?])
+                vec![self.protocol.swap_instruction(first_address, first_pool, &first)?, self.protocol.swap_instruction(second_address, second_pool, &second)?]
             }
-            _ => Err(SwapperError::InvalidRoute),
-        }?;
+            _ => return Err(SwapperError::InvalidRoute),
+        };
         Ok(DexTransaction {
             swap_instructions,
             swap,
             referral: Pubkey::from_base58(&default_referral_fees().solana.address)?,
             fee: route.fee,
-            intermediate_token_account: P::INTERMEDIATE_TOKEN_ACCOUNT || !P::NATIVE_TWO_HOP,
+            intermediate_token_account: P::INTERMEDIATE_TOKEN_ACCOUNT,
         })
     }
 
@@ -441,6 +437,11 @@ fn has_pools<Pool>(lookups: &[PoolLookup<Pool>]) -> bool {
 
 fn route_pools<Pool>(route: &[(DexHop, Pool)]) -> Vec<Pubkey> {
     route.iter().map(|(hop, _)| hop.pool).collect()
+}
+
+fn pools_only_in<Pool>(routes: &[PoolRoute<Pool>], others: &[PoolRoute<Pool>]) -> Vec<Pubkey> {
+    let kept = others.iter().flat_map(|route| route_pools(route)).collect::<HashSet<_>>();
+    routes.iter().flat_map(|route| route_pools(route)).filter(|pool| !kept.contains(pool)).collect()
 }
 
 fn ranked<Pool>(quotes: Vec<(PoolRoute<Pool>, Option<RouteOutput>)>) -> Vec<(PoolRoute<Pool>, RouteOutput)> {
@@ -572,6 +573,31 @@ mod tests {
         assert_eq!(side(None, token_account.clone()), Ok(FeeSide::Output));
         assert_eq!(side(system_account, token_account), Ok(FeeSide::Output));
         assert_eq!(side(None, None), Err(SwapperError::compute_quote_error("Referral fee account is unavailable")));
+    }
+
+    #[test]
+    fn test_pools_only_in_keeps_pools_a_winning_route_still_uses() {
+        let pool = |byte: u8| Pubkey::new([byte; 32]);
+        let route = |pools: &[u8]| {
+            pools
+                .iter()
+                .map(|byte| {
+                    (
+                        DexHop {
+                            pool: pool(*byte),
+                            input_mint: Pubkey::new([0; 32]),
+                            output_mint: Pubkey::new([0; 32]),
+                        },
+                        (),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let live = [route(&[1, 3])];
+        let outpriced = [route(&[2, 3]), route(&[1, 4]), route(&[5])];
+
+        assert_eq!(pools_only_in(&outpriced, &live), vec![pool(2), pool(4), pool(5)]);
+        assert_eq!(pools_only_in(&outpriced, &[]), vec![pool(2), pool(3), pool(1), pool(4), pool(5)]);
     }
 
     #[test]

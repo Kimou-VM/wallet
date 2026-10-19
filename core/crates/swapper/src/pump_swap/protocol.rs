@@ -107,16 +107,14 @@ mod tests {
         fees::subtract_bps,
         pump_swap::testkit::{TEST_CASHBACK_POOL, TEST_MAYHEM_POOL, TEST_SOL_POOL, TEST_TOKEN_2022_MINT, TEST_USDC_POOL, mock_pool_snapshot},
         solana_dex::{
-            SolanaDex,
-            testkit::{TEST_TOS_MINT, mock_rpc_accounts, mock_rpc_client, mock_solana_asset},
+            SolanaDex, SwapToken,
+            testkit::{PoolSnapshot, TEST_TOS_MINT, mock_rpc_accounts, mock_rpc_client, mock_solana_asset},
         },
-        solana_dex::{SwapToken, testkit::PoolSnapshot},
         testkit::mock_quote,
     };
     use gem_solana::{USDC_TOKEN_MINT, decode_transaction, instructions::program_ids::token_program, wrapped_sol::wrapped_sol_mint};
     use num_bigint::BigUint;
-    use primitives::swap::SOLANA_REFERRAL_ADDRESS;
-    use primitives::{AssetType, testkit::signer_mock::TEST_SOLANA_SENDER};
+    use primitives::{AssetType, swap::SOLANA_REFERRAL_ADDRESS, testkit::signer_mock::TEST_SOLANA_SENDER};
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
