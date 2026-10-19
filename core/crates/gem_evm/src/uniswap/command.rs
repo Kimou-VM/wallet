@@ -2,6 +2,7 @@ use super::{
     FeeTier,
     actions::{self, V4Action},
     contracts::IUniversalRouter,
+    deployment::UniversalRouterAbi,
     path::TokenPair,
 };
 use crate::permit2::IAllowanceTransfer;
@@ -130,6 +131,22 @@ impl V3SwapExactIn {
             payer_is_user,
         })
     }
+
+    pub fn abi_decode_for(data: &[u8], universal_router_abi: UniversalRouterAbi) -> Result<Self, alloy_sol_types::Error> {
+        match universal_router_abi {
+            UniversalRouterAbi::V2 => Self::abi_decode(data),
+            UniversalRouterAbi::V2_1 => {
+                let swap = V3SwapExactInV2_1::abi_decode(data)?;
+                Ok(Self {
+                    recipient: swap.recipient,
+                    amount_in: swap.amount_in,
+                    amount_out_min: swap.amount_out_min,
+                    path: swap.path,
+                    payer_is_user: swap.payer_is_user,
+                })
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -201,6 +218,22 @@ impl V2SwapExactIn {
             path,
             payer_is_user,
         })
+    }
+
+    pub fn abi_decode_for(data: &[u8], universal_router_abi: UniversalRouterAbi) -> Result<Self, alloy_sol_types::Error> {
+        match universal_router_abi {
+            UniversalRouterAbi::V2 => Self::abi_decode(data),
+            UniversalRouterAbi::V2_1 => {
+                let swap = V2SwapExactInV2_1::abi_decode(data)?;
+                Ok(Self {
+                    recipient: swap.recipient,
+                    amount_in: swap.amount_in,
+                    amount_out_min: swap.amount_out_min,
+                    path: swap.path,
+                    payer_is_user: swap.payer_is_user,
+                })
+            }
+        }
     }
 }
 

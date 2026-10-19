@@ -15,7 +15,7 @@ use crate::{
         actions::{V4Action, decode_action_data},
         command::{
             ADDRESS_THIS, CONTRACT_BALANCE, MSG_SENDER, PAY_PORTION_COMMAND, PayPortion, SWEEP_COMMAND, Sweep, TRANSFER_COMMAND, Transfer, UNWRAP_WETH_COMMAND, UnwrapWeth, V2_SWAP_EXACT_IN_COMMAND, V2SwapExactIn, V2SwapExactInSolidly,
-            V2SwapExactInV2_1, V3_SWAP_EXACT_IN_COMMAND, V3SwapExactIn, V3SwapExactInV2_1, V4_SWAP_COMMAND, WRAP_ETH_COMMAND, WrapEth,
+            V3_SWAP_EXACT_IN_COMMAND, V3SwapExactIn, V4_SWAP_COMMAND, WRAP_ETH_COMMAND, WrapEth,
         },
         contracts::{
             IUniversalRouter,
@@ -228,32 +228,14 @@ fn decode_execute_swap_call(chain: &Chain, router_abi: RouterAbi, provider: Swap
 }
 
 fn decode_v3_swap_exact_in(input: &[u8], universal_router_abi: UniversalRouterAbi) -> Option<(U256, U256, Address, Address)> {
-    let (amount_in, amount_out_min, path) = match universal_router_abi {
-        UniversalRouterAbi::V2 => {
-            let swap_exact_in = V3SwapExactIn::abi_decode(input).ok()?;
-            (swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.path)
-        }
-        UniversalRouterAbi::V2_1 => {
-            let swap_exact_in = V3SwapExactInV2_1::abi_decode(input).ok()?;
-            (swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.path)
-        }
-    };
-    let token_pair = decode_path(&path)?;
-    Some((amount_in, amount_out_min, token_pair.token_in, token_pair.token_out))
+    let swap_exact_in = V3SwapExactIn::abi_decode_for(input, universal_router_abi).ok()?;
+    let token_pair = decode_path(&swap_exact_in.path)?;
+    Some((swap_exact_in.amount_in, swap_exact_in.amount_out_min, token_pair.token_in, token_pair.token_out))
 }
 
 fn decode_v2_swap_exact_in(input: &[u8], universal_router_abi: UniversalRouterAbi) -> Option<(U256, U256, Address, Address)> {
-    let (amount_in, amount_out_min, path) = match universal_router_abi {
-        UniversalRouterAbi::V2 => {
-            let swap_exact_in = V2SwapExactIn::abi_decode(input).ok()?;
-            (swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.path)
-        }
-        UniversalRouterAbi::V2_1 => {
-            let swap_exact_in = V2SwapExactInV2_1::abi_decode(input).ok()?;
-            (swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.path)
-        }
-    };
-    Some((amount_in, amount_out_min, *path.first()?, *path.last()?))
+    let swap_exact_in = V2SwapExactIn::abi_decode_for(input, universal_router_abi).ok()?;
+    Some((swap_exact_in.amount_in, swap_exact_in.amount_out_min, *swap_exact_in.path.first()?, *swap_exact_in.path.last()?))
 }
 
 fn decode_solidly_swap_exact_in(input: &[u8]) -> Option<(U256, U256, Address, Address)> {
