@@ -182,7 +182,7 @@ impl TronAccountUsage {
 }
 
 impl TronContractInfo {
-    pub fn pays_all_energy(&self) -> bool {
+    pub fn caller_pays_all_energy(&self) -> bool {
         self.consume_user_resource_percent >= 100 || self.origin_address.is_empty()
     }
 
@@ -218,15 +218,15 @@ mod tests {
             .caller_energy(400_000, &funded),
             300_000
         );
-        assert!(!router.pays_all_energy());
+        assert!(!router.caller_pays_all_energy());
         assert!(
             TronContractInfo {
                 consume_user_resource_percent: 100,
                 ..router
             }
-            .pays_all_energy()
+            .caller_pays_all_energy()
         );
-        assert!(TronContractInfo::default().pays_all_energy());
+        assert!(TronContractInfo::default().caller_pays_all_energy());
     }
 
     fn calculate_token_transfer_fee(account_usage: &TronAccountUsage, estimated_energy: u64, energy_price: u64, bandwidth_price: u64) -> TokenTransferFee {

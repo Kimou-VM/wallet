@@ -129,22 +129,10 @@ impl<C: Client> TronClient<C> {
     }
 
     async fn estimate_contract_swap_fee(&self, sender_address: &str, from_asset: &Asset, swap_data: &SwapData, fee_context: &FeeEstimateContext<'_>, input_memo: Option<&str>) -> Result<TransactionFee, Box<dyn Error + Send + Sync>> {
-        let swap_fee = if let Some(estimated_energy) = needs_approval_energy_estimate(&swap_data.data) {
-            let memo_data_bytes = swap_contract_memo_data_bytes(input_memo, &swap_data.data)?;
-            let caller_energy = self.caller_energy(&self.get_contract(&swap_data.data.to).await?, estimated_energy).await?;
-            contract_fee_from_energy(fee_context.chain_parameters, fee_context.account_usage, (caller_energy, estimated_energy), memo_data_bytes)?
-        } else if !swap_data.data.data.is_empty() {
-            let memo_data_bytes = swap_contract_memo_data_bytes(input_memo, &swap_data.data)?;
-            self.estimate_contract_call_fee(sender_address, &swap_data.data, fee_context.chain_parameters, fee_context.account_usage, memo_data_bytes)
-                .await?
-        } else if from_asset.id.token_id.is_some() {
-            return Err("Tron token contract swap calldata is required".into());
-        } else {
-            native_transfer_fee(fee_context, has_swap_quote_memo(input_memo, &swap_data.data))?
-        };
-
+        let swap_fee = self.estimate_contract_swap_call_fee(sender_address, from_asset, swap_data, fee_context, input_memo);
         if let Some(approval) = &swap_data.data.approval {
-            let approval_fee = self.estimate_token_approval_fee(sender_address, approval, fee_context.chain_parameters, fee_context.account_usage).await?;
+            let approval_fee = self.estimate_token_approval_fee(sender_address, approval, fee_context.chain_parameters, fee_context.account_usage);
+            let (swap_fee, approval_fee) = futures::try_join!(swap_fee, approval_fee)?;
             let fee = &approval_fee.fee + &swap_fee.fee;
             let gas_limit = &approval_fee.gas_limit + &swap_fee.gas_limit;
             return Ok(TransactionFee {
@@ -155,8 +143,23 @@ impl<C: Client> TronClient<C> {
                 fee_asset: AssetId::from_chain(Chain::Tron),
             });
         }
+        swap_fee.await
+    }
 
-        Ok(swap_fee)
+    async fn estimate_contract_swap_call_fee(&self, sender_address: &str, from_asset: &Asset, swap_data: &SwapData, fee_context: &FeeEstimateContext<'_>, input_memo: Option<&str>) -> Result<TransactionFee, Box<dyn Error + Send + Sync>> {
+        if let Some(estimated_energy) = needs_approval_energy_estimate(&swap_data.data) {
+            let memo_data_bytes = swap_contract_memo_data_bytes(input_memo, &swap_data.data)?;
+            let caller_energy = self.caller_energy(&self.get_contract(&swap_data.data.to).await?, estimated_energy).await?;
+            return contract_fee_from_energy(fee_context.chain_parameters, fee_context.account_usage, (caller_energy, estimated_energy), memo_data_bytes);
+        }
+        if !swap_data.data.data.is_empty() {
+            let memo_data_bytes = swap_contract_memo_data_bytes(input_memo, &swap_data.data)?;
+            return self.estimate_contract_call_fee(sender_address, &swap_data.data, fee_context.chain_parameters, fee_context.account_usage, memo_data_bytes).await;
+        }
+        if from_asset.id.token_id.is_some() {
+            return Err("Tron token contract swap calldata is required".into());
+        }
+        native_transfer_fee(fee_context, has_swap_quote_memo(input_memo, &swap_data.data))
     }
 
     async fn estimate_transfer_swap_fee(&self, input: &TransactionLoadInput, from_asset: &Asset, swap_data: &SwapData, fee_context: &FeeEstimateContext<'_>, input_memo: Option<&str>) -> Result<TransactionFee, Box<dyn Error + Send + Sync>> {
@@ -236,7 +239,7 @@ impl<C: Client> TronClient<C> {
     }
 
     async fn caller_energy(&self, contract: &TronContractInfo, energy: u64) -> Result<u64, Box<dyn Error + Send + Sync>> {
-        if contract.pays_all_energy() {
+        if contract.caller_pays_all_energy() {
             return Ok(energy);
         }
         Ok(contract.caller_energy(energy, &self.get_account_usage(&contract.origin_address).await?))
