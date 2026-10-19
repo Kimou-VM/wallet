@@ -23,8 +23,8 @@ pub(super) async fn pool_exists(client: &TronClient<RpcClient>, pool: &TokenPair
     Ok(address != Address::ZERO)
 }
 
-pub(super) async fn quote_exact_input(client: &TronClient<RpcClient>, path: &Bytes, amount_in: U256) -> Result<Option<U256>, SwapperError> {
-    let call = IQuoter::quoteExactInputCall { path: path.clone(), amountIn: amount_in };
+pub(super) async fn quote_exact_input(client: &TronClient<RpcClient>, path: Bytes, amount_in: U256) -> Result<Option<U256>, SwapperError> {
+    let call = IQuoter::quoteExactInputCall { path, amountIn: amount_in };
     match client.call_contract(QUOTER, &call).await {
         Ok(amount_out) => Ok(Some(amount_out)),
         Err(error) if error.to_string().contains(REVERTED) => Ok(None),

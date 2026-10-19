@@ -1,11 +1,10 @@
-use super::constants::CONTRACT_BALANCE;
 use crate::{
     SwapperError, eth_address,
     fees::ReferralFee,
     uniswap::routed_asset::{Funding, RoutedAsset},
 };
 use alloy_primitives::{Address, Bytes, U256};
-use gem_evm::uniswap::command::{ADDRESS_THIS, PayPortion, Permit2Permit, Transfer, UniversalRouterCommand, UnwrapWeth, V3SwapExactIn, WrapEth};
+use gem_evm::uniswap::command::{ADDRESS_THIS, CONTRACT_BALANCE, PayPortion, Permit2Permit, Transfer, UniversalRouterCommand, UnwrapWeth, V3SwapExactIn, WrapEth};
 use primitives::Chain;
 
 pub(super) struct SwapCommands {
@@ -40,7 +39,7 @@ pub(super) fn build_commands(input: &RoutedAsset, output: &RoutedAsset, swap: Sw
             })])
             .chain(pay_referral(input.address))
             .collect(),
-        Funding::RouterBalance => return Err(SwapperError::NotSupportedAsset),
+        Funding::RouterBalance => pay_referral(input.address).into_iter().collect(),
     };
     let unwrap_output = output.funding == Funding::Value;
     let exact_in = UniversalRouterCommand::V3_SWAP_EXACT_IN(V3SwapExactIn {

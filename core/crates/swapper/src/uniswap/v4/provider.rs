@@ -17,7 +17,7 @@ use crate::{
         fee_token::is_quote_input_fee_token,
         quote_result::{OutpricedPaths, get_best_quote},
         routed_asset::{Funding, Protocol, RoutedAsset, base_pair, routed_pair},
-        swap_route::{RouteData, get_intermediaries},
+        swap_route::{PoolPath, RouteData, get_intermediaries},
     },
 };
 use gem_evm::uniswap::{
@@ -144,12 +144,12 @@ impl Swapper for UniswapV4 {
         _ = self.preload_pool_candidates(from_chain, token_in, token_out).await;
         let direct_paths = build_pool_keys(&token_in, &token_out, &fee_tiers)
             .into_iter()
-            .map(|(pairs, pool_key)| (pairs, build_quote_exact_single_request(&token_in, deployment.quoter, quote_amount_in, &pool_key)));
+            .map(|(pairs, pool_key)| (PoolPath::new(PROTOCOL, pairs), build_quote_exact_single_request(&token_in, deployment.quoter, quote_amount_in, &pool_key)));
         let intermediaries = route_intermediaries(&token_in, &token_out, &base_pair);
         let multi_hop_paths = build_quote_exact_params(quote_amount_in, &token_in, &token_out, &fee_tiers, &intermediaries)
             .into_iter()
-            .map(|(pairs, params)| (pairs, build_quote_exact_request(deployment.quoter, &params)));
-        let paths = direct_paths.chain(multi_hop_paths).filter(|(pairs, _)| self.pool_discovery.path_may_exist(from_chain, pairs)).collect();
+            .map(|(pairs, params)| (PoolPath::new(PROTOCOL, pairs), build_quote_exact_request(deployment.quoter, &params)));
+        let paths = direct_paths.chain(multi_hop_paths).filter(|(path, _)| self.pool_discovery.path_may_exist(from_chain, &path.pairs)).collect();
         let client = create_client_with_chain(self.rpc_provider.clone(), from_chain)?;
         let quote_result = get_best_quote(&client, &self.outpriced_paths, (from_chain, token_in), (from_chain, token_out), quote_amount_in, paths, super::quoter::decode_quoter_response).await?;
 

@@ -90,27 +90,65 @@ impl From<&BlockParameter> for serde_json::Value {
 #[derive(Debug, Clone)]
 pub enum EthereumRpc {
     BlockNumber,
-    Call { transaction: TransactionObject, block: BlockParameter },
+    Call {
+        transaction: TransactionObject,
+        block: BlockParameter,
+    },
+    CallWithBalance {
+        transaction: TransactionObject,
+        block: BlockParameter,
+        address: String,
+        balance: String,
+    },
     ChainId,
-    EstimateGas { transaction: Value, block: BlockParameter },
-    FeeHistory { blocks: u64, reward_percentiles: Vec<u64> },
+    EstimateGas {
+        transaction: Value,
+        block: BlockParameter,
+    },
+    FeeHistory {
+        blocks: u64,
+        reward_percentiles: Vec<u64>,
+    },
     GasPrice,
-    GetBalance { address: String, block: BlockParameter },
-    GetBlockByNumber { number: u64, include_transactions: bool },
-    GetBlockReceipts { number: u64 },
-    GetCode { address: String, block: BlockParameter },
-    GetTransactionByHash { hash: String },
-    GetTransactionCount { address: String, block: BlockParameter },
-    GetTransactionReceipt { hash: String },
-    SendRawTransaction { data: String },
-    TraceCall { transaction: TransactionObject, block: BlockParameter },
+    GetBalance {
+        address: String,
+        block: BlockParameter,
+    },
+    GetBlockByNumber {
+        number: u64,
+        include_transactions: bool,
+    },
+    GetBlockReceipts {
+        number: u64,
+    },
+    GetCode {
+        address: String,
+        block: BlockParameter,
+    },
+    GetTransactionByHash {
+        hash: String,
+    },
+    GetTransactionCount {
+        address: String,
+        block: BlockParameter,
+    },
+    GetTransactionReceipt {
+        hash: String,
+    },
+    SendRawTransaction {
+        data: String,
+    },
+    TraceCall {
+        transaction: TransactionObject,
+        block: BlockParameter,
+    },
 }
 
 impl ToJsonRpcRequest for EthereumRpc {
     fn method(&self) -> &'static str {
         match self {
             Self::BlockNumber => method::ETH_BLOCK_NUMBER,
-            Self::Call { .. } => method::ETH_CALL,
+            Self::Call { .. } | Self::CallWithBalance { .. } => method::ETH_CALL,
             Self::ChainId => method::ETH_CHAIN_ID,
             Self::EstimateGas { .. } => method::ETH_ESTIMATE_GAS,
             Self::FeeHistory { .. } => method::ETH_FEE_HISTORY,
@@ -131,6 +169,7 @@ impl ToJsonRpcRequest for EthereumRpc {
         match self {
             Self::BlockNumber | Self::ChainId | Self::GasPrice => json!([]),
             Self::Call { transaction, block } => json!([transaction, Value::from(block)]),
+            Self::CallWithBalance { transaction, block, address, balance } => json!([transaction, Value::from(block), { address.as_str(): { "balance": balance } }]),
             Self::EstimateGas { transaction, block } => json!([transaction, Value::from(block)]),
             Self::FeeHistory { blocks, reward_percentiles } => {
                 json!([format!("0x{blocks:x}"), Value::from(&BlockParameter::Latest), reward_percentiles])
@@ -184,6 +223,20 @@ mod tests {
             },
             method::ETH_CALL,
             json!([{"to": "0x1234", "data": "0xabcd"}, "latest"]),
+        );
+    }
+
+    #[test]
+    fn builds_call_with_balance_request() {
+        assert_request(
+            EthereumRpc::CallWithBalance {
+                transaction: TransactionObject::new_call_with_from("0x5678", "0x1234", vec![0xab]),
+                block: BlockParameter::Latest,
+                address: "0x5678".into(),
+                balance: "0x2a".into(),
+            },
+            method::ETH_CALL,
+            json!([{"from": "0x5678", "to": "0x1234", "data": "0xab"}, "latest", {"0x5678": {"balance": "0x2a"}}]),
         );
     }
 

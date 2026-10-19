@@ -67,7 +67,7 @@ pub fn new_pancakeswap(rpc_provider: Arc<dyn RpcProvider>) -> UniswapV3 {
 pub fn new_aerodrome(rpc_provider: Arc<dyn RpcProvider>) -> UniswapV3 {
     let router = UniversalRouter::new(
         SwapperProvider::Aerodrome,
-        vec![FeeTier::Hundred, FeeTier::FourHundred, FeeTier::FiveHundred, FeeTier::ThreeThousand, FeeTier::TenThousand],
+        vec![FeeTier::One, FeeTier::Ten, FeeTier::Fifty, FeeTier::Hundred, FeeTier::TwoHundred, FeeTier::TwoThousand],
         get_aerodrome_router_deployment_by_chain,
     );
     UniswapV3::new(Box::new(router), rpc_provider)

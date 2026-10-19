@@ -3,6 +3,7 @@ use gem_evm::uniswap::path::{BasePair, get_base_pair};
 #[cfg(test)]
 use primitives::Chain;
 use primitives::{Asset, AssetId, EVMChain, EvmNativeCurrency};
+use serde::{Deserialize, Serialize};
 
 use crate::{SwapperError, eth_address};
 
@@ -13,10 +14,13 @@ pub enum Funding {
     Permit2,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Protocol {
+    V2,
     V3,
     V4,
+    Solidly,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,7 +38,7 @@ impl RoutedAsset {
         match chain.native_currency() {
             EvmNativeCurrency::Wrapped(wrapped) => {
                 let address = match protocol {
-                    Protocol::V3 => eth_address::parse_str(wrapped)?,
+                    Protocol::V2 | Protocol::V3 | Protocol::Solidly => eth_address::parse_str(wrapped)?,
                     Protocol::V4 => Address::ZERO,
                 };
                 Ok(Self::unscaled(address, Funding::Value))

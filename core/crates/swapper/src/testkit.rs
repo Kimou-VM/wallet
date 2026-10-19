@@ -44,6 +44,7 @@ impl Route {
             input,
             output,
             route_data: serde_json::json!({
+                "protocol": "v3",
                 "fee_tier": "100",
                 "min_amount_out": "1",
             })

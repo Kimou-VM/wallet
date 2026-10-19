@@ -75,17 +75,19 @@ A quote that gives less than half of the best one is not shown. Quotes that far 
 | Meteora | the quote is read from the DAMM v2 pool account or the DLMM pair and its bins, and the swap goes straight to the pool |
 | THORChain | the quote comes from THORChain's own node and the deposit goes straight to its vault |
 
-Uniswap, Raydium and Meteora each show as one provider. A provider like this asks its pool types at the same time, keeps the quote that gives the most, and builds the swap with the pool type that gave it, so Uniswap v3 and v4 compete inside one Uniswap row and the approval comes from the version that quoted (`test_group_quotes_best_member_and_builds_with_it`, `test_grouped_providers_build_with_the_member_that_quoted`).
+Uniswap, PancakeSwap, Aerodrome, Raydium and Meteora each show as one provider. A provider like this asks its pool types at the same time, keeps the quote that gives the most, and builds the swap with the pool type that gave it, so Uniswap v2, v3 and v4 compete inside one Uniswap row and the approval comes from the version that quoted (`test_group_quotes_best_member_and_builds_with_it`, `test_grouped_providers_build_with_the_member_that_quoted`).
 
 | Provider | Pool types |
 |---|---|
-| Uniswap | v3, v4 |
+| Uniswap | v2 on Ethereum and Robinhood Chain, v3, v4 |
+| PancakeSwap | v2 on BNB Chain, v3 |
 | Raydium | CLMM, CPMM, AMM v4 |
 | Meteora | DAMM v2, DLMM |
+| Aerodrome | Slipstream, classic volatile and stable pools |
 
 ## On-chain quotes
 
-Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, PumpSwap, Meteora, Cetus, STON.fi, DeDust, Hyperion and SunSwap quote straight from the chain. What a pool is never changes once it exists: its address, its tokens, its fee tier. What it holds changes with every trade: its price, liquidity and reserves. The wallet keeps the first and reads the second again for every quote, so a quote is always priced on live state while the lookups that never change are not repeated. Dynode, the node proxy every wallet talks to, keeps the same unchanging lookups for all users ([how Dynode caches](../DYNODE.md#caching)).
+Uniswap v2, v3 and v4, PancakeSwap v2 and v3, Aerodrome, Oku, Wagmi, Orca, Raydium, PumpSwap, Meteora, Cetus, STON.fi, DeDust, Hyperion and SunSwap quote straight from the chain. What a pool is never changes once it exists: its address, its tokens, its fee tier. What it holds changes with every trade: its price, liquidity and reserves. The wallet keeps the first and reads the second again for every quote, so a quote is always priced on live state while the lookups that never change are not repeated. Dynode, the node proxy every wallet talks to, keeps the same unchanging lookups for all users ([how Dynode caches](../DYNODE.md#caching)).
 
 ```mermaid
 flowchart LR
@@ -99,10 +101,11 @@ flowchart LR
 
 | On the device | Kept for |
 |---|---|
-| A pool exists: its address, tokens and fee tier, and the version Cetus needs to trade with it | `7 days` |
+| A pool, a Uniswap or PancakeSwap v2 pair, or an Aerodrome classic pool exists: its address, tokens and fee tier, and the version Cetus needs to trade with it | `7 days` |
 | DeDust pool and vault addresses | `7 days` |
 | The Meteora DAMM v2 and DLMM, Raydium CPMM and Raydium AMM v4 pools found for a pair | `1 day`; Dynode keeps the lookup a day too, so a drained pool or a new one is noticed within about two days |
-| No pool exists at a fee tier, or Meteora has none for a pair | `1 day` |
+| No pool exists at a fee tier, no v2 pair exists for two tokens, or Meteora has none for a pair | `1 day` |
+| Whether a token takes a fee when it moves, from its [v2](#uniswap-and-pancakeswap-v2) or [Aerodrome classic](#aerodrome) check | `1 day` |
 | A pool cannot trade: no liquidity at its price, or swaps paused or not open yet on Orca and Raydium, or a cashback coin on PumpSwap, or disabled on Meteora, or locked on STON.fi, or a DeDust stable pool that was never deployed | `1 hour`, then it is checked again |
 | A pool or route that gave more than `3%` less than the best, or failed while another succeeded | `5 minutes`, skipped only when the same pair is quoted for the same amount |
 | On Solana: the token mints, Gem's fee accounts, Raydium's fee configs and pump.fun's fee schedule | `1 day` |
@@ -110,7 +113,7 @@ flowchart LR
 
 | On Dynode | Kept for |
 |---|---|
-| Uniswap v3, PancakeSwap, Aerodrome, Oku and Wagmi pool lookups | `1 day` |
+| Uniswap v3, PancakeSwap, Aerodrome Slipstream and classic, Oku and Wagmi pool lookups | `1 day` |
 | Uniswap v4 pool lookups | `1 day` |
 | Cetus pool lookups | `1 day` |
 | SunSwap pool lookups | `1 day` |
@@ -124,7 +127,7 @@ Anything not listed is read again for every quote.
 
 Cetus looks up `12` tick spacings, `1`, `2`, `10`, `20`, `40`, `60`, `80`, `120`, `160`, `200`, `220` and `260`, at the same time on a pair's first quote. They hold more than `99.99%` of the liquidity in Cetus's 3,000 largest pools on 2026-10-18; the other five tiers in its config, `4`, `6`, `8`, `30` and `100`, hold almost none, so leaving them out saves five lookups per pair. Every quote ranks its direct pools and its routes through SUI or USDC by what they pay alone. On 2026-10-18, 1,000 USDC to suiUSDT was priced at `1.0012` suiUSDT per USDC through the tick spacing `1` pool, against `1.00003` before, and 10,000 USDC, which used to route through SUI for `3,731` suiUSDT, received `9,962`. 100,000 BRAT to POP routes its first hop through the `0.6%` pool at tick spacing `120` and receives `2.1%` more than through the `1%` pool, matching Cetus's own aggregator.
 
-Solana, Uniswap v4 and Hyperion pool addresses are computed on the device from the two tokens and the fee tier, so finding a pool only checks that it exists. On Solana a quote reads every account it needs in one request, which always stays under Solana's `100`-account limit. Orca looks up its `9` most-traded fee tiers, adaptive-fee tiers included, which carried about `97%` of the trading volume of its 3,000 largest pools on 2026-10-18; tier `1028` holds the deep USDC/XAUt0 pool (`test_addresses`). Raydium looks up its `8` most-used fee tiers, which hold about `94%` of the liquidity in its 200 largest pools. A token-to-token pair checks the pair directly and through SOL and USDC at every tier. Orca's first quote asks `50` accounts, then `47` for the pools it found; a repeat quote asks `93`, or at most `97` once the day-long mints and fee accounts are read again, because only adaptive-fee pools need their fee oracle (`test_quote_requests_stay_under_the_account_limit`); Raydium's asks at most `93`. PumpSwap looks up the one pool pump.fun creates when a coin graduates, against SOL or USDC, and trades it directly or through SOL; its fee depends on the coin's market cap, read from the same request.
+Solana, Uniswap v4, v2 pair and Hyperion pool addresses are computed on the device from the two tokens and the fee tier, so finding a pool only checks that it exists. On Solana a quote reads every account it needs in one request, which always stays under Solana's `100`-account limit. Orca looks up its `9` most-traded fee tiers, adaptive-fee tiers included, which carried about `97%` of the trading volume of its 3,000 largest pools on 2026-10-18; tier `1028` holds the deep USDC/XAUt0 pool (`test_addresses`). Raydium looks up its `8` most-used fee tiers, which hold about `94%` of the liquidity in its 200 largest pools. A token-to-token pair checks the pair directly and through SOL and USDC at every tier. Orca's first quote asks `50` accounts, then `47` for the pools it found; a repeat quote asks `93`, or at most `97` once the day-long mints and fee accounts are read again, because only adaptive-fee pools need their fee oracle (`test_quote_requests_stay_under_the_account_limit`); Raydium's asks at most `93`. PumpSwap looks up the one pool pump.fun creates when a coin graduates, against SOL or USDC, and trades it directly or through SOL; its fee depends on the coin's market cap, read from the same request.
 
 Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku and Wagmi route through a base token by pairing any fee tier on the first pool with any fee tier on the second, among the pools that exist, and the swap is built with each pool's own tier (`test_two_hop_routes_keep_each_hop_fee_tier`). A token traded against USDC can then go through its `0.3%` pool against ETH and ETH's `0.01%` pool against USDC: on 2026-10-18, 1 billion PEPE to USDC on Ethereum received `11.7` basis points more than the best route that used one tier for both pools. Every combination is quoted in the same single request, so once the pools are known the quote still takes about `0.2 s`.
 
@@ -146,13 +149,39 @@ Measured on 2026-10-18 at each pair's typical size:
 | CATE to USDT | Meteora DLMM through SOL | `1.1%` | Raydium, `71%` below |
 | USDT to JUP | Meteora DLMM through SOL | `2.3%` | Orca, `20%` below |
 
+### Uniswap and PancakeSwap v2
+
+The v2 pairs quote inside the Uniswap and PancakeSwap providers, so a pair competes with the v3 and v4 pools for the same trade. A v2 route is the pair itself, or two pairs through the network's coin or one of its route stablecoins, USDC and USDT, or USDG on Robinhood Chain; it never mixes a v2 pair with a v3 pool. Any other token trades only through its pair with the network's coin, the pair the fee check below covers. Each pair's address is computed on the device from its two tokens, and its reserves are read in the same request as the v3 quotes, so v2 adds no request (`test_get_quote_v2_paths`). A pair that does not exist answers with nothing and is not read again for a day. The amount is the pair's constant-product price after its fee, in the router's own integer arithmetic, so the quote matches the swap to the unit.
+
+| Network | Pairs | Fee |
+|---|---|---|
+| BNB Chain | PancakeSwap v2 | `0.25%` |
+| Robinhood Chain | Uniswap v2 | `0.3%` |
+| Ethereum | Uniswap v2 | `0.3%` |
+
+The swap goes through the same Universal Router as a v3 swap, with the same Permit2 approval and Gem fee; the router finds each pair from the v2 factory built into it (`test_get_quote_data_v2_path`). History names a v2 swap after its router's provider: Uniswap v3 on Ethereum and Robinhood Chain, PancakeSwap v3 on BNB Chain.
+
+A token that takes a fee when it moves gets no v2 quote. The constant-product price assumes the pair receives and pays the full amount, so for such a token the quote would promise more than the swap pays, and the swap would fail its slippage check. The first time a token's v2 route gives the most, the wallet asks the router, in a call that changes nothing, to spend `0.1%` of the coin in the token's pair buying the token and to sell everything it got straight back. A buy and sell back through one constant-product pair always returns at least the amount less the pair's fee taken twice, whatever the pair holds by then, so the call requires that much, less `0.01%` for rounding (`test_round_trip_minimum`); a fee of `0.01%` or more on either side, or a transfer the token refuses, makes it fail. The answer is kept for a day, so the check costs one request per token per day; a token that adds a fee after its check is still quoted until the next day, and the swap's minimum still holds. A token with no v2 pair against the network's coin cannot be checked and gets no v2 quote. On 2026-10-19 the check caught SafeMoon and FLOKI's `0.3%` fee on BNB Chain, and KEK, VOLT and CNPY on Robinhood Chain, which take `1%` to `3%`. FLOKI's v2 pair paid `0.4%` more than its best v3 route, so without the check FLOKI would have been quoted a swap that fails (`test_tax_tokens_get_no_v2_quote`).
+
+### Aerodrome
+
+Aerodrome quotes its Slipstream pools and its classic pools on Base inside one provider, in the same request, and the best route wins.
+
+Slipstream pools are found by tick spacing: `1`, `10`, `50`, `100`, `200` and `2000`. Until 2026-10-19 the wallet looked them up by fee tier, which Slipstream's factory rejects, so only tick-spacing-`100` pools quoted and the failed lookups were sent again with every quote. On 2026-10-19, 1 ETH to MORPHO, BRETT, CHAMP or AERO got no Slipstream quote before and now routes through their tick-spacing-`200` pools, and 1 ETH to cbBTC receives `17` basis points more through tick spacing `1` (`test_base_slipstream_swap_simulates`).
+
+A classic pool is volatile, priced on x·y=k, or stable, priced on the Solidly curve for pegged pairs, and each pool sets its own fee: `0.3%` volatile and `0.05%` stable by default, `1%` for AERO/WETH. Aerodrome's router prices a whole classic route in one call, with each pool's fee and curve, so classic routes cost no extra request (`test_get_quote_solidly_paths`). A classic route is a pool, or two pools through WETH, USDC or USDT, each volatile or stable. On 2026-10-19 WELL held `98%` of its liquidity in classic pools, AERO `82%` and VIRTUAL `51%`; 0.01 ETH to WELL routes through its classic pool (`test_base_solidly_swap_simulates`).
+
+A classic swap goes through Aerodrome's Universal Router with the same Permit2 approval and Gem fee as a Slipstream swap; the router's v2 command lists each pool with its stable flag (`test_get_quote_data_solidly_path`), and history reads that command too.
+
+A token that takes a fee when it moves gets no classic quote either. The first time a classic route gives the most for a token other than WETH, USDC or USDT, the wallet runs the same [round trip as for v2](#uniswap-and-pancakeswap-v2) through the token's volatile pool with WETH, at that pool's own fee; the pool's reserves and fee come back in the quote request, so the check adds one request (`test_get_quote_solidly_paths`). A token that fails, or has no such pool to check, keeps only its Slipstream routes, and the verdict is kept for `1 day` for v2 and classic routes alike.
+
 ### Skipping pools that lose
 
 Every quote compares candidates and keeps the best. A candidate that gave more than `3%` less than the best, or that failed while another succeeded, is not asked again for the next `5 minutes` when the same pair is quoted for the same amount, as the 30-second refresh and the confirmation screen do. Any other amount asks every candidate again: a pool too shallow for a large trade can still be the best for a small one, and a deep pool that lost to a small pool's better price can win a larger trade. Failing means the quote reverted, the pool ran out of liquidity for the amount, or the pool could not pay the output; a network error never counts. When every candidate fails or gives nothing, as for a dust amount, none is marked. If every candidate still asked fails, the skipped ones are asked before the quote fails (`test_outpriced_cache`, `test_get_best_quote_skips_outpriced_paths`, `test_route_failing_alone_is_asked_again`, `test_find_route_skips_outpriced_pools`).
 
 | Provider | Candidates |
 |---|---|
-| Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi | each path: one pool at a fee tier, or two pools through a base token unless both sides are base tokens |
+| Uniswap v3 and v4, PancakeSwap, Aerodrome, Oku, Wagmi | each path: one pool at a fee tier, or two pools through a base token unless both sides are base tokens; a v2 path counts apart from a v3 pool at the same fee, and a skipped v2 path's reserves are left out of the request |
 | Orca, Raydium | each route: one pool, or two pools through an intermediate token; a skipped pool's accounts are left out of the request |
 | Meteora | each of the pair's `4` pools with the most liquidity, or two of them through SOL; a skipped pool is left out of the request |
 | Raydium CPMM, Raydium AMM v4 | each of the pair's `4` pools with the largest LP supply, or two of them through SOL; a skipped pool is left out of the request |
@@ -184,8 +213,13 @@ Measured on 2026-10-17, one pair per provider and the same amount, on the build 
 | DeDust, TON to USDT | 2 | 1 | 2 → 1 | 1 | under 1 KB |
 | DeDust, USDT to NOT | 6 | 3 → 2 | 6 → 3 | 2 | under 1 KB |
 | Hyperion, APT to USDC | 19 → 13 | 7 → 2 | 19 → 7 | 3 | under 1 KB |
+| PancakeSwap v2, BNB to PAND | no quote → 3 | no quote → 1 | no quote → 3 | 0 | under 1 KB |
+| Uniswap v2, ETH to ECAT | no quote → 3 | no quote → 1 | no quote → 3 | 0 | under 1 KB |
+| Uniswap v2, ETH to astro on Robinhood Chain | no quote → 3 | no quote → 1 | no quote → 3 | 0 | under 1 KB |
 
 A repeat quote took about `110 ms` to `130 ms` on Ethereum and Sui, most of it the round trip to Dynode. Solana's carry 130 to 230 KB of pool accounts and took `170 ms` to `800 ms`. Meteora was measured on 2026-10-18: its first quote counts the two pool lookups, sent at the same time, and took about `460 ms` to `600 ms`; its repeat quote reads one pool and took `125 ms` to `345 ms`. STON.fi, DeDust and Hyperion ask one pool per request, so their repeat quotes took about `230 ms`, `220 ms` and `270 ms`; a DeDust two-hop quote asks its hops in turn and took about `500 ms`.
+
+The v2 rows were measured on 2026-10-19 for tokens whose only pools are v2 pairs, which got no quote before. A first quote makes the v3 pool lookups, the quote request that also reads the v2 reserves, and the [fee check](#uniswap-and-pancakeswap-v2), in about `0.5 s` to `0.7 s`; a repeat quote is the quote request alone, `105 ms` to `150 ms`. A day later the missing pools and the fee check have expired, so it costs a first quote again. A token that also has v3 pools, such as the four.meme coin `0xeCCB…4444`, keeps its one-request repeat quote: its reserves ride in the request that already carries the v3 quotes.
 
 Since 2026-10-18 DeDust also asks each hop's stable pool, which holds the liquid-staking pairs: 10 TON to stTON receives `8.31` stTON through the stable pool, against `7.81` through USDT before (`test_ton_to_stton_quote_takes_the_stable_pool`). A first quote now makes twice the lookups and estimates in the table, `4` for TON to USDT and `12` for USDT to NOT, sent at the same time as before. Most pairs have no stable pool, and one that was never deployed is not asked again for an hour, so repeat quotes stay at `1` and `2` (`test_repeat_quote_skips_outpriced_route_and_undeployed_pools`).
 

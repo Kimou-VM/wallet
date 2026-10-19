@@ -14,17 +14,17 @@ use crate::{
         deadline::get_sig_deadline,
         discovery::{PoolDiscovery, candidate_pairs},
         quote_result::{OutpricedPaths, QuoteResult, best_path_quote},
-        routed_asset::{Funding, RoutedAsset},
-        swap_route::{RouteData, get_intermediaries},
-        v3::path::{build_paths, build_paths_with_routes},
+        routed_asset::{Funding, Protocol, RoutedAsset},
+        swap_route::{PoolPath, RouteData, candidate_paths, get_intermediaries},
+        v3::path::build_paths_with_routes,
     },
 };
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use futures::future::join_all;
 use gem_evm::uniswap::{
     command::{Permit2Permit, encode_commands},
-    path::{BasePair, TokenPair},
+    path::{BasePair, build_pairs},
 };
 use gem_tron::rpc::client::TronClient;
 use num_bigint::BigUint;
@@ -95,9 +95,9 @@ impl SunSwap {
         Ok(())
     }
 
-    async fn quote_paths(&self, client: &TronClient<RpcClient>, pair: (&Pair, &Pair), amount_in: U256, paths: Vec<(Vec<TokenPair>, Bytes)>) -> Result<QuoteResult, SwapperError> {
-        let quotes = join_all(paths.iter().map(|(_, path)| client::quote_exact_input(client, path, amount_in))).await;
-        let outcomes = paths.into_iter().zip(quotes).filter_map(|((pairs, _), quote)| Some((pairs, quote.ok()?))).collect();
+    async fn quote_paths(&self, client: &TronClient<RpcClient>, pair: (&Pair, &Pair), amount_in: U256, paths: Vec<PoolPath>) -> Result<QuoteResult, SwapperError> {
+        let quotes = join_all(paths.iter().map(|path| client::quote_exact_input(client, build_pairs(&path.pairs), amount_in))).await;
+        let outcomes = paths.into_iter().zip(quotes).filter_map(|(path, quote)| Some((path, quote.ok()?))).collect();
         best_path_quote(&self.outpriced_paths, pair, amount_in.saturating_to(), outcomes)
     }
 }
@@ -135,20 +135,15 @@ impl Swapper for SunSwap {
         let swap_amount = subtract_bps(&amount_in, Self::referral_fee().map_or(0, |fee| fee.bps));
 
         _ = self.preload_pools(&client, input.address, output.address).await;
-        let paths = build_paths(&input.address, &output.address, &FEE_TIERS, &Self::base_pair()?)
+        let paths = candidate_paths(&input.address, &output.address, &FEE_TIERS, &Self::base_pair()?)
             .into_iter()
-            .filter(|(pairs, _)| self.pool_discovery.path_may_exist(Chain::Tron, pairs))
+            .filter(|pairs| self.pool_discovery.path_may_exist(Chain::Tron, pairs))
+            .map(|pairs| PoolPath::new(Protocol::V3, pairs))
             .collect::<Vec<_>>();
         let (from, to) = ((Chain::Tron, input.address), (Chain::Tron, output.address));
         let quote = self
             .outpriced_paths
-            .quote_live_first(
-                (&from, &to),
-                swap_amount.saturating_to(),
-                paths,
-                |(pairs, _)| pairs.clone(),
-                |paths| self.quote_paths(&client, (&from, &to), swap_amount, paths),
-            )
+            .quote_live_first((&from, &to), swap_amount.saturating_to(), paths, PoolPath::clone, |paths| self.quote_paths(&client, (&from, &to), swap_amount, paths))
             .await?;
 
         Ok(quote.into_quote(request, self.provider.clone(), true, U256::from(1)))

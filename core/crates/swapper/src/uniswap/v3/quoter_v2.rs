@@ -17,11 +17,11 @@ pub fn build_quoter_request(wallet_address: &str, quoter_v2: &str, amount_in: U2
     }
 }
 
-pub fn decode_quoter_response(response: &JsonRpcResponse<String>) -> Result<(U256, U256), SwapperError> {
+pub fn decode_quoter_response(response: &JsonRpcResponse<String>) -> Result<U256, SwapperError> {
     let decoded = HexDecode(&response.result).map_err(|_| SwapperError::ComputeQuoteError("Failed to decode quoter response".into()))?;
     let quoter_return = IQuoterV2::quoteExactInputCall::abi_decode_returns(&decoded).map_err(SwapperError::from)?;
 
-    Ok((quoter_return.amountOut, quoter_return.gasEstimate))
+    Ok(quoter_return.amountOut)
 }
 
 #[cfg(test)]

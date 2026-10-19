@@ -1,11 +1,15 @@
 use crate::{RpcClient, SwapperError, route_cache::DiscoveryCache};
 use alloy_primitives::{Address, B256};
-use alloy_sol_types::SolCall;
+use alloy_sol_types::{SolCall, SolType, sol_data};
 use gem_evm::{
     jsonrpc::{BlockParameter, EthereumRpc, TransactionObject},
     uniswap::{
         FeeTier,
-        contracts::{v3::IUniswapV3Factory, v4::IUniswapV4StateView},
+        contracts::{
+            v3::{ISlipstreamFactory, IUniswapV3Factory},
+            v4::IUniswapV4StateView,
+        },
+        deployment::v3::{PoolLookup, V3Deployment},
         path::TokenPair,
     },
 };
@@ -55,28 +59,37 @@ pub(super) fn candidate_pairs(token_in: Address, token_out: Address, intermediar
         .collect()
 }
 
-pub(super) async fn discover_v3_pools(client: &JsonRpcClient<RpcClient>, factory: &str, pools: &[TokenPair]) -> Result<Vec<(TokenPair, bool)>, SwapperError> {
-    let requests = pools.iter().map(|pool| {
-        let data = IUniswapV3Factory::getPoolCall {
+pub(super) fn v3_pool_request(deployment: &V3Deployment, pool: &TokenPair) -> EthereumRpc {
+    let data = match deployment.pool_lookup {
+        PoolLookup::Fee => IUniswapV3Factory::getPoolCall {
             tokenA: pool.token_in,
             tokenB: pool.token_out,
             fee: pool.fee_tier.as_u24(),
         }
-        .abi_encode();
-        EthereumRpc::Call {
-            transaction: TransactionObject::new_call(factory, data),
-            block: BlockParameter::Latest,
+        .abi_encode(),
+        PoolLookup::TickSpacing => ISlipstreamFactory::getPoolCall {
+            tokenA: pool.token_in,
+            tokenB: pool.token_out,
+            tickSpacing: pool.fee_tier.as_tick_spacing(),
         }
-    });
-    let responses = client.requests::<String, _>(requests.collect()).await?;
+        .abi_encode(),
+    };
+    EthereumRpc::Call {
+        transaction: TransactionObject::new_call(deployment.factory, data),
+        block: BlockParameter::Latest,
+    }
+}
+
+pub(super) async fn discover_pools<T>(client: &JsonRpcClient<RpcClient>, pools: Vec<(T, EthereumRpc)>) -> Result<Vec<(T, bool)>, SwapperError> {
+    let (pools, requests): (Vec<_>, Vec<_>) = pools.into_iter().unzip();
+    let responses = client.requests::<String, _>(requests).await?;
     Ok(pools
-        .iter()
+        .into_iter()
         .zip(responses)
         .filter_map(|(pool, response)| {
-            let result = response.take().ok()?;
-            let bytes = decode_hex(&result).ok()?;
-            let address = IUniswapV3Factory::getPoolCall::abi_decode_returns(&bytes).ok()?;
-            Some((pool.clone(), address != Address::ZERO))
+            let bytes = decode_hex(&response.take().ok()?).ok()?;
+            let address = <sol_data::Address as SolType>::abi_decode(&bytes).ok()?;
+            Some((pool, address != Address::ZERO))
         })
         .collect())
 }

@@ -5,6 +5,10 @@ sol! {
         function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address pool);
     }
 
+    interface ISlipstreamFactory {
+        function getPool(address tokenA, address tokenB, int24 tickSpacing) external view returns (address pool);
+    }
+
     #[derive(Debug, PartialEq)]
     interface IQuoterV2 {
         struct QuoteExactInputSingleParams {

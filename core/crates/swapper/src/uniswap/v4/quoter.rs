@@ -32,11 +32,11 @@ pub fn build_quote_exact_request(v4_quoter: &str, params: &IV4Quoter::QuoteExact
     }
 }
 
-pub fn decode_quoter_response(response: &JsonRpcResponse<String>) -> Result<(U256, U256), SwapperError> {
+pub fn decode_quoter_response(response: &JsonRpcResponse<String>) -> Result<U256, SwapperError> {
     let decoded = HexDecode(&response.result).map_err(SwapperError::compute_quote_error)?;
     let quoter_return = IV4Quoter::quoteExactInputSingleCall::abi_decode_returns(&decoded).map_err(SwapperError::from)?;
 
-    Ok((quoter_return.amountOut, quoter_return.gasEstimate))
+    Ok(quoter_return.amountOut)
 }
 
 #[cfg(test)]

@@ -1,35 +1,72 @@
-use super::{UniversalRouterAbi, get_uniswap_permit2_by_chain};
+use super::{
+    UniversalRouterAbi, get_uniswap_permit2_by_chain,
+    v2::{SolidlyDeployment, V2Deployment},
+};
+use alloy_primitives::address;
 use primitives::{
     Chain,
     contract_constants::{BASE_UNISWAP_V3_UNIVERSAL_ROUTER_CONTRACT, ETHEREUM_UNISWAP_V3_UNIVERSAL_ROUTER_CONTRACT, OPTIMISM_UNISWAP_V3_UNIVERSAL_ROUTER_CONTRACT, UNICHAIN_UNISWAP_V3_UNIVERSAL_ROUTER_CONTRACT, UNISWAP_PERMIT2_CONTRACT},
 };
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PoolLookup {
+    Fee,
+    TickSpacing,
+}
+
 pub struct V3Deployment {
+    pub pool_lookup: PoolLookup,
     pub factory: &'static str,
     pub quoter_v2: &'static str,
     pub permit2: &'static str,
     pub universal_router: &'static str,
     pub universal_router_abi: UniversalRouterAbi,
+    pub v2_deployment: Option<V2Deployment>,
+    pub solidly_deployment: Option<SolidlyDeployment>,
 }
 
 impl V3Deployment {
     fn v2(factory: &'static str, quoter_v2: &'static str, permit2: &'static str, universal_router: &'static str) -> Self {
         Self {
+            pool_lookup: PoolLookup::Fee,
             factory,
             quoter_v2,
             permit2,
             universal_router,
             universal_router_abi: UniversalRouterAbi::V2,
+            v2_deployment: None,
+            solidly_deployment: None,
         }
     }
 
     fn v2_1(factory: &'static str, quoter_v2: &'static str, permit2: &'static str, universal_router: &'static str) -> Self {
         Self {
+            pool_lookup: PoolLookup::Fee,
             factory,
             quoter_v2,
             permit2,
             universal_router,
             universal_router_abi: UniversalRouterAbi::V2_1,
+            v2_deployment: None,
+            solidly_deployment: None,
+        }
+    }
+
+    fn with_v2_deployment(self, v2_deployment: V2Deployment) -> Self {
+        Self { v2_deployment: Some(v2_deployment), ..self }
+    }
+
+    fn with_tick_spacing_pools(self) -> Self {
+        Self {
+            pool_lookup: PoolLookup::TickSpacing,
+            ..self
+        }
+    }
+
+    fn with_solidly_deployment(self, solidly_deployment: SolidlyDeployment) -> Self {
+        Self {
+            solidly_deployment: Some(solidly_deployment),
+            ..self
         }
     }
 }
@@ -37,12 +74,15 @@ impl V3Deployment {
 pub fn get_uniswap_router_deployment_by_chain(chain: &Chain) -> Option<V3Deployment> {
     let permit2 = get_uniswap_permit2_by_chain(chain)?;
     match chain {
-        Chain::Ethereum => Some(V3Deployment::v2_1(
-            "0x1F98431c8aD98523631AE4a59f267346ea31F984",
-            "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
-            permit2,
-            "0x4C82D1fBFe28C977cBB58D8C7FF8FCF9F70a2cCA",
-        )),
+        Chain::Ethereum => Some(
+            V3Deployment::v2_1(
+                "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+                "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
+                permit2,
+                "0x4C82D1fBFe28C977cBB58D8C7FF8FCF9F70a2cCA",
+            )
+            .with_v2_deployment(V2Deployment::uniswap(address!("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"))),
+        ),
         Chain::Optimism => Some(V3Deployment::v2_1(
             "0x1F98431c8aD98523631AE4a59f267346ea31F984",
             "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
@@ -128,12 +168,15 @@ pub fn get_uniswap_router_deployment_by_chain(chain: &Chain) -> Option<V3Deploym
             permit2,
             "0x5Be52b52f3d1dbC324d2959637471a4208626144",
         )),
-        Chain::Robinhood => Some(V3Deployment::v2_1(
-            "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
-            "0x33e885eD0Ec9bF04EcfB19341582aADCb4c8A9E7",
-            permit2,
-            "0x8876789976dEcBfCbBbe364623C63652db8C0904",
-        )),
+        Chain::Robinhood => Some(
+            V3Deployment::v2_1(
+                "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
+                "0x33e885eD0Ec9bF04EcfB19341582aADCb4c8A9E7",
+                permit2,
+                "0x8876789976dEcBfCbBbe364623C63652db8C0904",
+            )
+            .with_v2_deployment(V2Deployment::uniswap(address!("0x8bcEaA40B9AcdfAedF85AdF4FF01F5Ad6517937f"))),
+        ),
         Chain::Arc => Some(V3Deployment::v2_1(
             "0xf0db7b58379503491d857dB50AC9ece64c653918",
             "0x7DfD4F31be6814D2906BDE155c3e1B146EAc1468",
@@ -183,12 +226,15 @@ pub fn get_pancakeswap_router_deployment_by_chain(chain: &Chain) -> Option<V3Dep
             "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768",
             "0x65b382653f7C31bC0Af67f188122035461ec9C76",
         )),
-        Chain::SmartChain => Some(V3Deployment::v2(
-            "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865",
-            "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997",
-            "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768",
-            "0x1A0A18AC4BECDDbd6389559687d1A73d8927E416",
-        )),
+        Chain::SmartChain => Some(
+            V3Deployment::v2(
+                "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865",
+                "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997",
+                "0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768",
+                "0x1A0A18AC4BECDDbd6389559687d1A73d8927E416",
+            )
+            .with_v2_deployment(V2Deployment::pancakeswap(address!("0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"))),
+        ),
         Chain::OpBNB => Some(V3Deployment::v2(
             "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865",
             "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997",
@@ -274,12 +320,20 @@ pub fn get_wagmi_router_deployment_by_chain(chain: &Chain) -> Option<V3Deploymen
 pub fn get_aerodrome_router_deployment_by_chain(chain: &Chain) -> Option<V3Deployment> {
     let permit2 = get_uniswap_permit2_by_chain(chain)?;
     match chain {
-        Chain::Base => Some(V3Deployment::v2(
-            "0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A",
-            "0x254cF9E1E6e233aa1AC962CB9B05b2cfeAaE15b0",
-            permit2,
-            "0x6Cb442acF35158D5eDa88fe602221b67B400Be3E",
-        )),
+        Chain::Base => Some(
+            V3Deployment::v2(
+                "0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A",
+                "0x254cF9E1E6e233aa1AC962CB9B05b2cfeAaE15b0",
+                permit2,
+                "0x6Cb442acF35158D5eDa88fe602221b67B400Be3E",
+            )
+            .with_tick_spacing_pools()
+            .with_solidly_deployment(SolidlyDeployment {
+                factory: address!("0x420DD381b31aEf6683db6B902084cB0FFECe40Da"),
+                implementation: address!("0xA4e46b4f701c62e14DF11B48dCe76A7d793CD6d7"),
+                router: address!("0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43"),
+            }),
+        ),
         _ => None,
     }
 }

@@ -6,6 +6,7 @@ use crate::permit2::IAllowanceTransfer;
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_sol_types::{SolCall, SolType, sol_data};
 
+pub const CONTRACT_BALANCE: U256 = U256::from_limbs([0, 0, 0, 1 << 63]);
 pub const MSG_SENDER: &str = "0x0000000000000000000000000000000000000001";
 pub const ADDRESS_THIS: &str = "0x0000000000000000000000000000000000000002";
 
@@ -16,6 +17,7 @@ pub const SWEEP_COMMAND: u8 = 0x04;
 pub const TRANSFER_COMMAND: u8 = 0x05;
 pub const PAY_PORTION_COMMAND: u8 = 0x06;
 pub const SUNSWAP_PAY_REFERRAL_COMMAND: u8 = 0x07;
+pub const V2_SWAP_EXACT_IN_COMMAND: u8 = 0x08;
 pub const PERMIT2_PERMIT_COMMAND: u8 = 0x0a;
 pub const WRAP_ETH_COMMAND: u8 = 0x0b;
 pub const UNWRAP_WETH_COMMAND: u8 = 0x0c;
@@ -32,6 +34,9 @@ pub enum UniversalRouterCommand {
     TRANSFER(Transfer),
     PAY_PORTION(PayPortion),
     SUNSWAP_PAY_REFERRAL(PayPortion),
+    V2_SWAP_EXACT_IN(V2SwapExactIn),
+    V2_SWAP_EXACT_IN_V2_1(V2SwapExactInV2_1),
+    V2_SWAP_EXACT_IN_SOLIDLY(V2SwapExactInSolidly),
     PERMIT2_PERMIT(Permit2Permit),
     WRAP_ETH(WrapEth),
     UNWRAP_WETH(UnwrapWeth),
@@ -49,6 +54,7 @@ impl UniversalRouterCommand {
             Self::TRANSFER(_) => TRANSFER_COMMAND,
             Self::PAY_PORTION(_) => PAY_PORTION_COMMAND,
             Self::SUNSWAP_PAY_REFERRAL(_) => SUNSWAP_PAY_REFERRAL_COMMAND,
+            Self::V2_SWAP_EXACT_IN(_) | Self::V2_SWAP_EXACT_IN_V2_1(_) | Self::V2_SWAP_EXACT_IN_SOLIDLY(_) => V2_SWAP_EXACT_IN_COMMAND,
             Self::PERMIT2_PERMIT(_) => PERMIT2_PERMIT_COMMAND,
             Self::WRAP_ETH(_) => WRAP_ETH_COMMAND,
             Self::UNWRAP_WETH(_) => UNWRAP_WETH_COMMAND,
@@ -65,6 +71,9 @@ impl UniversalRouterCommand {
             Self::SWEEP(payload) => payload.abi_encode(),
             Self::TRANSFER(payload) => payload.abi_encode(),
             Self::PAY_PORTION(payload) | Self::SUNSWAP_PAY_REFERRAL(payload) => payload.abi_encode(),
+            Self::V2_SWAP_EXACT_IN(payload) => payload.abi_encode(),
+            Self::V2_SWAP_EXACT_IN_V2_1(payload) => payload.abi_encode(),
+            Self::V2_SWAP_EXACT_IN_SOLIDLY(payload) => payload.abi_encode(),
             Self::WRAP_ETH(payload) => payload.abi_encode(),
             Self::UNWRAP_WETH(payload) => payload.abi_encode(),
             Self::PERMIT2_PERMIT(payload) => payload.abi_encode(),
@@ -76,6 +85,17 @@ impl UniversalRouterCommand {
 
 type V3SwapExactType = (sol_data::Address, sol_data::Uint<256>, sol_data::Uint<256>, sol_data::Bytes, sol_data::Bool);
 type V3SwapExactV2_1Type = (sol_data::Address, sol_data::Uint<256>, sol_data::Uint<256>, sol_data::Bytes, sol_data::Bool, sol_data::Array<sol_data::Uint<256>>);
+type V2SwapExactType = (sol_data::Address, sol_data::Uint<256>, sol_data::Uint<256>, sol_data::Array<sol_data::Address>, sol_data::Bool);
+type V2SwapExactV2_1Type = (
+    sol_data::Address,
+    sol_data::Uint<256>,
+    sol_data::Uint<256>,
+    sol_data::Array<sol_data::Address>,
+    sol_data::Bool,
+    sol_data::Array<sol_data::Uint<256>>,
+);
+type SolidlyRouteType = (sol_data::Address, sol_data::Address, sol_data::Bool);
+type V2SwapExactSolidlyType = (sol_data::Address, sol_data::Uint<256>, sol_data::Uint<256>, sol_data::Array<SolidlyRouteType>, sol_data::Bool);
 type SweepType = (sol_data::Address, sol_data::Address, sol_data::Uint<256>);
 type PayPortionType = (sol_data::Address, sol_data::Address, sol_data::Uint<256>);
 type TransferType = PayPortionType;
@@ -156,6 +176,96 @@ impl V3SwapExactOut {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct V2SwapExactIn {
+    pub recipient: Address,
+    pub amount_in: U256,
+    pub amount_out_min: U256,
+    pub path: Vec<Address>,
+    pub payer_is_user: bool,
+}
+
+impl V2SwapExactIn {
+    pub fn abi_encode(&self) -> Vec<u8> {
+        let data = (self.recipient, self.amount_in, self.amount_out_min, self.path.clone(), self.payer_is_user);
+        V2SwapExactType::abi_encode_sequence(&data)
+    }
+
+    pub fn abi_decode(data: &[u8]) -> Result<Self, alloy_sol_types::Error> {
+        let (recipient, amount_in, amount_out_min, path, payer_is_user) = V2SwapExactType::abi_decode_sequence(data)?;
+        Ok(Self {
+            recipient,
+            amount_in,
+            amount_out_min,
+            path,
+            payer_is_user,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct V2SwapExactInV2_1 {
+    pub recipient: Address,
+    pub amount_in: U256,
+    pub amount_out_min: U256,
+    pub path: Vec<Address>,
+    pub payer_is_user: bool,
+    pub min_hop_price_x36: Vec<U256>,
+}
+
+impl V2SwapExactInV2_1 {
+    pub fn abi_encode(&self) -> Vec<u8> {
+        let data = (self.recipient, self.amount_in, self.amount_out_min, self.path.clone(), self.payer_is_user, self.min_hop_price_x36.clone());
+        V2SwapExactV2_1Type::abi_encode_sequence(&data)
+    }
+
+    pub fn abi_decode(data: &[u8]) -> Result<Self, alloy_sol_types::Error> {
+        let (recipient, amount_in, amount_out_min, path, payer_is_user, min_hop_price_x36) = V2SwapExactV2_1Type::abi_decode_sequence(data)?;
+        Ok(Self {
+            recipient,
+            amount_in,
+            amount_out_min,
+            path,
+            payer_is_user,
+            min_hop_price_x36,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SolidlyRoute {
+    pub from: Address,
+    pub to: Address,
+    pub stable: bool,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct V2SwapExactInSolidly {
+    pub recipient: Address,
+    pub amount_in: U256,
+    pub amount_out_min: U256,
+    pub routes: Vec<SolidlyRoute>,
+    pub payer_is_user: bool,
+}
+
+impl V2SwapExactInSolidly {
+    pub fn abi_encode(&self) -> Vec<u8> {
+        let routes = self.routes.iter().map(|route| (route.from, route.to, route.stable)).collect::<Vec<_>>();
+        V2SwapExactSolidlyType::abi_encode_sequence(&(self.recipient, self.amount_in, self.amount_out_min, routes, self.payer_is_user))
+    }
+
+    pub fn abi_decode(data: &[u8]) -> Result<Self, alloy_sol_types::Error> {
+        let (recipient, amount_in, amount_out_min, routes, payer_is_user) = V2SwapExactSolidlyType::abi_decode_sequence(data)?;
+        Ok(Self {
+            recipient,
+            amount_in,
+            amount_out_min,
+            routes: routes.into_iter().map(|(from, to, stable)| SolidlyRoute { from, to, stable }).collect(),
+            payer_is_user,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Sweep {
     pub token: Address,
     pub recipient: Address,
@@ -223,6 +333,11 @@ impl WrapEth {
         let data = (self.recipient, self.amount_min);
         WrapEthType::abi_encode_sequence(&data)
     }
+
+    pub fn abi_decode(data: &[u8]) -> Result<Self, alloy_sol_types::Error> {
+        let (recipient, amount_min) = WrapEthType::abi_decode_sequence(data)?;
+        Ok(Self { recipient, amount_min })
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -276,7 +391,7 @@ mod tests {
         hex::{decode as HexDecode, encode_prefixed as HexEncode},
     };
     use primitives::{
-        asset_constants::{OPTIMISM_USDC_E_TOKEN_ID, OPTIMISM_USDC_TOKEN_ID, OPTIMISM_WETH_TOKEN_ID},
+        asset_constants::{ETHEREUM_USDC_TOKEN_ID, ETHEREUM_WETH_TOKEN_ID, OPTIMISM_USDC_E_TOKEN_ID, OPTIMISM_USDC_TOKEN_ID, OPTIMISM_WETH_TOKEN_ID},
         contract_constants::OPTIMISM_UNISWAP_V3_UNIVERSAL_ROUTER_CONTRACT,
     };
     use std::str::FromStr;
@@ -361,6 +476,50 @@ mod tests {
         };
         let decoded_with_limits = V3SwapExactInV2_1::abi_decode(&payload_with_limits.abi_encode()).unwrap();
         assert_eq!(decoded_with_limits, payload_with_limits);
+    }
+
+    #[test]
+    fn test_encode_v2_swap_exact_in_payload_layout() {
+        let recipient = Address::from_str(ADDRESS_THIS).unwrap();
+        let path = vec![Address::from_str(ETHEREUM_WETH_TOKEN_ID).unwrap(), Address::from_str(ETHEREUM_USDC_TOKEN_ID).unwrap()];
+        let payload = V2SwapExactIn {
+            recipient,
+            amount_in: U256::from(1000000000000000u64),
+            amount_out_min: U256::from(2597593),
+            path: path.clone(),
+            payer_is_user: true,
+        };
+        let payload_v2_1 = V2SwapExactInV2_1 {
+            recipient,
+            amount_in: U256::from(1000000000000000u64),
+            amount_out_min: U256::from(2597593),
+            path,
+            payer_is_user: true,
+            min_hop_price_x36: vec![],
+        };
+        let expected = "0x0000000000000000000000000000000000000000000000000000000000000002\
+            00000000000000000000000000000000000000000000000000038d7ea4c68000\
+            000000000000000000000000000000000000000000000000000000000027a2d9\
+            00000000000000000000000000000000000000000000000000000000000000a0\
+            0000000000000000000000000000000000000000000000000000000000000001\
+            0000000000000000000000000000000000000000000000000000000000000002\
+            000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2\
+            000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+            .replace(char::is_whitespace, "");
+        let expected_v2_1 = "0x0000000000000000000000000000000000000000000000000000000000000002\
+            00000000000000000000000000000000000000000000000000038d7ea4c68000\
+            000000000000000000000000000000000000000000000000000000000027a2d9\
+            00000000000000000000000000000000000000000000000000000000000000c0\
+            0000000000000000000000000000000000000000000000000000000000000001\
+            0000000000000000000000000000000000000000000000000000000000000120\
+            0000000000000000000000000000000000000000000000000000000000000002\
+            000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2\
+            000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\
+            0000000000000000000000000000000000000000000000000000000000000000"
+            .replace(char::is_whitespace, "");
+
+        assert_eq!(HexEncode(UniversalRouterCommand::V2_SWAP_EXACT_IN(payload).encode()), expected);
+        assert_eq!(HexEncode(UniversalRouterCommand::V2_SWAP_EXACT_IN_V2_1(payload_v2_1).encode()), expected_v2_1);
     }
 
     #[test]

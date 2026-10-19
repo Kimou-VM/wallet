@@ -1,7 +1,18 @@
-use alloy_primitives::{Address, U256};
+use alloy_primitives::{Address, U256, aliases::U112};
+use alloy_sol_types::SolCall;
+use gem_evm::uniswap::contracts::v2::IUniswapV2Pair;
+use primitives::hex::encode_with_0x;
+
+use serde_json::{Value, json};
+use std::sync::{Arc, Mutex};
 
 use super::routed_asset::{Funding, RoutedAsset};
-use crate::eth_address;
+use crate::{
+    alien::mock::{MockFn, ProviderMock},
+    eth_address,
+};
+
+pub type Posts = Arc<Mutex<Vec<usize>>>;
 
 impl RoutedAsset {
     pub fn mock(address: Address, funding: Funding, scale: u64) -> Self {
@@ -19,4 +30,27 @@ impl RoutedAsset {
     pub fn mock_router_balance(token_id: &str, scale: u64) -> Self {
         Self::mock(eth_address::parse_str(token_id).unwrap(), Funding::RouterBalance, scale)
     }
+}
+
+pub fn mock_reserves_result(reserve0: u128, reserve1: u128) -> String {
+    encode_with_0x(&IUniswapV2Pair::getReservesCall::abi_encode_returns(&IUniswapV2Pair::getReservesReturn {
+        reserve0: U112::from(reserve0),
+        reserve1: U112::from(reserve1),
+        blockTimestampLast: 0,
+    }))
+}
+
+pub fn mock_batch_provider(respond: impl Fn(&Value) -> Value + Send + Sync + 'static) -> (ProviderMock, Posts) {
+    let posts = Posts::default();
+    let recorded = posts.clone();
+    let provider = ProviderMock {
+        response: MockFn(Box::new(move |target| {
+            let body = serde_json::from_slice::<Value>(&target.body.unwrap_or_default()).unwrap();
+            let requests = body.as_array().cloned().unwrap_or_else(|| vec![body.clone()]);
+            recorded.lock().unwrap().push(requests.len());
+            let responses = requests.iter().map(&respond).collect::<Vec<_>>();
+            if body.is_array() { json!(responses) } else { responses[0].clone() }.to_string()
+        })),
+    };
+    (provider, posts)
 }

@@ -14,8 +14,8 @@ use crate::{
     uniswap::{
         actions::{V4Action, decode_action_data},
         command::{
-            ADDRESS_THIS, MSG_SENDER, PAY_PORTION_COMMAND, PayPortion, SWEEP_COMMAND, Sweep, TRANSFER_COMMAND, Transfer, UNWRAP_WETH_COMMAND, UnwrapWeth, V3_SWAP_EXACT_IN_COMMAND, V3SwapExactIn, V3SwapExactInV2_1, V4_SWAP_COMMAND,
-            WRAP_ETH_COMMAND,
+            ADDRESS_THIS, CONTRACT_BALANCE, MSG_SENDER, PAY_PORTION_COMMAND, PayPortion, SWEEP_COMMAND, Sweep, TRANSFER_COMMAND, Transfer, UNWRAP_WETH_COMMAND, UnwrapWeth, V2_SWAP_EXACT_IN_COMMAND, V2SwapExactIn, V2SwapExactInSolidly,
+            V2SwapExactInV2_1, V3_SWAP_EXACT_IN_COMMAND, V3SwapExactIn, V3SwapExactInV2_1, V4_SWAP_COMMAND, WRAP_ETH_COMMAND, WrapEth,
         },
         contracts::{
             IUniversalRouter,
@@ -97,6 +97,13 @@ fn decode_execute_swap_call(chain: &Chain, router_abi: RouterAbi, provider: Swap
     let mut swap_provider = provider;
 
     let has_wrap = commands.contains(&WRAP_ETH_COMMAND);
+    let wrap_amount = commands
+        .iter()
+        .zip(inputs.iter())
+        .find(|(command, _)| **command == WRAP_ETH_COMMAND)
+        .and_then(|(_, input)| WrapEth::abi_decode(input).ok())
+        .map(|wrap| wrap.amount_min)
+        .filter(|amount| *amount != CONTRACT_BALANCE);
     let referral = Address::from_str(EVM_REFERRAL_ADDRESS).ok()?;
     let mut unwrap_minimum = None;
     let mut sweep_minimum = None;
@@ -126,20 +133,17 @@ fn decode_execute_swap_call(chain: &Chain, router_abi: RouterAbi, provider: Swap
     }
 
     for (command, input) in commands.iter().zip(inputs.iter()) {
-        if command == &V3_SWAP_EXACT_IN_COMMAND {
-            let (amount_in, amount_out_min, path) = match router_abi.v3 {
-                UniversalRouterAbi::V2 => {
-                    let swap_exact_in = V3SwapExactIn::abi_decode(input).ok()?;
-                    (swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.path)
-                }
-                UniversalRouterAbi::V2_1 => {
-                    let swap_exact_in = V3SwapExactInV2_1::abi_decode(input).ok()?;
-                    (swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.path)
-                }
-            };
-            let token_pair = decode_path(&path)?;
-            let from_token = token_pair.token_in.to_checksum(None);
-            let to_token = token_pair.token_out.to_checksum(None);
+        let swap_exact_in = match *command {
+            V3_SWAP_EXACT_IN_COMMAND => Some(decode_v3_swap_exact_in(input, router_abi.v3)?),
+            V2_SWAP_EXACT_IN_COMMAND => Some(match provider {
+                SwapProvider::Aerodrome => decode_solidly_swap_exact_in(input)?,
+                _ => decode_v2_swap_exact_in(input, router_abi.v3)?,
+            }),
+            _ => None,
+        };
+        if let Some((amount_in, amount_out_min, token_in, token_out)) = swap_exact_in {
+            let from_token = token_in.to_checksum(None);
+            let to_token = token_out.to_checksum(None);
 
             let leg_from_asset = AssetId::from(*chain, (!has_wrap).then_some(from_token));
             let (leg_to_asset, leg_to_value) = if let Some(unwrap_minimum) = &unwrap_minimum {
@@ -152,10 +156,15 @@ fn decode_execute_swap_call(chain: &Chain, router_abi: RouterAbi, provider: Swap
                 };
                 (AssetId::from(*chain, Some(to_token)), to_value)
             };
-            match &mut swap_input {
-                Some((from_asset, from_value)) if from_asset == &leg_from_asset => *from_value = from_value.checked_add(amount_in)?,
-                None => swap_input = Some((leg_from_asset, amount_in)),
-                Some(_) => {}
+            let leg_amount_in = match amount_in == CONTRACT_BALANCE {
+                true => wrap_amount.filter(|_| has_wrap && swap_input.is_none()),
+                false => Some(amount_in),
+            };
+            match (&mut swap_input, leg_amount_in) {
+                (_, None) => {}
+                (Some((from_asset, from_value)), Some(amount_in)) if from_asset == &leg_from_asset => *from_value = from_value.checked_add(amount_in)?,
+                (None, Some(amount_in)) => swap_input = Some((leg_from_asset, amount_in)),
+                (Some(_), Some(_)) => {}
             }
             swap_output = Some((leg_to_asset, leg_to_value));
         }
@@ -213,6 +222,40 @@ fn decode_execute_swap_call(chain: &Chain, router_abi: RouterAbi, provider: Swap
     let (from_asset, from_value) = from_asset.mirror_to_native(u256_to_biguint(&from_value));
     let (to_asset, to_value) = to_asset.mirror_to_native(u256_to_biguint(&U256::from_str(&to_value).ok()?));
     Some(TransactionSwapMetadata::new(from_asset, from_value, to_asset, to_value, swap_provider).with_referral_fee(referral_fee))
+}
+
+fn decode_v3_swap_exact_in(input: &[u8], universal_router_abi: UniversalRouterAbi) -> Option<(U256, U256, Address, Address)> {
+    let (amount_in, amount_out_min, path) = match universal_router_abi {
+        UniversalRouterAbi::V2 => {
+            let swap_exact_in = V3SwapExactIn::abi_decode(input).ok()?;
+            (swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.path)
+        }
+        UniversalRouterAbi::V2_1 => {
+            let swap_exact_in = V3SwapExactInV2_1::abi_decode(input).ok()?;
+            (swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.path)
+        }
+    };
+    let token_pair = decode_path(&path)?;
+    Some((amount_in, amount_out_min, token_pair.token_in, token_pair.token_out))
+}
+
+fn decode_v2_swap_exact_in(input: &[u8], universal_router_abi: UniversalRouterAbi) -> Option<(U256, U256, Address, Address)> {
+    let (amount_in, amount_out_min, path) = match universal_router_abi {
+        UniversalRouterAbi::V2 => {
+            let swap_exact_in = V2SwapExactIn::abi_decode(input).ok()?;
+            (swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.path)
+        }
+        UniversalRouterAbi::V2_1 => {
+            let swap_exact_in = V2SwapExactInV2_1::abi_decode(input).ok()?;
+            (swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.path)
+        }
+    };
+    Some((amount_in, amount_out_min, *path.first()?, *path.last()?))
+}
+
+fn decode_solidly_swap_exact_in(input: &[u8]) -> Option<(U256, U256, Address, Address)> {
+    let swap_exact_in = V2SwapExactInSolidly::abi_decode(input).ok()?;
+    Some((swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.routes.first()?.from, swap_exact_in.routes.last()?.to))
 }
 
 fn native_v4_value_from_receipt(router: Address, from: &str, actions: &[V4Action], receipt: &TransactionReceipt) -> Option<U256> {
@@ -284,13 +327,20 @@ mod tests {
     use crate::provider::testkit::TOKEN_USDC_ADDRESS;
     use crate::rpc::model::{Transaction, TransactionReceipt};
     use crate::rpc::parsers::ProtocolParsers;
-    use crate::uniswap::{actions::V4Action, contracts::v4::IV4Router, deployment::UniversalRouterAbi};
+    use crate::uniswap::{
+        FeeTier,
+        actions::V4Action,
+        command::{UniversalRouterCommand, encode_commands},
+        contracts::v4::IV4Router,
+        deployment::UniversalRouterAbi,
+        path::{TokenPair, build_pairs},
+    };
     use alloy_primitives::{Address, B256};
     use chrono::DateTime;
     use num_bigint::BigUint;
     use primitives::{
         AssetId, Chain, TransactionSwapMetadata, TransactionType,
-        asset_constants::{ETHEREUM_USDT_ASSET_ID, POLYGON_USDT_TOKEN_ID, UNICHAIN_DAI_TOKEN_ID, UNICHAIN_USDC_TOKEN_ID},
+        asset_constants::{BASE_USDC_ASSET_ID, ETHEREUM_USDT_ASSET_ID, ETHEREUM_WETH_TOKEN_ID, POLYGON_USDT_TOKEN_ID, UNICHAIN_DAI_TOKEN_ID, UNICHAIN_USDC_TOKEN_ID},
         contract_constants::{ETHEREUM_UNISWAP_V3_UNIVERSAL_ROUTER_CONTRACT, UNICHAIN_UNISWAP_V4_UNIVERSAL_ROUTER_CONTRACT},
         testkit::json_rpc::load_json_rpc_result,
     };
@@ -481,6 +531,85 @@ mod tests {
         assert_eq!(metadata.from_value, BigUint::from(10000000000000u64));
         assert_eq!(metadata.to_asset, ETHEREUM_USDT_ASSET_ID.clone());
         assert_eq!(metadata.to_value, BigUint::from(19304u64));
+    }
+
+    #[test]
+    fn test_map_v3_v2_swap_usdc_bone() {
+        let transaction = load_json_rpc_result::<Transaction>(include_str!("../../../testdata/v3_v2_usdc_bone_tx.json"));
+        let receipt = load_json_rpc_result::<TransactionReceipt>(include_str!("../../../testdata/v3_v2_usdc_bone_tx_receipt.json"));
+
+        let swap_tx = map_swap(&Chain::Ethereum, &transaction, &receipt);
+        let metadata: TransactionSwapMetadata = serde_json::from_value(swap_tx.metadata.unwrap()).unwrap();
+
+        assert_eq!(swap_tx.transaction_type, TransactionType::Swap);
+        assert_eq!(
+            metadata,
+            TransactionSwapMetadata::new(
+                AssetId::from_token(Chain::Ethereum, TOKEN_USDC_ADDRESS),
+                BigUint::from(95_999_568u64),
+                AssetId::from_token(Chain::Ethereum, "0x9813037ee2218799597d83D4a5B6F3b6778218d9"),
+                BigUint::from(1_633_629_420_004_286_947_623u128),
+                SwapProvider::UniswapV3,
+            )
+        );
+    }
+
+    #[test]
+    fn test_decode_router_balance_swap_after_wrap() {
+        let (weth, usdc) = (Address::from_str(ETHEREUM_WETH_TOKEN_ID).unwrap(), Address::from_str(TOKEN_USDC_ADDRESS).unwrap());
+        let wallet = "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7";
+        let commands = [
+            UniversalRouterCommand::WRAP_ETH(WrapEth {
+                recipient: Address::from_str(ADDRESS_THIS).unwrap(),
+                amount_min: U256::from(1_000_000_000_000_000_000u64),
+            }),
+            UniversalRouterCommand::V3_SWAP_EXACT_IN(V3SwapExactIn {
+                recipient: Address::from_str(wallet).unwrap(),
+                amount_in: CONTRACT_BALANCE,
+                amount_out_min: U256::from(2_500_000_000u64),
+                path: build_pairs(&[TokenPair {
+                    token_in: weth,
+                    token_out: usdc,
+                    fee_tier: FeeTier::FiveHundred,
+                }]),
+                payer_is_user: false,
+            }),
+        ];
+        let receipt: TransactionReceipt = serde_json::from_value(serde_json::json!({"gasUsed": "0x0", "effectiveGasPrice": "0x0", "logs": [], "status": "0x1", "blockHash": "0x0"})).unwrap();
+
+        let metadata = decode_execute_swap(&Chain::Ethereum, UniversalRouterAbi::V2, SwapProvider::UniswapV3, wallet, &encode_commands(&commands, U256::ZERO), &receipt).unwrap();
+
+        assert_eq!(
+            metadata,
+            TransactionSwapMetadata::new(
+                AssetId::from_chain(Chain::Ethereum),
+                BigUint::from(1_000_000_000_000_000_000u64),
+                AssetId::from_token(Chain::Ethereum, TOKEN_USDC_ADDRESS),
+                BigUint::from(2_500_000_000u64),
+                SwapProvider::UniswapV3,
+            )
+        );
+    }
+
+    #[test]
+    fn test_map_aerodrome_solidly_slipstream_swap() {
+        let transaction = load_json_rpc_result::<Transaction>(include_str!("../../../testdata/aerodrome_v2_v3_swap_tx.json"));
+        let receipt = load_json_rpc_result::<TransactionReceipt>(include_str!("../../../testdata/aerodrome_v2_v3_swap_tx_receipt.json"));
+
+        let swap_tx = map_swap(&Chain::Base, &transaction, &receipt);
+        let metadata: TransactionSwapMetadata = serde_json::from_value(swap_tx.metadata.unwrap()).unwrap();
+
+        assert_eq!(swap_tx.transaction_type, TransactionType::Swap);
+        assert_eq!(
+            metadata,
+            TransactionSwapMetadata::new(
+                AssetId::from_token(Chain::Base, "0xED6E000dEF95780fb89734c07EE2ce9F6dcAf110"),
+                BigUint::from(5_984_251_968_500_000_000_000u128),
+                BASE_USDC_ASSET_ID.clone(),
+                BigUint::from(565_155_399u64),
+                SwapProvider::Aerodrome,
+            )
+        );
     }
 
     #[test]

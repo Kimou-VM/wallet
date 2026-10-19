@@ -9,10 +9,14 @@ pub mod path;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum FeeTier {
+    One = 1,
+    Ten = 10,
+    Fifty = 50,
     Hundred = 100,
-    FourHundred = 400,
+    TwoHundred = 200,
     FiveHundred = 500,
     ThousandFiveHundred = 1500,
+    TwoThousand = 2000,
     TwoThousandFiveHundred = 2500,
     ThreeThousand = 3000,
     TenThousand = 10000,
@@ -24,11 +28,16 @@ impl FeeTier {
         U24::from_le_bytes([fee_bytes[0], fee_bytes[1], fee_bytes[2]])
     }
 
+    pub fn as_tick_spacing(&self) -> I24 {
+        I24::unchecked_from(*self as u32)
+    }
+
     pub fn default_tick_spacing(&self) -> I24 {
         match self {
-            FeeTier::Hundred => I24::unchecked_from(1),
-            FeeTier::FourHundred => I24::unchecked_from(10),
+            FeeTier::One | FeeTier::Ten | FeeTier::Fifty | FeeTier::Hundred => I24::unchecked_from(1),
+            FeeTier::TwoHundred => I24::unchecked_from(4),
             FeeTier::FiveHundred => I24::unchecked_from(10),
+            FeeTier::TwoThousand => I24::unchecked_from(40),
             FeeTier::ThousandFiveHundred => I24::unchecked_from(50),
             FeeTier::TwoThousandFiveHundred => I24::unchecked_from(50),
             FeeTier::ThreeThousand => I24::unchecked_from(60),
@@ -51,9 +60,14 @@ impl TryFrom<u32> for FeeTier {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
+            1 => Ok(FeeTier::One),
+            10 => Ok(FeeTier::Ten),
+            50 => Ok(FeeTier::Fifty),
             100 => Ok(FeeTier::Hundred),
+            200 => Ok(FeeTier::TwoHundred),
             500 => Ok(FeeTier::FiveHundred),
             1500 => Ok(FeeTier::ThousandFiveHundred),
+            2000 => Ok(FeeTier::TwoThousand),
             2500 => Ok(FeeTier::TwoThousandFiveHundred),
             3000 => Ok(FeeTier::ThreeThousand),
             10000 => Ok(FeeTier::TenThousand),
