@@ -22,7 +22,7 @@ use gem_client::Client;
 use gem_ton::{address::Address, models::TonConnectMessage, rpc::client::TonClient};
 use num_bigint::BigUint;
 use primitives::{AssetId, Chain, asset_constants::TON_USDT_ASSET_ID};
-use std::{fmt::Debug, sync::Arc};
+use std::{fmt::Debug, iter::once, sync::Arc};
 
 #[derive(Debug)]
 pub struct Dedust<C: Client> {
@@ -52,7 +52,7 @@ impl<C: Client> Dedust<C> {
 
     async fn find_route(&self, from: &DedustAsset, to: &DedustAsset, value: &BigUint) -> Result<(Vec<Address>, BigUint), SwapperError> {
         self.outpriced_paths
-            .quote_live_first((from, to), amount_key(value), route_paths(from, to)?, Clone::clone, |paths| self.quote_paths(paths, from, to, value))
+            .quote_live_first((from, to), amount_key(value), route_paths(from, to), Clone::clone, |paths| self.quote_paths(paths, from, to, value))
             .await
     }
 
@@ -85,9 +85,9 @@ fn quoted_value<T>((_, value_out): &(T, BigUint)) -> u128 {
     amount_key(value_out)
 }
 
-fn route_paths(from: &DedustAsset, to: &DedustAsset) -> Result<Vec<RoutePath<DedustAsset>>, SwapperError> {
-    let intermediaries = [DedustAsset::Native, DedustAsset::from_asset_id(&TON_USDT_ASSET_ID)?];
-    Ok(RoutePath::all(from, to, intermediaries, |left, right| left == right))
+fn route_paths(from: &DedustAsset, to: &DedustAsset) -> Vec<RoutePath<DedustAsset>> {
+    let intermediaries = once(DedustAsset::Native).chain(DedustAsset::from_asset_id(&TON_USDT_ASSET_ID).ok());
+    RoutePath::all(from, to, intermediaries, |left, right| left == right)
 }
 
 #[async_trait]
@@ -114,7 +114,7 @@ where
         let (Ok(from), Ok(to)) = (DedustAsset::from_asset_id(from_asset), DedustAsset::from_asset_id(to_asset)) else {
             return;
         };
-        let pairs = route_paths(&from, &to).unwrap_or_default().iter().flat_map(|path| path.pairs(&from, &to)).collect::<Vec<_>>();
+        let pairs = route_paths(&from, &to).iter().flat_map(|path| path.pairs(&from, &to)).collect::<Vec<_>>();
         stream::iter(pairs)
             .for_each_concurrent(None, |(asset_in, asset_out)| async move {
                 _ = try_join_all(PoolType::ALL.map(|pool_type| self.client.pool_address(pool_type, &asset_in, &asset_out))).await
