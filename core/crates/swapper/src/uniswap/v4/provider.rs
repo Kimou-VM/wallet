@@ -81,9 +81,9 @@ impl UniswapV4 {
             .pool_discovery
             .missing_pools(chain, &pairs, &fee_tiers)
             .into_iter()
-            .map(|pool| {
-                let (pool_key, _) = build_pool_key(&pool.token_in, &pool.token_out, &pool.fee_tier);
-                (pool, B256::from(keccak256(&pool_key.abi_encode())))
+            .filter_map(|pool| {
+                let pool_key = build_pool_key(&pool.token_in, &pool.token_out, &pool.fee_tier)?;
+                Some((pool, B256::from(keccak256(&pool_key.abi_encode()))))
             })
             .collect::<Vec<_>>();
         if pools.is_empty() {

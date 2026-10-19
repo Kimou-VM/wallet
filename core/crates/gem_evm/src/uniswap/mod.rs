@@ -32,16 +32,13 @@ impl FeeTier {
         I24::unchecked_from(*self as u32)
     }
 
-    pub fn default_tick_spacing(&self) -> I24 {
+    pub fn default_tick_spacing(&self) -> Option<I24> {
         match self {
-            FeeTier::One | FeeTier::Ten | FeeTier::Fifty | FeeTier::Hundred => I24::unchecked_from(1),
-            FeeTier::TwoHundred => I24::unchecked_from(4),
-            FeeTier::FiveHundred => I24::unchecked_from(10),
-            FeeTier::TwoThousand => I24::unchecked_from(40),
-            FeeTier::ThousandFiveHundred => I24::unchecked_from(50),
-            FeeTier::TwoThousandFiveHundred => I24::unchecked_from(50),
-            FeeTier::ThreeThousand => I24::unchecked_from(60),
-            FeeTier::TenThousand => I24::unchecked_from(200),
+            FeeTier::Hundred => Some(I24::unchecked_from(1)),
+            FeeTier::FiveHundred => Some(I24::unchecked_from(10)),
+            FeeTier::ThreeThousand => Some(I24::unchecked_from(60)),
+            FeeTier::TenThousand => Some(I24::unchecked_from(200)),
+            FeeTier::One | FeeTier::Ten | FeeTier::Fifty | FeeTier::TwoHundred | FeeTier::ThousandFiveHundred | FeeTier::TwoThousand | FeeTier::TwoThousandFiveHundred => None,
         }
     }
 }
