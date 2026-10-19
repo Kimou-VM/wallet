@@ -56,7 +56,7 @@ pub fn state_update(state: TransactionState, changes: &[TransactionChange], tran
     let mut update = GemTransactionStateUpdate::new(state);
     for change in changes {
         match change {
-            TransactionChange::NetworkFee(fee) => update.fee = Some(fee.clone()),
+            TransactionChange::NetworkFee(fee) => update.fee = fee.to_biguint(),
             TransactionChange::Value(value) => update.value = Some(value.clone()),
             TransactionChange::BlockNumber(number) => update.block_number = Some(number.clone()),
             TransactionChange::Metadata(metadata) => update.metadata = Some(metadata_json(metadata)?),
@@ -66,17 +66,17 @@ pub fn state_update(state: TransactionState, changes: &[TransactionChange], tran
     }
     if let Some(metadata) = &update.metadata {
         let mut updated = transaction.clone();
-        updated.metadata = Some(serde_json::from_str(metadata)?);
+        updated.metadata = Some(metadata.clone());
         update.asset_ids = Some(updated.asset_ids());
     }
     Ok(update)
 }
 
-fn metadata_json(metadata: &TransactionMetadata) -> Result<String, serde_json::Error> {
+fn metadata_json(metadata: &TransactionMetadata) -> Result<serde_json::Value, serde_json::Error> {
     match metadata {
-        TransactionMetadata::Swap(swap) => serde_json::to_string(swap),
-        TransactionMetadata::Perpetual(perpetual) => serde_json::to_string(perpetual),
-        TransactionMetadata::Payment(payment) => serde_json::to_string(payment),
+        TransactionMetadata::Swap(swap) => serde_json::to_value(swap),
+        TransactionMetadata::Perpetual(perpetual) => serde_json::to_value(perpetual),
+        TransactionMetadata::Payment(payment) => serde_json::to_value(payment),
     }
 }
 
@@ -141,6 +141,13 @@ mod tests {
 
         assert_eq!(update.value, Some(499_590_000u64.into()));
         assert!(update.has_field_changes());
+    }
+
+    #[test]
+    fn test_the_state_update_never_stores_a_negative_fee() {
+        let fee = |value: i64| state_update(TransactionState::Confirmed, &[TransactionChange::NetworkFee(value.into())], &Transaction::mock()).unwrap().fee;
+
+        assert_eq!((fee(21_000), fee(-1)), (Some(21_000u32.into()), None), "the fee column is read back as an unsigned amount");
     }
 
     #[test]

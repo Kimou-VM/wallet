@@ -217,7 +217,7 @@ mod tests {
         assert_eq!(result.state, TransactionState::InTransit);
         let (_, saved) = store.updates.lock().unwrap()[0].clone();
         assert_eq!(saved.state, TransactionState::InTransit);
-        assert!(saved.metadata.unwrap().contains("9900000000000000000"));
+        assert!(saved.metadata.unwrap().to_string().contains("9900000000000000000"));
     }
 
     #[test]
