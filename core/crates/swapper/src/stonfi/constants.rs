@@ -9,8 +9,12 @@ pub(super) struct RouterInfo {
     pub pton_wallet: &'static str,
 }
 
+#[allow(clippy::match_like_matches_macro)]
 pub(super) fn is_supported_v2(major_version: u8, minor_version: u8) -> bool {
-    major_version == 2 && matches!(minor_version, 1 | 2)
+    match (major_version, minor_version) {
+        (2, 1 | 2) => true,
+        _ => false,
+    }
 }
 
 impl RouterInfo {

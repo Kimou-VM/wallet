@@ -131,7 +131,6 @@ fn build_swap_cell(params: SwapCellParams<'_>) -> Result<Cell, SwapperError> {
 }
 
 fn next_swap_forward_gas(params: &SwapTransactionParams<'_>) -> u64 {
-    // Same-router cross-swaps route internally; inter-router hops need extra forward gas.
     match params.next_swap.as_ref() {
         Some(next_swap) if !is_same_router(params, next_swap) => V2_JETTON_SWAP_FORWARD_GAS,
         _ => 0,
