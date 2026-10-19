@@ -79,16 +79,14 @@ fn link_stands_alone(markdown_before: &str, markdown_after: &str) -> bool {
 }
 
 fn display_lines(text: &str) -> String {
-    let mut lines: Vec<String> = Vec::new();
-    for line in text.lines().map(|line| line.split_whitespace().collect::<Vec<_>>().join(" ")) {
-        if !line.is_empty() || lines.last().is_some_and(|last| !last.is_empty()) {
-            lines.push(line);
-        }
-    }
-    while lines.last().is_some_and(String::is_empty) {
-        lines.pop();
-    }
-    lines.join("\n")
+    text.lines()
+        .map(single_spaced)
+        .collect::<Vec<_>>()
+        .split(String::is_empty)
+        .filter(|paragraph| !paragraph.is_empty())
+        .map(|paragraph| paragraph.join("\n"))
+        .collect::<Vec<_>>()
+        .join("\n\n")
 }
 
 impl SupportMessageLink {
@@ -185,13 +183,11 @@ fn link_destination(url: &str) -> &str {
 }
 
 fn collapse_whitespace(text: &str, separator: &str) -> String {
-    text.lines()
-        .filter_map(|line| {
-            let line = line.split_whitespace().collect::<Vec<_>>().join(" ");
-            (!line.is_empty()).then_some(line)
-        })
-        .collect::<Vec<_>>()
-        .join(separator)
+    text.lines().map(single_spaced).filter(|line| !line.is_empty()).collect::<Vec<_>>().join(separator)
+}
+
+fn single_spaced(line: &str) -> String {
+    line.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn link_label_prefix(text: &str, link_title: &str) -> Option<(usize, String)> {
