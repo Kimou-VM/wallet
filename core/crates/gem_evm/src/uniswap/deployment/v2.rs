@@ -54,10 +54,6 @@ impl V2Deployment {
         self.factory.create2(salt, self.init_code_hash)
     }
 
-    pub fn round_trip_floor(&self, amount_in: U256) -> Option<U256> {
-        round_trip_floor(self.fee_tier as u32, amount_in)
-    }
-
     pub fn amount_out(&self, amount_in: U256, reserve_in: U256, reserve_out: U256) -> Option<U256> {
         constant_product_amount_out(self.fee_tier as u32, amount_in, reserve_in, reserve_out)
     }
