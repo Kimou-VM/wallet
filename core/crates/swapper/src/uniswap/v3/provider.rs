@@ -357,6 +357,7 @@ impl Swapper for UniswapV3 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::SwapperProvider;
     use crate::{
         alien::mock::ProviderMock,
         testkit::mock_quote,
@@ -367,6 +368,11 @@ mod tests {
     };
     use alloy_primitives::hex::encode as hex_encode;
     use alloy_sol_types::SolCall;
+    use chrono::DateTime;
+    use gem_evm::rpc::{
+        model::{Transaction, TransactionReceipt},
+        parsers::ProtocolParsers,
+    };
     use gem_evm::uniswap::{
         FeeTier,
         command::{SolidlyRoute, TRANSFER_COMMAND, V2_SWAP_EXACT_IN_COMMAND, V2SwapExactIn, V2SwapExactInSolidly, WRAP_ETH_COMMAND},
@@ -377,6 +383,7 @@ mod tests {
         },
         deployment::v3::{get_aerodrome_router_deployment_by_chain, get_pancakeswap_router_deployment_by_chain},
     };
+    use primitives::TransactionSwapMetadata;
     use primitives::{
         asset_constants::{BASE_USDC_TOKEN_ID, BASE_WETH_TOKEN_ID, SMARTCHAIN_USDC_TOKEN_ID, SMARTCHAIN_USDT_TOKEN_ID},
         decode_hex,
@@ -461,6 +468,16 @@ mod tests {
                 payer_is_user: false,
             }
         );
+        assert_eq!(
+            parsed_swap(Chain::SmartChain, &request, &quote_data),
+            TransactionSwapMetadata::new(
+                AssetId::from_chain(Chain::SmartChain),
+                BigUint::from(995_000_000_000_000_000u64),
+                AssetId::from_token(Chain::SmartChain, SMARTCHAIN_USDT_TOKEN_ID),
+                BigUint::from(1_990_000u64),
+                SwapperProvider::PancakeswapV3,
+            )
+        );
     }
 
     #[tokio::test]
@@ -543,6 +560,31 @@ mod tests {
                 payer_is_user: false,
             }
         );
+        assert_eq!(
+            parsed_swap(Chain::Base, &request, &quote_data),
+            TransactionSwapMetadata::new(
+                AssetId::from_chain(Chain::Base),
+                BigUint::from(995_000_000_000_000_000u64),
+                AssetId::from_token(Chain::Base, &token.to_checksum(None)),
+                BigUint::from(1_990_000u64),
+                SwapperProvider::Aerodrome,
+            )
+        );
+    }
+
+    fn parsed_swap(chain: Chain, request: &QuoteRequest, quote_data: &SwapperQuoteData) -> TransactionSwapMetadata {
+        let transaction: Transaction = serde_json::from_value(json!({
+            "from": request.wallet_address,
+            "gas": "0x0",
+            "hash": "0x01",
+            "input": quote_data.data,
+            "to": quote_data.to,
+            "value": format!("0x{:x}", quote_data.value),
+        }))
+        .unwrap();
+        let receipt: TransactionReceipt = serde_json::from_value(json!({"gasUsed": "0x0", "effectiveGasPrice": "0x0", "logs": [], "status": "0x1", "blockHash": "0x0"})).unwrap();
+        let transaction = ProtocolParsers::map_transaction(&chain, &transaction, &receipt, DateTime::default()).unwrap();
+        serde_json::from_value(transaction.metadata.unwrap()).unwrap()
     }
 
     #[test]
