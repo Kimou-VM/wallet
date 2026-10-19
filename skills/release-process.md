@@ -3,8 +3,8 @@
 Use when versioning, tagging, committing for review, rebasing, publishing, or triggering store builds.
 ## Branching
 
-- All work lands on `main`: small changes push straight to it, larger ones arrive through PRs from short-lived branches
-- Every store build, internal or production, is a tag that `just bump` cuts from `main`. Never bump on another branch: `main`'s next bump would reuse that branch's build numbers, and the stores refuse a build number they already have
+- `main` is the only long-lived branch: a change reaches it directly or through a short-lived PR branch, whichever it needs
+- Store builds are tags that `just bump` cuts from `main`. Never bump another branch: `main`'s next bump would reuse its build numbers, and the stores refuse a build number they already have
 
 ## Versioning
 
