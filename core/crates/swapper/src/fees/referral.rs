@@ -128,7 +128,7 @@ pub fn on_chain_referral_fees(request: &QuoteRequest) -> ReferralFees {
     }
 }
 
-fn referral_fees(bps: u32) -> ReferralFees {
+pub(crate) fn referral_fees(bps: u32) -> ReferralFees {
     let fee = |address: &str| ReferralFee { address: address.into(), bps };
     ReferralFees {
         evm: fee(EVM_REFERRAL_ADDRESS),
