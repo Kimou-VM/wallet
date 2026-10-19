@@ -1,6 +1,6 @@
 use crate::{
     QuoteRequest, Route, SwapperError, eth_address,
-    fees::{bps_of, default_referral_fees},
+    fees::{bps_of, on_chain_referral_fees},
     uniswap::routed_asset::{Funding, RoutedAsset},
 };
 use alloy_primitives::{Address, U256};
@@ -25,7 +25,7 @@ pub fn build_commands(
     fee_token_is_input: bool,
     universal_router_abi: UniversalRouterAbi,
 ) -> Result<Vec<UniversalRouterCommand>, SwapperError> {
-    let fee_options = default_referral_fees().evm;
+    let fee_options = on_chain_referral_fees(request).evm;
     let recipient = eth_address::parse_str(&request.wallet_address)?;
 
     let token_in = input.address;

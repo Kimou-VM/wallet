@@ -7,7 +7,7 @@ use crate::{
     client_factory::{create_client_with_chain, create_eth_client},
     cross_chain::VaultAddresses,
     eth_address,
-    fees::{ReferralFee, bps_of, default_referral_fees},
+    fees::{BRIDGE_FEE_BPS, ReferralFee, bps_of, default_referral_fees},
     models::*,
 };
 use alloy_primitives::{Address, Bytes, U256, hex::decode as HexDecode, hex::encode_prefixed as HexEncode};
@@ -291,7 +291,7 @@ impl Swapper for Across {
             .filter(|amount| !amount.is_zero())
             .ok_or(SwapperError::InputAmountError { min_amount: None })?;
 
-        let referral_config = default_referral_fees().for_chain(to_chain).cloned().unwrap_or_default();
+        let referral_config = default_referral_fees().for_chain(to_chain).map(|fee| ReferralFee { bps: BRIDGE_FEE_BPS, ..fee.clone() }).unwrap_or_default();
         let (message, referral_fee) = Self::message_for_multicall_handler(&output_amount, output.funding, &output_token, &recipient_address, to_chain, &referral_config)?;
         let recipient = if message.is_empty() {
             recipient_address

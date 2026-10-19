@@ -1,6 +1,6 @@
 use crate::{
     ProviderData, ProviderType, Quote, QuoteRequest, RpcClient, SwapperError,
-    fees::{default_referral_fees, subtract_bps},
+    fees::{on_chain_referral_fees, subtract_bps},
     route_cache::OutpricedCache,
     uniswap::swap_route::{PoolPath, build_swap_route},
 };
@@ -26,7 +26,11 @@ pub struct QuoteResult {
 
 impl QuoteResult {
     pub fn into_quote(self, request: &QuoteRequest, provider: ProviderType, fee_token_is_input: bool, output_scale: U256) -> Quote {
-        let to_value = if fee_token_is_input { self.amount_out } else { subtract_bps(&self.amount_out, default_referral_fees().evm.bps) };
+        let to_value = if fee_token_is_input {
+            self.amount_out
+        } else {
+            subtract_bps(&self.amount_out, on_chain_referral_fees(request).evm.bps)
+        };
         let min_amount_out = subtract_bps(&to_value, request.options.slippage.bps);
         Quote {
             from_value: request.value.clone(),

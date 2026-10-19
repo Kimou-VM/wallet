@@ -27,6 +27,7 @@ use std::{fmt::Debug, sync::Arc};
 
 const DEFAULT_DEADLINE_MINUTES: i64 = 30;
 const BITCOIN_DEADLINE_MINUTES: i64 = 120;
+const APP_FEE_SPLIT: u32 = 2;
 
 pub const TREASURY_ADDRESSES: [(Chain, &str); 17] = [
     (Chain::Ethereum, "0x2CfF890f0378a11913B6129B2E97417a2c302680"),
@@ -81,7 +82,10 @@ where
         if fee.address.is_empty() || fee.bps == 0 {
             return None;
         }
-        Some(vec![AppFee { recipient: fee.address, fee: fee.bps }])
+        Some(vec![AppFee {
+            recipient: fee.address,
+            fee: fee.bps * APP_FEE_SPLIT,
+        }])
     }
 
     fn build_quote_request(request: &QuoteRequest, dry: bool) -> Result<NearQuoteRequest, SwapperError> {

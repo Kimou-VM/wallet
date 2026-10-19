@@ -27,7 +27,7 @@ use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperQuoteData,
     client_factory::create_client_with_chain,
     error::INVALID_ADDRESS,
-    fees::{FeeSide, default_referral_fees},
+    fees::{FeeSide, default_referral_fees, on_chain_referral_fees},
     route_cache::{Cache, DiscoveryCache, OutpricedCache},
     route_path::RoutePath,
 };
@@ -292,7 +292,7 @@ impl<P: DexProtocol, C: Client + Clone + Send + Sync + 'static> SolanaDex<P, C> 
 
     async fn quote_paths(&self, request: &QuoteRequest, input: &SwapToken, output: &SwapToken, paths: Vec<PathLookup<P::Pool>>) -> Result<DexRoute, SwapperError> {
         let value = request.value_u64()?;
-        let referral_fee = default_referral_fees().solana;
+        let referral_fee = on_chain_referral_fees(request).solana;
         let referral = Pubkey::from_base58(&referral_fee.address)?;
         let preferred_side = preferred_fee_side(&input.mint, &output.mint);
         let referral_accounts = match preferred_side {

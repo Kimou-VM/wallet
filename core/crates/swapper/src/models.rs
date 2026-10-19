@@ -6,6 +6,7 @@ pub use primitives::swap::Permit2ApprovalData;
 pub use primitives::swap::{SwapResult, SwapResultRequest};
 use primitives::{
     AssetId, Chain,
+    known_assets::STABLECOIN_ASSET_IDS,
     swap::{SlippageMode, SwapProviderMode},
 };
 use serde::{Serialize, de::DeserializeOwned};
@@ -112,6 +113,10 @@ pub struct QuoteRequest {
 impl QuoteRequest {
     pub fn value_u64(&self) -> Result<u64, SwapperError> {
         swap_value_u64(&self.value)
+    }
+
+    pub fn is_stablecoin_swap(&self) -> bool {
+        STABLECOIN_ASSET_IDS.contains(&self.from_asset.asset_id()) && STABLECOIN_ASSET_IDS.contains(&self.to_asset.asset_id())
     }
 
     fn spends_all_native(&self) -> bool {

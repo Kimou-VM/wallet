@@ -29,14 +29,14 @@ impl<C: Client + 'static> Swapper for Hyperion<C> {
         let amount_in = request.value_u64()?;
         let from = token_metadata(&request.from_asset.asset_id())?.to_string();
         let to = token_metadata(&request.to_asset.asset_id())?.to_string();
-        let swap_amount = Self::referral_fee().swap_value(FeeSide::Input, amount_in);
+        let swap_amount = Self::referral_fee(request).swap_value(FeeSide::Input, amount_in);
         let (route, amount_out) = self.find_route(&from, &to, swap_amount).await?;
 
         Quote::from_route(request, self.provider(), BigUint::from(amount_out), request.options.slippage.bps, &route, Some(0))
     }
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
-        tx_builder::build_quote_data(&self.client, quote, &quote.route_data()?, &Self::referral_fee()).await
+        tx_builder::build_quote_data(&self.client, quote, &quote.route_data()?, &Self::referral_fee(&quote.request)).await
     }
 }
 

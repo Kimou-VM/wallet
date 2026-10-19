@@ -1,6 +1,6 @@
 use crate::{
     SwapperError, eth_address,
-    fees::{bps_of, default_referral_fees},
+    fees::{bps_of, on_chain_referral_fees},
     models::*,
     uniswap::{
         routed_asset::{Funding, RoutedAsset},
@@ -25,7 +25,7 @@ pub fn build_commands(
     fee_token_is_input: bool,
     universal_router_abi: UniversalRouterAbi,
 ) -> Result<Vec<UniversalRouterCommand>, SwapperError> {
-    let fee_options = default_referral_fees().evm;
+    let fee_options = on_chain_referral_fees(request).evm;
     let recipient = eth_address::parse_str(&request.wallet_address)?;
     let router = eth_address::parse_str(ADDRESS_THIS)?;
     let fee_recipient = eth_address::parse_str(&fee_options.address)?;
@@ -84,6 +84,7 @@ pub fn build_commands(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fees::default_referral_fees;
     use crate::permit2_data::*;
     use crate::testkit::mock_quote;
     use crate::uniswap::routed_asset::RoutedAsset;

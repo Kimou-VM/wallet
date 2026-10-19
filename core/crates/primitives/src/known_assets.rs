@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::{collections::HashSet, sync::LazyLock};
 
 use crate::{Asset, AssetId, AssetScore, AssetType, Chain, asset_constants::*};
 
@@ -232,4 +232,11 @@ pub static PYUSD_ASSET_IDS: LazyLock<Vec<AssetId>> = LazyLock::new(|| {
         AssetId::from_token(Chain::XLayer, XLAYER_PYUSD_TOKEN_ID),
         AssetId::from_token(Chain::Solana, SOLANA_PYUSD_TOKEN_ID),
     ]
+});
+
+pub static STABLECOIN_ASSET_IDS: LazyLock<HashSet<AssetId>> = LazyLock::new(|| {
+    [&USDT_ASSET_IDS, &USDC_ASSET_IDS, &USDS_ASSET_IDS, &USDE_ASSET_IDS, &USD1_ASSET_IDS, &USDG_ASSET_IDS, &PYUSD_ASSET_IDS]
+        .into_iter()
+        .flat_map(|ids| ids.iter().cloned())
+        .collect()
 });

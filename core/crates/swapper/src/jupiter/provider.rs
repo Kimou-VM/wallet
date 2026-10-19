@@ -14,7 +14,7 @@ use super::{client::JupiterClient, model::BuildRequest};
 use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData,
     error::INVALID_ADDRESS,
-    fees::{SOLANA_FEE_MINTS, default_referral_fees},
+    fees::{SOLANA_FEE_MINTS, on_chain_referral_fees},
 };
 
 const MAX_ACCOUNTS: u8 = 64;
@@ -97,7 +97,7 @@ where
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let input_mint = Self::asset_mint(&request.from_asset.id)?;
         let output_mint = Self::asset_mint(&request.to_asset.id)?;
-        let referral_fee = default_referral_fees().solana;
+        let referral_fee = on_chain_referral_fees(request).solana;
         let fee_account = self.get_referral_account(&request.from_asset, &request.to_asset, &referral_fee.address).await?;
         let build_request = BuildRequest {
             input_mint: input_mint.clone(),

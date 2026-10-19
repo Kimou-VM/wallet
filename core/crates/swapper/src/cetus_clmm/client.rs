@@ -4,9 +4,9 @@ use super::{
     tx_builder,
 };
 use crate::{
-    ProviderType, RpcProvider, SwapperError, SwapperProvider,
+    ProviderType, QuoteRequest, RpcProvider, SwapperError, SwapperProvider,
     client_factory::create_sui_client,
-    fees::{ReferralFee, default_referral_fees},
+    fees::{ReferralFee, on_chain_referral_fees},
     route_cache::DiscoveryCache,
     route_path::RoutePath,
 };
@@ -53,8 +53,8 @@ impl CetusClmm {
         }
     }
 
-    pub(super) fn referral_fee() -> ReferralFee {
-        default_referral_fees().sui
+    pub(super) fn referral_fee(request: &QuoteRequest) -> ReferralFee {
+        on_chain_referral_fees(request).sui
     }
 
     pub(super) fn coin_type(asset_id: &AssetId) -> String {

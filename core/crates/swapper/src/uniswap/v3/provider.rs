@@ -3,7 +3,7 @@ use crate::{
     alien::RpcProvider,
     approval::check_permit2_approvals,
     client_factory::create_client_with_chain,
-    fees::{default_referral_fees, subtract_bps},
+    fees::{on_chain_referral_fees, subtract_bps},
     models::*,
     route_cache::Cache,
     uniswap::{
@@ -282,7 +282,7 @@ impl Swapper for UniswapV3 {
         let base_pair = base_pair(evm_chain, PROTOCOL).ok_or_else(|| SwapperError::ComputeQuoteError("base pair not found".into()))?;
 
         let fee_token_is_input = is_quote_input_fee_token(Some(&base_pair), request, token_in, token_out);
-        let fee_bps = default_referral_fees().evm.bps;
+        let fee_bps = on_chain_referral_fees(request).evm.bps;
 
         let quote_amount_in = if fee_token_is_input && fee_bps > 0 { subtract_bps(&from_value, fee_bps) } else { from_value };
 
