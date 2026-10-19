@@ -62,10 +62,13 @@ pub(crate) async fn assert_swaps_simulate<P: DexProtocol>(protocol: P, swaps: Ve
         let quote = dex.get_quote(&request).await?;
         let quote_data = dex.get_quote_data(&quote, FetchQuoteData::None).await?;
         let simulation = client.simulate_encoded_transaction(&quote_data.data).await?;
-        println!("to_value={} units={:?} route={}", quote.to_value, simulation.units_consumed, quote.data.routes[0].route_data);
+        let units = simulation.units_consumed.unwrap();
+        let gas_limit: u64 = quote_data.gas_limit.as_deref().unwrap().parse().unwrap();
+        println!("to_value={} units={units} gas_limit={gas_limit} route={}", quote.to_value, quote.data.routes[0].route_data);
 
         assert!(quote.to_value > BigUint::ZERO);
         assert_eq!(simulation.err, None);
+        assert!(units <= gas_limit, "{units} units exceed the {gas_limit} limit");
     }
     Ok(())
 }
