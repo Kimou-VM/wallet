@@ -186,6 +186,8 @@ fn decode_execute_swap_call(chain: &Chain, router_abi: RouterAbi, provider: Swap
                 let (from_token, to_token, amount_in) = match action {
                     V4Action::SWAP_EXACT_IN(params) => (params.currencyIn, params.path.last().map(|path_key| path_key.intermediateCurrency), params.amountIn),
                     V4Action::SWAP_EXACT_IN_V2_1(params) => (params.currencyIn, params.path.last().map(|path_key| path_key.intermediateCurrency), params.amountIn),
+                    V4Action::SWAP_EXACT_IN_SINGLE(params) => single_pool_leg(&params.poolKey, params.zeroForOne, params.amountIn),
+                    V4Action::SWAP_EXACT_IN_SINGLE_V2_1(params) => single_pool_leg(&params.poolKey, params.zeroForOne, params.amountIn),
                     _ => continue,
                 };
                 let Some(to_token) = to_token else {
@@ -202,8 +204,8 @@ fn decode_execute_swap_call(chain: &Chain, router_abi: RouterAbi, provider: Swap
                 let leg_from_value = U256::from(amount_in);
                 match &mut swap_input {
                     Some((from_asset, from_value)) if from_asset == &leg_from_asset => *from_value = from_value.checked_add(leg_from_value)?,
-                    None => swap_input = Some((leg_from_asset, leg_from_value)),
-                    Some(_) => {}
+                    None if !leg_from_value.is_zero() => swap_input = Some((leg_from_asset, leg_from_value)),
+                    _ => {}
                 }
                 swap_output = Some((leg_to_asset, leg_to_value));
                 swap_provider = SwapProvider::UniswapV4;
@@ -219,8 +221,9 @@ fn decode_execute_swap_call(chain: &Chain, router_abi: RouterAbi, provider: Swap
             value: u256_to_biguint(&value),
         })
         .or_else(|| referral_fee_from_transfers(*chain, receipt));
+    let to_value = U256::from_str(&to_value).ok().filter(|value| !value.is_zero())?;
     let (from_asset, from_value) = from_asset.mirror_to_native(u256_to_biguint(&from_value));
-    let (to_asset, to_value) = to_asset.mirror_to_native(u256_to_biguint(&U256::from_str(&to_value).ok()?));
+    let (to_asset, to_value) = to_asset.mirror_to_native(u256_to_biguint(&to_value));
     Some(TransactionSwapMetadata::new(from_asset, from_value, to_asset, to_value, swap_provider).with_referral_fee(referral_fee))
 }
 
@@ -256,6 +259,13 @@ fn decode_v2_swap_exact_in(input: &[u8], universal_router_abi: UniversalRouterAb
 fn decode_solidly_swap_exact_in(input: &[u8]) -> Option<(U256, U256, Address, Address)> {
     let swap_exact_in = V2SwapExactInSolidly::abi_decode(input).ok()?;
     Some((swap_exact_in.amount_in, swap_exact_in.amount_out_min, swap_exact_in.routes.first()?.from, swap_exact_in.routes.last()?.to))
+}
+
+fn single_pool_leg(pool: &PoolKey, zero_for_one: bool, amount_in: u128) -> (Address, Option<Address>, u128) {
+    match zero_for_one {
+        true => (pool.currency0, Some(pool.currency1), amount_in),
+        false => (pool.currency1, Some(pool.currency0), amount_in),
+    }
 }
 
 fn native_v4_value_from_receipt(router: Address, from: &str, actions: &[V4Action], receipt: &TransactionReceipt) -> Option<U256> {
@@ -339,7 +349,7 @@ mod tests {
     use chrono::DateTime;
     use num_bigint::BigUint;
     use primitives::{
-        AssetId, Chain, TransactionSwapMetadata, TransactionType,
+        AssetId, Chain, TransactionSwapMetadata, TransactionSwapReferralFee, TransactionType,
         asset_constants::{BASE_USDC_ASSET_ID, ETHEREUM_USDT_ASSET_ID, ETHEREUM_WETH_TOKEN_ID, POLYGON_USDT_TOKEN_ID, UNICHAIN_DAI_TOKEN_ID, UNICHAIN_USDC_TOKEN_ID},
         contract_constants::{ETHEREUM_UNISWAP_V3_UNIVERSAL_ROUTER_CONTRACT, UNICHAIN_UNISWAP_V4_UNIVERSAL_ROUTER_CONTRACT},
         testkit::json_rpc::load_json_rpc_result,
@@ -589,6 +599,59 @@ mod tests {
                 SwapProvider::UniswapV3,
             )
         );
+    }
+
+    #[test]
+    fn test_map_aerodrome_solidly_usdc_eth_swap() {
+        let transaction = load_json_rpc_result::<Transaction>(include_str!("../../../testdata/aerodrome_solidly_usdc_eth_tx.json"));
+        let receipt = load_json_rpc_result::<TransactionReceipt>(include_str!("../../../testdata/aerodrome_solidly_usdc_eth_tx_receipt.json"));
+
+        let swap_tx = map_swap(&Chain::Base, &transaction, &receipt);
+        let metadata: TransactionSwapMetadata = serde_json::from_value(swap_tx.metadata.unwrap()).unwrap();
+
+        assert_eq!(swap_tx.transaction_type, TransactionType::Swap);
+        assert_eq!(
+            metadata,
+            TransactionSwapMetadata::new(
+                BASE_USDC_ASSET_ID.clone(),
+                BigUint::from(1_000_000u64),
+                AssetId::from_chain(Chain::Base),
+                BigUint::from(411_427_062_808_996u64),
+                SwapProvider::Aerodrome,
+            )
+            .with_referral_fee(Some(TransactionSwapReferralFee {
+                asset_id: AssetId::from_chain(Chain::Base),
+                value: BigUint::from(2_067_472_677_432u64),
+            }))
+        );
+    }
+
+    #[test]
+    fn test_map_v4_single_pool_swap() {
+        let transaction = load_json_rpc_result::<Transaction>(include_str!("../../../testdata/v4_single_pool_celo_tx.json"));
+        let receipt = load_json_rpc_result::<TransactionReceipt>(include_str!("../../../testdata/v4_single_pool_celo_tx_receipt.json"));
+
+        let swap_tx = map_swap(&Chain::Celo, &transaction, &receipt);
+        let metadata: TransactionSwapMetadata = serde_json::from_value(swap_tx.metadata.unwrap()).unwrap();
+
+        assert_eq!(
+            metadata,
+            TransactionSwapMetadata::new(
+                AssetId::from_token(Chain::Celo, "0x8A567e2aE79CA692Bd748aB832081C45de4041eA"),
+                BigUint::from(9_000_000_000_000_000_000_000u128),
+                AssetId::from_token(Chain::Celo, "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e"),
+                BigUint::from(2_715_111u64),
+                SwapProvider::UniswapV4,
+            )
+        );
+    }
+
+    #[test]
+    fn test_map_swap_with_unverified_native_output_is_skipped() {
+        let transaction = load_json_rpc_result::<Transaction>(include_str!("../../../testdata/v2_v4_single_pool_native_base_tx.json"));
+        let receipt = load_json_rpc_result::<TransactionReceipt>(include_str!("../../../testdata/v2_v4_single_pool_native_base_tx_receipt.json"));
+
+        assert_eq!(ProtocolParsers::map_transaction(&Chain::Base, &transaction, &receipt, DateTime::default()), None);
     }
 
     #[test]
