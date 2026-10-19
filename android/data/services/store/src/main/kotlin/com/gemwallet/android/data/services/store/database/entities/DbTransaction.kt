@@ -13,6 +13,8 @@ import com.wallet.core.primitives.TransactionId
 import com.wallet.core.primitives.TransactionState
 import com.wallet.core.primitives.TransactionType
 import com.wallet.core.primitives.WalletId
+import kotlinx.serialization.json.Json
+import java.math.BigInteger
 
 @Entity(
     tableName = "transactions",
@@ -69,7 +71,7 @@ fun Transaction.toRecord(walletId: WalletId): DbTransaction = DbTransaction(
     confirmationEtaSeconds = null,
 )
 
-fun DbTransaction.toDTO(): Transaction = Transaction(
+fun DbTransaction.toDTO(): Transaction? = Transaction(
     id = this.id,
     assetId = this.assetId,
     from = this.owner,
@@ -79,17 +81,19 @@ fun DbTransaction.toDTO(): Transaction = Transaction(
     state = this.state,
     blockNumber = this.blockNumber,
     sequence = this.sequence,
-    fee = this.fee,
+    fee = this.fee.takeIf(::isUnsignedInteger) ?: return null,
     feeAssetId = this.feeAssetId,
-    value = this.value,
+    value = this.value.takeIf(::isUnsignedInteger) ?: return null,
     memo = this.payload,
     direction = this.direction,
     utxoInputs = emptyList(),
     utxoOutputs = emptyList(),
     createdAt = this.createdAt,
-    metadata = this.metadata,
+    metadata = this.metadata?.let { it.takeIf(::isJson) ?: return null },
 )
 
-fun List<DbTransaction>.toDTO() = map { it.toDTO() }
-
 fun List<Transaction>.toRecord(walletId: WalletId) = map { it.toRecord(walletId) }
+
+private fun isUnsignedInteger(value: String) = value.toBigIntegerOrNull()?.let { it >= BigInteger.ZERO } == true
+
+private fun isJson(value: String) = runCatching { Json.parseToJsonElement(value) }.isSuccess

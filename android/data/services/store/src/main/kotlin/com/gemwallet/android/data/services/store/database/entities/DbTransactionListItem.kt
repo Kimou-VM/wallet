@@ -22,7 +22,7 @@ data class DbTransactionListItem(
 )
 
 fun DbTransactionListItem.toDTO(): TransactionListItem? = TransactionListItem(
-    transaction = transaction.toDTO(),
+    transaction = transaction.toDTO() ?: return null,
     asset = asset.toDTO() ?: return null,
     assets = assets.mapNotNull { it.toDTO() },
     fromAddress = fromAddress?.toAddressName(transaction.owner),

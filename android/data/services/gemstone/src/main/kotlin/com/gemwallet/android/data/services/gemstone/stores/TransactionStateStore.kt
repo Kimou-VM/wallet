@@ -15,7 +15,7 @@ import uniffi.gemstone.GemTransactionStateUpdate
 import uniffi.gemstone.transactionAssetIds
 
 class GemstoneTransactionStateStore(private val transactionsDao: TransactionsDao, private val transactionRunner: StoreTransactionRunner) : GemTransactionStateStore {
-    override suspend fun getPendingTransactions(states: List<uniffi.gemstone.TransactionState>): List<GemPendingTransaction> = transactionsDao.getTransactionsByStates(states.map { it.toPrimitives() }).map(::pendingTransaction)
+    override suspend fun getPendingTransactions(states: List<uniffi.gemstone.TransactionState>): List<GemPendingTransaction> = transactionsDao.getTransactionsByStates(states.map { it.toPrimitives() }).mapNotNull(::pendingTransaction)
 
     override suspend fun getTransaction(walletId: String, transactionId: String): GemPendingTransaction? = transactionsDao.getTransaction(TransactionId(transactionId), WalletId(walletId))?.let { pendingTransaction(it) }
 
@@ -26,7 +26,7 @@ class GemstoneTransactionStateStore(private val transactionsDao: TransactionsDao
         }
     }
 
-    private fun pendingTransaction(record: DbTransaction) = GemPendingTransaction(walletId = record.walletId.id, transaction = record.toDTO().toGem())
+    private fun pendingTransaction(record: DbTransaction) = record.toDTO()?.let { GemPendingTransaction(walletId = record.walletId.id, transaction = it.toGem()) }
 
     override suspend fun getState(walletId: String, transactionId: String): uniffi.gemstone.TransactionState? = transactionsDao.getTransactionState(TransactionId(transactionId), WalletId(walletId))?.toGem()
 

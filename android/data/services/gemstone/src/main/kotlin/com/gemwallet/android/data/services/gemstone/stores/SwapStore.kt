@@ -20,7 +20,7 @@ import uniffi.gemstone.transactionSwapPair
 class GemstoneSwapStore(private val assetsDao: AssetsDao, private val transactionsDao: TransactionsDao) : GemSwapStore {
 
     override suspend fun getSwapPairs(walletId: String): List<GemSwapPair> = withContext(Dispatchers.IO) {
-        transactionsDao.getTransactionsByType(WalletId(walletId), TransactionType.Swap).mapNotNull { transactionSwapPair(it.toDTO().toGem()) }
+        transactionsDao.getTransactionsByType(WalletId(walletId), TransactionType.Swap).mapNotNull { record -> record.toDTO()?.let { transactionSwapPair(it.toGem()) } }
     }
 
     override suspend fun getRecentAssetIds(walletId: String, types: List<RecentActivityType>, filters: List<GemAssetFilter>, limit: UInt): List<String> = withContext(Dispatchers.IO) {

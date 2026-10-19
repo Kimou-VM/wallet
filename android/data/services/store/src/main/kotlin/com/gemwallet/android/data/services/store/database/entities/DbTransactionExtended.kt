@@ -42,7 +42,7 @@ data class DbAddressProjection(val chain: Chain, val name: String, val type: Add
 fun DbTransactionExtended.toDTO(): TransactionExtended? {
     return TransactionExtended(
         recordId = transaction.recordId,
-        transaction = transaction.toDTO(),
+        transaction = transaction.toDTO() ?: return null,
         asset = asset.toDTO() ?: return null,
         feeAsset = feeAsset.toDTO() ?: return null,
         price = priceValue?.let { Price(it, priceDayChanged ?: 0.0, 0L) },
