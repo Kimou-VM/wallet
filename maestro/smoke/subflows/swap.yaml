@@ -8,7 +8,11 @@ appId: ${APP_ID}
     id: "swap_button"
 - waitForAnimationToEnd
 - inputText: "1"
-- hideKeyboard
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - assertVisible:
     id: "main_action"
     enabled: false

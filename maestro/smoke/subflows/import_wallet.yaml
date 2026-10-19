@@ -16,7 +16,11 @@ appId: ${APP_ID}
 - tapOn:
     id: "importInputField"
 - inputText: ${TEST_PHRASE}
-- hideKeyboard
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - tapOn:
     id: "main_action"
 - runFlow: finish_onboarding.yaml
