@@ -115,7 +115,6 @@ pub(crate) trait DexProtocol: Send + Sync {
     const PROGRAM_ID: Pubkey;
     const NATIVE_TWO_HOP: bool = false;
     const INTERMEDIATE_TOKEN_ACCOUNT: bool = !Self::NATIVE_TWO_HOP;
-    const COMPUTE_UNIT_LIMIT: u32 = DEFAULT_SWAP_GAS_LIMIT;
 
     fn decode_pool(&self, data: &[u8]) -> Result<Self::Pool, SwapperError>;
     fn liquidity(&self, pool: &Self::Pool) -> u128;
@@ -130,6 +129,10 @@ pub(crate) trait DexProtocol: Send + Sync {
 
     fn is_tradable(&self, pool: &Self::Pool, _timestamp: u64) -> bool {
         self.liquidity(pool) > 0
+    }
+
+    fn compute_unit_limit(&self, _swap_instructions: usize) -> u32 {
+        DEFAULT_SWAP_GAS_LIMIT
     }
 
     fn intermediate_tokens(&self) -> &'static [SwapToken] {

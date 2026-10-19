@@ -1,6 +1,6 @@
 use borsh::BorshDeserialize;
 use gem_solana::{
-    Instruction, Pubkey,
+    Instruction, MAX_COMPUTE_UNIT_LIMIT, Pubkey,
     anchor::AnchorAccount,
     instructions::program_ids::{meteora_dlmm_program, sysvar_clock, sysvar_program},
     models::Clock,
@@ -16,6 +16,8 @@ use crate::{
     solana_dex::{DexPool, DexProtocol, PoolDepth, PoolQuery, PoolSwap, QuoteAccount},
 };
 
+const SWAP_COMPUTE_UNIT_LIMIT: u32 = 600_000;
+
 pub(crate) struct MeteoraDlmm;
 
 impl DexProtocol for MeteoraDlmm {
@@ -23,7 +25,6 @@ impl DexProtocol for MeteoraDlmm {
 
     const PROVIDER: SwapperProvider = SwapperProvider::MeteoraDammV2;
     const PROGRAM_ID: Pubkey = meteora_dlmm_program();
-    const COMPUTE_UNIT_LIMIT: u32 = 600_000;
 
     fn decode_pool(&self, data: &[u8]) -> Result<Pair, SwapperError> {
         Ok(Pair::decode(data)?)
@@ -39,6 +40,10 @@ impl DexProtocol for MeteoraDlmm {
 
     fn pool_query(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Option<PoolQuery> {
         Some(LAYOUT.query(input_mint, output_mint))
+    }
+
+    fn compute_unit_limit(&self, swap_instructions: usize) -> u32 {
+        u32::try_from(swap_instructions).map_or(MAX_COMPUTE_UNIT_LIMIT, |swaps| SWAP_COMPUTE_UNIT_LIMIT.saturating_mul(swaps).min(MAX_COMPUTE_UNIT_LIMIT))
     }
 
     fn pool_depth(&self, slice: &[u8]) -> PoolDepth {
@@ -167,6 +172,11 @@ mod tests {
         assert_eq!((pair.active_id, pair.bin_step), (-22_684, 1));
         assert_eq!(pair.arrays_for_swap(true, SWAP_BIN_ARRAYS), vec![-325, -326, -327]);
         assert_eq!(pair.arrays_for_swap(false, SWAP_BIN_ARRAYS), vec![-325, -324, -323]);
+    }
+
+    #[test]
+    fn test_compute_unit_limit() {
+        assert_eq!([1, 2, 3].map(|swaps| MeteoraDlmm.compute_unit_limit(swaps)), [600_000, 1_200_000, MAX_COMPUTE_UNIT_LIMIT]);
     }
 
     #[tokio::test]
