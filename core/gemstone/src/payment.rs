@@ -543,8 +543,12 @@ mod tests {
         };
         let link = GemPaymentLink::SolanaPay { url: "https://shop.example/pay".to_string() };
 
-        assert!(matches!(block_on(service.prepare(GemPayment::Request { request }, wallet.clone())).unwrap(), GemPaymentTarget::Unsupported));
-        assert!(matches!(block_on(service.prepare(GemPayment::Link { link }, wallet)).unwrap(), GemPaymentTarget::Unsupported));
+        let GemPaymentTarget::Unsupported = block_on(service.prepare(GemPayment::Request { request }, wallet.clone())).unwrap() else {
+            panic!("a watch-only wallet cannot pay a request")
+        };
+        let GemPaymentTarget::Unsupported = block_on(service.prepare(GemPayment::Link { link }, wallet)).unwrap() else {
+            panic!("a watch-only wallet cannot pay a link")
+        };
     }
 
     #[test]

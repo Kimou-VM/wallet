@@ -233,7 +233,7 @@ mod tests {
     use crate::services::assets::rules::default_asset_basic;
     use crate::testkit::TestAlienProvider;
     use futures::executor::block_on;
-    use primitives::{Chain, Transaction, Wallet, WalletType};
+    use primitives::{AssetBasic, AssetProperties, Chain, Transaction, Wallet, WalletType};
 
     #[test]
     fn test_a_transaction_push_opens_its_details_at_once_and_leaves_loading_to_the_screen() {
@@ -337,10 +337,16 @@ mod tests {
     }
 
     async fn save_asset(testkit: &DiscoveryTestkit, asset: Asset, is_buyable: bool, is_swapable: bool) {
-        let mut basic = default_asset_basic(asset);
-        basic.properties.is_buyable = is_buyable;
-        basic.properties.is_sellable = is_buyable;
-        basic.properties.is_swapable = is_swapable;
+        let basic = default_asset_basic(asset);
+        let basic = AssetBasic {
+            properties: AssetProperties {
+                is_buyable,
+                is_sellable: is_buyable,
+                is_swapable,
+                ..basic.properties
+            },
+            ..basic
+        };
         testkit.asset_store.save_assets(vec![basic]).await.unwrap();
     }
 
@@ -362,8 +368,22 @@ mod tests {
             assert_eq!(swap().await.unwrap(), GemNavigationTarget::None, "the asset cannot be swapped");
 
             save_asset(&testkit, ethereum.clone(), true, true).await;
-            assert!(matches!(buy().await.unwrap(), GemNavigationTarget::Fiat { quote_type: FiatQuoteType::Buy, .. }));
-            assert!(matches!(sell().await.unwrap(), GemNavigationTarget::Fiat { quote_type: FiatQuoteType::Sell, .. }));
+            assert_eq!(
+                buy().await.unwrap(),
+                GemNavigationTarget::Fiat {
+                    asset: ethereum.clone(),
+                    amount: None,
+                    quote_type: FiatQuoteType::Buy
+                }
+            );
+            assert_eq!(
+                sell().await.unwrap(),
+                GemNavigationTarget::Fiat {
+                    asset: ethereum.clone(),
+                    amount: None,
+                    quote_type: FiatQuoteType::Sell
+                }
+            );
             assert_eq!(swap().await.unwrap(), GemNavigationTarget::Swap { from: ethereum.clone(), to: None });
             assert_eq!(receive().await.unwrap(), GemNavigationTarget::Receive { asset: ethereum.clone() });
 
@@ -413,7 +433,14 @@ mod tests {
 
             assert_eq!(open().await.unwrap(), GemNavigationTarget::None, "Perpetuals are switched off");
             testkit.preferences.set_perpetual_enabled(true).unwrap();
-            assert!(matches!(open().await.unwrap(), GemNavigationTarget::Asset { is_perpetual: true, .. }));
+            assert_eq!(
+                open().await.unwrap(),
+                GemNavigationTarget::Asset {
+                    asset: perpetual,
+                    wallet_id: None,
+                    is_perpetual: true
+                }
+            );
         });
     }
 
