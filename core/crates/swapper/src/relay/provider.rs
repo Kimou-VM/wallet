@@ -534,7 +534,9 @@ mod swap_integration_tests {
         println!("ton quote_data: to={}, value={}, data={}", quote_data.to, quote_data.value, quote_data.data);
         assert!(quote_data.to.starts_with("EQ"));
         assert_eq!(quote_data.value, request.value);
-        assert!(quote_data.data.starts_with("te6cc"));
+        let messages: Vec<serde_json::Value> = serde_json::from_str(&quote_data.data)?;
+        assert_eq!(messages[0]["address"], quote_data.to);
+        assert!(messages[0]["payload"].as_str().is_some_and(|payload| payload.starts_with("te6cc")));
         assert!(quote_data.approval.is_none());
 
         let reverse_request = QuoteRequest {
@@ -549,7 +551,7 @@ mod swap_integration_tests {
         assert_eq!(quote.from_value, reverse_request.value);
         assert!(quote.to_value > BigUint::ZERO);
 
-        let result = relay.get_swap_result(&SwapResultRequest::new(Chain::Ton, "e86159ff0662a587649bc1d2ff0cd146e6628c3cc37396f7b680bd28260f44b5")).await?;
+        let result = relay.get_swap_result(&SwapResultRequest::new(Chain::Ton, "af009bd0bdbca586d75d3c7eade903e99bf03d2ae57168df328e810e2fd04785")).await?;
         assert_eq!(result.status, SwapStatus::Completed);
         assert_eq!(result.metadata.unwrap().from_asset, AssetId::from_chain(Chain::Ton));
 

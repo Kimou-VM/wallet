@@ -997,7 +997,7 @@ mod swap_integration_tests {
         let quote = swap_provider.get_quote(&request).await?;
         assert_eq!(quote.from_value, request.value);
         assert!(quote.to_value > BigUint::ZERO);
-        assert_eq!(quote.data.slippage_bps, 50);
+        assert_eq!(quote.data.slippage_bps, request.options.slippage.bps);
 
         let quote_data = swap_provider.get_quote_data(&quote, FetchQuoteData::None).await?;
         assert_eq!(quote_data.data_type, SwapQuoteDataType::Contract);
