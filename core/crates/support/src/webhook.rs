@@ -51,9 +51,11 @@ impl ChatwootWebhookVerifier {
             .and_then(|signature| hex::decode(signature).ok())
             .ok_or_else(|| ChatwootWebhookError::InvalidRequest("Invalid Chatwoot webhook signature".to_string()))?;
 
-        let mut mac = Hmac::<Sha256>::new_from_slice(self.secret.as_bytes()).map_err(|_| ChatwootWebhookError::InvalidRequest("Invalid Chatwoot webhook signing key".to_string()))?;
-        mac.update(format!("{timestamp}.{data}").as_bytes());
-        mac.verify_slice(&signature).map_err(|_| ChatwootWebhookError::InvalidRequest("Invalid Chatwoot webhook signature".to_string()))
+        Hmac::<Sha256>::new_from_slice(self.secret.as_bytes())
+            .map_err(|_| ChatwootWebhookError::InvalidRequest("Invalid Chatwoot webhook signing key".to_string()))?
+            .chain_update(format!("{timestamp}.{data}"))
+            .verify_slice(&signature)
+            .map_err(|_| ChatwootWebhookError::InvalidRequest("Invalid Chatwoot webhook signature".to_string()))
     }
 }
 

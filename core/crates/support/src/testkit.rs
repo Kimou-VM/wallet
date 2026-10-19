@@ -17,10 +17,6 @@ impl SupportMessageLink {
 }
 
 pub fn chatwoot_webhook_headers(secret: &str, body: &str, timestamp: i64) -> HashMap<String, String> {
-    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
-    mac.update(format!("{timestamp}.{body}").as_bytes());
-    HashMap::from([
-        (TIMESTAMP_HEADER.to_string(), timestamp.to_string()),
-        (SIGNATURE_HEADER.to_string(), format!("{SIGNATURE_PREFIX}{}", hex::encode(mac.finalize().into_bytes()))),
-    ])
+    let signature = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap().chain_update(format!("{timestamp}.{body}")).finalize().into_bytes();
+    HashMap::from([(TIMESTAMP_HEADER.to_string(), timestamp.to_string()), (SIGNATURE_HEADER.to_string(), format!("{SIGNATURE_PREFIX}{}", hex::encode(signature)))])
 }
