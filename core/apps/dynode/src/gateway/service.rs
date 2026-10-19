@@ -149,7 +149,9 @@ impl Gateway {
                     self.metrics.record_upstream_latency(source, &route.group, &route.service, &endpoint.name, response.status, started.elapsed());
                     self.metrics.record_request(source, &route.group, &route.service, &endpoint.name, &path, response.status);
                     if route.should_retry(response.status) {
-                        self.start_cooldown(route, endpoint, &path, Failure { status: response.status, reason: "cooldown" }, retry_after.unwrap_or(self.cooldown)).await;
+                        if let Some(duration) = route.status_cooldown(retry_after, self.cooldown) {
+                            self.start_cooldown(route, endpoint, &path, Failure { status: response.status, reason: "cooldown" }, duration).await;
+                        }
                         let status = response.status;
                         last_response = Some((response, endpoint_index));
                         pending_failover = Some((endpoint_index, status, status.to_string()));
