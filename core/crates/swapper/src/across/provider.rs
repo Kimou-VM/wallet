@@ -723,7 +723,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_get_swap_result_arc_usdc_to_ethereum_usdc() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-            let swap_provider = Across::new(Arc::new(NativeProvider::default()));
+            let swap_provider = Across::new(crate::testkit::dynode_provider([Chain::Arc]));
             let tx_hash = "0x026d408d6f548824ccec8dd2fa1381a5b176a2dc357058ee501a062f9008b703";
 
             let result = swap_provider.get_swap_result(&SwapResultRequest::new(Chain::Arc, tx_hash)).await?;

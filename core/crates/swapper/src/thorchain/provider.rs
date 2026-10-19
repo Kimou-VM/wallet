@@ -466,7 +466,8 @@ mod swap_integration_tests {
 
         let from_asset = SwapperQuoteAsset::from(Chain::Tron.as_asset_id());
         let to_asset = SwapperQuoteAsset::from(Chain::SmartChain.as_asset_id());
-        let request = mock_quote(from_asset, to_asset);
+        let mut request = mock_quote(from_asset, to_asset);
+        request.value = BigUint::from(100_000_000u64);
 
         let quote = swapper.get_quote(&request).await?;
 
@@ -479,14 +480,14 @@ mod swap_integration_tests {
     }
 
     #[tokio::test]
-    async fn test_thorchain_quote_rune_to_cosmos() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn test_thorchain_quote_rune_to_bnb() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let provider = Arc::new(NativeProvider::default());
         let swapper = ThorChain::new(provider.clone()).unwrap();
 
         let from_asset = SwapperQuoteAsset::from(Chain::Thorchain.as_asset_id());
-        let to_asset = SwapperQuoteAsset::from(Chain::Cosmos.as_asset_id());
+        let to_asset = SwapperQuoteAsset::from(Chain::SmartChain.as_asset_id());
         let mut request = mock_quote(from_asset, to_asset);
-        request.value = BigUint::from(100000000u64);
+        request.value = BigUint::from(1_000_000_000u64);
 
         let quote = swapper.get_quote(&request).await?;
 

@@ -670,15 +670,26 @@ mod swap_integration_tests {
     async fn test_near_intents_status() -> Result<(), SwapperError> {
         let rpc_provider = Arc::new(NativeProvider::new().set_debug(true));
         let provider = NearIntents::new(rpc_provider);
-        let deposit_address = "18gB9wZz1Q4CzniurLye1KdUUqjWjo3ePr";
-
         let request = SwapResultRequest {
-            deposit_address: Some(deposit_address.to_string()),
-            ..SwapResultRequest::new(Chain::Bitcoin, "")
+            deposit_address: Some("18gB9wZz1Q4CzniurLye1KdUUqjWjo3ePr".to_string()),
+            ..SwapResultRequest::new(Chain::Bitcoin, "d146c49799a4d936820c57cc7756e84d8a8bed3c1bd14a9004131312688ae717")
         };
         let swap_result = provider.get_swap_result(&request).await?;
 
-        println!("swap_result: {swap_result:?}");
+        assert_eq!(
+            swap_result,
+            SwapResult {
+                status: SwapStatus::Completed,
+                metadata: Some(TransactionSwapMetadata::new(
+                    AssetId::from_chain(Chain::Bitcoin),
+                    BigUint::from(51_420_000u64),
+                    AssetId::from_chain(Chain::Ethereum),
+                    BigUint::from(15_522_052_189_488_992_033u128),
+                    SwapperProvider::NearIntents,
+                )),
+                eta_in_seconds: None,
+            }
+        );
 
         Ok(())
     }

@@ -206,7 +206,12 @@ mod swap_integration_tests {
     use primitives::asset_constants::TRON_USDT_ASSET_ID;
 
     const TRX_HOLDER: &str = "TV6MuMXfmLbBqPZvBHdwFsDnQeVfnmiuSi";
-    const PERMIT2_USDT_HOLDER: &str = "TBCmMs2iTeRHPWDBenQkRKB7GreRH2JqMx";
+    const PERMIT2_USDT_HOLDERS: [&str; 4] = [
+        "TK2nJVdoyfBL2Htee1NLsiAU2QnuZzCBAQ",
+        "TD59KVhr1JoYGrSh9Qos6EzBoSgbDk3BBG",
+        "TVbpqADbMuXzhDFhWuFyMYhhqwwvSs8SyN",
+        "TSAHsqJtAG7JjNeM12kWLbSpsGRH98TqKj",
+    ];
     const SUN_TOKEN_ID: &str = "TSSMHYeV2uE9qYH95DqyoCuNCzEL1NvU3S";
 
     fn request(from_asset: AssetId, to_asset: AssetId, value: u64) -> QuoteRequest {
@@ -233,6 +238,18 @@ mod swap_integration_tests {
             call_value: data.value.to_u64().filter(|value| *value > 0),
         };
         create_tron_client(rpc_provider)?.estimate_energy_with_data(&contract).await.map_err(SwapperError::transaction_error)
+    }
+
+    async fn funded_permit2_holder(rpc_provider: Arc<dyn RpcProvider>, value: u64) -> Result<Option<&'static str>, SwapperError> {
+        let client = create_tron_client(rpc_provider)?;
+        for holder in PERMIT2_USDT_HOLDERS {
+            let parameter = hex::encode(eth_address::parse(Chain::Tron, holder)?.into_word());
+            let balance = client.trigger_constant_contract(TRON_USDT_TOKEN_ID, "balanceOf(address)", &parameter).await.map_err(SwapperError::transaction_error)?;
+            if U256::from_str_radix(&balance, 16).map_err(SwapperError::transaction_error)? >= U256::from(value) {
+                return Ok(Some(holder));
+            }
+        }
+        Ok(None)
     }
 
     #[tokio::test]
@@ -268,12 +285,18 @@ mod swap_integration_tests {
     async fn test_sunswap_usdt_to_trx_simulates_with_a_permit2_allowance() -> Result<(), SwapperError> {
         let rpc_provider = dynode_provider([Chain::Tron]);
         let provider = SunSwap::new(rpc_provider.clone());
-        let quote = provider.get_quote(&request_from(PERMIT2_USDT_HOLDER, TRON_USDT_ASSET_ID.clone(), AssetId::from_chain(Chain::Tron), 10_000_000)).await?;
+        let Some(holder) = funded_permit2_holder(rpc_provider.clone(), 1_000_000).await? else {
+            panic!("every PERMIT2_USDT_HOLDERS wallet holds less than 1 USDT; replace them with wallets that keep USDT and a never-expiring SunSwap Permit2 allowance");
+        };
+        let quote = provider.get_quote(&request_from(holder, TRON_USDT_ASSET_ID.clone(), AssetId::from_chain(Chain::Tron), 1_000_000)).await?;
         let data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
-        let energy = simulate(rpc_provider, PERMIT2_USDT_HOLDER, &data).await?;
-        println!("10 USDT -> {} sun with an existing Permit2 allowance, energy {energy}", quote.to_value);
+        let energy = simulate(rpc_provider, holder, &data).await?;
+        println!("1 USDT -> {} sun from {holder} with an existing Permit2 allowance, energy {energy}", quote.to_value);
 
-        assert!(data.approval.is_none() && data.permit2.is_none());
+        assert!(
+            data.approval.is_none() && data.permit2.is_none(),
+            "{holder} no longer has an unlimited, never-expiring USDT Permit2 allowance for the SunSwap router"
+        );
         assert_eq!(data.gas_limit, None);
         Ok(())
     }

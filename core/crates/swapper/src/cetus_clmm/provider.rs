@@ -75,7 +75,7 @@ mod swap_integration_tests {
     use primitives::{AssetId, asset_constants::SUI_USDC_TOKEN_ID};
     use std::sync::Arc;
 
-    const TEST_WALLET: &str = "0x9059c9d089cebc40fbe8c365782ab1285b99959fa386f5a5fc9cdf861a3e0b17";
+    const TEST_WALLET: &str = "0x2ec5b7bcf6a0512850fe5f95cbd0a4303e8de5a3ffc01f9dba96bf1fde5f9bb5";
     const BLUE_TOKEN_ID: &str = "0xe1b45a0e641b9955a20aa0ad1c1f4ad86aad8afb07296d4085e349a50e90bdca::blue::BLUE";
 
     fn print_quote(label: &str, quote: &Quote) -> Result<PoolRoute, SwapperError> {

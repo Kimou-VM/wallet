@@ -367,7 +367,7 @@ mod swap_integration_tests {
         assert!(quote.to_value > BigUint::ZERO);
         assert_eq!((data.value, data.data_type, data.approval), (quote.from_value, SwapQuoteDataType::Transfer, None));
         assert!(data.to.starts_with("bc1q"));
-        let result = relay.get_swap_result(&SwapResultRequest::new(Chain::Bitcoin, "4e8707e3247bce0797315699ef78b6531cd0776e9dc186ac54512f17b5c04782")).await?;
+        let result = relay.get_swap_result(&SwapResultRequest::new(Chain::Bitcoin, "86170d400c895f6c05c9f7a2685728965ed58b886208cde3ed526ae08d96635b")).await?;
         assert_eq!(result.status, SwapStatus::Completed);
         assert_eq!(result.metadata.unwrap().from_asset, AssetId::from_chain(Chain::Bitcoin));
         Ok(())

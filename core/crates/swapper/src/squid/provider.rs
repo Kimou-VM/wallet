@@ -216,7 +216,7 @@ mod swap_integration_tests {
     use super::super::testkit::{TEST_COSMOS_ADDRESS, TEST_OSMOSIS_ADDRESS};
     use super::*;
     use crate::{SwapperQuoteAsset, models::Options};
-    use primitives::swap::SwapStatus;
+    use primitives::{swap::SwapStatus, testkit::signer_mock::TEST_OSMOSIS_SENDER};
 
     #[tokio::test]
     async fn test_squid_osmo_to_atom() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -274,6 +274,7 @@ mod swap_integration_tests {
     async fn test_squid_exact_slippage_quote_and_data_succeed() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let squid = Squid::new(Arc::new(crate::NativeProvider::default()));
         let mut request = QuoteRequest::mock_osmosis_to_cosmos();
+        request.wallet_address = TEST_OSMOSIS_SENDER.to_string();
         request.options.slippage.bps = 2000;
 
         let quote = squid.get_quote(&request).await?;
