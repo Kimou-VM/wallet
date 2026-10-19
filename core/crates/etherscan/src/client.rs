@@ -6,36 +6,49 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     model::{EtherscanResponse, GasOracle, Transaction},
-    target::EtherscanTarget,
+    target::{EtherscanApi, EtherscanTarget},
 };
 
 #[derive(Clone)]
 pub struct EtherscanClient<C: Client> {
     client: C,
     api_key: Option<String>,
+    api: EtherscanApi,
 }
 
 impl EtherscanClient<ReqwestClient> {
     pub fn new_with_reqwest_client(client: reqwest::Client, api_key: Option<String>) -> Self {
-        Self::new_with_client(ReqwestClient::new("https://api.etherscan.io/v2".to_string(), client), api_key)
+        Self::new_with_client(ReqwestClient::new("https://api.etherscan.io".to_string(), client), api_key, EtherscanApi::Etherscan)
     }
 }
 
 impl<C: Client> EtherscanClient<C> {
-    pub fn new_with_client(client: C, api_key: Option<String>) -> Self {
-        Self { client, api_key }
+    pub fn new_with_client(client: C, api_key: Option<String>, api: EtherscanApi) -> Self {
+        Self { client, api_key, api }
     }
 
     pub async fn get_gas_oracle(&self, chain: EVMChain) -> Result<GasOracle, Box<dyn Error + Send + Sync>> {
-        self.get(EtherscanTarget::GasOracle { chain }).await
+        self.get(EtherscanTarget::GasOracle { api: self.api, chain }).await
     }
 
     pub async fn get_transactions(&self, chain: EVMChain, address: &str, limit: usize) -> Result<Vec<Transaction>, Box<dyn Error + Send + Sync>> {
-        self.get(EtherscanTarget::Transactions { chain, address: address.to_string(), limit }).await
+        self.get(EtherscanTarget::Transactions {
+            api: self.api,
+            chain,
+            address: address.to_string(),
+            limit,
+        })
+        .await
     }
 
     pub async fn get_token_transfers(&self, chain: EVMChain, address: &str, limit: usize) -> Result<Vec<Transaction>, Box<dyn Error + Send + Sync>> {
-        self.get(EtherscanTarget::TokenTransfers { chain, address: address.to_string(), limit }).await
+        self.get(EtherscanTarget::TokenTransfers {
+            api: self.api,
+            chain,
+            address: address.to_string(),
+            limit,
+        })
+        .await
     }
 
     async fn get<T: DeserializeOwned>(&self, target: EtherscanTarget) -> Result<T, Box<dyn Error + Send + Sync>> {

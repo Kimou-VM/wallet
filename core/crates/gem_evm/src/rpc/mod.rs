@@ -16,6 +16,8 @@ pub mod parsers;
 mod provider;
 mod transaction_payload;
 
+#[cfg(feature = "indexer")]
+pub use self::etherscan::EtherscanClients;
 pub use chain_provider::{EvmChainProvider, EvmFeeCalculator, EvmStakingClient};
 pub use client::EthereumClient;
 #[cfg(feature = "indexer")]

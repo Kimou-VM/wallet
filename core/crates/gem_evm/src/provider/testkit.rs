@@ -4,7 +4,7 @@ use std::sync::Arc;
 #[cfg(all(test, feature = "chain_integration_tests"))]
 use crate::{
     ether_conv,
-    rpc::{EVMAssetBalanceProvider, EVMIndexer, EVMTransactionsByAddressProvider, EthereumClient, EthereumProvider},
+    rpc::{EVMAssetBalanceProvider, EVMIndexer, EVMTransactionsByAddressProvider, EthereumClient, EthereumProvider, EtherscanClients},
 };
 #[cfg(all(test, feature = "chain_integration_tests"))]
 use alchemy::{AlchemyApi, alchemy_url};
@@ -37,8 +37,12 @@ fn build_test_indexer(chain: EVMChain, rpc_url: &str) -> Arc<EVMIndexer<ReqwestC
             client.clone().with_base_url(format!("{}/{}", settings.indexer.ankr.url, settings.indexer.ankr.key.secret)),
             settings.indexer.blockscout.remote_provider_config().configure_client(client.clone()),
             settings.indexer.blockscout.key.secret,
-            client.with_base_url(settings.indexer.etherscan.url.replace("{chain}", chain.to_chain().as_ref())),
-            Some(settings.indexer.etherscan.key.secret).filter(|key| !key.is_empty()),
+            EtherscanClients::new(
+                settings.indexer.etherscan.remote_provider_config().configure_client(client.clone()),
+                Some(settings.indexer.etherscan.key.secret).filter(|key| !key.is_empty()),
+                settings.indexer.routescan.remote_provider_config().configure_client(client.clone()),
+                settings.indexer.zksync.remote_provider_config().configure_client(client),
+            ),
             chain,
         )
         .unwrap(),

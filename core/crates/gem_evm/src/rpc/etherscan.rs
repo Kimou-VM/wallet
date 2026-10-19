@@ -2,11 +2,28 @@ use std::cmp::Reverse;
 use std::collections::BTreeSet;
 use std::error::Error;
 
+use etherscan::EtherscanApi;
 use etherscan::client::EtherscanClient;
 use gem_client::Client;
 use primitives::EVMChain;
 
 use super::TransactionReference;
+
+pub struct EtherscanClients<C: Client> {
+    pub(crate) etherscan: EtherscanClient<C>,
+    pub(crate) routescan: EtherscanClient<C>,
+    pub(crate) zksync: EtherscanClient<C>,
+}
+
+impl<C: Client> EtherscanClients<C> {
+    pub fn new(etherscan: C, etherscan_key: Option<String>, routescan: C, zksync: C) -> Self {
+        Self {
+            etherscan: EtherscanClient::new_with_client(etherscan, etherscan_key, EtherscanApi::Etherscan),
+            routescan: EtherscanClient::new_with_client(routescan, None, EtherscanApi::Routescan),
+            zksync: EtherscanClient::new_with_client(zksync, None, EtherscanApi::ZkSync),
+        }
+    }
+}
 
 pub(crate) async fn get_transactions_by_address<C: Client>(client: &EtherscanClient<C>, chain: EVMChain, address: &str, limit: usize) -> Result<Vec<TransactionReference>, Box<dyn Error + Send + Sync>> {
     let (transactions, token_transfers) = futures::try_join!(client.get_transactions(chain, address, limit), client.get_token_transfers(chain, address, limit))?;
@@ -32,15 +49,16 @@ mod tests {
         let client = EtherscanClient::new_with_client(
             MockClient::new().with_get(|path| {
                 let response = match path {
-                    "/api?chainid=81457&module=account&action=txlist&address=0x123&page=1&offset=3&sort=desc" => TRANSACTIONS,
-                    "/api?chainid=81457&module=account&action=tokentx&address=0x123&page=1&offset=3&sort=desc" => TOKEN_TRANSFERS,
-                    "/api?chainid=81457&module=account&action=txlist&address=0x456&page=1&offset=3&sort=desc" => NO_TRANSACTIONS,
-                    "/api?chainid=81457&module=account&action=tokentx&address=0x456&page=1&offset=3&sort=desc" => NO_TRANSACTIONS,
+                    "/v2/api?chainid=81457&module=account&action=txlist&address=0x123&page=1&offset=3&sort=desc" => TRANSACTIONS,
+                    "/v2/api?chainid=81457&module=account&action=tokentx&address=0x123&page=1&offset=3&sort=desc" => TOKEN_TRANSFERS,
+                    "/v2/api?chainid=81457&module=account&action=txlist&address=0x456&page=1&offset=3&sort=desc" => NO_TRANSACTIONS,
+                    "/v2/api?chainid=81457&module=account&action=tokentx&address=0x456&page=1&offset=3&sort=desc" => NO_TRANSACTIONS,
                     _ => panic!("unexpected path: {path}"),
                 };
                 Ok(response.as_bytes().to_vec())
             }),
             None,
+            EtherscanApi::Etherscan,
         );
 
         assert_eq!(

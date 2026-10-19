@@ -48,6 +48,8 @@ pub struct Indexer {
     pub ankr: ProviderSettings,
     pub blockscout: ProviderSettings,
     pub etherscan: ProviderSettings,
+    pub routescan: ProviderSettings,
+    pub zksync: ProviderSettings,
     pub fastnear: FastNearIndexer,
     pub subscan: ProviderSettings,
     pub sui: ProviderSettings,

@@ -11,7 +11,7 @@ use gem_jsonrpc::client::JsonRpcClient;
 use num_bigint::BigUint;
 use primitives::{AssetBalance, EVMChain, try_in_order};
 
-use super::etherscan as etherscan_indexer;
+use super::etherscan::{self as etherscan_indexer, EtherscanClients};
 use super::provider::AssetBalanceProvider;
 use crate::provider::balances_mapper::map_assets_balances;
 
@@ -48,6 +48,8 @@ enum ProviderKind {
     Ankr(&'static str),
     Blockscout,
     Etherscan,
+    Routescan,
+    ZkSync,
 }
 
 #[derive(Debug)]
@@ -113,7 +115,7 @@ pub struct EVMIndexer<C: Client + Clone> {
 }
 
 impl<C: Client + Clone> EVMIndexer<C> {
-    pub fn for_chain(alchemy_client: C, ankr_client: C, blockscout_client: C, blockscout_key: String, etherscan_client: C, etherscan_key: Option<String>, chain: EVMChain) -> Option<Self> {
+    pub fn for_chain(alchemy_client: C, ankr_client: C, blockscout_client: C, blockscout_key: String, etherscan: EtherscanClients<C>, chain: EVMChain) -> Option<Self> {
         let provider_kinds = match chain {
             EVMChain::Ethereum => vec![ProviderKind::Blockscout, ProviderKind::Ankr("eth")],
             EVMChain::Polygon => vec![ProviderKind::Blockscout, ProviderKind::Ankr("polygon")],
@@ -127,9 +129,9 @@ impl<C: Client + Clone> EVMIndexer<C> {
             EVMChain::Linea => vec![ProviderKind::Ankr("linea")],
             EVMChain::XLayer => vec![ProviderKind::Ankr("xlayer")],
             EVMChain::Celo | EVMChain::World | EVMChain::Ink | EVMChain::Unichain | EVMChain::Robinhood | EVMChain::Arc => vec![ProviderKind::Blockscout, ProviderKind::Alchemy],
-            EVMChain::ZkSync | EVMChain::Blast | EVMChain::Abstract | EVMChain::Berachain | EVMChain::Hyperliquid | EVMChain::Monad => {
-                vec![ProviderKind::Etherscan, ProviderKind::Alchemy]
-            }
+            EVMChain::Abstract | EVMChain::Berachain | EVMChain::Hyperliquid | EVMChain::Monad => vec![ProviderKind::Etherscan, ProviderKind::Alchemy],
+            EVMChain::Blast => vec![ProviderKind::Routescan, ProviderKind::Alchemy],
+            EVMChain::ZkSync => vec![ProviderKind::ZkSync, ProviderKind::Alchemy],
             EVMChain::OpBNB | EVMChain::Manta | EVMChain::Mantle | EVMChain::Sonic | EVMChain::SeiEvm | EVMChain::Plasma | EVMChain::Stable | EVMChain::Tempo => {
                 return None;
             }
@@ -138,7 +140,9 @@ impl<C: Client + Clone> EVMIndexer<C> {
             ProviderKind::Alchemy => Provider::Alchemy(AlchemyClient::new(JsonRpcClient::new(alchemy_client.clone()))),
             ProviderKind::Ankr(network) => Provider::Ankr(AnkrClient::new(JsonRpcClient::new(ankr_client.clone()), network)),
             ProviderKind::Blockscout => Provider::Blockscout(BlockscoutClient::new(blockscout_client.clone(), chain.chain_id(), blockscout_key.clone())),
-            ProviderKind::Etherscan => Provider::Etherscan(EtherscanClient::new_with_client(etherscan_client.clone(), etherscan_key.clone()), chain),
+            ProviderKind::Etherscan => Provider::Etherscan(etherscan.etherscan.clone(), chain),
+            ProviderKind::Routescan => Provider::Etherscan(etherscan.routescan.clone(), chain),
+            ProviderKind::ZkSync => Provider::Etherscan(etherscan.zksync.clone(), chain),
         };
         Some(Self {
             providers: provider_kinds.into_iter().map(provider).collect(),
@@ -213,8 +217,8 @@ mod tests {
         });
         let alchemy_client = ankr_client.clone();
         let blockscout_client = MockClient::new().with_get(|_| Err(ClientError::Http { status: 503, body: Vec::new() }));
-        let etherscan_client = blockscout_client.clone();
-        let indexer = EVMIndexer::for_chain(alchemy_client, ankr_client, blockscout_client, "key".to_string(), etherscan_client, None, EVMChain::Ethereum).unwrap();
+        let etherscan = EtherscanClients::new(blockscout_client.clone(), None, blockscout_client.clone(), blockscout_client.clone());
+        let indexer = EVMIndexer::for_chain(alchemy_client, ankr_client, blockscout_client, "key".to_string(), etherscan, EVMChain::Ethereum).unwrap();
         let transactions_by_address = EVMTransactionsByAddressProvider::new(Arc::new(indexer));
         let result = transactions_by_address.get_transactions_by_address(TransactionsRequest::new("0x123".to_string(), 2)).await.unwrap();
         let transaction_ids = result.transaction_requests().unwrap();
@@ -240,9 +244,10 @@ mod tests {
             };
             Ok(to_vec(&json!({ "jsonrpc": "2.0", "id": request["id"], "result": result })).unwrap())
         });
-        let etherscan_client = MockClient::new().with_get(|_| Err(ClientError::Http { status: 503, body: Vec::new() }));
+        let routescan_client = MockClient::new().with_get(|_| Err(ClientError::Http { status: 503, body: Vec::new() }));
         let unused_client = MockClient::new();
-        let indexer = Arc::new(EVMIndexer::for_chain(alchemy_client, unused_client.clone(), unused_client, String::new(), etherscan_client, None, EVMChain::Blast).unwrap());
+        let etherscan = EtherscanClients::new(unused_client.clone(), None, routescan_client, unused_client.clone());
+        let indexer = Arc::new(EVMIndexer::for_chain(alchemy_client, unused_client.clone(), unused_client, String::new(), etherscan, EVMChain::Blast).unwrap());
 
         let transactions = EVMTransactionsByAddressProvider::new(indexer.clone())
             .get_transactions_by_address(TransactionsRequest::new("0x123".to_string(), 2))
@@ -275,7 +280,8 @@ mod tests {
             };
             Ok(to_vec(&json!({ "jsonrpc": "2.0", "id": request["id"], "result": result })).unwrap())
         });
-        let indexer = EVMIndexer::for_chain(client.clone(), client.clone(), client.clone(), String::new(), client, None, EVMChain::SmartChain).unwrap();
+        let etherscan = EtherscanClients::new(client.clone(), None, client.clone(), client.clone());
+        let indexer = EVMIndexer::for_chain(client.clone(), client.clone(), client, String::new(), etherscan, EVMChain::SmartChain).unwrap();
         let provider = EVMTransactionsByAddressProvider::new(Arc::new(indexer));
 
         provider.get_transactions_by_address(TransactionsRequest::new("0x123".to_string(), MAX_PAGE_SIZE + 1)).await.unwrap();

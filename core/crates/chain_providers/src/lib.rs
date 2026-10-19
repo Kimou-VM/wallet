@@ -14,7 +14,7 @@ use gem_bsc::BscStakingClient;
 use gem_cardano::rpc::CardanoClient;
 use gem_client::{ReqwestClient, retry_policy};
 use gem_cosmos::rpc::client::CosmosClient;
-use gem_evm::rpc::{EVMAssetBalanceProvider, EVMIndexer, EVMTransactionsByAddressProvider, EthereumClient, EthereumProvider};
+use gem_evm::rpc::{EVMAssetBalanceProvider, EVMIndexer, EVMTransactionsByAddressProvider, EthereumClient, EthereumProvider, EtherscanClients};
 use gem_hypercore::rpc::client::HyperCoreClient;
 use gem_jsonrpc::client::JsonRpcClient;
 use gem_jsonrpc::grpc::ReqwestGrpcTransport;
@@ -78,8 +78,12 @@ impl ProviderFactory {
                         gem_client.clone().with_base_url(format!("{}/{}", config.indexers.ankr.url, config.indexers.ankr.key)),
                         config.indexers.blockscout.configure_client(gem_client.clone()),
                         config.indexers.blockscout.key,
-                        gem_client.with_base_url(config.indexers.etherscan.url.replace("{chain}", chain.as_ref())),
-                        Some(config.indexers.etherscan.key).filter(|key| !key.is_empty()),
+                        EtherscanClients::new(
+                            config.indexers.etherscan.configure_client(gem_client.clone()),
+                            Some(config.indexers.etherscan.key).filter(|key| !key.is_empty()),
+                            config.indexers.routescan.configure_client(gem_client.clone()),
+                            config.indexers.zksync.configure_client(gem_client),
+                        ),
                         evm_chain,
                     );
                     if let Some(indexer) = indexer {
