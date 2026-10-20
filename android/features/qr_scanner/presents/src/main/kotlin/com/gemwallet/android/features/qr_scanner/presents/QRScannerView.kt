@@ -87,13 +87,12 @@ fun QRScannerView(listener: (String) -> Unit) {
                         },
                     )
                 }
-            val selector = androidx.camera.core.CameraSelector.Builder()
-                .requireLensFacing(androidx.camera.core.CameraSelector.LENS_FACING_BACK)
-                .build()
+            val cameras = provider.availableCameraInfos
+            val camera = cameras.firstOrNull { it.lensFacing == androidx.camera.core.CameraSelector.LENS_FACING_BACK } ?: cameras.firstOrNull() ?: error("No camera available")
             provider.unbindAll()
             provider.bindToLifecycle(
                 lifecycleOwner,
-                selector,
+                camera.cameraSelector,
                 preview,
                 imageAnalyzer,
             )
