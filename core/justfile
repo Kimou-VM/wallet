@@ -60,6 +60,11 @@ test-database:
 format:
     cargo fmt -q --all
 
+fuzz TARGET SECONDS="60":
+    @python3 fuzz/generate_seeds.py
+    @mkdir -p fuzz/corpus/{{ TARGET }}
+    cargo +nightly fuzz run {{ TARGET }} fuzz/corpus/{{ TARGET }} fuzz/seeds/{{ TARGET }} -- -max_total_time={{ SECONDS }}
+
 clippy_lints := "-W clippy::redundant_clone -W clippy::implicit_clone -W clippy::redundant_closure_for_method_calls"
 
 fix:

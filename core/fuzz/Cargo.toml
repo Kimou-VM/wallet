@@ -1,0 +1,70 @@
+[package]
+name = "gem_fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+gem_evm = { path = "../crates/gem_evm" }
+gem_keystore = { path = "../crates/gem_keystore", features = ["v3"] }
+gem_wallet_connect = { path = "../crates/gem_wallet_connect" }
+gemstone = { path = "../gemstone" }
+libfuzzer-sys = "0.4.10"
+payment = { path = "../crates/payment" }
+primitives = { path = "../crates/primitives" }
+tempfile = "3.24.0"
+zeroize = "1.9.0"
+
+[[bin]]
+name = "payment_url"
+path = "fuzz_targets/payment_url.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wallet_connect_request"
+path = "fuzz_targets/wallet_connect_request.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wallet_connect_transaction"
+path = "fuzz_targets/wallet_connect_transaction.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sign_message"
+path = "fuzz_targets/sign_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "keystore_file"
+path = "fuzz_targets/keystore_file.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "address"
+path = "fuzz_targets/address.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "private_key"
+path = "fuzz_targets/private_key.rs"
+test = false
+doc = false
+bench = false

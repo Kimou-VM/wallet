@@ -59,6 +59,15 @@ Most chain crates declare `default = []` and gate whole modules behind features:
 
 Resolve `Cargo.lock` merge or rebase conflicts by taking the union of the two committed versions, never by letting Cargo regenerate the file: a fresh resolve moves unrelated crates to whatever the local registry cache offers, and that can differ from crates.io and break CI. Validate the result with `cargo metadata --offline --locked`, and run the follow-up checks with `--locked` so Cargo cannot rewrite the lock silently.
 
+## Fuzzing
+
+```sh
+cargo +nightly fuzz list        # List fuzz targets in core/fuzz
+just fuzz <TARGET> [SECONDS]    # Run one target from its seeds (default 60s)
+```
+
+`core/fuzz` is a separate cargo-fuzz workspace that needs nightly and `cargo install cargo-fuzz`; `just build`, `just test`, and `just lint` do not compile it. `fuzz/generate_seeds.py` writes the seeds to `fuzz/seeds/<target>` from Core test fixtures, and `just fuzz` and the ClusterFuzzLite build run it first; seeds, corpora, and crash artifacts stay untracked. CI runs the same targets through ClusterFuzzLite (`.clusterfuzzlite/`, `.github/workflows/core-fuzz.yml`) on pull requests that touch `core/`. The nightly pinned in `.clusterfuzzlite/Dockerfile` must use the same LLVM major as OSS-Fuzz's `base-runner` (LLVM 22 as of 2026-10); a newer LLVM still builds and fuzzes, but coverage reports fail on a raw profile version mismatch.
+
 ## Database
 
 ```sh

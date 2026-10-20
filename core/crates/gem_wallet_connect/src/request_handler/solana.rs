@@ -121,9 +121,9 @@ mod tests {
 
     #[test]
     fn test_decode_transfer_transaction() {
-        const TRANSACTION: &str = "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAECC4JMKqNplIXybGb/GhK1ofdVWeuEjXnQor7gi0Y2hMcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQECAAAMAgAAAAAAAAAAAAAA";
+        let data = include_str!("../../testdata/solana_transfer_transaction.json").to_string();
 
-        let decoded = SolanaRequestHandler::decode_send_transaction(serde_json::json!({ "transaction": TRANSACTION }).to_string(), TransferDataOutputType::EncodedTransaction).unwrap();
+        let decoded = SolanaRequestHandler::decode_send_transaction(data, TransferDataOutputType::EncodedTransaction).unwrap();
 
         assert!(matches!(
             decoded,

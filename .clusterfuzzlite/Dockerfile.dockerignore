@@ -1,0 +1,5 @@
+**/target
+core/fuzz/artifacts
+core/fuzz/corpus
+core/fuzz/coverage
+core/fuzz/seeds
