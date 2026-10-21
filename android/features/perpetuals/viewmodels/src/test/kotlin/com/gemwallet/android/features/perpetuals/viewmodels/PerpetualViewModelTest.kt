@@ -46,6 +46,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import uniffi.gemstone.ChartCandleStick
@@ -169,7 +170,7 @@ class PerpetualViewModelTest {
         val model = viewModel(service = service, data = perpetualData())
         advanceUntilIdle()
 
-        model.refresh()
+        model.onRefresh()
         advanceUntilIdle()
 
         coVerify(exactly = 2) { service.candles(any()) }
@@ -202,7 +203,7 @@ class PerpetualViewModelTest {
         advanceUntilIdle()
         coVerify(exactly = 0) { service.refresh(any()) }
 
-        model.refresh()
+        model.onRefresh()
         advanceUntilIdle()
 
         assertFalse("the spinner stops once the answer lands", model.isRefreshing.value)
@@ -211,6 +212,34 @@ class PerpetualViewModelTest {
         model.refreshPerpetual()
         advanceUntilIdle()
         coVerify(exactly = 2) { service.refresh(asset.id.toIdentifier()) }
+    }
+
+    @Test
+    fun `a resume reloads the candles and only a pull shows the spinner`() = runTest(dispatcher) {
+        val service: GemPerpetualDetailsServiceInterface = mockk(relaxed = true) {
+            every { chartPeriod() } returns uniffi.gemstone.ChartPeriod.DAY
+            coEvery { candles(any()) } answers { GemCandleResult(request = firstArg(), state = GemLoadState.Data, candles = emptyList()) }
+        }
+        val model = viewModel(service = service, data = perpetualData())
+        advanceUntilIdle()
+        val inFlight = CompletableDeferred<Unit>()
+        coEvery { service.candles(any()) } coAnswers {
+            inFlight.await()
+            GemCandleResult(request = firstArg(), state = GemLoadState.Data, candles = emptyList())
+        }
+
+        model.refreshPerpetual()
+        advanceUntilIdle()
+        assertFalse("returning to the screen reloads quietly", model.isRefreshing.value)
+        inFlight.complete(Unit)
+        advanceUntilIdle()
+        coVerify(exactly = 2) { service.candles(any()) }
+
+        model.onRefresh()
+        assertTrue(model.isRefreshing.value)
+        advanceUntilIdle()
+        assertFalse(model.isRefreshing.value)
+        coVerify(exactly = 3) { service.candles(any()) }
     }
 
     @Test
@@ -242,7 +271,7 @@ class PerpetualViewModelTest {
             inFlight.await()
             GemCandleResult(request = firstArg(), state = GemLoadState.Data, candles = candles)
         }
-        model.refresh()
+        model.onRefresh()
         advanceUntilIdle()
         repeat(3) {
             model.onZoom(1.5f, 1f)

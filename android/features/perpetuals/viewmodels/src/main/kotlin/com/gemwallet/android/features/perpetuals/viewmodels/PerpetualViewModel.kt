@@ -34,6 +34,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +46,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -120,12 +122,8 @@ class PerpetualViewModel @Inject constructor(
     val period: StateFlow<ChartPeriod> = candles.map { it.period.toPrimitives() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, candles.value.period.toPrimitives())
 
-    private val candleViewState = candles.map { it.viewState() }
-        .flowOn(ioDispatcher)
-        .stateIn(viewModelScope, SharingStarted.Eagerly, candles.value.viewState())
-
-    val isRefreshing: StateFlow<Boolean> = candleViewState.map { it.isRefreshing }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    private val refreshingState = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = refreshingState.asStateFlow()
 
     val chart: StateFlow<StateViewType<GemCandleChart>> = combine(candles, perpetual.map { it?.asset }.distinctUntilChanged(), position, transactions) { session, asset, position, transactions ->
         when (val state = session.viewState().state) {
@@ -214,16 +212,25 @@ class PerpetualViewModel @Inject constructor(
     val error: StateFlow<String?> = errorState.asStateFlow()
 
     fun refreshPerpetual() {
-        viewModelScope.launch(ioDispatcher) {
+        viewModelScope.launch { load() }
+    }
+
+    fun onRefresh() {
+        refreshingState.value = true
+        viewModelScope.launch {
+            load()
+            refreshingState.value = false
+        }
+    }
+
+    private suspend fun load() = coroutineScope {
+        launch(ioDispatcher) {
             runCatchingCancellable { service.refresh(assetId.toIdentifier()) }
                 .getOrNull()
                 ?.forEach { Log.e(TAG, "perpetual refresh failed at ${it.step}: ${it.message}") }
         }
-    }
-
-    fun refresh() {
         candles.update { it.onRefresh() }
-        refreshPerpetual()
+        candles.first { it.request() == null }
     }
 
     fun openPosition(direction: PerpetualDirection, amountAction: AmountTransactionAction) = position(GemPerpetualPositionKind.Open(direction.toGem()), amountAction)
