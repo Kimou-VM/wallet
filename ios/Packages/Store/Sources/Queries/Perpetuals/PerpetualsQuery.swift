@@ -16,7 +16,9 @@ public struct PerpetualsQuery: DatabaseQueryable {
     }
 
     public func fetch(_ db: Database) throws -> [PerpetualData] {
-        var request = PerpetualRecord.including(required: PerpetualRecord.asset)
+        var request = PerpetualRecord
+            .filter(PerpetualRecord.Columns.isEnabled)
+            .including(required: PerpetualRecord.asset)
 
         if requiresVolume {
             request = request.filter(PerpetualRecord.Columns.volume24h > 0 || PerpetualRecord.Columns.isPinned)

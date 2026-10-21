@@ -641,6 +641,7 @@ public extension Perpetual {
         funding: Double = 0,
         maxLeverage: UInt8 = 0,
         isIsolatedOnly: Bool = false,
+        isEnabled: Bool = true,
     ) -> Perpetual {
         Perpetual(
             id: id,
@@ -655,6 +656,7 @@ public extension Perpetual {
             funding: funding,
             maxLeverage: maxLeverage,
             isIsolatedOnly: isIsolatedOnly,
+            isEnabled: isEnabled,
         )
     }
 }

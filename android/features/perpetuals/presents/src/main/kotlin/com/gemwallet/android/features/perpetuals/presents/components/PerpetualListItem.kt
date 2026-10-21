@@ -110,6 +110,7 @@ internal fun previewPerpetual(asset: Asset, title: String, price: Double, change
             funding = 0.0,
             maxLeverage = 1u,
             isIsolatedOnly = false,
+            isEnabled = true,
         ),
         asset = asset,
         metadata = PerpetualMetadata(isPinned),

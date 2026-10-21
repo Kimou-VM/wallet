@@ -71,6 +71,7 @@ impl UniverseAsset {
             sz_decimals: 4,
             max_leverage: 50,
             only_isolated: None,
+            is_delisted: None,
         }
     }
 }

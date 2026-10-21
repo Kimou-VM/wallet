@@ -19,6 +19,7 @@ pub trait PerpetualsRepository {
 pub(crate) fn perpetuals_for_asset(client: &mut DatabaseClient, asset_id: &AssetId) -> Result<Vec<Perpetual>, DatabaseError> {
     Ok(perpetuals::table
         .filter(perpetuals::associated_asset_id.eq(asset_id.to_string()))
+        .filter(perpetuals::is_enabled.eq(true))
         .select(PerpetualRow::as_select())
         .load(&mut client.connection)?
         .into_iter()
@@ -66,6 +67,8 @@ impl PerpetualsRepository for DatabaseClient {
                 perpetuals::volume_24h.eq(excluded(perpetuals::volume_24h)),
                 perpetuals::funding.eq(excluded(perpetuals::funding)),
                 perpetuals::leverage.eq(excluded(perpetuals::leverage)),
+                perpetuals::is_isolated_only.eq(excluded(perpetuals::is_isolated_only)),
+                perpetuals::is_enabled.eq(excluded(perpetuals::is_enabled)),
             ))
             .execute(&mut self.connection)?)
     }

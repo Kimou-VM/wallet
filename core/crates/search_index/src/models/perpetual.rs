@@ -2,7 +2,7 @@ use primitives::{Asset, Perpetual, PerpetualSearchData};
 use serde::{Deserialize, Serialize};
 
 pub const PERPETUALS_INDEX_NAME: &str = "perpetuals";
-pub const PERPETUALS_FILTERS: &[&str] = &["perpetual.name", "perpetual.identifier", "perpetual.provider", "perpetual.price", "perpetual.volume24h", "tags"];
+pub const PERPETUALS_FILTERS: &[&str] = &["perpetual.name", "perpetual.identifier", "perpetual.provider", "perpetual.price", "perpetual.volume24h", "perpetual.isEnabled", "tags"];
 pub const PERPETUALS_SEARCH_ATTRIBUTES: &[&str] = &["perpetual.name", "perpetual.identifier", "perpetual.provider", "associatedAsset.name", "associatedAsset.symbol"];
 pub const PERPETUALS_RANKING_RULES: &[&str] = &["words", "typo", "perpetual.volume24h:desc", "proximity", "attribute", "exactness"];
 

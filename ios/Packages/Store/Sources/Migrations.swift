@@ -499,6 +499,10 @@ struct Migrations {
             try db.drop(indexOn: TransactionRecord.databaseTableName, columns: [TransactionRecord.Columns.date.name])
         }
 
+        migrator.registerMigration("Add isEnabled to \(PerpetualRecord.databaseTableName)") { db in
+            try db.addColumnIfMissing(PerpetualRecord.Columns.isEnabled.name, .boolean, to: PerpetualRecord.databaseTableName) { $0.notNull().defaults(to: true) }
+        }
+
         try migrator.migrate(dbQueue)
     }
 }

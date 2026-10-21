@@ -14,6 +14,7 @@ CREATE TABLE perpetuals (
     funding DOUBLE PRECISION NOT NULL,
     leverage INTEGER[] NOT NULL,
     is_isolated_only BOOLEAN NOT NULL DEFAULT false,
+    is_enabled BOOLEAN NOT NULL DEFAULT true,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

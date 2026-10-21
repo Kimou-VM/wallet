@@ -72,6 +72,14 @@ class PerpetualsQueryTest {
     }
 
     @Test
+    fun aDisabledMarketIsNeitherListedNorFound() = runBlocking(Dispatchers.IO) {
+        database.perpetualDao().upsert(listOf(solana.perpetual.copy(isEnabled = false).toRecord()))
+
+        assertEquals(listOf(ethereum, bitcoin, doge), query("", 100, requiresVolume = false).first())
+        assertEquals(emptyList<PerpetualData>(), query("SOL", 100, requiresVolume = false).first())
+    }
+
+    @Test
     fun theLimitCutsTheOrderedList() = runBlocking(Dispatchers.IO) {
         assertEquals(listOf(solana, ethereum), query("", 2, requiresVolume = false).first())
     }

@@ -606,6 +606,7 @@ fun mockPerpetual(
     funding: Double = 0.0,
     maxLeverage: UByte = 0u,
     isIsolatedOnly: Boolean = false,
+    isEnabled: Boolean = true,
 ) = Perpetual(
     id = id,
     name = name,
@@ -619,6 +620,7 @@ fun mockPerpetual(
     funding = funding,
     maxLeverage = maxLeverage,
     isIsolatedOnly = isIsolatedOnly,
+    isEnabled = isEnabled,
 )
 
 fun mockPerpetualData(

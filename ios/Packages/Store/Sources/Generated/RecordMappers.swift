@@ -265,6 +265,7 @@ extension Primitives.Perpetual {
             funding: funding,
             maxLeverage: maxLeverage,
             isIsolatedOnly: isIsolatedOnly,
+            isEnabled: isEnabled,
         )
     }
 }
@@ -284,6 +285,7 @@ extension PerpetualRecord {
             funding: funding,
             maxLeverage: maxLeverage,
             isIsolatedOnly: isIsolatedOnly,
+            isEnabled: isEnabled,
         )
     }
 }

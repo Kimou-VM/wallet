@@ -66,6 +66,7 @@ impl Perpetual {
             funding: 0.0,
             max_leverage: 20,
             is_isolated_only: true,
+            is_enabled: true,
         }
     }
 }

@@ -23,6 +23,7 @@ pub struct UniverseAsset {
     pub sz_decimals: i32,
     pub max_leverage: i32,
     pub only_isolated: Option<bool>,
+    pub is_delisted: Option<bool>,
 }
 
 impl UniverseAsset {
@@ -73,6 +74,7 @@ mod tests {
             sz_decimals: 5,
             max_leverage: 50,
             only_isolated: None,
+            is_delisted: None,
         };
         let asset_id = asset.asset_id();
 

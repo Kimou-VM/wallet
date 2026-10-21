@@ -161,6 +161,7 @@ pub fn map_perpetuals_data(metadata: HypercoreMetadataResponse, perp_dex_index: 
                 funding: funding_rate,
                 max_leverage: universe_asset.max_leverage as u8,
                 is_isolated_only: universe_asset.only_isolated.unwrap_or(false),
+                is_enabled: !universe_asset.is_delisted.unwrap_or(false),
             };
 
             let asset = Asset {
@@ -517,6 +518,18 @@ mod tests {
         assert_eq!(result.len(), 2);
         assert!(result[0].perpetual.is_isolated_only);
         assert!(!result[1].perpetual.is_isolated_only);
+    }
+
+    #[test]
+    fn test_map_perpetuals_data_disables_delisted() {
+        let metadata: HypercoreMetadataResponse = serde_json::from_str(include_str!("../../testdata/perpetual_markets_response_meta_and_asset_ctxs.json")).unwrap();
+
+        let result = map_perpetuals_data(metadata, 0);
+
+        assert_eq!(
+            result.iter().map(|data| (data.perpetual.name.as_str(), data.perpetual.identifier.as_str(), data.perpetual.is_enabled)).collect::<Vec<_>>(),
+            vec![("BTC", "0", true), ("MATIC", "1", false), ("ETH", "2", true)]
+        );
     }
 
     #[test]

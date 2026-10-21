@@ -48,4 +48,26 @@ struct PerpetualsQueryTests {
             #expect(searched.map(\.perpetual.id) == [delisted.id])
         }
     }
+
+    @Test
+    func aDisabledMarketIsNeitherListedNorFound() throws {
+        let db = DB.mock(
+            wallets: [.mock(accounts: [.mock(chain: .ethereum), .mock(chain: .bitcoin)])],
+            assets: [.mock(asset: .mock(id: .mock(chain: .ethereum), symbol: "ETH")), .mock(asset: .mock(id: .mock(chain: .bitcoin), symbol: "MATIC"))],
+        )
+        let store = PerpetualStore(db: db)
+        let enabled = Perpetual.mock(id: PerpetualId(provider: .hypercore, symbol: "ETH"), name: "ETH", assetId: .mock(chain: .ethereum), volume24h: 10)
+        let disabled = Perpetual.mock(id: PerpetualId(provider: .hypercore, symbol: "MATIC"), name: "MATIC", assetId: .mock(chain: .bitcoin), volume24h: 10, isEnabled: false)
+
+        try store.upsertPerpetuals([enabled, disabled])
+        try store.setPinned(for: [disabled.id.identifier], value: true)
+
+        try db.dbQueue.read { db in
+            let browsed = try PerpetualsQuery(searchQuery: "", limit: 100, requiresVolume: true).fetch(db)
+            let searched = try PerpetualsQuery(searchQuery: "MATIC", limit: 100, requiresVolume: false).fetch(db)
+
+            #expect(browsed.map(\.perpetual.id) == [enabled.id])
+            #expect(searched.isEmpty)
+        }
+    }
 }

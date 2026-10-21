@@ -358,7 +358,8 @@ mocks:
   - PaymentMerchant
   - PaymentPrice
   - PaymentQuote
-  - Perpetual
+  - Perpetual:
+      is_enabled: "true"
   - PerpetualClosingPosition
   - PerpetualConfirmData
   - PerpetualData

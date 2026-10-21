@@ -184,6 +184,7 @@ fun com.wallet.core.primitives.Perpetual.toRecord(): DbPerpetual = DbPerpetual(
     funding = funding,
     maxLeverage = maxLeverage.toInt(),
     isIsolatedOnly = isIsolatedOnly,
+    isEnabled = isEnabled,
 )
 
 fun DbPerpetual.toPerpetual(): com.wallet.core.primitives.Perpetual = com.wallet.core.primitives.Perpetual(
@@ -199,6 +200,7 @@ fun DbPerpetual.toPerpetual(): com.wallet.core.primitives.Perpetual = com.wallet
     funding = funding,
     maxLeverage = maxLeverage.toUByte(),
     isIsolatedOnly = isIsolatedOnly,
+    isEnabled = isEnabled,
 )
 
 fun com.wallet.core.primitives.PerpetualPosition.toRecord(walletId: String): DbPerpetualPosition = DbPerpetualPosition(

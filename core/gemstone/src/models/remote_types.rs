@@ -1370,6 +1370,7 @@ pub struct Perpetual {
     pub funding: f64,
     pub max_leverage: u8,
     pub is_isolated_only: bool,
+    pub is_enabled: bool,
 }
 
 #[uniffi::remote(Record)]

@@ -21,6 +21,7 @@ pub(crate) struct PerpetualRow {
     pub funding: f64,
     pub leverage: Vec<Option<i32>>,
     pub is_isolated_only: bool,
+    pub is_enabled: bool,
     pub updated_at: NaiveDateTime,
 }
 
@@ -40,6 +41,7 @@ pub(crate) struct NewPerpetualRow {
     pub funding: f64,
     pub leverage: Vec<Option<i32>>,
     pub is_isolated_only: bool,
+    pub is_enabled: bool,
 }
 
 impl NewPerpetualRow {
@@ -57,6 +59,7 @@ impl NewPerpetualRow {
             funding: perpetual.funding,
             leverage: vec![Some(i32::from(perpetual.max_leverage))],
             is_isolated_only: perpetual.is_isolated_only,
+            is_enabled: perpetual.is_enabled,
         }
     }
 }
@@ -76,6 +79,7 @@ impl PerpetualRow {
             funding: self.funding,
             max_leverage: self.leverage.first().and_then(|v| v.and_then(|i| u8::try_from(i).ok())).unwrap_or(1),
             is_isolated_only: self.is_isolated_only,
+            is_enabled: self.is_enabled,
         }
     }
 }

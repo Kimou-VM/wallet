@@ -2507,6 +2507,7 @@ public extension Gemstone.Perpetual {
             funding: funding,
             maxLeverage: maxLeverage,
             isIsolatedOnly: isIsolatedOnly,
+            isEnabled: isEnabled,
         )
     }
 }
@@ -2526,6 +2527,7 @@ public extension Primitives.Perpetual {
             funding: funding,
             maxLeverage: maxLeverage,
             isIsolatedOnly: isIsolatedOnly,
+            isEnabled: isEnabled,
         )
     }
 }

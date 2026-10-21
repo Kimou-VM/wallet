@@ -77,6 +77,7 @@ struct PerpetualQueryTests {
             price: 3000.0,
             maxLeverage: 75,
             isIsolatedOnly: true,
+            isEnabled: false,
         )
 
         try store.upsertPerpetuals([existing])
@@ -93,6 +94,7 @@ struct PerpetualQueryTests {
             #expect(result.data.perpetual.price == 3000.0)
             #expect(result.data.perpetual.maxLeverage == 75)
             #expect(result.data.perpetual.isIsolatedOnly == true)
+            #expect(result.data.perpetual.isEnabled == false)
             #expect(result.data.asset.id == newAssetId)
             #expect(result.data.metadata.isPinned == true)
             #expect(stale == .empty)

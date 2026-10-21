@@ -97,7 +97,9 @@ extension WalletSearchQuery {
         let searchAlias = TableAlias(name: SearchRecord.databaseTableName)
         let assetAlias = TableAlias(name: AssetRecord.databaseTableName)
 
-        var request = PerpetualRecord.including(required: PerpetualRecord.asset)
+        var request = PerpetualRecord
+            .filter(PerpetualRecord.Columns.isEnabled)
+            .including(required: PerpetualRecord.asset)
 
         if hasPriority {
             request = request

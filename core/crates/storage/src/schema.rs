@@ -625,6 +625,7 @@ diesel::table! {
         funding -> Float8,
         leverage -> Array<Nullable<Int4>>,
         is_isolated_only -> Bool,
+        is_enabled -> Bool,
         updated_at -> Timestamp,
         created_at -> Timestamp,
     }

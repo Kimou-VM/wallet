@@ -1695,6 +1695,7 @@ fun uniffi.gemstone.Perpetual.toPrimitives(): com.wallet.core.primitives.Perpetu
     funding = funding,
     maxLeverage = maxLeverage,
     isIsolatedOnly = isIsolatedOnly,
+    isEnabled = isEnabled,
 )
 
 fun com.wallet.core.primitives.Perpetual.toGem(): uniffi.gemstone.Perpetual = uniffi.gemstone.Perpetual(
@@ -1710,6 +1711,7 @@ fun com.wallet.core.primitives.Perpetual.toGem(): uniffi.gemstone.Perpetual = un
     funding = funding,
     maxLeverage = maxLeverage,
     isIsolatedOnly = isIsolatedOnly,
+    isEnabled = isEnabled,
 )
 
 fun uniffi.gemstone.PerpetualBalance.toPrimitives(): com.wallet.core.primitives.PerpetualBalance = com.wallet.core.primitives.PerpetualBalance(

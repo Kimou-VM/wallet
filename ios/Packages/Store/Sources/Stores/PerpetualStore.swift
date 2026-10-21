@@ -39,6 +39,7 @@ public struct PerpetualStore: Sendable {
                         PerpetualRecord.Columns.funding.set(to: perpetual.funding),
                         PerpetualRecord.Columns.maxLeverage.set(to: perpetual.maxLeverage),
                         PerpetualRecord.Columns.isIsolatedOnly.set(to: perpetual.isIsolatedOnly),
+                        PerpetualRecord.Columns.isEnabled.set(to: perpetual.isEnabled),
                     )
             }
         }

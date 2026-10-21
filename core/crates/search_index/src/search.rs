@@ -57,7 +57,11 @@ fn assets_filters(query: &SearchQuery, rank_threshold: i32) -> Vec<String> {
 }
 
 fn perpetuals_filters(query: &SearchQuery) -> Vec<String> {
-    if query.tags.is_empty() { vec![] } else { vec![filter_array("tags", &query.tags)] }
+    let mut filters = vec!["perpetual.isEnabled = true".to_string()];
+    if !query.tags.is_empty() {
+        filters.push(filter_array("tags", &query.tags));
+    }
+    filters
 }
 
 fn build_filter(filters: Vec<String>) -> String {
@@ -96,8 +100,8 @@ mod tests {
 
     #[test]
     fn test_perpetuals_filters() {
-        assert!(perpetuals_filters(&query(&[], &[])).is_empty());
-        assert_eq!(perpetuals_filters(&query(&[], &["stocks"])), vec!["tags IN [\"stocks\"]"]);
+        assert_eq!(perpetuals_filters(&query(&[], &[])), vec!["perpetual.isEnabled = true"]);
+        assert_eq!(perpetuals_filters(&query(&[], &["stocks"])), vec!["perpetual.isEnabled = true", "tags IN [\"stocks\"]"]);
     }
 
     #[test]

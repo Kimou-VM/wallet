@@ -18,7 +18,8 @@ data class Perpetual (
 	val volume24h: Double,
 	val funding: Double,
 	val maxLeverage: UByte,
-	val isIsolatedOnly: Boolean
+	val isIsolatedOnly: Boolean,
+	val isEnabled: Boolean
 )
 
 @Serializable

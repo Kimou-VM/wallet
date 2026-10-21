@@ -32,7 +32,7 @@ interface PerpetualDao {
     @Query(
         """
         SELECT * FROM perpetuals
-        WHERE :requiresVolume = 0 OR volume24h > 0 OR isPinned
+        WHERE isEnabled AND (:requiresVolume = 0 OR volume24h > 0 OR isPinned)
         ORDER BY isPinned DESC, volume24h DESC
         LIMIT :limit
     """,
@@ -44,7 +44,7 @@ interface PerpetualDao {
         """
         SELECT perpetuals.* FROM perpetuals
         JOIN asset ON asset.id = perpetuals.assetId
-        WHERE perpetuals.name LIKE '%' || :search || '%' OR asset.symbol LIKE '%' || :search || '%'
+        WHERE perpetuals.isEnabled AND (perpetuals.name LIKE '%' || :search || '%' OR asset.symbol LIKE '%' || :search || '%')
         ORDER BY perpetuals.isPinned DESC, perpetuals.volume24h DESC
         LIMIT :limit
     """,

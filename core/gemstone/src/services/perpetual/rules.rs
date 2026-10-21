@@ -770,7 +770,7 @@ pub fn details(perpetual: &Perpetual, asset: &Asset, positions: Vec<PerpetualPos
         sections: [
             position.as_ref().map(|position| GemPerpetualSection::Position { rows: position_details(asset, position) }),
             Some(GemPerpetualSection::Info {
-                buttons: perpetual_buttons(position.is_some()),
+                buttons: perpetual_buttons(perpetual, position.is_some()),
                 rows: info_rows(market),
             }),
         ]
@@ -866,10 +866,11 @@ fn info_rows(row: PerpetualMarketLine) -> Vec<GemListRow> {
     ]
 }
 
-fn perpetual_buttons(has_position: bool) -> Vec<GemPerpetualButtonRow> {
-    match has_position {
-        true => button_rows(&[GemPerpetualButton::Modify, GemPerpetualButton::Close]),
-        false => button_rows(&[GemPerpetualButton::Long, GemPerpetualButton::Short]),
+fn perpetual_buttons(perpetual: &Perpetual, has_position: bool) -> Vec<GemPerpetualButtonRow> {
+    match (has_position, perpetual.is_enabled) {
+        (true, _) => button_rows(&[GemPerpetualButton::Modify, GemPerpetualButton::Close]),
+        (false, true) => button_rows(&[GemPerpetualButton::Long, GemPerpetualButton::Short]),
+        (false, false) => Vec::new(),
     }
 }
 
@@ -1014,6 +1015,15 @@ mod tests {
                 position: Some(position),
                 associated_assets: vec![],
             }
+        );
+        let delisted = Perpetual { is_enabled: false, ..Perpetual::mock() };
+        assert_eq!(
+            details(&delisted, &asset, vec![], vec![]).sections,
+            vec![GemPerpetualSection::Info {
+                buttons: vec![],
+                rows: info_rows(market_row(&delisted, &asset)),
+            }],
+            "a delisted market cannot be traded"
         );
 
         let detail_kinds = |position: &PerpetualPosition| position_details(&asset, position).into_iter().map(|detail| detail.kind).collect::<Vec<_>>();

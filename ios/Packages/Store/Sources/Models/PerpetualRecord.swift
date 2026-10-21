@@ -20,6 +20,7 @@ struct PerpetualRecord: Codable, TableRecord, FetchableRecord, PersistableRecord
         static let funding = Column("funding")
         static let maxLeverage = Column("maxLeverage")
         static let isIsolatedOnly = Column("isIsolatedOnly")
+        static let isEnabled = Column("isEnabled")
         static let isPinned = Column("isPinned")
     }
 
@@ -35,6 +36,7 @@ struct PerpetualRecord: Codable, TableRecord, FetchableRecord, PersistableRecord
     var funding: Double
     var maxLeverage: UInt8
     var isIsolatedOnly: Bool = false
+    var isEnabled: Bool = true
     var isPinned: Bool = false
 
     static let positions = hasMany(PerpetualPositionRecord.self).forKey("positions")
@@ -58,6 +60,7 @@ extension PerpetualRecord: CreateTable {
             $0.column(Columns.funding.name, .double).notNull()
             $0.column(Columns.maxLeverage.name, .integer).notNull()
             $0.column(Columns.isIsolatedOnly.name, .boolean).notNull().defaults(to: false)
+            $0.column(Columns.isEnabled.name, .boolean).notNull().defaults(to: true)
             $0.column(Columns.isPinned.name, .boolean).notNull().defaults(to: false)
         }
     }
