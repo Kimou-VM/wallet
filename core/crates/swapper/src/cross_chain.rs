@@ -202,8 +202,7 @@ mod tests {
 
     #[test]
     fn test_xrp_memo_deposit_detected() {
-        let ledger = include_str!("../../gem_xrp/src/testdata/transaction_bridgers_swap.json");
-        let transaction = serde_json::from_str::<gem_jsonrpc::types::JsonRpcResult<gem_xrp::models::Transaction>>(ledger).unwrap().take().unwrap();
+        let transaction = load_json_rpc_result::<gem_xrp::models::Transaction>(include_str!("../../gem_xrp/src/testdata/transaction_bridgers_swap.json"));
         let memos = transaction.memos.clone().unwrap();
         let response_memo = gem_xrp::models::TransactionMemo {
             memo: gem_xrp::models::TransactionMemoData {
