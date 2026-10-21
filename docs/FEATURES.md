@@ -189,15 +189,15 @@ The table lists backend address-history providers by chain. Chains marked unsupp
 | Bitcoin | [Bitcoin chain client](../core/crates/gem_bitcoin/src/rpc/client.rs) |
 | Bitcoin Cash | [Bitcoin chain client](../core/crates/gem_bitcoin/src/rpc/client.rs) |
 | Litecoin | [Bitcoin chain client](../core/crates/gem_bitcoin/src/rpc/client.rs) |
-| Ethereum | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Ankr](../core/crates/gem_evm/src/rpc/ankr.rs) |
+| Ethereum | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Ankr](../core/crates/gem_evm/src/rpc/ankr.rs) |
 | BNB Chain | [Ankr](../core/crates/gem_evm/src/rpc/ankr.rs) |
 | Solana | [Alchemy](../core/crates/gem_solana/src/rpc/indexer/mod.rs) |
-| Polygon | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Ankr](../core/crates/gem_evm/src/rpc/ankr.rs) |
+| Polygon | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Ankr](../core/crates/gem_evm/src/rpc/ankr.rs) |
 | THORChain | [Cosmos chain client](../core/crates/gem_cosmos/src/rpc/client.rs) |
 | MayaChain | [Cosmos chain client](../core/crates/gem_cosmos/src/rpc/client.rs) |
 | Cosmos | [Cosmos chain client](../core/crates/gem_cosmos/src/rpc/client.rs) |
 | Osmosis | [Cosmos chain client](../core/crates/gem_cosmos/src/rpc/client.rs) |
-| Arbitrum | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Ankr](../core/crates/gem_evm/src/rpc/ankr.rs) |
+| Arbitrum | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Ankr](../core/crates/gem_evm/src/rpc/ankr.rs) |
 | TON | [TON chain client](../core/crates/gem_ton/src/rpc/client.rs) |
 | Tron | [TronGrid account and TRC-20 transactions](../core/crates/gem_tron/src/rpc/trongrid/client.rs) |
 | Dogecoin | [Bitcoin chain client](../core/crates/gem_bitcoin/src/rpc/client.rs) |
@@ -222,9 +222,9 @@ The table lists backend address-history providers by chain. Chains marked unsupp
 | ZKsync | [ZKsync Explorer](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | Linea | [Ankr](../core/crates/gem_evm/src/rpc/ankr.rs) |
 | Mantle | Unsupported |
-| Celo | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
+| Celo | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | NEAR | [FastNear](../core/crates/gem_near/src/rpc/indexer/mod.rs) |
-| World Chain | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
+| World Chain | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | Stellar | [Stellar chain client](../core/crates/gem_stellar/src/rpc/client.rs) |
 | Sonic | Unsupported |
 | Algorand | [Algorand Indexer](../core/crates/gem_algorand/src/rpc/indexer/mod.rs) |
@@ -234,7 +234,7 @@ The table lists backend address-history providers by chain. Chains marked unsupp
 | Abstract | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | Berachain | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | Ink | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
-| Unichain | [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
+| Unichain | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Blockscout](../core/crates/gem_evm/src/rpc/blockscout.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | Hyperliquid | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |
 | HyperCore | [HyperCore chain client](../core/crates/gem_hypercore/src/provider/transactions.rs) |
 | Monad | [Etherscan](../core/crates/gem_evm/src/rpc/etherscan.rs), [Alchemy](../core/crates/gem_evm/src/rpc/alchemy.rs) |

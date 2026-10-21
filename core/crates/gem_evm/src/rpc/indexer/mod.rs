@@ -127,18 +127,19 @@ pub struct EVMIndexer<C: Client + Clone> {
 impl<C: Client + Clone> EVMIndexer<C> {
     pub fn for_chain(alchemy_client: C, ankr_client: C, blockscout_client: C, blockscout_key: String, etherscan: EtherscanClients<C>, chain: EVMChain) -> Option<Self> {
         let provider_kinds = match chain {
-            EVMChain::Ethereum => vec![ProviderKind::Blockscout, ProviderKind::Ankr("eth")],
-            EVMChain::Polygon => vec![ProviderKind::Blockscout, ProviderKind::Ankr("polygon")],
+            EVMChain::Ethereum => vec![ProviderKind::Etherscan, ProviderKind::Blockscout, ProviderKind::Ankr("eth")],
+            EVMChain::Polygon => vec![ProviderKind::Etherscan, ProviderKind::Blockscout, ProviderKind::Ankr("polygon")],
             EVMChain::AvalancheC => vec![ProviderKind::Ankr("avalanche")],
             EVMChain::SmartChain => vec![ProviderKind::Ankr("bsc")],
-            EVMChain::Arbitrum => vec![ProviderKind::Blockscout, ProviderKind::Ankr("arbitrum")],
+            EVMChain::Arbitrum => vec![ProviderKind::Etherscan, ProviderKind::Blockscout, ProviderKind::Ankr("arbitrum")],
             EVMChain::Optimism => vec![ProviderKind::Blockscout, ProviderKind::Ankr("optimism")],
             EVMChain::Base => vec![ProviderKind::Blockscout, ProviderKind::Ankr("base")],
             EVMChain::Fantom => vec![ProviderKind::Ankr("fantom")],
             EVMChain::Gnosis => vec![ProviderKind::Blockscout, ProviderKind::Ankr("gnosis")],
             EVMChain::Linea => vec![ProviderKind::Ankr("linea")],
             EVMChain::XLayer => vec![ProviderKind::Ankr("xlayer")],
-            EVMChain::Celo | EVMChain::World | EVMChain::Ink | EVMChain::Unichain | EVMChain::Robinhood | EVMChain::Arc => vec![ProviderKind::Blockscout, ProviderKind::Alchemy],
+            EVMChain::Celo | EVMChain::World | EVMChain::Unichain => vec![ProviderKind::Etherscan, ProviderKind::Blockscout, ProviderKind::Alchemy],
+            EVMChain::Ink | EVMChain::Robinhood | EVMChain::Arc => vec![ProviderKind::Blockscout, ProviderKind::Alchemy],
             EVMChain::Abstract | EVMChain::Berachain | EVMChain::Hyperliquid | EVMChain::Monad => vec![ProviderKind::Etherscan, ProviderKind::Alchemy],
             EVMChain::Blast => vec![ProviderKind::Routescan, ProviderKind::Alchemy],
             EVMChain::ZkSync => vec![ProviderKind::ZkSync, ProviderKind::Alchemy],
@@ -275,6 +276,36 @@ mod tests {
                 AssetId::from_token(Chain::Blast, "0xdAC17F958D2ee523a2206206994597C13D831ec7"),
                 Balance::coin_balance(BigUint::from(42u8))
             )]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_etherscan_serves_history_before_blockscout() {
+        let etherscan_client = MockClient::new().with_get(|path| {
+            let response = match path {
+                "/v2/api?chainid=42220&module=account&action=txlist&address=0x123&page=1&offset=3&sort=desc" => etherscan::testkit::TRANSACTIONS,
+                "/v2/api?chainid=42220&module=account&action=tokentx&address=0x123&page=1&offset=3&sort=desc" => etherscan::testkit::TOKEN_TRANSFERS,
+                _ => panic!("unexpected path: {path}"),
+            };
+            Ok(response.as_bytes().to_vec())
+        });
+        let blockscout_client = MockClient::new().with_get(|path| panic!("unexpected Blockscout path: {path}"));
+        let unused_client = MockClient::new();
+        let etherscan = EtherscanClients::new(etherscan_client, None, unused_client.clone(), unused_client.clone());
+        let indexer = EVMIndexer::for_chain(unused_client.clone(), unused_client, blockscout_client, "key".to_string(), etherscan, EVMChain::Celo).unwrap();
+
+        let transactions = EVMTransactionsByAddressProvider::new(Arc::new(indexer))
+            .get_transactions_by_address(TransactionsRequest::new("0x123".to_string(), 3))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            transactions.transaction_requests().unwrap(),
+            vec![
+                TransactionIdRequest::new(Chain::Celo, "0xtoken".to_string(), Some(11)),
+                TransactionIdRequest::new(Chain::Celo, "0xnormal".to_string(), Some(10)),
+                TransactionIdRequest::new(Chain::Celo, "0xshared".to_string(), Some(8)),
+            ]
         );
     }
 
