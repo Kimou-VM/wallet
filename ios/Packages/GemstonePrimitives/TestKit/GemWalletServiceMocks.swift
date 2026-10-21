@@ -262,6 +262,7 @@ public final class GemWalletHomeServiceMock: GemWalletHomeServiceProtocol, @unch
     public private(set) var updatedBalances: [[Gemstone.AssetId]] = []
     public var showsLoading = false
     public var refreshError: (any Error)?
+    public var nftRefresh: @Sendable () async throws -> Void = {}
 
     public init() {}
 
@@ -314,6 +315,10 @@ public final class GemWalletHomeServiceMock: GemWalletHomeServiceProtocol, @unch
         if let refreshError {
             throw refreshError
         }
+    }
+
+    public func refreshNfts() async throws {
+        try await nftRefresh()
     }
 
     public func setAssetPinned(asset: Gemstone.Asset, pinned isPinned: Bool) async throws -> GemToast {

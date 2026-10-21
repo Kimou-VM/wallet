@@ -49,4 +49,24 @@ struct WalletSceneViewModelTests {
         await model.load()
         #expect(model.isLoadingAssets == false)
     }
+
+    @Test(.timeLimit(.minutes(1)))
+    func theWalletRefreshEndsWhileNftsAreStillLoading() async {
+        let service = GemWalletHomeServiceMock()
+        let (started, startedContinuation) = AsyncStream<Void>.makeStream()
+        let (gate, release) = AsyncStream<Void>.makeStream()
+        service.nftRefresh = {
+            startedContinuation.yield()
+            for await _ in gate {}
+        }
+        let model = WalletSceneViewModel.mock(service: service)
+
+        await model.loadOnce()
+        #expect(model.isLoadingAssets == false)
+
+        for await _ in started {
+            break
+        }
+        release.finish()
+    }
 }

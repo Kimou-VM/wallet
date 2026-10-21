@@ -29,6 +29,7 @@ flowchart LR
 | The user hides balances | one switch hides them everywhere | |
 | Prices change | they arrive live, with no timer | |
 | The user switches wallet | the screen is rebuilt for the new wallet | |
+| NFTs answer after the rest of a refresh | the loading row and the pull-to-refresh spinner end without them, and Collections appears when they arrive | a slow NFT lookup never holds back balances, tokens or transactions |
 | Search finds more assets than its preview shows | the Assets header opens the full list, also when some of the found assets are pinned | pinned rows share the fetched window, so they count toward more |
 
 Asset logos and charts follow the shared [Asset logos](../PRODUCT.md#asset-logos) and [Charts](../PRODUCT.md#charts) sections.

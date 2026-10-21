@@ -103,6 +103,10 @@ class WalletViewModel @Inject constructor(
     }
 
     private suspend fun refresh() {
+        viewModelScope.launch(ioDispatcher) {
+            runCatchingCancellable { service.refreshNfts() }
+                .onFailure { Log.e(TAG, "nfts refresh failed", it) }
+        }
         runCatchingCancellable { service.refresh() }
             .onFailure { Log.e(TAG, "assets refresh failed", it) }
         isLoadingAssets.value = service.showsInitialLoading()

@@ -52,10 +52,13 @@ impl GemAssetDiscoveryService {
 
 impl GemAssetDiscoveryService {
     pub async fn discover(&self, wallet_id: WalletId) -> Result<(), GemServiceError> {
-        let (assets, transactions, nfts) = futures::join!(self.sync_assets(wallet_id.clone()), self.sync_transactions(wallet_id.clone()), self.sync_nfts(wallet_id),);
+        let (assets, transactions) = futures::join!(self.sync_assets(wallet_id.clone()), self.sync_transactions(wallet_id));
         assets?;
-        transactions?;
-        nfts
+        transactions
+    }
+
+    pub async fn discover_nfts(&self, wallet_id: WalletId) -> Result<(), GemServiceError> {
+        self.run_initial_load(wallet_id.clone(), GemDiscoveryStep::Nfts, self.nft.sync_wallet(wallet_id)).await
     }
 
     async fn sync_assets(&self, wallet_id: WalletId) -> Result<(), GemServiceError> {
@@ -78,10 +81,6 @@ impl GemAssetDiscoveryService {
         self.run_initial_load(wallet_id.clone(), GemDiscoveryStep::Transactions, self.transactions.sync_wallet(wallet_id, None)).await
     }
 
-    async fn sync_nfts(&self, wallet_id: WalletId) -> Result<(), GemServiceError> {
-        self.run_initial_load(wallet_id.clone(), GemDiscoveryStep::Nfts, self.nft.sync_wallet(wallet_id)).await
-    }
-
     async fn run_initial_load<F, T>(&self, wallet_id: WalletId, step: GemDiscoveryStep, sync: F) -> Result<(), GemServiceError>
     where
         F: Future<Output = Result<T, GemServiceError>>,
@@ -99,19 +98,35 @@ mod tests {
     use futures::executor::block_on;
 
     use super::testkit::DiscoveryTestkit;
+    use crate::services::wallet_preferences::GemDiscoveryStep;
     use crate::testkit::TestAlienProvider;
 
     #[test]
-    fn test_discover_runs_all_three_steps_and_reports_the_first_failure() {
+    fn test_discover_runs_the_assets_and_transactions_steps_and_reports_the_first_failure() {
         block_on(async {
             let testkit = DiscoveryTestkit::with_status(503);
 
             assert!(testkit.discovery.discover(testkit.wallet_id.clone()).await.is_err());
 
             let paths = testkit.provider.requested_paths();
-            for expected in ["devices/assets", "devices/transactions", "devices/nft-assets"] {
+            for expected in ["devices/assets", "devices/transactions"] {
                 assert!(paths.iter().any(|path| path.contains(expected)), "{expected} never ran: {paths:?}");
             }
+            assert!(!paths.iter().any(|path| path.contains("devices/nft-assets")), "discover waited on NFTs: {paths:?}");
+        })
+    }
+
+    #[test]
+    fn test_nfts_load_once_and_are_not_loaded_again() {
+        block_on(async {
+            let testkit = DiscoveryTestkit::with_response(TestAlienProvider::with_json_by_path(200, &[("devices/", "[]")]));
+
+            testkit.discovery.discover_nfts(testkit.wallet_id.clone()).await.unwrap();
+            testkit.discovery.discover_nfts(testkit.wallet_id.clone()).await.unwrap();
+
+            let paths = testkit.provider.requested_paths();
+            assert_eq!(paths.iter().filter(|path| path.contains("devices/nft-assets")).count(), 1, "{paths:?}");
+            assert!(testkit.wallet_preferences.is_initial_load_completed(testkit.wallet_id.clone(), GemDiscoveryStep::Nfts));
         })
     }
 

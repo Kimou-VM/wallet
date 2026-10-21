@@ -151,6 +151,21 @@ class WalletViewModelTest {
     }
 
     @Test
+    fun `the loading row ends while nfts are still loading`() = runTest(testDispatcher) {
+        val nftGate = CompletableDeferred<Unit>()
+        every { service.showsInitialLoading() } returnsMany listOf(true, false)
+        coEvery { service.refreshNfts() } coAnswers { nftGate.await() }
+        session.value = mockSession(wallet = mockWallet())
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.isLoadingAssets.value)
+        coVerify(exactly = 1) { service.refreshNfts() }
+        nftGate.complete(Unit)
+    }
+
+    @Test
     fun `a failed discovery keeps the loading row until a later refresh completes it`() = runTest(testDispatcher) {
         var discovered = false
         every { service.showsInitialLoading() } answers { !discovered }

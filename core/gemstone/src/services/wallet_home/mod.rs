@@ -128,6 +128,10 @@ impl GemWalletHomeService {
         discovery
     }
 
+    pub async fn refresh_nfts(&self) -> Result<(), GemServiceError> {
+        self.discovery.discover_nfts(self.session.current_wallet_id()?).await
+    }
+
     pub async fn set_asset_pinned(&self, asset: Asset, pinned: bool) -> Result<GemToast, GemServiceError> {
         self.balances.set_asset_pinned(self.session.current_wallet_id()?, asset.id, pinned).await?;
         Ok(GemToast::pinned(asset.name, pinned))
@@ -251,9 +255,23 @@ mod tests {
 
             assert!(testkit.service.refresh().await.is_err());
 
-            for step in [GemDiscoveryStep::Assets, GemDiscoveryStep::Transactions, GemDiscoveryStep::Nfts] {
+            for step in [GemDiscoveryStep::Assets, GemDiscoveryStep::Transactions] {
                 assert!(!testkit.wallet_preferences.is_initial_load_completed(testkit.wallet_id.clone(), step), "{step:?} was marked complete after a failed refresh");
             }
+        })
+    }
+
+    #[test]
+    fn test_refresh_never_waits_on_nfts_and_refresh_nfts_loads_them() {
+        block_on(async {
+            let testkit = WalletHomeTestkit::with_status(503);
+
+            assert!(testkit.service.refresh().await.is_err());
+            assert!(!testkit.provider.requested_paths().iter().any(|path| path.contains("devices/nft-assets")));
+
+            assert!(testkit.service.refresh_nfts().await.is_err());
+            assert!(testkit.provider.requested_paths().iter().any(|path| path.contains("devices/nft-assets")));
+            assert!(!testkit.wallet_preferences.is_initial_load_completed(testkit.wallet_id.clone(), GemDiscoveryStep::Nfts));
         })
     }
 

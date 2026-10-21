@@ -224,6 +224,13 @@ extension WalletSceneViewModel {
     }
 
     private func updateWallet(wallet: Wallet) async {
+        Task {
+            do {
+                try await service.refreshNfts()
+            } catch {
+                debugLog("WalletSceneViewModel refresh nfts error: \(error)")
+            }
+        }
         do {
             try await service.refresh()
         } catch {
