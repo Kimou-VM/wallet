@@ -2,7 +2,7 @@ use chain_primitives::format_token_id;
 use primitives::fiat_assets::FiatAssetLimits;
 use primitives::{
     Asset, AssetId, Chain, CosmosDenom, FiatAssetSymbol, FiatProviderName, RequestError, WalletType,
-    asset_constants::WORLD_WETH_TOKEN_ID,
+    asset_constants::{HYPERCORE_SPOT_HYPE_ASSET_ID, HYPERCORE_SPOT_UBTC_ASSET_ID, HYPERCORE_SPOT_USDC_ASSET_ID, WORLD_WETH_TOKEN_ID},
     contract_constants::{EVM_ZERO_ADDRESS, SOLANA_SYSTEM_PROGRAM_ID},
 };
 use std::collections::HashMap;
@@ -101,14 +101,41 @@ pub fn filter_token_id(chain: Option<Chain>, token_id: Option<String>) -> Option
     if let Some(chain) = chain
         && let Some(token_id) = token_id
     {
-        return format_token_id(chain, token_id);
+        return match chain {
+            Chain::HyperCore => hypercore_token_id(token_id),
+            _ => format_token_id(chain, token_id).filter(|token_id| !AssetId::from_token(chain, token_id).is_native_mirror()),
+        };
     }
     token_id
+}
+
+fn hypercore_token_id(address: String) -> Option<String> {
+    let contract = |asset_id: &AssetId| asset_id.token_components().and_then(|(_, contract, _)| contract);
+    if contract(&HYPERCORE_SPOT_HYPE_ASSET_ID).as_ref() == Some(&address) {
+        return None;
+    }
+    [&*HYPERCORE_SPOT_USDC_ASSET_ID, &*HYPERCORE_SPOT_UBTC_ASSET_ID]
+        .into_iter()
+        .find(|asset_id| contract(asset_id).as_ref() == Some(&address))
+        .map_or(Some(address), |asset_id| asset_id.token_id.clone())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use primitives::asset_constants::{ARC_EURC_TOKEN_ID, ARC_USDC_TOKEN_ID, HYPERCORE_SPOT_UBTC_TOKEN_ID, HYPERCORE_SPOT_USDC_TOKEN_ID};
+
+    #[test]
+    fn test_filter_token_id() {
+        let filter = |chain: Chain, token_id: &str| filter_token_id(Some(chain), Some(token_id.to_string()));
+
+        assert_eq!(filter(Chain::HyperCore, "0x0d01dc56dcaaca66ad901c959b4011ec"), None);
+        assert_eq!(filter(Chain::HyperCore, "0x6d1e7cde53ba9467b783cb7c530ce054"), Some(HYPERCORE_SPOT_USDC_TOKEN_ID.to_string()));
+        assert_eq!(filter(Chain::HyperCore, "0x8f254b963e8468305d409b33aa137c67"), Some(HYPERCORE_SPOT_UBTC_TOKEN_ID.to_string()));
+        assert_eq!(filter(Chain::HyperCore, "0xfeb2eb8f7d9a2b0f3e2c1f41d2a4c4d3"), Some("0xfeb2eb8f7d9a2b0f3e2c1f41d2a4c4d3".to_string()));
+        assert_eq!(filter(Chain::Arc, ARC_USDC_TOKEN_ID), None);
+        assert_eq!(filter(Chain::Arc, &ARC_EURC_TOKEN_ID.to_lowercase()), Some(ARC_EURC_TOKEN_ID.to_string()));
+    }
 
     #[test]
     fn test_validate_wallet() {

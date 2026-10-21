@@ -274,5 +274,68 @@
         "maxBuyAmount": null,
         "minSellAmount": null,
         "maxSellAmount": null
+    },
+    {
+        "type": "crypto",
+        "code": "hype_hypercore",
+        "metadata": {
+            "contractAddress": "0x0d01dc56dcaaca66ad901c959b4011ec",
+            "coinType": "",
+            "chainId": "",
+            "networkCode": "hypercore"
+        },
+        "isSuspended": false,
+        "isBaseAsset": true,
+        "isSellSupported": false,
+        "notAllowedCountries": [
+            "SG",
+            "GB"
+        ],
+        "minBuyAmount": 0.062,
+        "maxBuyAmount": null,
+        "minSellAmount": null,
+        "maxSellAmount": null
+    },
+    {
+        "type": "crypto",
+        "code": "usdc_arc",
+        "metadata": {
+            "contractAddress": "0x0000000000000000000000000000000000000000",
+            "coinType": "",
+            "chainId": "5042",
+            "networkCode": "arc"
+        },
+        "isSuspended": false,
+        "isBaseAsset": true,
+        "isSellSupported": false,
+        "notAllowedCountries": [
+            "CA"
+        ],
+        "minBuyAmount": 5,
+        "maxBuyAmount": null,
+        "minSellAmount": null,
+        "maxSellAmount": null
+    },
+    {
+        "type": "crypto",
+        "code": "usdc_hypercore",
+        "metadata": {
+            "contractAddress": "0x6d1e7cde53ba9467b783cb7c530ce054",
+            "coinType": "",
+            "chainId": "",
+            "networkCode": "hypercore"
+        },
+        "isSuspended": false,
+        "isBaseAsset": false,
+        "isSellSupported": false,
+        "notAllowedCountries": [
+            "SG",
+            "GB",
+            "CA"
+        ],
+        "minBuyAmount": 5,
+        "maxBuyAmount": null,
+        "minSellAmount": null,
+        "maxSellAmount": null
     }
 ]

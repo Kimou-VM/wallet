@@ -28,5 +28,39 @@
     "isSuspended": false,
     "isPayInAllowed": false,
     "kycCountriesNotSupported": ["US", "CA"]
+  },
+  {
+    "coinId": "usd-coin",
+    "uniqueId": "USDCarc",
+    "symbol": "USDC",
+    "network": {
+      "name": "arc",
+      "fiatCurrenciesNotSupported": [],
+      "chainId": null
+    },
+    "address": "0x3600000000000000000000000000000000000000",
+    "isAllowed": true,
+    "isSuspended": false,
+    "isPayInAllowed": false,
+    "kycCountriesNotSupported": []
+  },
+  {
+    "coinId": "hyperliquid",
+    "uniqueId": "HYPEhyperliquid",
+    "symbol": "HYPE",
+    "network": {
+      "name": "hyperliquid",
+      "fiatCurrenciesNotSupported": [
+        { "fiatCurrency": "USD", "paymentMethod": "credit_debit_card" },
+        { "fiatCurrency": "USD", "paymentMethod": "apple_pay" },
+        { "fiatCurrency": "USD", "paymentMethod": "google_pay" }
+      ],
+      "chainId": null
+    },
+    "address": "0x0d01dc56dcaaca66ad901c959b4011ec",
+    "isAllowed": true,
+    "isSuspended": null,
+    "isPayInAllowed": false,
+    "kycCountriesNotSupported": ["US", "CA", "GB"]
   }
 ]

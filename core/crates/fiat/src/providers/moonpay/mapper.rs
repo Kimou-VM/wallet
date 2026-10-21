@@ -51,6 +51,8 @@ pub fn map_asset_chain(asset: Asset) -> Option<Chain> {
         "monad" => Some(Chain::Monad),
         "robinhood" => Some(Chain::Robinhood),
         "hyperevm" => Some(Chain::Hyperliquid),
+        "hypercore" => Some(Chain::HyperCore),
+        "arc" => Some(Chain::Arc),
         "tempo" => Some(Chain::Tempo),
         "plasma" => Some(Chain::Plasma),
         _ => None,
@@ -104,7 +106,7 @@ fn map_status(status: &str) -> FiatTransactionStatus {
 mod tests {
     use super::*;
     use crate::providers::moonpay::client::MoonPayClient;
-    use primitives::asset_constants::{HYPEREVM_USDC_ASSET_ID, PLASMA_USDT_ASSET_ID, ROBINHOOD_USDG_ASSET_ID, TEMPO_BRIDGED_USDC_ASSET_ID, TEMPO_PATHUSD_ASSET_ID, TEMPO_USDT0_ASSET_ID};
+    use primitives::asset_constants::{HYPERCORE_SPOT_USDC_ASSET_ID, HYPEREVM_USDC_ASSET_ID, PLASMA_USDT_ASSET_ID, ROBINHOOD_USDG_ASSET_ID, TEMPO_BRIDGED_USDC_ASSET_ID, TEMPO_PATHUSD_ASSET_ID, TEMPO_USDT0_ASSET_ID};
     use primitives::{AssetId, FiatTransactionStatus, FiatTransactionUpdate};
 
     #[test]
@@ -119,6 +121,9 @@ mod tests {
             ("usdg_robinhood", ROBINHOOD_USDG_ASSET_ID.clone()),
             ("usdt0_plasma", PLASMA_USDT_ASSET_ID.clone()),
             ("usdt0_tempo", TEMPO_USDT0_ASSET_ID.clone()),
+            ("hype_hypercore", AssetId::from_chain(Chain::HyperCore)),
+            ("usdc_arc", AssetId::from_chain(Chain::Arc)),
+            ("usdc_hypercore", HYPERCORE_SPOT_USDC_ASSET_ID.clone()),
         ];
         assert_eq!(assets.len(), expected.len());
 

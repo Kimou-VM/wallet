@@ -39,6 +39,7 @@ pub fn map_asset_chain(network: &str, coin_id: Option<&str>) -> Option<Chain> {
         "hyperliquid" => Some(Chain::HyperCore),
         "monad" => Some(Chain::Monad),
         "plasma" => Some(Chain::Plasma),
+        "arc" => Some(Chain::Arc),
         "near" => Some(Chain::Near),
         "xrpl" => Some(Chain::Xrp),
         "mainnet" => match coin_id? {
@@ -197,7 +198,15 @@ mod tests {
         let assets: Vec<Asset> = serde_json::from_str(include_str!("../../../testdata/transak/assets.json")).unwrap();
         let asset_ids: Vec<(String, Option<AssetId>)> = assets.into_iter().filter_map(map_asset).map(|asset| (asset.id.clone(), asset.asset_id())).collect();
 
-        assert_eq!(asset_ids, vec![("APTaptos".to_string(), Some(Chain::Aptos.as_asset_id())), ("USDTaptos".to_string(), Some(APTOS_USDT_ASSET_ID.clone())),]);
+        assert_eq!(
+            asset_ids,
+            vec![
+                ("APTaptos".to_string(), Some(Chain::Aptos.as_asset_id())),
+                ("USDTaptos".to_string(), Some(APTOS_USDT_ASSET_ID.clone())),
+                ("USDCarc".to_string(), Some(Chain::Arc.as_asset_id())),
+                ("HYPEhyperliquid".to_string(), Some(Chain::HyperCore.as_asset_id())),
+            ]
+        );
     }
 
     #[test]
