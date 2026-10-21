@@ -1,7 +1,7 @@
-use primitives::{AssetId, Chain};
+use primitives::{AssetId, Chain, hex::decode_hex_array};
 use serde::{Deserialize, Serialize};
 
-const TOKEN_ID_HEX_LENGTH: usize = 32;
+const TOKEN_ID_LENGTH: usize = 16;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,7 +35,7 @@ pub fn is_spot_token_id(token_id: &str) -> bool {
 }
 
 pub fn is_token_id(value: &str) -> bool {
-    value.strip_prefix("0x").is_some_and(|hex| hex.len() == TOKEN_ID_HEX_LENGTH && hex.chars().all(|c| c.is_ascii_hexdigit()))
+    value.starts_with("0x") && decode_hex_array::<TOKEN_ID_LENGTH>(value).is_ok()
 }
 
 #[cfg(test)]
