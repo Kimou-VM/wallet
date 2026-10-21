@@ -1,6 +1,8 @@
 use primitives::{AssetId, Chain};
 use serde::{Deserialize, Serialize};
 
+const TOKEN_ID_HEX_LENGTH: usize = 32;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpotToken {
@@ -27,9 +29,13 @@ pub fn spot_token_id_for_asset_id(asset_id: &AssetId) -> Option<String> {
 pub fn is_spot_token_id(token_id: &str) -> bool {
     let parts = AssetId::decode_token_id(token_id);
     match parts.as_slice() {
-        [symbol, contract, index] => !symbol.is_empty() && contract.strip_prefix("0x").is_some_and(|hex| !hex.is_empty() && hex.chars().all(|c| c.is_ascii_hexdigit())) && index.parse::<u32>().is_ok(),
+        [symbol, contract, index] => !symbol.is_empty() && is_token_id(contract) && index.parse::<u32>().is_ok(),
         _ => false,
     }
+}
+
+pub fn is_token_id(value: &str) -> bool {
+    value.strip_prefix("0x").is_some_and(|hex| hex.len() == TOKEN_ID_HEX_LENGTH && hex.chars().all(|c| c.is_ascii_hexdigit()))
 }
 
 #[cfg(test)]
@@ -62,6 +68,16 @@ mod tests {
         assert!(!is_spot_token_id("USDC::6d1e7cde53ba9467b783cb7c530ce054::0"));
         assert!(!is_spot_token_id("USDC::0x6d1e7cde53ba9467b783cb7c530ce054::x"));
         assert!(!is_spot_token_id(""));
+    }
+
+    #[test]
+    fn test_is_token_id() {
+        assert!(is_token_id("0x6d1e7cde53ba9467b783cb7c530ce054"));
+
+        assert!(!is_token_id(HYPERCORE_SPOT_USDC_TOKEN_ID));
+        assert!(!is_token_id("6d1e7cde53ba9467b783cb7c530ce054"));
+        assert!(!is_token_id("0x953cb34f310cdef2ec0351e8c20e87bd53bd3bce"));
+        assert!(!is_token_id("0x6d1e7cde53ba9467b783cb7c530ce05z"));
     }
 
     #[test]

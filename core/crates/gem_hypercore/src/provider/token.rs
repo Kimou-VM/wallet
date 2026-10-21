@@ -5,7 +5,7 @@ use std::error::Error;
 use gem_client::Client;
 use primitives::{Asset, AssetId, AssetType};
 
-use crate::models::token::is_spot_token_id;
+use crate::models::token::{is_spot_token_id, is_token_id};
 use crate::rpc::client::HyperCoreClient;
 
 #[async_trait]
@@ -13,7 +13,11 @@ impl<C: Client> ChainToken for HyperCoreClient<C> {
     async fn get_token_data(&self, token_id: String) -> Result<Asset, Box<dyn Error + Sync + Send>> {
         let symbol = AssetId::decode_token_id(&token_id).into_iter().next().unwrap_or_default();
         let spot_meta = self.get_spot_meta().await?;
-        let token = spot_meta.tokens.iter().find(|t| t.name == symbol).ok_or_else(|| format!("Token not found with symbol: {}", symbol))?;
+        let token = spot_meta
+            .tokens
+            .iter()
+            .find(|t| t.name == symbol || t.token_id.eq_ignore_ascii_case(&token_id))
+            .ok_or_else(|| format!("Token not found: {}", token_id))?;
 
         let asset_id = token.asset_id(self.chain);
 
@@ -27,7 +31,7 @@ impl<C: Client> ChainToken for HyperCoreClient<C> {
     }
 
     fn get_is_token_address(&self, token_id: &str) -> bool {
-        is_spot_token_id(token_id)
+        is_spot_token_id(token_id) || is_token_id(token_id)
     }
 }
 
@@ -47,5 +51,6 @@ mod chain_integration_tests {
         assert_eq!(asset.chain(), primitives::Chain::HyperCore);
         assert_eq!(asset.asset_type, AssetType::TOKEN);
         assert_eq!(asset.token_id(), Some(USDC_TOKEN_ID));
+        assert_eq!(client.get_token_data("0x6d1e7cde53ba9467b783cb7c530ce054".to_string()).await.unwrap().id, asset.id);
     }
 }
