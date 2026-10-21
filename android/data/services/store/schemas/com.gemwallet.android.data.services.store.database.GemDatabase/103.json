@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 103,
-    "identityHash": "b11576da7267a7c86bce0e793f437fe3",
+    "identityHash": "d961183b707bf1af96094c81a7a6ec86",
     "entities": [
       {
         "tableName": "wallets",
@@ -2227,7 +2227,7 @@
       },
       {
         "tableName": "perpetuals",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `provider` TEXT NOT NULL, `assetId` TEXT NOT NULL, `identifier` TEXT NOT NULL, `price` REAL NOT NULL, `pricePercentChange24h` REAL NOT NULL, `openInterest` REAL NOT NULL, `volume24h` REAL NOT NULL, `funding` REAL NOT NULL, `maxLeverage` INTEGER NOT NULL, `isIsolatedOnly` INTEGER NOT NULL, `isEnabled` INTEGER NOT NULL DEFAULT 1, `isPinned` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`assetId`) REFERENCES `asset`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `provider` TEXT NOT NULL, `assetId` TEXT NOT NULL, `identifier` TEXT NOT NULL, `price` REAL NOT NULL, `pricePercentChange24h` REAL NOT NULL, `openInterest` REAL NOT NULL, `volume24h` REAL NOT NULL, `funding` REAL NOT NULL, `maxLeverage` INTEGER NOT NULL, `isIsolatedOnly` INTEGER NOT NULL, `isEnabled` INTEGER NOT NULL, `isPinned` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`assetId`) REFERENCES `asset`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -2305,8 +2305,7 @@
             "fieldPath": "isEnabled",
             "columnName": "isEnabled",
             "affinity": "INTEGER",
-            "notNull": true,
-            "defaultValue": "1"
+            "notNull": true
           },
           {
             "fieldPath": "isPinned",
@@ -2676,7 +2675,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b11576da7267a7c86bce0e793f437fe3')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd961183b707bf1af96094c81a7a6ec86')"
     ]
   }
 }

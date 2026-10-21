@@ -1,6 +1,5 @@
 package com.gemwallet.android.data.services.store.database.entities
 
-import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -39,7 +38,7 @@ data class DbPerpetual(
     val funding: Double,
     val maxLeverage: Int,
     val isIsolatedOnly: Boolean = false,
-    @ColumnInfo(defaultValue = "1") val isEnabled: Boolean = true,
+    val isEnabled: Boolean,
     val isPinned: Boolean = false,
 )
 
