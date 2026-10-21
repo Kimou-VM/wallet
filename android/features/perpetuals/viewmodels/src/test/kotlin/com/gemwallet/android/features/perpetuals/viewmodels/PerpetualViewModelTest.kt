@@ -214,6 +214,20 @@ class PerpetualViewModelTest {
     }
 
     @Test
+    fun `a refresh asked for as the screen opens reaches Core`() = runTest(dispatcher) {
+        val service: GemPerpetualDetailsServiceInterface = mockk(relaxed = true) {
+            every { chartPeriod() } returns uniffi.gemstone.ChartPeriod.DAY
+            coEvery { candles(any()) } answers { GemCandleResult(request = firstArg(), state = GemLoadState.Data, candles = emptyList()) }
+        }
+        val model = viewModel(service = service)
+
+        model.refreshPerpetual()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { service.refresh(asset.id.toIdentifier()) }
+    }
+
+    @Test
     fun `a pinch during a refresh keeps the candle request in flight`() = runTest(dispatcher) {
         val candles = (0L until 40L).map { ChartCandleStick(date = it * 60_000L, open = 1.0, high = 2.0, low = 0.5, close = 1.5, volume = 10.0) }
         val service: GemPerpetualDetailsServiceInterface = mockk(relaxed = true) {

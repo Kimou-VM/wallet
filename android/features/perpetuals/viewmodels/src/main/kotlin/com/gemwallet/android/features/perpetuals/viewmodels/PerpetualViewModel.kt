@@ -36,7 +36,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -51,9 +50,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -93,18 +90,6 @@ class PerpetualViewModel @Inject constructor(
 
     private val transactionsFilter = TransactionsFilter(assetId = assetId, chains = emptyList(), transactionTypes = GemConstants.perpetualActivityTypes, states = emptyList())
 
-    private val storedRefreshRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-
-    private val storedSync = storedRefreshRequests
-        .transformLatest { _ ->
-            runCatchingCancellable { service.refresh(assetId.toIdentifier()) }
-                .getOrNull()
-                ?.forEach { Log.e(TAG, "perpetual refresh failed at ${it.step}: ${it.message}") }
-            emit(Unit)
-        }
-        .onStart { emit(Unit) }
-        .flowOn(ioDispatcher)
-
     val perpetual = perpetualQuery(assetId)
         .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -126,10 +111,7 @@ class PerpetualViewModel @Inject constructor(
         .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val transactions = combine(
-        getTransactions.getTransactions(transactionsFilter, GemConstants.transactionsListLimit),
-        storedSync,
-    ) { transactions, _ -> transactions }
+    val transactions = getTransactions.getTransactions(transactionsFilter, GemConstants.transactionsListLimit)
         .flowOn(ioDispatcher)
         .stateIn(viewModelScope, SharingStarted.Eagerly, getTransactions.stored(transactionsFilter, GemConstants.transactionsListLimit))
 
@@ -232,7 +214,11 @@ class PerpetualViewModel @Inject constructor(
     val error: StateFlow<String?> = errorState.asStateFlow()
 
     fun refreshPerpetual() {
-        storedRefreshRequests.tryEmit(Unit)
+        viewModelScope.launch(ioDispatcher) {
+            runCatchingCancellable { service.refresh(assetId.toIdentifier()) }
+                .getOrNull()
+                ?.forEach { Log.e(TAG, "perpetual refresh failed at ${it.step}: ${it.message}") }
+        }
     }
 
     fun refresh() {
