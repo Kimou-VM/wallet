@@ -71,7 +71,7 @@ impl DiscoveryTestkit {
             preferences.clone(),
         ));
         let balances = Arc::new(MemoryBalanceStore::default());
-        let balance = Arc::new(GemBalanceService::new(gateway.clone(), balances.clone(), assets.clone(), session.clone(), Arc::new(SubscriptionTestkit::new(&[], &[]).service)));
+        let balance = Arc::new(GemBalanceService::new(gateway, balances.clone(), assets.clone(), session.clone(), Arc::new(SubscriptionTestkit::new(&[], &[]).service)));
         let names = Arc::new(GemNameService::new(device_api.clone(), Arc::new(MemoryAddressStore::default())));
         let wallet_preferences = Arc::new(GemWalletPreferencesService::new(Arc::new(MemoryWalletPreferencesStore::default())));
         let transaction_store = Arc::new(MemoryTransactionStateStore::default());
@@ -81,7 +81,7 @@ impl DiscoveryTestkit {
             assets.clone(),
             balance.clone(),
             transaction_store.clone(),
-            names.clone(),
+            names,
             wallet_preferences.clone(),
             session.clone(),
             transaction_status.clone(),

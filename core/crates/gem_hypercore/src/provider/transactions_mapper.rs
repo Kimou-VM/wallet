@@ -344,7 +344,7 @@ mod tests {
         let fills: Vec<UserFill> = serde_json::from_str(include_str!("../../testdata/user_fills_shared_hash.json")).unwrap();
         let transactions = map_user_fills("0xabc", fills, Some(&spot_meta()));
 
-        let mut hashes = transactions.iter().map(|transaction| transaction.hash()).collect::<Vec<_>>();
+        let mut hashes = transactions.iter().map(Transaction::hash).collect::<Vec<_>>();
         hashes.sort_unstable();
         assert_eq!(hashes, vec!["0xshared:327271591086", "0xshared:327271591087"]);
 

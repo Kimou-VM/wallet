@@ -1535,7 +1535,7 @@ mod tests {
         assert_eq!(insufficient_funds(&transfer, &metadata(1_000, 0)), missing_fee);
         assert_eq!(insufficient_funds(&transfer, &metadata(400, 0)), missing_fee, "an empty fee balance still names the fee first");
         assert_eq!(insufficient_funds(&transfer, &metadata(1_000, 10)), None, "a covered transfer keeps the load's own error");
-        let max = GemTransferData { use_max_amount: true, ..transfer.clone() };
+        let max = GemTransferData { use_max_amount: true, ..transfer };
         assert_eq!(insufficient_funds(&max, &metadata(400, 10)), None, "a max amount is capped to the balance, never short");
     }
 

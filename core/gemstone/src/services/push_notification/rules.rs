@@ -105,7 +105,7 @@ mod tests {
         }
         let unreadable_id = serde_json::to_string(&PushNotificationTransaction {
             wallet_id,
-            asset_id: transaction.asset_id.clone(),
+            asset_id: transaction.asset_id,
             transaction_id: "not an id".to_string(),
             transaction: None,
         })

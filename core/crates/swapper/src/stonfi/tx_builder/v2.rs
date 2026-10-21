@@ -274,7 +274,7 @@ mod tests {
         let other_router = SwapSimulation {
             router: Router {
                 address: "EQDx--jUU9PUtHltPYZX7wdzIi0SPY3KZ8nvOs0iZvQJd6Ql".to_string(),
-                ..first.router.clone()
+                ..first.router
             },
             ..SwapSimulation::mock("EQDwOyDlewGw8MkeXgZ_oOmPTIhJIlaJwhJmf4ffIPKv-294", "EQAZMdggoCwOcSVLlT_RyiZtLSMyjYHIttUD9QBVe_NjIHA4", "709", "702")
         };

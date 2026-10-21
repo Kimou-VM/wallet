@@ -265,7 +265,7 @@ mod tests {
         let forwarder = "0x337685fdaB40D39bd02028545a4FfA7D287cC3E2".to_string();
         let deposit_addresses = DepositAddressMap::from([(forwarder.clone(), SwapperProvider::Mayan)]);
         let forward_erc20 = Transaction {
-            to: forwarder.clone(),
+            to: forwarder,
             data: Some(format!("0x{}00000000", hex::encode(MAYAN_FORWARDER_SELECTORS[0]))),
             ..Transaction::mock()
         };
@@ -303,7 +303,7 @@ mod tests {
             message: Bytes::new(),
         };
         let deposit = Transaction {
-            to: spoke_pool.clone(),
+            to: spoke_pool,
             data: Some(hex::encode_prefixed(deposit_call(8453).abi_encode())),
             ..Transaction::mock()
         };

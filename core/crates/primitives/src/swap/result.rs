@@ -75,7 +75,7 @@ mod tests {
         let request = SwapResultRequest::from(&transaction);
         assert_eq!(request.chain, transaction.id.chain);
         assert_eq!(request.transaction_hash, transaction.id.hash);
-        assert_eq!(request.from_address, Some(transaction.from.clone()));
+        assert_eq!(request.from_address, Some(transaction.from));
         assert_eq!(request.deposit_address.as_deref(), Some("deposit"));
         assert_eq!(request.deposit_memo.as_deref(), Some("memo"));
 

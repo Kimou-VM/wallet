@@ -139,22 +139,8 @@ mod tests {
         assert_eq!(whirlpool.swap_start_tick_indexes(true), vec![-11_264, -16_896, -22_528]);
         assert_eq!(whirlpool.swap_start_tick_indexes(false), vec![-11_264, -5_632, 0]);
         assert_eq!(whirlpool.supplemental_start_tick_indexes(true), vec![-5_632, -28_160]);
-        assert_eq!(
-            Whirlpool {
-                tick_current_index: -5_690,
-                ..whirlpool.clone()
-            }
-            .swap_start_tick_indexes(false),
-            vec![-5_632, 0, 5_632]
-        );
-        assert_eq!(
-            Whirlpool {
-                tick_current_index: -443_000,
-                ..whirlpool.clone()
-            }
-            .swap_start_tick_indexes(true),
-            vec![-444_928]
-        );
+        assert_eq!(Whirlpool { tick_current_index: -5_690, ..whirlpool }.swap_start_tick_indexes(false), vec![-5_632, 0, 5_632]);
+        assert_eq!(Whirlpool { tick_current_index: -443_000, ..whirlpool }.swap_start_tick_indexes(true), vec![-444_928]);
         assert_eq!(Whirlpool { tick_current_index: 443_000, ..whirlpool }.swap_start_tick_indexes(false), vec![439_296]);
     }
 }

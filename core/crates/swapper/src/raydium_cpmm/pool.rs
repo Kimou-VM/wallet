@@ -172,8 +172,8 @@ mod tests {
 
         assert!(pool.is_tradable(open_time));
         assert!(!pool.is_tradable(open_time - 1));
-        assert!(Pool { status: 1 | 2, ..pool.clone() }.is_tradable(open_time));
-        assert!(!Pool { status: SWAP_DISABLED, ..pool.clone() }.is_tradable(open_time));
+        assert!(Pool { status: 1 | 2, ..pool }.is_tradable(open_time));
+        assert!(!Pool { status: SWAP_DISABLED, ..pool }.is_tradable(open_time));
         assert!(!Pool { lp_supply: LOCKED_LP_SUPPLY, ..pool }.is_tradable(open_time));
     }
 }
