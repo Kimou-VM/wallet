@@ -38,7 +38,7 @@ use crate::services::wallet_preferences::GemWalletPreferencesService;
 use crate::services::wallet_preferences::testkit::MemoryWalletPreferencesStore;
 use crate::services::wallet_session::GemWalletSessionService;
 use crate::services::wallet_session::testkit::MemoryWalletSessionStore;
-use crate::testkit::{EmptyPreferences, TestAlienProvider};
+use crate::testkit::{EmptyPreferences, TestAlienProvider, YieldOnce};
 
 #[derive(Default)]
 pub struct MemoryPerpetualStore {
@@ -52,6 +52,7 @@ pub struct MemoryPerpetualStore {
     pub pin_writes: Mutex<Vec<(Vec<PerpetualId>, bool)>>,
     pub stored: Mutex<Vec<Perpetual>>,
     pub rejects_positions: AtomicBool,
+    pub yields_while_saving: AtomicBool,
 }
 
 #[async_trait]
@@ -61,6 +62,9 @@ impl GemPerpetualStore for MemoryPerpetualStore {
     }
     async fn save_perpetuals(&self, perpetuals: Vec<PerpetualData>) -> Result<(), GemServiceError> {
         self.perpetual_writes.lock().unwrap().push(perpetuals);
+        if self.yields_while_saving.load(Ordering::SeqCst) {
+            YieldOnce::default().await;
+        }
         Ok(())
     }
     async fn set_pinned(&self, ids: Vec<PerpetualId>, pinned: bool) -> Result<(), GemServiceError> {

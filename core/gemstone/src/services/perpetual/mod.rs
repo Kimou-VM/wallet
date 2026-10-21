@@ -62,6 +62,7 @@ pub struct GemPerpetualService {
     recent_activity: Arc<GemRecentActivityService>,
     config: Arc<GemConfigService>,
     writes: Mutex<()>,
+    markets_sync: Mutex<()>,
 }
 
 #[uniffi::export]
@@ -91,6 +92,7 @@ impl GemPerpetualService {
             recent_activity,
             config,
             writes: Mutex::new(()),
+            markets_sync: Mutex::new(()),
         }
     }
 
@@ -125,6 +127,7 @@ impl GemPerpetualService {
             self.clear_markets().await?;
             return Ok(false);
         }
+        let _sync = self.markets_sync.lock().await;
         if self.preferences.get_perpetual_markets_updated_at().is_none() {
             self.sync_markets(Chain::HyperCore).await?;
         }
@@ -153,6 +156,7 @@ impl GemPerpetualService {
     }
 
     pub async fn sync_markets_if_needed(&self, chain: Chain, trigger: GemMarketsRefreshTrigger) -> Result<bool, GemServiceError> {
+        let _sync = self.markets_sync.lock().await;
         if !trigger.should_sync_markets(self.preferences.get_perpetual_markets_updated_at(), Utc::now().timestamp()) {
             return Ok(false);
         }
@@ -318,6 +322,7 @@ mod tests {
     use super::*;
     use crate::services::balance::GemAssetBalance;
     use crate::services::transfer::{GemRecentActivity, GemRecentActivityStore};
+    use crate::testkit::TestAlienProvider;
     use primitives::AssetType;
     use primitives::known_assets::{ARBITRUM_USDC, HYPERCORE_SPOT_USDC};
 
@@ -554,6 +559,23 @@ mod tests {
 
             assert!(testkit.service.sync_enablement(Some(hypercore)).await.is_err(), "positions cannot be stored before their markets");
             assert!(!testkit.provider.requested_paths().is_empty());
+        })
+    }
+
+    #[test]
+    fn test_overlapping_enablement_syncs_load_the_markets_once() {
+        block_on(async {
+            let testkit = PerpetualTestkit::with_provider(TestAlienProvider::with_json_by_request_type(&[(
+                "metaAndAssetCtxs",
+                include_str!("../../../../crates/gem_hypercore/testdata/perpetual_markets_response_meta_and_asset_ctxs.json"),
+            )]));
+            testkit.preferences.set_perpetual_enabled(true).unwrap();
+            testkit.store.yields_while_saving.store(true, Ordering::SeqCst);
+
+            let (first, second) = futures::join!(testkit.service.sync_enablement(None), testkit.service.sync_enablement(None));
+
+            assert_eq!((first.unwrap(), second.unwrap()), (false, false));
+            assert_eq!(testkit.provider.requested_types(), vec!["metaAndAssetCtxs"]);
         })
     }
 
