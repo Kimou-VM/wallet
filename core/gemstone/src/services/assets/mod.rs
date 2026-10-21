@@ -13,6 +13,7 @@ pub(crate) mod testkit;
 use crate::services::error::GemServiceError;
 use std::sync::Arc;
 
+use chain_primitives::format_token_id;
 use chrono::Utc;
 use primitives::{Asset, AssetBasic, AssetFull, AssetId, AssetPrice, AssetProperties, Chain, ConfigVersions, FiatAssets, FiatQuoteType, Wallet, WalletId};
 
@@ -205,7 +206,7 @@ impl GemAssetsService {
 
     pub async fn search_tokens(&self, token_id: String, chains: Vec<Chain>) -> Vec<AssetBasic> {
         let lookups = chains.into_iter().filter(|chain| chain.default_asset_type().is_some()).map(|chain| {
-            let token_id = token_id.clone();
+            let token_id = format_token_id(chain, token_id.clone()).unwrap_or(token_id.clone());
             async move {
                 if self.gateway.get_is_token_address(chain, token_id.clone()).ok()? {
                     let asset = self.gateway.get_token_data(chain, token_id).await.ok()?;

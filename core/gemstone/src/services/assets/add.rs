@@ -11,7 +11,7 @@ use crate::services::balance::GemBalanceService;
 use crate::services::error::{GemServiceError, required_account};
 use crate::services::explorer::GemExplorerService;
 use crate::services::localization::GemLocalizedText;
-use chain_primitives::checksum_address;
+use chain_primitives::{checksum_address, format_token_id};
 use primitives::BlockExplorerLink;
 
 #[derive(Debug, Clone, PartialEq, uniffi::Enum)]
@@ -192,7 +192,9 @@ impl GemAddAssetService {
     }
 
     pub async fn token(&self, chain: Chain, address: String) -> Result<Asset, GemServiceError> {
-        self.assets.ensure_token_asset(AssetId::from(chain, Some(checksum_address(&address, chain)))).await
+        let token_id = checksum_address(&address, chain);
+        let token_id = format_token_id(chain, token_id.clone()).unwrap_or(token_id);
+        self.assets.ensure_token_asset(AssetId::from(chain, Some(token_id))).await
     }
 
     pub async fn add(&self, wallet: Wallet, asset_id: AssetId) -> Result<(), GemServiceError> {

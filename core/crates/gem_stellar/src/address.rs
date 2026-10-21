@@ -3,9 +3,8 @@ use primitives::{Address, SignerError};
 use signer::Base32Address;
 use std::fmt;
 
-use crate::constants::STELLAR_ADDRESS_LENGTH;
-
 const ED25519_PUBLIC_KEY_VERSION: u8 = 0x30;
+const ADDRESS_LENGTH: usize = 56;
 const DECODED_LENGTH: usize = 35;
 const CRC16_XMODEM_POLY: u16 = 0x1021;
 
@@ -16,7 +15,7 @@ pub struct StellarAddress {
 
 impl Address for StellarAddress {
     fn try_parse(address: &str) -> Option<Self> {
-        if address.len() != STELLAR_ADDRESS_LENGTH || !address.starts_with('G') {
+        if address.len() != ADDRESS_LENGTH || !address.starts_with('G') {
             return None;
         }
         let decoded = decode_base32(address.as_bytes()).ok()?;
