@@ -38,7 +38,8 @@ public struct WalletScene: View {
             if state.showsPerpetuals {
                 Section {
                     PerpetualsPreviewView(
-                        wallet: model.wallet,
+                        walletId: model.wallet.id,
+                        balance: model.perpetualBalanceQuery.value?.balance,
                         showBalancePrivacy: $preferences.isHideBalanceEnabled,
                     )
                 } header: {

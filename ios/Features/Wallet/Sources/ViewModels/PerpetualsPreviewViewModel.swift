@@ -12,7 +12,6 @@ import Store
 @MainActor
 final class PerpetualsPreviewViewModel {
     let positionsQuery: ObservableQuery<PerpetualPositionsQuery>
-    let walletBalanceQuery: ObservableQuery<PerpetualWalletBalanceQuery>
 
     var positions: [PerpetualPositionData] {
         positionsQuery.value
@@ -20,25 +19,13 @@ final class PerpetualsPreviewViewModel {
 
     init(walletId: WalletId) {
         positionsQuery = ObservableQuery(PerpetualPositionsQuery(walletId: walletId), initialValue: [])
-        walletBalanceQuery = ObservableQuery(
-            PerpetualWalletBalanceQuery(walletId: walletId, assetId: Chain.hyperCore.defaultAsset(type: .perpetual).id),
-            initialValue: nil,
-        )
     }
 
     var tradePerpetualsTitle: String {
         Localized.Perpetuals.trade
     }
 
-    var preview: GemPerpetualPreview {
-        perpetualPreview(positionIds: positions.map(\.position.id), balance: walletBalanceQuery.value?.balance.toGem())
-    }
-
-    func updateWallet(walletId: WalletId) {
-        positionsQuery.request = PerpetualPositionsQuery(walletId: walletId)
-        walletBalanceQuery.request = PerpetualWalletBalanceQuery(
-            walletId: walletId,
-            assetId: Chain.hyperCore.defaultAsset(type: .perpetual).id,
-        )
+    func preview(balance: PerpetualBalance?) -> GemPerpetualPreview {
+        perpetualPreview(positionIds: positions.map(\.position.id), balance: balance?.toGem())
     }
 }
