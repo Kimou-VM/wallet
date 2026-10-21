@@ -126,14 +126,14 @@ fn market_section(market: &AssetMarket, currency: Currency) -> Vec<GemListRow> {
 }
 
 fn contract_row(asset: &Asset, explorer: Option<BlockExplorerLink>) -> Option<GemListRow> {
-    let token_id = asset.id.token_id.clone()?;
+    let contract = asset.id.contract()?;
     let chain = asset.chain();
-    let copy = if validate_address(&token_id, chain) {
-        address_copy(chain, token_id)
+    let copy = if validate_address(&contract, chain) {
+        address_copy(chain, contract)
     } else {
         GemCopy {
             kind: GemCopyKind::Plain,
-            ..address_copy(chain, token_id)
+            ..address_copy(chain, contract)
         }
     };
     Some(GemListRow::identifier(GemListRowTitle::Contract, copy, explorer))
@@ -343,11 +343,7 @@ mod tests {
         }])
     }
     use crate::formatted_number::GemValueTone;
-    use primitives::{
-        AssetId, ChartValuePercentage, LinkType, PriceAlertDirection,
-        asset_constants::{STELLAR_USDC_ASSET_ID, STELLAR_USDC_TOKEN_ID},
-        currency::Currency,
-    };
+    use primitives::{AssetId, ChartValuePercentage, LinkType, PriceAlertDirection, asset_constants::STELLAR_USDC_ASSET_ID, currency::Currency};
 
     #[test]
     fn test_a_chart_date_reads_by_how_long_the_period_is() {
@@ -680,8 +676,8 @@ mod tests {
             ..Asset::mock()
         };
         let copy = GemCopy {
-            display: "GA5ZS...:USDC".to_string(),
-            ..GemCopy::plain(STELLAR_USDC_TOKEN_ID.to_string())
+            display: "USDC:...4KZVN".to_string(),
+            ..GemCopy::plain("USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN".to_string())
         };
 
         assert_eq!(
