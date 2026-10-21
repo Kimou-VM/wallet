@@ -7,6 +7,6 @@ public protocol PerpetualObservable: Actor {
     var chartService: ChartObserverService { get }
     func setup(for wallet: Wallet) async
     func disconnect() async
-    func subscribe(_ subscription: GemPerpetualSubscription) async throws
-    func unsubscribe(_ subscription: GemPerpetualSubscription) async throws
+    nonisolated func subscribe(_ subscription: GemPerpetualSubscription)
+    nonisolated func unsubscribe(_ subscription: GemPerpetualSubscription)
 }

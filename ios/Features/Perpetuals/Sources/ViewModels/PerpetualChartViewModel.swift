@@ -47,29 +47,35 @@ public final class PerpetualChartViewModel {
 // MARK: - Actions
 
 public extension PerpetualChartViewModel {
-    func onAppear(perpetual: Perpetual) async {
-        await subscribeCandles(candleSubscription(perpetual: perpetual, period: currentPeriod))
+    func onAppear(perpetual: Perpetual) {
+        observerService.subscribe(candleSubscription(perpetual: perpetual, period: currentPeriod))
         observeTask?.cancel()
         observeTask = Task {
             await observeCandles()
         }
     }
 
-    func onDisappear(perpetual: Perpetual) async {
+    func onDisappear(perpetual: Perpetual) {
         observeTask?.cancel()
         observeTask = nil
-        await unsubscribeCandles(candleSubscription(perpetual: perpetual, period: currentPeriod))
+        observerService.unsubscribe(candleSubscription(perpetual: perpetual, period: currentPeriod))
     }
 
-    func onPeriodChange(perpetual: Perpetual, from oldPeriod: ChartPeriod, to newPeriod: ChartPeriod) async {
-        await unsubscribeCandles(candleSubscription(perpetual: perpetual, period: oldPeriod))
-        await updateCandlesticks(perpetual: perpetual)
-        await subscribeCandles(candleSubscription(perpetual: perpetual, period: newPeriod))
+    func onPeriodChange(perpetual: Perpetual, from oldPeriod: ChartPeriod, to newPeriod: ChartPeriod) {
+        observerService.unsubscribe(candleSubscription(perpetual: perpetual, period: oldPeriod))
+        observerService.subscribe(candleSubscription(perpetual: perpetual, period: newPeriod))
     }
 
     func refresh(perpetual: Perpetual) async {
         session = session.onRefresh()
-        await updateCandlesticks(perpetual: perpetual)
+        await loadCandles(perpetual: perpetual)
+    }
+
+    func loadCandles(perpetual: Perpetual) async {
+        session = session.onSelectMarket(perpetual: perpetual.toGem())
+        guard let request = session.request() else { return }
+        let result = await service.candles(request: request)
+        session = session.onResult(result: result)
     }
 
     func onZoom(_ magnification: Double, anchor: Double) {
@@ -90,29 +96,6 @@ public extension PerpetualChartViewModel {
 private extension PerpetualChartViewModel {
     func candleSubscription(perpetual: Perpetual, period: ChartPeriod) -> GemPerpetualSubscription {
         service.candleSubscription(perpetual: perpetual.toGem(), period: period.toGem())
-    }
-
-    func updateCandlesticks(perpetual: Perpetual) async {
-        session = session.onSelectMarket(perpetual: perpetual.toGem())
-        guard let request = session.request() else { return }
-        let result = await service.candles(request: request)
-        session = session.onResult(result: result)
-    }
-
-    func subscribeCandles(_ subscription: GemPerpetualSubscription) async {
-        do {
-            try await observerService.subscribe(subscription)
-        } catch {
-            debugLog("Chart subscription failed: \(error)")
-        }
-    }
-
-    func unsubscribeCandles(_ subscription: GemPerpetualSubscription) async {
-        do {
-            try await observerService.unsubscribe(subscription)
-        } catch {
-            debugLog("Chart unsubscribe failed: \(error)")
-        }
     }
 
     func observeCandles() async {

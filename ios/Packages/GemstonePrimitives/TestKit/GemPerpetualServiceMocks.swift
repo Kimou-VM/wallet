@@ -245,10 +245,14 @@ public final class GemPerpetualDetailsServiceMock: GemPerpetualDetailsServicePro
 public final class GemPerpetualStreamServiceMock: GemPerpetualStreamServiceProtocol, @unchecked Sendable {
     private let lock = NSLock()
     private var connectedAddresses: [String] = []
+    private var changes: [String] = []
+
+    public var subscribeGate: (@Sendable () async -> Void)?
 
     public init() {}
 
     public var addresses: [String] { lock.withLock { connectedAddresses } }
+    public var subscriptionChanges: [String] { lock.withLock { changes } }
 
     public func connected(address: String, mode _: Gemstone.PerpetualAccountMode) async throws {
         lock.withLock { connectedAddresses.append(address) }
@@ -260,6 +264,12 @@ public final class GemPerpetualStreamServiceMock: GemPerpetualStreamServiceProto
         nil
     }
 
-    public func subscribe(subscription _: Gemstone.GemPerpetualSubscription) async throws {}
-    public func unsubscribe(subscription _: Gemstone.GemPerpetualSubscription) async throws {}
+    public func subscribe(subscription: Gemstone.GemPerpetualSubscription) async throws {
+        await subscribeGate?()
+        lock.withLock { changes.append("subscribe \(subscription)") }
+    }
+
+    public func unsubscribe(subscription: Gemstone.GemPerpetualSubscription) async throws {
+        lock.withLock { changes.append("unsubscribe \(subscription)") }
+    }
 }

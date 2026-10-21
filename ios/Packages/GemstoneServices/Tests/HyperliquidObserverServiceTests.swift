@@ -123,4 +123,22 @@ struct HyperliquidObserverServiceTests {
         try await Task.sleep(for: .milliseconds(100))
         #expect(streamService.addresses == ["0xa"])
     }
+
+    @Test(.timeLimit(.minutes(1)))
+    func sendsSubscriptionChangesInTheOrderTheyWereMade() async throws {
+        let gate = AsyncStream<CheckedContinuation<Void, Never>>.makeStream()
+        let streamService = GemPerpetualStreamServiceMock()
+        streamService.subscribeGate = { await withCheckedContinuation { gate.continuation.yield($0) } }
+        let service = HyperliquidObserverService(webSocket: WebSocketConnectionMock(), perpetualService: GemPerpetualServiceMock(), streamService: streamService)
+
+        service.subscribe(.marketPrices)
+        service.unsubscribe(.marketPrices)
+        let subscribe = await gate.stream.first { _ in true }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(streamService.subscriptionChanges.isEmpty)
+
+        subscribe?.resume()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(streamService.subscriptionChanges == ["subscribe marketPrices", "unsubscribe marketPrices"])
+    }
 }

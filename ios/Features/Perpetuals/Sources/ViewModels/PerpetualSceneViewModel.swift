@@ -132,16 +132,15 @@ public extension PerpetualSceneViewModel {
         _ = await (refresh, refreshCandlesticks)
     }
 
-    func onAppear() async {
-        async let refresh: () = load()
-        await chart.onAppear(perpetual: perpetual)
-        await subscribeMarket()
-        _ = await refresh
+    func onAppear() {
+        chart.onAppear(perpetual: perpetual)
+        observerService.subscribe(service.marketSubscription(perpetual: perpetual.toGem()))
+        Task { await load() }
     }
 
-    func onDisappear() async {
-        await chart.onDisappear(perpetual: perpetual)
-        await unsubscribeMarket()
+    func onDisappear() {
+        chart.onDisappear(perpetual: perpetual)
+        observerService.unsubscribe(service.marketSubscription(perpetual: perpetual.toGem()))
     }
 
     func onScenePhaseChange(_: ScenePhase, _ newPhase: ScenePhase) {
@@ -154,9 +153,8 @@ public extension PerpetualSceneViewModel {
     }
 
     func onPeriodChange(_ oldPeriod: ChartPeriod, _ newPeriod: ChartPeriod) {
-        Task {
-            await chart.onPeriodChange(perpetual: perpetual, from: oldPeriod, to: newPeriod)
-        }
+        chart.onPeriodChange(perpetual: perpetual, from: oldPeriod, to: newPeriod)
+        Task { await chart.loadCandles(perpetual: perpetual) }
     }
 
     func onInfo(_ topic: GemInfoTopic) {
@@ -205,22 +203,6 @@ public extension PerpetualSceneViewModel {
 // MARK: - Private
 
 private extension PerpetualSceneViewModel {
-    func subscribeMarket() async {
-        do {
-            try await observerService.subscribe(service.marketSubscription(perpetual: perpetual.toGem()))
-        } catch {
-            debugLog("Market data subscription failed: \(error)")
-        }
-    }
-
-    func unsubscribeMarket() async {
-        do {
-            try await observerService.unsubscribe(service.marketSubscription(perpetual: perpetual.toGem()))
-        } catch {
-            debugLog("Market data unsubscribe failed: \(error)")
-        }
-    }
-
     func onPositionAction(_ kind: GemPerpetualPositionKind) {
         do {
             let positionAction = try service.positionAction(perpetual: perpetual.toGem(), asset: asset.toGem(), position: details.position, kind: kind)

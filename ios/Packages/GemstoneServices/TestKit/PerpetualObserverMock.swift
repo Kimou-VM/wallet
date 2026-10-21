@@ -19,6 +19,6 @@ public actor PerpetualObserverMock: PerpetualObservable {
         isConnected = false
     }
 
-    public func subscribe(_: GemPerpetualSubscription) async throws {}
-    public func unsubscribe(_: GemPerpetualSubscription) async throws {}
+    public nonisolated func subscribe(_: GemPerpetualSubscription) {}
+    public nonisolated func unsubscribe(_: GemPerpetualSubscription) {}
 }

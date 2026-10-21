@@ -13,6 +13,8 @@ public actor HyperliquidObserverService: PerpetualObservable {
     private let perpetualService: any GemPerpetualServiceProtocol
     private let webSocket: any WebSocketConnectable
     private let streamService: any GemPerpetualStreamServiceProtocol
+    private let subscriptionChanges: AsyncStream<SubscriptionChange>.Continuation
+    private let subscriptionTask: Task<Void, Never>
 
     private var observeTask: Task<Void, Never>?
     private var currentWallet: Wallet?
@@ -31,10 +33,19 @@ public actor HyperliquidObserverService: PerpetualObservable {
         self.perpetualService = perpetualService
         self.streamService = streamService
         self.chartService = chartService
+        let (changes, continuation) = AsyncStream.makeStream(of: SubscriptionChange.self)
+        subscriptionChanges = continuation
+        subscriptionTask = Task {
+            for await change in changes {
+                await change.send(to: streamService)
+            }
+        }
     }
 
     deinit {
         observeTask?.cancel()
+        subscriptionChanges.finish()
+        subscriptionTask.cancel()
     }
 
     // MARK: - Public API
@@ -49,12 +60,12 @@ public actor HyperliquidObserverService: PerpetualObservable {
         await closeConnection()
     }
 
-    public func subscribe(_ subscription: GemPerpetualSubscription) async throws {
-        try await streamService.subscribe(subscription: subscription)
+    public nonisolated func subscribe(_ subscription: GemPerpetualSubscription) {
+        subscriptionChanges.yield(.subscribe(subscription))
     }
 
-    public func unsubscribe(_ subscription: GemPerpetualSubscription) async throws {
-        try await streamService.unsubscribe(subscription: subscription)
+    public nonisolated func unsubscribe(_ subscription: GemPerpetualSubscription) {
+        subscriptionChanges.yield(.unsubscribe(subscription))
     }
 
     // MARK: - Private
@@ -131,6 +142,22 @@ public actor HyperliquidObserverService: PerpetualObservable {
             await chartService.yield(candle.toPrimitives())
         } catch {
             debugLog("HyperliquidObserver: handle message failed: \(error)")
+        }
+    }
+}
+
+private enum SubscriptionChange {
+    case subscribe(GemPerpetualSubscription)
+    case unsubscribe(GemPerpetualSubscription)
+
+    func send(to streamService: any GemPerpetualStreamServiceProtocol) async {
+        do {
+            switch self {
+            case let .subscribe(subscription): try await streamService.subscribe(subscription: subscription)
+            case let .unsubscribe(subscription): try await streamService.unsubscribe(subscription: subscription)
+            }
+        } catch {
+            debugLog("HyperliquidObserver: \(self) failed: \(error)")
         }
     }
 }

@@ -129,20 +129,12 @@ extension PerpetualsSceneViewModel {
         }
     }
 
-    func onAppear() async {
-        do {
-            try await observerService.subscribe(.marketPrices)
-        } catch {
-            debugLog("Market prices subscribe failed: \(error)")
-        }
+    func onAppear() {
+        observerService.subscribe(.marketPrices)
     }
 
-    func onDisappear() async {
-        do {
-            try await observerService.unsubscribe(.marketPrices)
-        } catch {
-            debugLog("Market prices unsubscribe failed: \(error)")
-        }
+    func onDisappear() {
+        observerService.unsubscribe(.marketPrices)
     }
 
     func onSelectHeaderAction(_ action: GemHeaderButtonAction) {

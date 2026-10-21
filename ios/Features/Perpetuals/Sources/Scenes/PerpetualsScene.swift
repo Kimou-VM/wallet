@@ -49,10 +49,10 @@ struct PerpetualsScene: View {
             }
         }
         .onAppear {
-            Task { await model.onAppear() }
+            model.onAppear()
         }
         .onDisappear {
-            Task { await model.onDisappear() }
+            model.onDisappear()
         }
         .refreshableTimer(every: connectionStatus.refreshInterval(for: .market)) { source in
             await model.load(source: source)

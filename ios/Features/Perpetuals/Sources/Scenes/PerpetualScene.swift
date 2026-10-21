@@ -93,10 +93,10 @@ public struct PerpetualScene: View {
             await model.load()
         }
         .onAppear {
-            Task { await model.onAppear() }
+            model.onAppear()
         }
         .onDisappear {
-            Task { await model.onDisappear() }
+            model.onDisappear()
         }
         .onChange(of: scenePhase, model.onScenePhaseChange)
     }
