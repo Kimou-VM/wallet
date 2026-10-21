@@ -5,7 +5,7 @@ Apply the shared [Clean Code Principles](../../skills/engineering-principles.md#
 
 ## Formatting
 
-Line length 180 (`rustfmt.toml`), 4-space indentation, imports reordered by rustfmt. Format with `just format`.
+[`rustfmt.toml`](../rustfmt.toml) sets the line width and import order, with 4-space indentation. Format with `just format`.
 
 ## Naming
 
