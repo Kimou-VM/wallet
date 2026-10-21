@@ -110,9 +110,10 @@ impl SwapProvider {
         }
     }
 
-    pub fn withdraw_url(&self) -> Option<&'static str> {
+    pub fn help_url(&self) -> Option<&'static str> {
         match self {
             Self::Relay => Some("https://support.relay.link/en/articles/15100985-how-to-withdraw-funds"),
+            Self::Squid => Some("https://support.squidrouter.com/troubleshooting/an-intro-to-troubleshooting/most-common-causes-of-errors-and-delays"),
             Self::UniswapV3
             | Self::UniswapV4
             | Self::PancakeswapV3
@@ -132,7 +133,6 @@ impl SwapProvider {
             | Self::NearIntents
             | Self::Hyperliquid
             | Self::Orca
-            | Self::Squid
             | Self::SwapsXyz
             | Self::Bridgers
             | Self::Hyperion

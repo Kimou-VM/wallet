@@ -315,7 +315,6 @@ fun GemLocalizedText.string(context: Context): String = when (this) {
     GemLocalizedText.AppUpdateTitle -> context.getString(R.string.update_app_title)
 
     GemLocalizedText.SwapAgain -> context.getString(R.string.transaction_swap_again)
-    GemLocalizedText.Withdraw -> context.getString(R.string.wallet_withdraw)
 
     is GemLocalizedText.AppUpdateDescription -> context.getString(R.string.update_app_description, version)
 

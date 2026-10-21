@@ -206,8 +206,6 @@ public extension GemLocalizedText {
             Localized.UpdateApp.title
         case .swapAgain:
             Localized.Transaction.swapAgain
-        case .withdraw:
-            Localized.Wallet.withdraw
         case let .appUpdateDescription(version):
             Localized.UpdateApp.description(version)
         case let .currentPrice(price):

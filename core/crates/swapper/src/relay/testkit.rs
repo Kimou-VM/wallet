@@ -31,7 +31,7 @@ impl EvmStepData {
 
 impl RelayRequest {
     pub fn mock_with_status(status: RelayStatus) -> Self {
-        Self { status, data: None, protocol: None }
+        Self { status, data: None }
     }
 
     pub fn mock_blocked_wallet() -> Self {

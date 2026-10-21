@@ -121,7 +121,6 @@ mod tests {
                     asset_id: ARBITRUM_USDC_ASSET_ID.clone(),
                     value: BigUint::from(100_000u64),
                 }),
-                requires_withdrawal: None,
             })
         );
         assert_eq!(

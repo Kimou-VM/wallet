@@ -105,8 +105,7 @@ pub fn map_swap_result(request: &RelayRequest) -> SwapResult {
                 BigUint::from_str(currency_out.amount.as_deref()?).ok()?,
                 SwapperProvider::Relay,
             )
-            .with_referral_fee(map_referral_fee(data.app_fees.as_ref()))
-            .with_requires_withdrawal(request.requires_withdrawal()),
+            .with_referral_fee(map_referral_fee(data.app_fees.as_ref())),
         )
     });
 
@@ -330,16 +329,14 @@ mod tests {
             SwapperProvider::Relay,
         );
 
-        let blocked = RelayRequest::mock_blocked_wallet();
         assert_eq!(
-            map_swap_result(&blocked),
+            map_swap_result(&RelayRequest::mock_blocked_wallet()),
             SwapResult {
                 status: SwapStatus::Failed,
-                metadata: Some(metadata.clone().with_requires_withdrawal(true)),
+                metadata: Some(metadata),
                 eta_in_seconds: None,
             }
         );
-        assert_eq!(map_swap_result(&RelayRequest { protocol: None, ..blocked }).metadata, Some(metadata));
     }
 
     #[test]

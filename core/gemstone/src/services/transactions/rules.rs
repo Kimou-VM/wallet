@@ -15,6 +15,7 @@ use super::model::{
 };
 use crate::address_formatter::{GemAddressFormatStyle, format_address};
 use crate::config::image::GemImage;
+use crate::config::public::PublicUrl;
 use crate::duration_formatter::estimated_duration_parts;
 use crate::formatted_number::{GemFormattedNumber, GemValueTone};
 use crate::models::asset::wallet_default_assets;
@@ -174,7 +175,7 @@ pub fn detail_rows(extended: &TransactionExtended, wallet_type: WalletType, part
         header_action: header_action(transaction),
         swap_progress: details.swap_progress,
         swap_again: details.swap_again,
-        withdraw_url: details.withdraw_url,
+        help_url: details.help_url,
         estimated_confirmation_seconds: details.estimated_confirmation_seconds,
         participant,
         provider_name: details.provider_name,
@@ -266,7 +267,16 @@ pub fn detail_sections(rows: &GemTransactionDetailRows) -> Vec<GemTransactionDet
     [
         vec![Header { header: rows.header.clone() }],
         rows.swap_progress.clone().map(|progress| SwapProgress { progress }).into_iter().collect(),
-        rows.withdraw_url.clone().map(|url| list(GemListRow::Explorer { title: GemLocalizedText::Withdraw, url })).into_iter().collect(),
+        rows.help_url
+            .clone()
+            .map(|url| {
+                list(GemListRow::Explorer {
+                    title: GemLocalizedText::RowTitle { title: GemListRowTitle::Support },
+                    url,
+                })
+            })
+            .into_iter()
+            .collect(),
         rows.swap_again.clone().map(|swap| SwapAgain { title: GemLocalizedText::SwapAgain, swap }).into_iter().collect(),
         details.into_iter().flatten().collect(),
         vec![Fee { row: fee_list_row(&rows.fee_row) }],
@@ -673,7 +683,7 @@ pub fn details(extended: &TransactionExtended, wallet_type: WalletType) -> GemTr
     GemTransactionDetails {
         estimated_confirmation_seconds: extended.confirmation_eta_seconds.filter(|seconds| *seconds > 0 && transaction.state == TransactionState::Pending && swap_progress.is_none()),
         swap_again: swap_again(transaction, swap_metadata.as_ref(), wallet_type),
-        withdraw_url: withdraw_url(transaction, swap_metadata.as_ref()),
+        help_url: help_url(transaction, swap_metadata.as_ref()),
         swap_progress,
         provider_name: provider.map(|provider| provider.name).or_else(|| swap_metadata.as_ref().and_then(|metadata| metadata.provider.clone())),
         pnl: perpetual.as_ref().map(|metadata| metadata.pnl).filter(|pnl| *pnl != 0.0),
@@ -692,13 +702,12 @@ fn swap_again(transaction: &Transaction, metadata: Option<&TransactionSwapMetada
     })
 }
 
-fn withdraw_url(transaction: &Transaction, metadata: Option<&TransactionSwapMetadata>) -> Option<String> {
-    let metadata = metadata?;
-    if transaction.state != TransactionState::Failed || metadata.requires_withdrawal != Some(true) {
+fn help_url(transaction: &Transaction, metadata: Option<&TransactionSwapMetadata>) -> Option<String> {
+    let provider = SwapperProvider::from_str(metadata?.provider.as_deref()?).ok()?;
+    if transaction.state != TransactionState::Failed || !provider.is_cross_chain() {
         return None;
     }
-    let provider = SwapperProvider::from_str(metadata.provider.as_deref()?).ok()?;
-    provider.withdraw_url().map(str::to_string)
+    Some(provider.help_url().map_or_else(|| PublicUrl::Support.url(), str::to_string))
 }
 
 fn swap_progress(extended: &TransactionExtended, metadata: Option<&TransactionSwapMetadata>, provider: Option<&SwapperProviderType>) -> Option<GemSwapProgress> {
@@ -1532,43 +1541,38 @@ mod tests {
     }
 
     #[test]
-    fn test_withdraw_url() {
+    fn test_help_url() {
         let explorer = BlockExplorerLink::mock_with_address("tx");
-        for (state, requires_withdrawal, provider, expected) in [
-            (TransactionState::Failed, true, "relay", Some("https://support.relay.link/en/articles/15100985-how-to-withdraw-funds")),
-            (TransactionState::Failed, false, "relay", None),
-            (TransactionState::Refunded, true, "relay", None),
-            (TransactionState::InTransit, true, "relay", None),
-            (TransactionState::Failed, true, "near_intents", None),
+        for (state, provider, expected) in [
+            (TransactionState::Failed, "relay", Some("https://support.relay.link/en/articles/15100985-how-to-withdraw-funds")),
+            (
+                TransactionState::Failed,
+                "squid",
+                Some("https://support.squidrouter.com/troubleshooting/an-intro-to-troubleshooting/most-common-causes-of-errors-and-delays"),
+            ),
+            (TransactionState::Failed, "near_intents", Some("https://gemwallet.com/support")),
+            (TransactionState::Failed, "jupiter", None),
+            (TransactionState::Refunded, "relay", None),
+            (TransactionState::InTransit, "near_intents", None),
+            (TransactionState::Confirmed, "relay", None),
         ] {
-            let mut transaction = Transaction::mock_swap_with_provider(state, Some(provider));
-            transaction.metadata = Some(
-                serde_json::to_value(
-                    TransactionSwapMetadata {
-                        provider: Some(provider.to_string()),
-                        ..TransactionSwapMetadata::mock()
-                    }
-                    .with_requires_withdrawal(requires_withdrawal),
-                )
-                .unwrap(),
-            );
             let extended = TransactionExtended {
                 assets: vec![Asset::mock_eth(), Asset::mock_btc()],
-                ..TransactionExtended::mock_transaction(transaction)
+                ..TransactionExtended::mock_transaction(Transaction::mock_swap_with_provider(state, Some(provider)))
             };
             let rows = detail_rows(&extended, WalletType::Multicoin, None, explorer.clone(), Currency::USD);
 
-            assert_eq!(rows.withdraw_url.as_deref(), expected, "{state:?} {provider} requires_withdrawal={requires_withdrawal}");
+            assert_eq!(rows.help_url.as_deref(), expected, "{state:?} {provider}");
             if let Some(url) = expected {
                 assert_eq!(
                     detail_sections(&rows)[2].rows,
                     vec![GemTransactionDetailRow::Row {
                         row: GemListRow::Explorer {
-                            title: GemLocalizedText::Withdraw,
+                            title: GemLocalizedText::RowTitle { title: GemListRowTitle::Support },
                             url: url.to_string(),
                         },
                     }],
-                    "the withdrawal link follows the swap progress"
+                    "the help link follows the swap progress"
                 );
             }
         }

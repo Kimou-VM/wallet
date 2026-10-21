@@ -52,7 +52,6 @@ pub enum GemLocalizedText {
     RewardsShareText { link: String },
     AppUpdateTitle,
     SwapAgain,
-    Withdraw,
     AppUpdateDescription { version: String },
     CurrentPrice { price: GemFormattedNumber },
     Pnl { amount: GemFormattedNumber, percent: GemFormattedNumber },
