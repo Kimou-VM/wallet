@@ -95,7 +95,7 @@ Gem takes `0.5%` of every swap and bridge, with these exceptions:
 | A bridge through Across | `0.25%` |
 | Chainflip | `0.45%` |
 | OKX | `0.7%` |
-| SunSwap | none for now, see [SunSwap on Tron](#sunswap-on-tron) |
+| SunSwap | `0.85%`, of which Gem receives half, see [SunSwap on Tron](#sunswap-on-tron) |
 
 The stablecoin rate applies to every provider that swaps on one network: Uniswap, PancakeSwap, Aerodrome, Oku, Wagmi, Orca, Raydium, PumpSwap, Meteora, Cetus, STON.fi, DeDust, Hyperion and Jupiter; OKX keeps `0.7%`. A stablecoin is a token on the official list: USDT, USDC, USDS, USDe, USD1, USDG and PYUSD, on the networks their issuers deploy them to; a token that only carries one of those names pays the full fee (`test_on_chain_referral_fees`). On a stablecoin pair the pool's own fee is about `0.01%`, so Gem's fee is nearly the whole cost: on 2026-10-19, 10,000 USDT to USDC on Ethereum received `9,963.03` USDC at `0.25%`, against `9,937.99` at `0.5%`. A stablecoin moved to another network pays `0.5%` like any cross-chain swap, unless it goes through Across.
 
@@ -271,7 +271,7 @@ The network fee shown is the share the user pays. For any Tron contract call, th
 | A token for TRX or another token, the first time that token is swapped | an approval for SUN's Permit2, then at Confirm a Permit2 signature for the router, then the swap |
 | A token, later | a Permit2 signature at Confirm when the last one has run out, then the swap |
 
-SUN's router pays a third party only through its referral vault, and only once SUN has whitelisted the recipient. Gem's Tron fee address is not whitelisted yet, so SunSwap swaps carry no Gem fee for now. Once it is, the fee is taken from the amount paid, before the swap; the vault keeps `20%` of it unless SUN sets Gem's share, and Gem claims the rest from the vault.
+SUN's router pays a third party only through its referral vault, and only once SUN has whitelisted the recipient; SUN whitelisted Gem's Tron fee address on 2026-10-22. The fee is taken from the amount paid, before the swap, and the vault credits half of it to Gem and keeps the other half: SUN gives every partner the same 50% share. The vault rejects a fee above `0.85%`, so SunSwap swaps charge exactly that and Gem receives `0.425%`, which it claims from the vault. On 2026-10-22, 100 TRX to USDT paid `0.85` TRX, `0.425` TRX of it credited to Gem, and the same swap reverted at `0.86%`.
 
 ## Cross-chain quotes
 

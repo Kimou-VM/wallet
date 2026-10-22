@@ -1,7 +1,7 @@
 use super::{
     client,
     commands::{SwapCommands, build_commands},
-    constants::{FEE_TIERS, SWAP_ENERGY_LIMIT},
+    constants::{FEE_TIERS, REFERRAL_FEE_BPS, SWAP_ENERGY_LIMIT},
 };
 use crate::{
     FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
@@ -9,7 +9,7 @@ use crate::{
     approval::check_permit2_approvals_trc20,
     client_factory::create_tron_client,
     eth_address,
-    fees::{ReferralFee, subtract_bps},
+    fees::{ReferralFee, default_referral_fees, subtract_bps},
     uniswap::{
         deadline::get_sig_deadline,
         discovery::{PoolDiscovery, candidate_pairs},
@@ -54,8 +54,11 @@ impl SunSwap {
         }
     }
 
-    fn referral_fee() -> Option<ReferralFee> {
-        None
+    fn referral_fee() -> ReferralFee {
+        ReferralFee {
+            bps: REFERRAL_FEE_BPS,
+            ..default_referral_fees().tron
+        }
     }
 
     fn routed_asset(asset_id: &AssetId) -> Result<RoutedAsset, SwapperError> {
@@ -132,7 +135,7 @@ impl Swapper for SunSwap {
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let (input, output, amount_in) = Self::routed_request(request)?;
         let client = create_tron_client(self.rpc_provider.clone())?;
-        let swap_amount = subtract_bps(&amount_in, Self::referral_fee().map_or(0, |fee| fee.bps));
+        let swap_amount = subtract_bps(&amount_in, Self::referral_fee().bps);
 
         _ = self.preload_pools(&client, input.address, output.address).await;
         let paths = candidate_paths(&input.address, &output.address, &FEE_TIERS, &Self::base_pair()?)

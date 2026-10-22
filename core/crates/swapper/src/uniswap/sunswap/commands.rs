@@ -13,21 +13,21 @@ pub(super) struct SwapCommands {
     pub min_amount_out: U256,
     pub path: Bytes,
     pub permit: Option<Permit2Permit>,
-    pub referral: Option<ReferralFee>,
+    pub referral: ReferralFee,
 }
 
 pub(super) fn build_commands(input: &RoutedAsset, output: &RoutedAsset, swap: SwapCommands) -> Result<Vec<UniversalRouterCommand>, SwapperError> {
     let router = eth_address::parse_str(ADDRESS_THIS)?;
-    let referral = swap.referral.map(|fee| Ok::<_, SwapperError>((eth_address::parse(Chain::Tron, &fee.address)?, U256::from(fee.bps)))).transpose()?;
-    let pay_referral = |token: Address| referral.map(|(recipient, bips)| UniversalRouterCommand::SUNSWAP_PAY_REFERRAL(PayPortion { token, recipient, bips }));
+    let (recipient, bips) = (eth_address::parse(Chain::Tron, &swap.referral.address)?, U256::from(swap.referral.bps));
+    let pay_referral = |token: Address| UniversalRouterCommand::SUNSWAP_PAY_REFERRAL(PayPortion { token, recipient, bips });
     let funding: Vec<UniversalRouterCommand> = match input.funding {
-        Funding::Value => pay_referral(Address::ZERO)
-            .into_iter()
-            .chain([UniversalRouterCommand::WRAP_ETH(WrapEth {
+        Funding::Value => vec![
+            pay_referral(Address::ZERO),
+            UniversalRouterCommand::WRAP_ETH(WrapEth {
                 recipient: router,
                 amount_min: CONTRACT_BALANCE,
-            })])
-            .collect(),
+            }),
+        ],
         Funding::Permit2 => swap
             .permit
             .map(UniversalRouterCommand::PERMIT2_PERMIT)
@@ -37,9 +37,9 @@ pub(super) fn build_commands(input: &RoutedAsset, output: &RoutedAsset, swap: Sw
                 recipient: router,
                 value: swap.amount_in,
             })])
-            .chain(pay_referral(input.address))
+            .chain([pay_referral(input.address)])
             .collect(),
-        Funding::RouterBalance => pay_referral(input.address).into_iter().collect(),
+        Funding::RouterBalance => vec![pay_referral(input.address)],
     };
     let unwrap_output = output.funding == Funding::Value;
     let exact_in = UniversalRouterCommand::V3_SWAP_EXACT_IN(V3SwapExactIn {
