@@ -164,11 +164,10 @@ pub fn map_perpetuals_data(metadata: HypercoreMetadataResponse, dex: PerpDex) ->
                 is_enabled: !universe_asset.is_delisted.unwrap_or(false) && volume_24h >= dex.min_volume_24h(),
             };
 
-            let symbol = perpetual_symbol(&universe_asset.name).to_string();
             let asset = Asset {
                 id: asset_id,
-                name: symbol.clone(),
-                symbol,
+                name: universe_asset.name.clone(),
+                symbol: universe_asset.name.clone(),
                 decimals: universe_asset.sz_decimals as u32,
                 asset_type: AssetType::PERPETUAL,
             };
@@ -178,10 +177,6 @@ pub fn map_perpetuals_data(metadata: HypercoreMetadataResponse, dex: PerpDex) ->
             PerpetualData { perpetual, asset, metadata }
         })
         .collect()
-}
-
-fn perpetual_symbol(coin: &str) -> &str {
-    coin.split_once(':').map_or(coin, |(_, symbol)| symbol)
 }
 
 pub fn map_candlesticks(candlesticks: Vec<Candlestick>) -> Vec<ChartCandleStick> {
@@ -428,7 +423,7 @@ mod tests {
     }
 
     #[test]
-    fn test_map_perpetuals_data_names_a_hip3_asset_without_its_dex() {
+    fn test_map_perpetuals_data_names_an_xyz_asset_with_its_dex() {
         let universe_response = HypercoreUniverseResponse {
             universe: vec![UniverseAsset {
                 name: "xyz:NVDA".to_string(),
@@ -440,8 +435,8 @@ mod tests {
 
         assert_eq!(
             (result[0].perpetual.name.as_str(), result[0].asset.name.as_str(), result[0].asset.symbol.as_str(), result[0].asset.id.to_string()),
-            ("xyz:NVDA", "NVDA", "NVDA", "hypercore_perpetual::xyz:NVDA".to_string()),
-            "the market keeps the coin Hyperliquid streams under; the asset shows the ticker"
+            ("xyz:NVDA", "xyz:NVDA", "xyz:NVDA", "hypercore_perpetual::xyz:NVDA".to_string()),
+            "an xyz market and its asset carry the dex, so users can tell it from Hyperliquid's own markets"
         );
     }
 
