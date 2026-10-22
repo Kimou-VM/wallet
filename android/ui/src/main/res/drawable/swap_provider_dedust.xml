@@ -1,18 +1,266 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="48dp"
     android:height="48dp"
-    android:viewportWidth="48"
-    android:viewportHeight="48">
-  <path
-      android:pathData="M24 48C37.2548 48 48 37.2548 48 24C48 10.7452 37.2548 0 24 0C10.7452 0 0 10.7452 0 24C0 37.2548 10.7452 48 24 48Z"
-      android:fillColor="#FF121212"/>
-  <path
-      android:pathData="M24 9.86L36.25 16.93L24 24L11.75 16.93L24 9.86Z"
-      android:fillColor="#FFFEE041"/>
-  <path
-      android:pathData="M11.75 16.93L24 24V38.14L11.75 31.07V16.93Z"
-      android:fillColor="#FFFEAD07"/>
-  <path
-      android:pathData="M36.25 16.93L24 24V38.14L36.25 31.07V16.93Z"
-      android:fillColor="#FFCF7600"/>
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+  <group android:translateX="18">
+    <path
+        android:pathData="m110 128 27.25-15.75v31.5L110 159.5z"
+        android:fillColor="#FFCC7400"
+        android:strokeColor="#FFCC7400"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m110 222.5 27.25-15.75v31.5L110 254z"
+        android:fillColor="#FFDE7F00"
+        android:strokeColor="#FFDE7F00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m110 191 27.25-15.75v31.5L110 222.5z"
+        android:fillColor="#FFD17200"
+        android:strokeColor="#FFD17200"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m110 159.5 27.25-15.75v31.5L110 191z"
+        android:fillColor="#FFE38900"
+        android:strokeColor="#FFE38900"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M191.75 80.75 219 65v31.5l-27.25 15.75z"
+        android:fillColor="#FFC97900"
+        android:strokeColor="#FFC97900"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M191.75 175.25 219 159.5V191l-27.25 15.75z"
+        android:fillColor="#FFC96E00"
+        android:strokeColor="#FFC96E00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M191.75 143.75 219 128v31.5l-27.25 15.75z"
+        android:fillColor="#FFCC7400"
+        android:strokeColor="#FFCC7400"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M191.75 112.25 219 96.5V128l-27.25 15.75zM164.5 96.5l27.25-15.75v31.5L164.5 128z"
+        android:fillColor="#FFE68A00"
+        android:strokeColor="#FFE68A00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m164.5 191 27.25-15.75v31.5L164.5 222.5z"
+        android:fillColor="#FFD68100"
+        android:strokeColor="#FFD68100"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m164.5 159.5 27.25-15.75v31.5L164.5 191z"
+        android:fillColor="#FFC96E00"
+        android:strokeColor="#FFC96E00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m164.5 128 27.25-15.75v31.5L164.5 159.5z"
+        android:fillColor="#FFDB7D00"
+        android:strokeColor="#FFDB7D00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M137.25 112.25 164.5 96.5V128l-27.25 15.75z"
+        android:fillColor="#FFD18100"
+        android:strokeColor="#FFD18100"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M137.25 206.75 164.5 191v31.5l-27.25 15.75z"
+        android:fillColor="#FFC47000"
+        android:strokeColor="#FFC47000"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m137.25 175.25 27.25-15.75V191l-27.25 15.75z"
+        android:fillColor="#FFD17E00"
+        android:strokeColor="#FFD17E00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M137.25 143.75 164.5 128v31.5l-27.25 15.75z"
+        android:fillColor="#FFCC7400"
+        android:strokeColor="#FFCC7400"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m1.003 65 27.25 15.75v31.5L1.003 96.5zM1.003 159.5l27.25 15.75v31.5L1.003 191z"
+        android:fillColor="#FFFC9800"
+        android:strokeColor="#FFFC9800"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m1.003 128 27.25 15.75v31.5L1.003 159.5z"
+        android:fillColor="#FFFFAA00"
+        android:strokeColor="#FFFFAA00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m1.003 96.5 27.25 15.75v31.5L1.003 128z"
+        android:fillColor="#FFFFBD1E"
+        android:strokeColor="#FFFFBD1E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m82.753 112.25 27.25 15.75v31.5l-27.25-15.75z"
+        android:fillColor="#FFFC9800"
+        android:strokeColor="#FFFC9800"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m82.753 206.75 27.25 15.75V254l-27.25-15.75z"
+        android:fillColor="#FFFFAA00"
+        android:strokeColor="#FFFFAA00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m82.753 175.25 27.25 15.75v31.5l-27.25-15.75z"
+        android:fillColor="#FFFFAA00"
+        android:strokeColor="#FFFFAA00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m82.753 143.75 27.25 15.75V191l-27.25-15.75zM55.503 96.5l27.25 15.75v31.5L55.503 128z"
+        android:fillColor="#FFFFAA00"
+        android:strokeColor="#FFFFAA00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m55.503 191 27.25 15.75v31.5l-27.25-15.75z"
+        android:fillColor="#FFFC9800"
+        android:strokeColor="#FFFC9800"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m55.503 159.5 27.25 15.75v31.5L55.503 191z"
+        android:fillColor="#FFFFBD1E"
+        android:strokeColor="#FFFFBD1E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m55.503 128 27.25 15.75v31.5l-27.25-15.75z"
+        android:fillColor="#FFFFB304"
+        android:strokeColor="#FFFFB304"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m28.253 80.75 27.25 15.75V128l-27.25-15.75z"
+        android:fillColor="#FFFFAA00"
+        android:strokeColor="#FFFFAA00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M28.253 175.25 55.503 191v31.5l-27.25-15.75z"
+        android:fillColor="#FFFFB304"
+        android:strokeColor="#FFFFB304"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m28.253 143.75 27.25 15.75V191l-27.25-15.75z"
+        android:fillColor="#FFFFAA00"
+        android:strokeColor="#FFFFAA00"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M28.253 112.25 55.503 128v31.5l-27.25-15.75z"
+        android:fillColor="#FFFC9800"
+        android:strokeColor="#FFFC9800"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m110 2 27.25 15.75L110 33.5 82.75 17.75zM28.25 49.25 55.5 65 28.25 80.75 1 65z"
+        android:fillColor="#FFFFE929"
+        android:strokeColor="#FFFFE929"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m55.5 33.5 27.25 15.75L55.5 65 28.25 49.25z"
+        android:fillColor="#FFFFE65E"
+        android:strokeColor="#FFFFE65E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M82.75 17.75 110 33.5 82.75 49.25 55.5 33.5zM191.75 49.25 219 65l-27.25 15.75L164.5 65z"
+        android:fillColor="#FFFFDB2E"
+        android:strokeColor="#FFFFDB2E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m110 96.5 27.25 15.75L110 128l-27.25-15.75z"
+        android:fillColor="#FFFFE65E"
+        android:strokeColor="#FFFFE65E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M137.25 80.75 164.5 96.5l-27.25 15.75L110 96.5z"
+        android:fillColor="#FFFFDB2E"
+        android:strokeColor="#FFFFDB2E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m164.5 65 27.25 15.75L164.5 96.5l-27.25-15.75z"
+        android:fillColor="#FFFFE65E"
+        android:strokeColor="#FFFFE65E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m164.5 33.5 27.25 15.75L164.5 65l-27.25-15.75z"
+        android:fillColor="#FFFFE36A"
+        android:strokeColor="#FFFFE36A"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M82.75 80.75 110 96.5l-27.25 15.75L55.5 96.5z"
+        android:fillColor="#FFFFDB2E"
+        android:strokeColor="#FFFFDB2E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m110 65 27.25 15.75L110 96.5 82.75 80.75z"
+        android:fillColor="#FFFFE36A"
+        android:strokeColor="#FFFFE36A"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M137.25 49.25 164.5 65l-27.25 15.75L110 65z"
+        android:fillColor="#FFFFDB2E"
+        android:strokeColor="#FFFFDB2E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M137.25 17.75 164.5 33.5l-27.25 15.75L110 33.5z"
+        android:fillColor="#FFFFE65E"
+        android:strokeColor="#FFFFE65E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m55.5 65 27.25 15.75L55.5 96.5 28.25 80.75z"
+        android:fillColor="#FFFFE929"
+        android:strokeColor="#FFFFE929"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="M82.75 49.25 110 65 82.75 80.75 55.5 65z"
+        android:fillColor="#FFFFE65E"
+        android:strokeColor="#FFFFE65E"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+    <path
+        android:pathData="m110 33.5 27.25 15.75L110 65 82.75 49.25z"
+        android:fillColor="#FFFFE929"
+        android:strokeColor="#FFFFE929"
+        android:strokeWidth="2"
+        android:strokeLineJoin="bevel"/>
+  </group>
 </vector>

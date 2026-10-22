@@ -1,6 +1,45 @@
-<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="48" height="48" rx="24" fill="#121212"/>
-<path d="M24 9.86L36.25 16.93L24 24L11.75 16.93L24 9.86Z" fill="#FEE041"/>
-<path d="M11.75 16.93L24 24V38.14L11.75 31.07V16.93Z" fill="#FEAD07"/>
-<path d="M36.25 16.93L24 24V38.14L36.25 31.07V16.93Z" fill="#CF7600"/>
+<svg width="48" height="48" viewBox="-18.0 0.0 256.0 256.0" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="m110 128 27.25-15.75v31.5L110 159.5z" fill="#CC7400" stroke="#CC7400" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m110 222.5 27.25-15.75v31.5L110 254z" fill="#DE7F00" stroke="#DE7F00" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m110 191 27.25-15.75v31.5L110 222.5z" fill="#D17200" stroke="#D17200" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m110 159.5 27.25-15.75v31.5L110 191z" fill="#E38900" stroke="#E38900" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M191.75 80.75 219 65v31.5l-27.25 15.75z" fill="#C97900" stroke="#C97900" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M191.75 175.25 219 159.5V191l-27.25 15.75z" fill="#C96E00" stroke="#C96E00" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M191.75 143.75 219 128v31.5l-27.25 15.75z" fill="#CC7400" stroke="#CC7400" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M191.75 112.25 219 96.5V128l-27.25 15.75zM164.5 96.5l27.25-15.75v31.5L164.5 128z" fill="#E68A00" stroke="#E68A00" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m164.5 191 27.25-15.75v31.5L164.5 222.5z" fill="#D68100" stroke="#D68100" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m164.5 159.5 27.25-15.75v31.5L164.5 191z" fill="#C96E00" stroke="#C96E00" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m164.5 128 27.25-15.75v31.5L164.5 159.5z" fill="#DB7D00" stroke="#DB7D00" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M137.25 112.25 164.5 96.5V128l-27.25 15.75z" fill="#D18100" stroke="#D18100" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M137.25 206.75 164.5 191v31.5l-27.25 15.75z" fill="#C47000" stroke="#C47000" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m137.25 175.25 27.25-15.75V191l-27.25 15.75z" fill="#D17E00" stroke="#D17E00" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M137.25 143.75 164.5 128v31.5l-27.25 15.75z" fill="#CC7400" stroke="#CC7400" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m1.003 65 27.25 15.75v31.5L1.003 96.5zM1.003 159.5l27.25 15.75v31.5L1.003 191z" fill="#FC9800" stroke="#FC9800" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m1.003 128 27.25 15.75v31.5L1.003 159.5z" fill="#FA0" stroke="#FA0" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m1.003 96.5 27.25 15.75v31.5L1.003 128z" fill="#FFBD1E" stroke="#FFBD1E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m82.753 112.25 27.25 15.75v31.5l-27.25-15.75z" fill="#FC9800" stroke="#FC9800" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m82.753 206.75 27.25 15.75V254l-27.25-15.75z" fill="#FA0" stroke="#FA0" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m82.753 175.25 27.25 15.75v31.5l-27.25-15.75z" fill="#FA0" stroke="#FA0" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m82.753 143.75 27.25 15.75V191l-27.25-15.75zM55.503 96.5l27.25 15.75v31.5L55.503 128z" fill="#FA0" stroke="#FA0" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m55.503 191 27.25 15.75v31.5l-27.25-15.75z" fill="#FC9800" stroke="#FC9800" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m55.503 159.5 27.25 15.75v31.5L55.503 191z" fill="#FFBD1E" stroke="#FFBD1E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m55.503 128 27.25 15.75v31.5l-27.25-15.75z" fill="#FFB304" stroke="#FFB304" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m28.253 80.75 27.25 15.75V128l-27.25-15.75z" fill="#FA0" stroke="#FA0" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M28.253 175.25 55.503 191v31.5l-27.25-15.75z" fill="#FFB304" stroke="#FFB304" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m28.253 143.75 27.25 15.75V191l-27.25-15.75z" fill="#FA0" stroke="#FA0" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M28.253 112.25 55.503 128v31.5l-27.25-15.75z" fill="#FC9800" stroke="#FC9800" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m110 2 27.25 15.75L110 33.5 82.75 17.75zM28.25 49.25 55.5 65 28.25 80.75 1 65z" fill="#FFE929" stroke="#FFE929" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m55.5 33.5 27.25 15.75L55.5 65 28.25 49.25z" fill="#FFE65E" stroke="#FFE65E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M82.75 17.75 110 33.5 82.75 49.25 55.5 33.5zM191.75 49.25 219 65l-27.25 15.75L164.5 65z" fill="#FFDB2E" stroke="#FFDB2E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m110 96.5 27.25 15.75L110 128l-27.25-15.75z" fill="#FFE65E" stroke="#FFE65E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M137.25 80.75 164.5 96.5l-27.25 15.75L110 96.5z" fill="#FFDB2E" stroke="#FFDB2E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m164.5 65 27.25 15.75L164.5 96.5l-27.25-15.75z" fill="#FFE65E" stroke="#FFE65E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m164.5 33.5 27.25 15.75L164.5 65l-27.25-15.75z" fill="#FFE36A" stroke="#FFE36A" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M82.75 80.75 110 96.5l-27.25 15.75L55.5 96.5z" fill="#FFDB2E" stroke="#FFDB2E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m110 65 27.25 15.75L110 96.5 82.75 80.75z" fill="#FFE36A" stroke="#FFE36A" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M137.25 49.25 164.5 65l-27.25 15.75L110 65z" fill="#FFDB2E" stroke="#FFDB2E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M137.25 17.75 164.5 33.5l-27.25 15.75L110 33.5z" fill="#FFE65E" stroke="#FFE65E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m55.5 65 27.25 15.75L55.5 96.5 28.25 80.75z" fill="#FFE929" stroke="#FFE929" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M82.75 49.25 110 65 82.75 80.75 55.5 65z" fill="#FFE65E" stroke="#FFE65E" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="m110 33.5 27.25 15.75L110 65 82.75 49.25z" fill="#FFE929" stroke="#FFE929" stroke-width="2" stroke-linejoin="bevel"/>
 </svg>
