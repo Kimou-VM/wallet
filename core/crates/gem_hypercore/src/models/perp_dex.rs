@@ -15,6 +15,13 @@ impl PerpDex {
         }
     }
 
+    pub fn is_isolated_only(self) -> bool {
+        match self {
+            Self::Main => false,
+            Self::Xyz => true,
+        }
+    }
+
     pub fn asset_index(self, meta_index: u32) -> u32 {
         match self {
             Self::Main => meta_index,

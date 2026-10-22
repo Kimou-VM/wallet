@@ -157,7 +157,7 @@ pub fn map_perpetuals_data(metadata: HypercoreMetadataResponse, dex: PerpDex) ->
                 volume_24h: metadata_item.and_then(|m| m.day_ntl_vlm.parse().ok()).unwrap_or(0.0),
                 funding: funding_rate,
                 max_leverage: universe_asset.max_leverage as u8,
-                is_isolated_only: universe_asset.only_isolated.unwrap_or(false),
+                is_isolated_only: dex.is_isolated_only() || universe_asset.only_isolated.unwrap_or(false),
                 is_enabled: !universe_asset.is_delisted.unwrap_or(false),
             };
 
@@ -458,11 +458,10 @@ mod tests {
         let asset_metadata = vec![AssetMetadata::mock(), AssetMetadata::mock()];
 
         let metadata_response = HypercoreMetadataResponse(universe_response, asset_metadata);
-        let result = map_perpetuals_data(metadata_response, PerpDex::Main);
+        let isolated_only = |dex| map_perpetuals_data(metadata_response.clone(), dex).iter().map(|data| data.perpetual.is_isolated_only).collect::<Vec<_>>();
 
-        assert_eq!(result.len(), 2);
-        assert!(result[0].perpetual.is_isolated_only);
-        assert!(!result[1].perpetual.is_isolated_only);
+        assert_eq!(isolated_only(PerpDex::Main), vec![true, false]);
+        assert_eq!(isolated_only(PerpDex::Xyz), vec![true, true], "every xyz market trades isolated, including the ones Hyperliquid also allows cross on");
     }
 
     #[test]
