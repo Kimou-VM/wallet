@@ -116,7 +116,7 @@ pub struct PerpetualAccountPositions {
     pub summary: PerpetualPositionsSummary,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Model)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Model)]
 #[model(swift = "Equatable, Sendable, Hashable")]
 pub struct PerpetualBalance {
     pub available: f64,

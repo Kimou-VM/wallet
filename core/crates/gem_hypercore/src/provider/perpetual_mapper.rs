@@ -59,7 +59,7 @@ pub fn map_positions(positions: AssetPositions, address: String, orders: &[OpenO
 
 pub fn map_perpetual_balance(positions: &AssetPositions) -> PerpetualBalance {
     let equity = positions.margin_summary.account_value.parse().unwrap_or(0.0);
-    let margin_used = positions.cross_margin_summary.total_margin_used.parse().unwrap_or(0.0);
+    let margin_used = positions.margin_summary.total_margin_used.parse().unwrap_or(0.0);
     let reserved = f64::min(f64::max(margin_used, 0.0), f64::max(equity, 0.0));
     let available = f64::max(equity - reserved, 0.0);
     let withdrawable = positions.withdrawable.parse().unwrap_or(0.0);
@@ -411,7 +411,7 @@ mod tests {
                 account_value: "100000".to_string(),
                 total_ntl_pos: "10000".to_string(),
                 total_raw_usd: "10000".to_string(),
-                total_margin_used: "5000".to_string(),
+                total_margin_used: "8000".to_string(),
             },
             cross_margin_summary: MarginSummary {
                 account_value: "100000".to_string(),
@@ -737,29 +737,17 @@ mod tests {
 
     #[test]
     fn test_map_perpetual_balance() {
-        let positions = AssetPositions {
-            asset_positions: vec![],
-            margin_summary: MarginSummary {
-                account_value: "5000.50".to_string(),
-                total_ntl_pos: "100".to_string(),
-                total_raw_usd: "100".to_string(),
-                total_margin_used: "100".to_string(),
-            },
-            cross_margin_summary: MarginSummary {
-                account_value: "1000".to_string(),
-                total_ntl_pos: "100".to_string(),
-                total_raw_usd: "100".to_string(),
-                total_margin_used: "1500.25".to_string(),
-            },
-            cross_maintenance_margin_used: "50".to_string(),
-            withdrawable: "2500.75".to_string(),
-        };
+        let positions: AssetPositions = serde_json::from_str(include_str!("../../testdata/perpetual_positions_response_clearinghouse_state_isolated.json")).unwrap();
 
-        let summary = map_positions(positions, "balance_test".to_string(), &[]);
-
-        assert_eq!(summary.balance.reserved, 1500.25);
-        assert_eq!(summary.balance.available, 3500.25);
-        assert_eq!(summary.balance.withdrawable, 2500.75);
+        assert_eq!(
+            map_perpetual_balance(&positions),
+            PerpetualBalance {
+                available: 8.286923 - 8.286603,
+                reserved: 8.286603,
+                withdrawable: 0.00032,
+            },
+            "the margin of the isolated HYPE position is in use alongside the cross BTC margin"
+        );
     }
 
     #[test]
