@@ -713,10 +713,7 @@ pub fn market_row(perpetual: &Perpetual, asset: &Asset) -> PerpetualMarketLine {
     PerpetualMarketLine {
         icon: crate::services::assets::icon::asset_icon(&asset.id),
         asset_id: perpetual.asset_id.clone(),
-        title: match perpetual.name.is_empty() {
-            true => asset.symbol.clone(),
-            false => perpetual.name.clone(),
-        },
+        title: title(perpetual, asset),
         price: GemPriceRow {
             price: row.price.map(|price| display_price(asset, price.value)),
             ..row
@@ -724,6 +721,13 @@ pub fn market_row(perpetual: &Perpetual, asset: &Asset) -> PerpetualMarketLine {
         volume_24h: GemFormattedNumber::usd_abbreviated(perpetual.volume_24h),
         open_interest: GemFormattedNumber::usd_abbreviated(perpetual.open_interest),
         funding_apr: GemFormattedNumber::percentage(funding_apr(perpetual.funding), GemPercentageStyle::Signed),
+    }
+}
+
+fn title(perpetual: &Perpetual, asset: &Asset) -> String {
+    match asset.symbol.is_empty() {
+        true => perpetual.name.clone(),
+        false => asset.symbol.clone(),
     }
 }
 
@@ -745,10 +749,7 @@ fn position_line(perpetual: &Perpetual, asset: &Asset, position: &PerpetualPosit
         icon: crate::services::assets::icon::asset_icon(&asset.id),
         id: position.id.clone(),
         asset_id: perpetual.asset_id.clone(),
-        title: match asset.symbol.is_empty() {
-            true => perpetual.name.clone(),
-            false => asset.symbol.clone(),
-        },
+        title: title(perpetual, asset),
         position: position_text(&position.direction, position.leverage),
         direction_tone: direction_tone(&position.direction),
         margin: GemFormattedNumber::currency(position.margin_amount, Currency::USD, GemCurrencyStyle::Fiat),
@@ -1394,7 +1395,7 @@ mod tests {
 
         let asset = Asset::mock_perpetual();
 
-        assert_eq!(market_row(&priced, &asset).title, "BTC");
+        assert_eq!(market_row(&priced, &asset).title, asset.symbol);
         assert_eq!(
             market_row(&priced, &asset).price,
             GemPriceRow {
@@ -1447,14 +1448,18 @@ mod tests {
     }
 
     #[test]
-    fn test_a_market_row_titles_an_unnamed_market_with_its_asset_symbol() {
-        let unnamed = Perpetual { name: String::new(), ..Perpetual::mock() };
+    fn test_a_market_row_titles_the_market_with_its_asset_symbol() {
+        let market = Perpetual {
+            name: "xyz:NVDA".to_string(),
+            ..Perpetual::mock()
+        };
         let asset = Asset {
-            symbol: "HYPE".to_string(),
+            symbol: "NVDA".to_string(),
             ..Asset::from_chain(Chain::HyperCore)
         };
 
-        assert_eq!(market_row(&unnamed, &asset).title, "HYPE");
+        assert_eq!(market_row(&market, &asset).title, "NVDA", "a HIP-3 market reads as its ticker, not its dex coin");
+        assert_eq!(market_row(&market, &Asset { symbol: String::new(), ..asset }).title, "xyz:NVDA");
     }
 
     #[test]
