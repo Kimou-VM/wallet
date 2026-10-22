@@ -163,7 +163,7 @@ impl Repository for MemoryAssetRepository {
         Ok(0)
     }
 
-    async fn set_perpetuals(&self, _assets: Vec<Asset>, _asset_updates: Vec<AssetUpdate>, perpetuals: Vec<Perpetual>) -> Result<Result<usize, DatabaseError>, DatabaseError> {
+    async fn update_perpetuals(&self, _assets: Vec<Asset>, _asset_updates: Vec<AssetUpdate>, perpetuals: Vec<Perpetual>) -> Result<Result<usize, DatabaseError>, DatabaseError> {
         Ok(Ok(perpetuals.len()))
     }
 
