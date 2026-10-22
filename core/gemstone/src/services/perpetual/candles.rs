@@ -106,7 +106,6 @@ impl GemCandleSession {
             Some(candles) => Self {
                 state: GemLoadState::Data,
                 candles,
-                is_refreshing: false,
                 ..self.clone()
             },
             None => self.clone(),
@@ -183,6 +182,14 @@ mod tests {
 
     fn session() -> GemCandleSession {
         candle_session(ChartPeriod::Day).on_select_market(market("BTC"))
+    }
+
+    fn streamed(timestamp: i64) -> ChartCandleUpdate {
+        ChartCandleUpdate {
+            coin: "BTC".to_string(),
+            interval: rules::candle_interval(&ChartPeriod::Day).to_string(),
+            candle: candle(timestamp),
+        }
     }
 
     fn loaded(request: GemCandleRequest, candles: Vec<GemChartCandleStick>) -> GemCandleResult {
@@ -283,14 +290,24 @@ mod tests {
     #[test]
     fn test_on_candle_update() {
         let shown = session().on_result(loaded(session().request().unwrap(), vec![candle(1)]));
-        let update = ChartCandleUpdate {
-            coin: "BTC".to_string(),
-            interval: rules::candle_interval(&ChartPeriod::Day).to_string(),
-            candle: candle(2),
-        };
-        let updated = shown.on_candle_update(update.clone());
+        let updated = shown.on_candle_update(streamed(2));
 
         assert_eq!((updated.request(), updated.candles), (None, vec![candle(2)]), "a streamed candle replaces what is shown without asking again");
-        assert_eq!(session().on_candle_update(update), session(), "a candle streamed before the first load is not a chart");
+        assert_eq!(session().on_candle_update(streamed(2)), session(), "a candle streamed before the first load is not a chart");
+    }
+
+    #[test]
+    fn test_a_candle_streamed_during_a_refresh_keeps_the_reload() {
+        let refreshing = session().on_result(loaded(session().request().unwrap(), vec![candle(1)])).on_refresh();
+        let request = refreshing.request().unwrap();
+        let updated = refreshing.on_candle_update(streamed(3));
+        let reloaded = updated.on_result(loaded(request.clone(), vec![candle(2), candle(3)]));
+
+        assert_eq!((updated.request(), updated.view_state().is_refreshing), (Some(request), true), "the reload is still awaited");
+        assert_eq!(
+            (reloaded.view_state().candles, reloaded.view_state().is_refreshing),
+            (vec![candle(2), candle(3)], false),
+            "the reload fills the candles missed while away"
+        );
     }
 }
