@@ -14,6 +14,8 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use futures::lock::Mutex;
+use gem_hypercore::config::HypercoreConfig;
+use gem_hypercore::models::perp_dex::PerpDex;
 use gem_hypercore::models::websocket::HyperliquidSocketMessage;
 use gem_hypercore::provider::websocket_mapper::{diff_clearinghouse_positions, diff_open_orders_positions, parse_websocket_data};
 use primitives::perpetual::{PerpetualAccountPositions, PerpetualBalance, PerpetualData};
@@ -64,6 +66,9 @@ pub struct GemPerpetualService {
     config: Arc<GemConfigService>,
     writes: Mutex<()>,
     markets_sync: Mutex<()>,
+    pub(crate) perp_dexes: Vec<PerpDex>,
+    dex_balances: std::sync::Mutex<HashMap<(WalletId, PerpDex), PerpetualBalance>>,
+    pending_prices: std::sync::Mutex<HashMap<String, f64>>,
 }
 
 #[uniffi::export]
@@ -94,6 +99,9 @@ impl GemPerpetualService {
             config,
             writes: Mutex::new(()),
             markets_sync: Mutex::new(()),
+            perp_dexes: HypercoreConfig::default().perp_dexes,
+            dex_balances: std::sync::Mutex::new(HashMap::new()),
+            pending_prices: std::sync::Mutex::new(HashMap::new()),
         }
     }
 
@@ -212,13 +220,13 @@ impl GemPerpetualService {
     pub async fn on_socket_message(&self, wallet_id: WalletId, mode: PerpetualAccountMode, data: Vec<u8>) -> Result<GemPerpetualSocketUpdate, GemServiceError> {
         let message = parse_websocket_data(&data, mode).map_err(GemServiceError::core)?;
         match message {
-            HyperliquidSocketMessage::AccountState { balance, positions } => {
-                if let Some(balance) = balance {
-                    self.update_balance(wallet_id.clone(), balance).await?;
+            HyperliquidSocketMessage::AccountState { dex, balance, positions } => {
+                if let Some(total) = balance.and_then(|balance| self.total_balance(wallet_id.clone(), dex, balance)) {
+                    self.update_balance(wallet_id.clone(), total).await?;
                 }
                 let positions = self.with_stored_markets(positions).await?;
                 let existing = self.store.get_positions(wallet_id.clone(), PerpetualProvider::Hypercore).await?;
-                let diff = diff_clearinghouse_positions(positions, existing);
+                let diff = diff_clearinghouse_positions(dex, positions, existing);
                 self.store.update_positions(wallet_id, diff.positions, diff.delete_position_ids).await?;
                 Ok(GemPerpetualSocketUpdate::Applied)
             }
@@ -226,9 +234,9 @@ impl GemPerpetualService {
                 self.update_balance(wallet_id, balance).await?;
                 Ok(GemPerpetualSocketUpdate::Applied)
             }
-            HyperliquidSocketMessage::OpenOrders { orders } => {
+            HyperliquidSocketMessage::OpenOrders { dex, orders } => {
                 let existing = self.store.get_positions(wallet_id.clone(), PerpetualProvider::Hypercore).await?;
-                let diff = diff_open_orders_positions(&orders, existing);
+                let diff = diff_open_orders_positions(dex, &orders, existing);
                 self.store.update_positions(wallet_id, diff.positions, diff.delete_position_ids).await?;
                 Ok(GemPerpetualSocketUpdate::Applied)
             }
@@ -262,6 +270,12 @@ impl GemPerpetualService {
         let delete_ids = stale(existing_ids, positions.iter().map(|position| position.id.clone()));
         self.store.update_positions(wallet_id, positions, delete_ids).await?;
         Ok(mode)
+    }
+
+    fn total_balance(&self, wallet_id: WalletId, dex: PerpDex, balance: PerpetualBalance) -> Option<PerpetualBalance> {
+        let mut balances = self.dex_balances.lock().unwrap();
+        balances.insert((wallet_id.clone(), dex), balance);
+        self.perp_dexes.iter().map(|dex| balances.get(&(wallet_id.clone(), *dex)).cloned()).sum()
     }
 
     async fn with_stored_markets(&self, positions: Vec<PerpetualPosition>) -> Result<Vec<PerpetualPosition>, GemServiceError> {
@@ -304,9 +318,14 @@ impl GemPerpetualService {
     pub async fn update_prices(&self, prices: HashMap<String, f64>) -> Result<(), GemServiceError> {
         let _writes = self.writes.lock().await;
         let now = Utc::now().timestamp();
-        if !is_outdated(self.preferences.get_perpetual_prices_updated_at(), now, PRICES_UPDATE_INTERVAL_SECONDS) {
-            return Ok(());
-        }
+        let prices = {
+            let mut pending = self.pending_prices.lock().unwrap();
+            pending.extend(prices);
+            if !is_outdated(self.preferences.get_perpetual_prices_updated_at(), now, PRICES_UPDATE_INTERVAL_SECONDS) {
+                return Ok(());
+            }
+            std::mem::take(&mut *pending)
+        };
         let stored = self.store.get_perpetuals(prices.keys().cloned().collect()).await?;
         let changed = rules::changed_perpetual_prices(prices, &stored);
         if !changed.is_empty() {
@@ -338,7 +357,7 @@ mod tests {
     use primitives::known_assets::{ARBITRUM_USDC, HYPERCORE_SPOT_USDC};
 
     const ALL_MIDS: &str = r#"{"channel":"allMids","data":{"mids":{"BTC":"104633.0","ETH":"3321.1"}}}"#;
-    const OPEN_ORDERS: &str = r#"{"channel":"openOrders","data":{"user":"0xc64c","orders":[{"coin":"BTC","oid":1,"triggerPx":"110000.0","limitPx":"110000.0","isPositionTpsl":true,"orderType":"Take Profit Market"}]}}"#;
+    const OPEN_ORDERS: &str = r#"{"channel":"openOrders","data":{"dex":"","user":"0xc64c","orders":[{"coin":"BTC","oid":1,"triggerPx":"110000.0","limitPx":"110000.0","isPositionTpsl":true,"orderType":"Take Profit Market"}]}}"#;
     const CANDLE: &str = r#"{"channel":"candle","data":{"t":1700000000000,"T":1700000059999,"s":"BTC","i":"1m","o":"1.0","c":"2.0","h":"3.0","l":"0.5","v":"10.0","n":3}}"#;
     const SUBSCRIPTION: &str = r#"{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"allMids"}}}"#;
 
@@ -359,9 +378,33 @@ mod tests {
         assert_eq!(message(&testkit, ALL_MIDS), GemPerpetualSocketUpdate::Applied);
 
         let writes = testkit.store.price_writes.lock().unwrap();
-        assert_eq!(writes.len(), 1, "a second message inside the interval is dropped, not written again");
+        assert_eq!(writes.len(), 1, "a second message inside the interval waits for the next write");
         assert_eq!(writes[0].iter().map(|price| (price.coin.as_str(), price.price)).collect::<Vec<_>>(), vec![("BTC", 104_633.0)]);
         assert!(testkit.preferences.get_perpetual_prices_updated_at().is_some());
+    }
+
+    #[test]
+    fn test_prices_from_every_dex_reach_the_next_write() {
+        let testkit = PerpetualTestkit::new();
+        *testkit.store.stored.lock().unwrap() = [("BTC", 100_000.0), ("xyz:NVDA", 200.0)]
+            .map(|(name, price)| primitives::perpetual::Perpetual {
+                name: name.to_string(),
+                price,
+                ..primitives::perpetual::Perpetual::mock()
+            })
+            .to_vec();
+
+        message(&testkit, ALL_MIDS);
+        message(&testkit, r#"{"channel":"allMids","data":{"dex":"xyz","mids":{"xyz:NVDA":"222.165"}}}"#);
+        testkit.preferences.set_perpetual_prices_updated_at(Some(0)).unwrap();
+        message(&testkit, ALL_MIDS);
+
+        let written: Vec<Vec<(String, f64)>> = testkit.store.price_writes.lock().unwrap().iter().map(|prices| prices.iter().map(|price| (price.coin.clone(), price.price)).collect()).collect();
+        assert_eq!(
+            written,
+            vec![vec![("BTC".to_string(), 104_633.0)], vec![("xyz:NVDA".to_string(), 222.165)]],
+            "the xyz mids that arrive inside the interval go out with the next write instead of being dropped"
+        );
     }
 
     #[test]
@@ -481,6 +524,28 @@ mod tests {
             assert!(update.is_err());
             assert_eq!(testkit.balances.balances.lock().unwrap()[&testkit.wallet_id][0].available.to_string(), "14400000000");
         })
+    }
+
+    #[test]
+    fn test_a_dex_snapshot_keeps_the_other_dexes_positions_and_adds_up_the_balance() {
+        let mut testkit = block_on(PerpetualTestkit::with_unified_balance());
+        testkit.service.perp_dexes = vec![PerpDex::Main, PerpDex::Xyz];
+        *testkit.store.stored.lock().unwrap() = ["ETH", "xyz:NVDA"]
+            .map(|name| primitives::perpetual::Perpetual {
+                id: PerpetualId::new(PerpetualProvider::Hypercore, name),
+                name: name.to_string(),
+                ..primitives::perpetual::Perpetual::mock()
+            })
+            .to_vec();
+        let available = |testkit: &PerpetualTestkit| testkit.balances.balances.lock().unwrap().get(&testkit.wallet_id).map(|balances| balances[0].available.to_string());
+
+        message(&testkit, include_str!("../../../../crates/gem_hypercore/testdata/ws_clearinghouse_state.json"));
+        assert_eq!(available(&testkit), None, "the balance waits until every dex has reported");
+
+        message(&testkit, include_str!("../../../../crates/gem_hypercore/testdata/ws_clearinghouse_state_xyz.json"));
+        assert_eq!(available(&testkit), Some((14_400_000_000u64 + 900_000_000u64).to_string()));
+        let held: Vec<String> = testkit.store.positions.lock().unwrap().iter().map(|position| position.perpetual_id.symbol.clone()).collect();
+        assert_eq!(held, vec!["ETH".to_string(), "xyz:NVDA".to_string()], "the xyz snapshot does not delete the main dex position");
     }
 
     #[test]

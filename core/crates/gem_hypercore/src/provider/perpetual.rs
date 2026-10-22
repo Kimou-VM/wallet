@@ -7,7 +7,7 @@ use gem_client::Client;
 use primitives::{
     ChartPeriod, PerpetualPosition,
     chart::ChartCandleStick,
-    perpetual::{PerpetualAccountMode, PerpetualAccountPositions, PerpetualAddress, PerpetualBalance, PerpetualData, PerpetualPositionsSummary},
+    perpetual::{PerpetualAccountMode, PerpetualAccountPositions, PerpetualAddress, PerpetualData, PerpetualPositionsSummary},
     portfolio::PerpetualPortfolio,
 };
 
@@ -60,24 +60,12 @@ impl<C: Client> ChainPerpetual for HyperCoreClient<C> {
         };
         let (summaries, spot_balances) = try_join!(self.get_position_summaries(&address, states), spot_balances)?;
 
-        let (positions, balance) = summaries.into_iter().fold(
-            (
-                Vec::new(),
-                PerpetualBalance {
-                    available: 0.0,
-                    reserved: 0.0,
-                    withdrawable: 0.0,
-                },
-            ),
-            |(mut acc_pos, mut acc_bal), summary| {
-                acc_pos.extend(summary.positions);
-                acc_bal.available += summary.balance.available;
-                acc_bal.reserved += summary.balance.reserved;
-                acc_bal.withdrawable += summary.balance.withdrawable;
-                (acc_pos, acc_bal)
-            },
-        );
-        let balance = spot_balances.map(|balances| map_perpetual_balance_from_spot(&balances)).unwrap_or(balance);
+        let (positions, balances): (Vec<_>, Vec<_>) = summaries.into_iter().map(|summary| (summary.positions, summary.balance)).unzip();
+        let balance = match spot_balances {
+            Some(balances) => map_perpetual_balance_from_spot(&balances),
+            None => balances.into_iter().sum(),
+        };
+        let positions = positions.into_iter().flatten().collect();
 
         Ok(PerpetualAccountPositions {
             mode,

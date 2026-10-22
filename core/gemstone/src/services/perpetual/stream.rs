@@ -39,7 +39,7 @@ impl GemPerpetualStreamService {
     }
 
     pub async fn connected(&self, address: String, mode: PerpetualAccountMode) -> Result<(), GemServiceError> {
-        let requests = self.subscriptions.lock().await.connected(account_subscriptions(address, mode));
+        let requests = self.subscriptions.lock().await.connected(account_subscriptions(address, mode, &self.perpetual.perp_dexes));
         self.send(requests).await
     }
 
@@ -48,12 +48,18 @@ impl GemPerpetualStreamService {
     }
 
     pub async fn subscribe(&self, subscription: GemPerpetualSubscription) -> Result<(), GemServiceError> {
-        let requests = self.subscriptions.lock().await.subscribe(subscription.map());
+        let requests = {
+            let mut subscriptions = self.subscriptions.lock().await;
+            subscription.map(&self.perpetual.perp_dexes).into_iter().flat_map(|subscription| subscriptions.subscribe(subscription)).collect()
+        };
         self.send(requests).await
     }
 
     pub async fn unsubscribe(&self, subscription: GemPerpetualSubscription) -> Result<(), GemServiceError> {
-        let requests = self.subscriptions.lock().await.unsubscribe(&subscription.map());
+        let requests = {
+            let mut subscriptions = self.subscriptions.lock().await;
+            subscription.map(&self.perpetual.perp_dexes).iter().flat_map(|subscription| subscriptions.unsubscribe(subscription)).collect()
+        };
         self.send(requests).await
     }
 

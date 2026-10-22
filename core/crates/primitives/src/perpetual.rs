@@ -1,3 +1,5 @@
+use std::iter::Sum;
+
 use chrono::{DateTime, Utc};
 use model_derive::Model;
 use serde::{Deserialize, Serialize};
@@ -122,6 +124,23 @@ pub struct PerpetualBalance {
     pub available: f64,
     pub reserved: f64,
     pub withdrawable: f64,
+}
+
+impl Sum for PerpetualBalance {
+    fn sum<I: Iterator<Item = Self>>(balances: I) -> Self {
+        balances.fold(
+            Self {
+                available: 0.0,
+                reserved: 0.0,
+                withdrawable: 0.0,
+            },
+            |total, balance| Self {
+                available: total.available + balance.available,
+                reserved: total.reserved + balance.reserved,
+                withdrawable: total.withdrawable + balance.withdrawable,
+            },
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Model)]

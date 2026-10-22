@@ -5,19 +5,24 @@ use primitives::{PerpetualAccountMode, PerpetualMarketData, PerpetualPosition};
 use crate::models::{
     metadata::perpetual_coin,
     order::OpenOrder,
+    perp_dex::PerpDex,
     websocket::{ActiveAssetCtxData, HyperliquidSocketMessage, HyperliquidSubscription, PositionsDiff, RawSocketMessage},
 };
 
 use super::perpetual_mapper::{map_perpetual_balance_from_spot, map_positions, map_tp_sl_from_orders};
 
-pub fn account_subscriptions(address: String, mode: PerpetualAccountMode) -> Vec<HyperliquidSubscription> {
-    let account_state = HyperliquidSubscription::AccountState { address: address.clone() };
-    let open_orders = HyperliquidSubscription::OpenOrders { address: address.clone() };
-
-    match mode {
-        PerpetualAccountMode::Standard => vec![account_state, open_orders],
-        PerpetualAccountMode::Unified => vec![account_state, open_orders, HyperliquidSubscription::SpotState { address }],
-    }
+pub fn account_subscriptions(address: String, mode: PerpetualAccountMode, dexes: &[PerpDex]) -> Vec<HyperliquidSubscription> {
+    let dex_subscriptions = dexes.iter().flat_map(|dex| {
+        [
+            HyperliquidSubscription::AccountState { address: address.clone(), dex: dex.name() },
+            HyperliquidSubscription::OpenOrders { address: address.clone(), dex: dex.name() },
+        ]
+    });
+    let spot_state = match mode {
+        PerpetualAccountMode::Standard => None,
+        PerpetualAccountMode::Unified => Some(HyperliquidSubscription::SpotState { address: address.clone() }),
+    };
+    dex_subscriptions.chain(spot_state).collect()
 }
 
 pub fn parse_websocket_data(data: &[u8], mode: PerpetualAccountMode) -> Result<HyperliquidSocketMessage, serde_json::Error> {
@@ -30,12 +35,16 @@ pub fn parse_websocket_data(data: &[u8], mode: PerpetualAccountMode) -> Result<H
                 PerpetualAccountMode::Unified => None,
                 PerpetualAccountMode::Standard => Some(summary.balance),
             };
-            Ok(HyperliquidSocketMessage::AccountState { balance, positions: summary.positions })
+            Ok(HyperliquidSocketMessage::AccountState {
+                dex: data.dex,
+                balance,
+                positions: summary.positions,
+            })
         }
         RawSocketMessage::SpotState(data) => Ok(HyperliquidSocketMessage::SpotState {
             balance: map_perpetual_balance_from_spot(&data.spot_state),
         }),
-        RawSocketMessage::OpenOrders(data) => Ok(HyperliquidSocketMessage::OpenOrders { orders: data.orders }),
+        RawSocketMessage::OpenOrders(data) => Ok(HyperliquidSocketMessage::OpenOrders { dex: data.dex, orders: data.orders }),
         RawSocketMessage::Candle(candlestick) => Ok(HyperliquidSocketMessage::Candle { candle: candlestick.into() }),
         RawSocketMessage::MarketData(data) => Ok(HyperliquidSocketMessage::MarketData { market: map_active_asset_ctx(data) }),
         RawSocketMessage::MarketPrices(data) => Ok(HyperliquidSocketMessage::MarketPrices {
@@ -78,7 +87,8 @@ fn map_active_asset_ctx(data: ActiveAssetCtxData) -> PerpetualMarketData {
     }
 }
 
-pub fn diff_clearinghouse_positions(new_positions: Vec<PerpetualPosition>, existing_positions: Vec<PerpetualPosition>) -> PositionsDiff {
+pub fn diff_clearinghouse_positions(dex: PerpDex, new_positions: Vec<PerpetualPosition>, existing_positions: Vec<PerpetualPosition>) -> PositionsDiff {
+    let existing_positions: Vec<PerpetualPosition> = existing_positions.into_iter().filter(|position| is_on(dex, position)).collect();
     let existing_map: HashMap<&str, &PerpetualPosition> = existing_positions.iter().map(|p| (p.id.as_str(), p)).collect();
 
     let positions: Vec<PerpetualPosition> = new_positions
@@ -99,9 +109,10 @@ pub fn diff_clearinghouse_positions(new_positions: Vec<PerpetualPosition>, exist
     PositionsDiff { delete_position_ids, positions }
 }
 
-pub fn diff_open_orders_positions(orders: &[OpenOrder], existing_positions: Vec<PerpetualPosition>) -> PositionsDiff {
+pub fn diff_open_orders_positions(dex: PerpDex, orders: &[OpenOrder], existing_positions: Vec<PerpetualPosition>) -> PositionsDiff {
     let positions: Vec<PerpetualPosition> = existing_positions
         .into_iter()
+        .filter(|position| is_on(dex, position))
         .filter_map(|pos| {
             let coin = perpetual_coin(&pos.asset_id)?;
             let (take_profit, stop_loss) = map_tp_sl_from_orders(orders, &coin);
@@ -117,10 +128,14 @@ pub fn diff_open_orders_positions(orders: &[OpenOrder], existing_positions: Vec<
     PositionsDiff { delete_position_ids: vec![], positions }
 }
 
+fn is_on(dex: PerpDex, position: &PerpetualPosition) -> bool {
+    perpetual_coin(&position.asset_id).is_some_and(|coin| dex.holds(&coin))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use primitives::{Chain, PerpetualDirection, PerpetualMarginType};
+    use primitives::{Chain, PerpetualDirection, PerpetualMarginType, PerpetualTriggerOrder};
 
     #[test]
     fn test_parse_all_mids() {
@@ -196,10 +211,11 @@ mod tests {
     #[test]
     fn test_parse_open_orders() {
         let json = include_bytes!("../../testdata/ws_open_orders.json");
-        let HyperliquidSocketMessage::OpenOrders { orders } = parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() else {
+        let HyperliquidSocketMessage::OpenOrders { dex, orders } = parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() else {
             panic!("expected OpenOrders");
         };
 
+        assert_eq!(dex, PerpDex::Main);
         assert_eq!(orders.len(), 2);
         assert_eq!(orders[0].coin, "BTC");
         assert_eq!(orders[0].oid, 8804521338);
@@ -218,11 +234,12 @@ mod tests {
     #[test]
     fn test_parse_clearinghouse_state() {
         let json = include_bytes!("../../testdata/ws_clearinghouse_state.json");
-        let HyperliquidSocketMessage::AccountState { balance, positions } = parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() else {
+        let HyperliquidSocketMessage::AccountState { dex, balance, positions } = parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() else {
             panic!("expected AccountState");
         };
         let balance = balance.expect("clearinghouse account owns its balance");
 
+        assert_eq!(dex, PerpDex::Main);
         assert_eq!(balance.available, 15230.5 - 830.5);
         assert_eq!(balance.reserved, 830.5);
         assert_eq!(balance.withdrawable, 14400.0);
@@ -248,7 +265,7 @@ mod tests {
     #[test]
     fn test_parse_clearinghouse_state_drops_balance_for_spot_collateral() {
         let json = include_bytes!("../../testdata/ws_clearinghouse_state.json");
-        let HyperliquidSocketMessage::AccountState { balance, positions } = parse_websocket_data(json, PerpetualAccountMode::Unified).unwrap() else {
+        let HyperliquidSocketMessage::AccountState { balance, positions, .. } = parse_websocket_data(json, PerpetualAccountMode::Unified).unwrap() else {
             panic!("expected AccountState");
         };
 
@@ -271,19 +288,50 @@ mod tests {
     #[test]
     fn test_account_subscriptions() {
         let address = "0x123".to_string();
-
-        assert_eq!(
-            account_subscriptions(address.clone(), PerpetualAccountMode::Standard),
-            vec![HyperliquidSubscription::AccountState { address: address.clone() }, HyperliquidSubscription::OpenOrders { address: address.clone() },]
-        );
-        assert_eq!(
-            account_subscriptions(address.clone(), PerpetualAccountMode::Unified),
-            vec![
-                HyperliquidSubscription::AccountState { address: address.clone() },
-                HyperliquidSubscription::OpenOrders { address: address.clone() },
-                HyperliquidSubscription::SpotState { address },
+        let dex_state = |dex: PerpDex| {
+            [
+                HyperliquidSubscription::AccountState { address: address.clone(), dex: dex.name() },
+                HyperliquidSubscription::OpenOrders { address: address.clone(), dex: dex.name() },
             ]
+        };
+
+        assert_eq!(account_subscriptions(address.clone(), PerpetualAccountMode::Standard, &[PerpDex::Main]), dex_state(PerpDex::Main).to_vec());
+        assert_eq!(
+            account_subscriptions(address.clone(), PerpetualAccountMode::Unified, &[PerpDex::Main, PerpDex::Xyz]),
+            [dex_state(PerpDex::Main).to_vec(), dex_state(PerpDex::Xyz).to_vec(), vec![HyperliquidSubscription::SpotState { address: address.clone() }]].concat()
         );
+        assert_eq!(
+            serde_json::to_value(dex_state(PerpDex::Xyz)).unwrap(),
+            serde_json::json!([{"type": "clearinghouseState", "user": "0x123", "dex": "xyz"}, {"type": "openOrders", "user": "0x123", "dex": "xyz"}])
+        );
+        assert_eq!(
+            serde_json::to_value(dex_state(PerpDex::Main)).unwrap(),
+            serde_json::json!([{"type": "clearinghouseState", "user": "0x123"}, {"type": "openOrders", "user": "0x123"}]),
+            "the main dex subscribes as it always has"
+        );
+    }
+
+    #[test]
+    fn test_diff_clearinghouse_positions() {
+        let btc = PerpetualPosition::mock_with_coin("BTC");
+        let nvda = PerpetualPosition::mock_with_coin("xyz:NVDA");
+
+        let diff = diff_clearinghouse_positions(PerpDex::Main, vec![], vec![btc.clone(), nvda.clone()]);
+
+        assert_eq!(diff.delete_position_ids, vec![btc.id], "a main dex snapshot leaves the xyz positions alone");
+        assert!(diff.positions.is_empty());
+    }
+
+    #[test]
+    fn test_diff_open_orders_positions() {
+        let nvda = PerpetualPosition {
+            stop_loss: Some(PerpetualTriggerOrder::mock(90.0)),
+            ..PerpetualPosition::mock_with_coin("xyz:NVDA")
+        };
+
+        let diff = diff_open_orders_positions(PerpDex::Main, &[], vec![nvda]);
+
+        assert!(diff.positions.is_empty(), "main dex orders do not clear an xyz stop loss");
     }
 
     #[test]
