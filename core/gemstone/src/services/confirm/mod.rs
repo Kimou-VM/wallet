@@ -240,19 +240,23 @@ impl GemConfirmService {
 impl GemConfirmService {
     async fn send(&self, input: &SendInput, signed: Vec<GemSignedTransaction>) -> Result<Vec<String>, GemConfirmError> {
         let switches_account = input.confirm.metadata.get_hyperliquid_order().is_ok_and(|order| order.unified_account_switch.is_some());
-        match self.broadcast(&input.confirm.input.transfer.input_type, &signed).await {
+        if switches_account {
+            self.store_account_mode(input, PerpetualAccountMode::Unified);
+        }
+        let result = self.broadcast(&input.confirm.input.transfer.input_type, &signed).await;
+        if switches_account
+            && result.is_err()
+            && let Ok(mode) = self.gateway.get_perpetual_account_mode(Chain::HyperCore, input.confirm.input.from.address.clone()).await
+        {
+            self.store_account_mode(input, mode);
+        }
+        match result {
             Ok(hashes) => {
                 self.store_pending(input, &hashes, &signed).await;
-                if switches_account {
-                    self.store_account_mode(input, PerpetualAccountMode::Unified);
-                }
                 Ok(hashes)
             }
             Err(GemConfirmError::Broadcast { hashes, msg }) => {
                 self.store_pending(input, &hashes, &signed).await;
-                if switches_account && let Ok(mode) = self.gateway.get_perpetual_account_mode(Chain::HyperCore, input.confirm.input.from.address.clone()).await {
-                    self.store_account_mode(input, mode);
-                }
                 Err(GemConfirmError::Broadcast { hashes, msg })
             }
             Err(error) => Err(error),
@@ -458,10 +462,9 @@ mod tests {
         assert!(matches!(failed, Err(GemConfirmError::Broadcast { ref hashes, .. }) if hashes.len() == 1));
         assert_eq!(mode, PerpetualAccountMode::Unified, "a switch that landed before its order failed is still stored");
 
-        let (failed, mode, paths) = send_unified_account_switch(r#"{"status":"err","response":"User or API Wallet does not exist."}"#, r#""unifiedAccount""#, &[switch]);
+        let (failed, mode, _) = send_unified_account_switch(r#"{"status":"err","response":"User or API Wallet does not exist."}"#, r#""default""#, &[switch]);
         assert!(failed.is_err());
-        assert_eq!(mode, PerpetualAccountMode::Standard);
-        assert!(!paths.contains(&info), "nothing was sent, so nothing changed");
+        assert_eq!(mode, PerpetualAccountMode::Standard, "a switch Hyperliquid rejected leaves the account standard");
     }
 
     #[test]
