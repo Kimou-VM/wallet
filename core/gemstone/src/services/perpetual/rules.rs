@@ -36,7 +36,6 @@ use std::collections::{HashMap, HashSet};
 
 use crate::models::asset::wallet_default_assets;
 use crate::services::balance::{GemBalanceUpdate, GemBalanceUpdateType};
-use crate::services::collections::stale;
 
 pub use gem_hypercore::provider::perpetual::candle_interval;
 
@@ -416,10 +415,6 @@ pub fn display_price(asset: &Asset, price: f64) -> GemFormattedNumber {
         Some(provider) => GemPerpetual::new(provider).display_price(price, asset.decimals),
         None => GemFormattedNumber::usd(price),
     }
-}
-
-pub fn stale_position_ids(existing_ids: Vec<String>, positions: &[PerpetualPosition]) -> Vec<String> {
-    stale(existing_ids, positions.iter().map(|position| position.id.clone()))
 }
 
 pub fn collateral_asset_id(chain: Chain) -> Option<AssetId> {
@@ -1727,16 +1722,6 @@ mod tests {
                 "the collateral a transfer carries and the one the chain answers for must stay the same asset: the confirm load reads the balance row of the first and the price of the second"
             );
         }
-    }
-
-    #[test]
-    fn test_stale_position_ids_keeps_only_positions_that_disappeared() {
-        let stale = stale_position_ids(
-            vec!["a".into(), "b".into()],
-            &[PerpetualPosition { id: "b".into(), ..PerpetualPosition::mock() }, PerpetualPosition { id: "c".into(), ..PerpetualPosition::mock() }],
-        );
-
-        assert_eq!(stale, vec!["a".to_string()]);
     }
 
     #[test]

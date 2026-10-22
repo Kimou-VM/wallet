@@ -18,7 +18,7 @@ use gem_hypercore::models::websocket::HyperliquidSocketMessage;
 use gem_hypercore::provider::websocket_mapper::{diff_clearinghouse_positions, diff_open_orders_positions, parse_websocket_data};
 use primitives::perpetual::{PerpetualAccountPositions, PerpetualBalance, PerpetualData};
 use primitives::portfolio::PerpetualPortfolio;
-use primitives::{Asset, AssetId, Chain, ChartPeriod, Feature, PerpetualAccountMode, PerpetualId, PerpetualProvider, RecentActivityType, Wallet, WalletId};
+use primitives::{Asset, AssetId, Chain, ChartPeriod, Feature, PerpetualAccountMode, PerpetualId, PerpetualPosition, PerpetualProvider, RecentActivityType, Wallet, WalletId};
 
 use crate::config::perpetual_config::PRICES_UPDATE_INTERVAL_SECONDS;
 use crate::gateway::GemGateway;
@@ -28,6 +28,7 @@ use crate::perpetual::GemPerpetual;
 use crate::services::assets::{GemAssetAction, GemAssetsService};
 use crate::services::balance::GemBalanceService;
 use crate::services::clock::is_outdated;
+use crate::services::collections::stale;
 use crate::services::config::GemConfigService;
 use crate::services::error::GemServiceError;
 use crate::services::failures::record;
@@ -215,6 +216,7 @@ impl GemPerpetualService {
                 if let Some(balance) = balance {
                     self.update_balance(wallet_id.clone(), balance).await?;
                 }
+                let positions = self.with_stored_markets(positions).await?;
                 let existing = self.store.get_positions(wallet_id.clone(), PerpetualProvider::Hypercore).await?;
                 let diff = diff_clearinghouse_positions(positions, existing);
                 self.store.update_positions(wallet_id, diff.positions, diff.delete_position_ids).await?;
@@ -255,10 +257,19 @@ impl GemPerpetualService {
         let PerpetualAccountPositions { mode, summary } = self.gateway.get_positions(chain, address).await?;
         self.wallet_preferences.set_perpetual_account_mode(wallet_id.clone(), mode)?;
         self.update_balance(wallet_id.clone(), summary.balance).await?;
+        let positions = self.with_stored_markets(summary.positions).await?;
         let existing_ids = self.store.get_position_ids(wallet_id.clone(), provider(chain)?).await?;
-        let delete_ids = rules::stale_position_ids(existing_ids, &summary.positions);
-        self.store.update_positions(wallet_id, summary.positions, delete_ids).await?;
+        let delete_ids = stale(existing_ids, positions.iter().map(|position| position.id.clone()));
+        self.store.update_positions(wallet_id, positions, delete_ids).await?;
         Ok(mode)
+    }
+
+    async fn with_stored_markets(&self, positions: Vec<PerpetualPosition>) -> Result<Vec<PerpetualPosition>, GemServiceError> {
+        if positions.is_empty() {
+            return Ok(positions);
+        }
+        let stored = self.store.get_perpetuals(positions.iter().map(|position| position.perpetual_id.symbol.clone()).collect()).await?;
+        Ok(positions.into_iter().filter(|position| stored.iter().any(|perpetual| perpetual.id == position.perpetual_id)).collect())
     }
 
     async fn account_mode(&self, wallet_id: WalletId, chain: Chain, address: String) -> Result<PerpetualAccountMode, GemServiceError> {
@@ -470,6 +481,30 @@ mod tests {
             assert!(update.is_err());
             assert_eq!(testkit.balances.balances.lock().unwrap()[&testkit.wallet_id][0].available.to_string(), "14400000000");
         })
+    }
+
+    #[test]
+    fn test_a_position_waits_for_its_market_without_holding_up_the_others() {
+        let testkit = PerpetualTestkit::new();
+        let snapshot = include_str!("../../../../crates/gem_hypercore/testdata/ws_clearinghouse_state.json");
+
+        assert_eq!(message(&testkit, snapshot), GemPerpetualSocketUpdate::Applied);
+        *testkit.store.stored.lock().unwrap() = vec![primitives::perpetual::Perpetual {
+            id: PerpetualId::new(PerpetualProvider::Hypercore, "ETH"),
+            name: "ETH".to_string(),
+            ..primitives::perpetual::Perpetual::mock()
+        }];
+        assert_eq!(message(&testkit, snapshot), GemPerpetualSocketUpdate::Applied);
+
+        let written: Vec<Vec<String>> = testkit
+            .store
+            .position_writes
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(positions, _)| positions.iter().map(|position| position.perpetual_id.symbol.clone()).collect())
+            .collect();
+        assert_eq!(written, vec![vec![], vec!["ETH".to_string()]], "a position whose market is not stored yet is left out until the market is");
     }
 
     #[test]
