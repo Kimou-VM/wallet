@@ -166,6 +166,8 @@ pub struct MockSwapper {
     response: MockResponse,
     amount_mode: SwapAmountMode,
     pending_permit: Option<Permit2ApprovalData>,
+    contracts: Vec<&'static str>,
+    quote_data: SwapperQuoteData,
     builds: Arc<Mutex<Vec<FetchQuoteData>>>,
 }
 
@@ -177,8 +179,18 @@ impl MockSwapper {
             response,
             amount_mode: SwapAmountMode::Fixed,
             pending_permit: None,
+            contracts: Vec::new(),
+            quote_data: SwapperQuoteData::mock(),
             builds: Arc::default(),
         }
+    }
+
+    pub fn with_contracts(self, contracts: Vec<&'static str>) -> Self {
+        Self { contracts, ..self }
+    }
+
+    pub fn with_quote_data(self, quote_data: SwapperQuoteData) -> Self {
+        Self { quote_data, ..self }
     }
 
     pub fn with_supported_assets(self, supported_assets: Vec<SwapperChainAsset>) -> Self {
@@ -212,6 +224,10 @@ impl Swapper for MockSwapper {
         self.amount_mode
     }
 
+    fn contracts(&self, _from_asset: &AssetId) -> Vec<&'static str> {
+        self.contracts.clone()
+    }
+
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let mut quote = (self.response)(request)?;
         quote.data.provider = self.provider.clone();
@@ -224,6 +240,6 @@ impl Swapper for MockSwapper {
             FetchQuoteData::EstimateGas | FetchQuoteData::None => self.pending_permit.clone(),
         };
         self.builds.lock().unwrap().push(data);
-        Ok(SwapperQuoteData { permit2, ..SwapperQuoteData::mock() })
+        Ok(SwapperQuoteData { permit2, ..self.quote_data.clone() })
     }
 }

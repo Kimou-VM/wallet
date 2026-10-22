@@ -24,7 +24,7 @@ use super::{
     tx_builder,
 };
 use crate::{
-    FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData, SwapperSlippage,
+    Deployment, FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData, SwapperSlippage,
     alien::RpcProvider,
     approval::{check_approval_erc20, get_swap_gas_limit_with_approval},
     cross_chain::VaultAddresses,
@@ -43,11 +43,11 @@ const ASSETS_CACHE_TTL: Duration = MINUTE.saturating_mul(5);
 const SOLANA_VAULT: &str = "J88B7gmadHzTNGiy54c9Ms8BsEXNdB2fntFyhKpk3qoT";
 const TRON_VAULT: &str = "TEcDijvKSXcfWT7S6rd44H5vNgufm7Y4XC";
 
-pub const VAULT_ADDRESSES: [(Chain, &str); 4] = [
-    (Chain::Ethereum, "0xF5e10380213880111522dd0efD3dbb45b9f62Bcc"),
-    (Chain::Arbitrum, "0x79001a5e762f3bEFC8e5871b42F6734e00498920"),
-    (Chain::Solana, SOLANA_VAULT),
-    (Chain::Tron, TRON_VAULT),
+pub const VAULT_ADDRESSES: &[Deployment] = &[
+    Deployment::new(Chain::Ethereum, "0xF5e10380213880111522dd0efD3dbb45b9f62Bcc"),
+    Deployment::new(Chain::Arbitrum, "0x79001a5e762f3bEFC8e5871b42F6734e00498920"),
+    Deployment::new(Chain::Solana, SOLANA_VAULT),
+    Deployment::new(Chain::Tron, TRON_VAULT),
 ];
 
 #[derive(Debug)]
@@ -202,7 +202,7 @@ fn validate_minimum_amount(from_value: &BigUint, minimum_amount: &BigUint) -> Re
 }
 
 fn vault_address(chain: Chain) -> Result<&'static str, SwapperError> {
-    VAULT_ADDRESSES.iter().find(|(vault_chain, _)| *vault_chain == chain).map(|(_, address)| *address).ok_or(SwapperError::InvalidRoute)
+    VAULT_ADDRESSES.iter().find(|vault| vault.chain == chain).map(|vault| vault.contract).ok_or(SwapperError::InvalidRoute)
 }
 
 fn vault_mismatch(chain: Chain, broker: &str) -> SwapperError {
@@ -313,6 +313,10 @@ where
         }
     }
 
+    fn contracts(&self, from_asset: &AssetId) -> Vec<&'static str> {
+        Deployment::contracts(VAULT_ADDRESSES, from_asset.chain)
+    }
+
     async fn preload_routes(&self, _from_asset: &AssetId, _to_asset: &AssetId) {
         _ = self.get_assets().await;
     }
@@ -412,7 +416,7 @@ where
 
     async fn get_vault_addresses(&self, _from_timestamp: Option<u64>) -> Result<VaultAddresses, SwapperError> {
         Ok(VaultAddresses {
-            deposit: VAULT_ADDRESSES.iter().map(|(_, address)| address.to_string()).collect(),
+            deposit: VAULT_ADDRESSES.iter().map(|vault| vault.contract.to_string()).collect(),
             send: vec![],
         })
     }
@@ -438,6 +442,15 @@ mod tests {
     use primitives::swap::SwapStatus;
     use primitives::testkit::signer_mock::{TEST_EVM_RECIPIENT, TEST_POLKADOT_SENDER};
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn test_contracts() {
+        let provider = ChainflipProvider::with_clients(ChainflipClient::new(MockClient::new()), BrokerClient::new(MockClient::new(), MockClient::new()), Arc::new(ProviderMock::new(String::new())));
+
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Ethereum)), vec!["0xF5e10380213880111522dd0efD3dbb45b9f62Bcc"]);
+        assert_eq!(provider.contracts(&AssetId::from_token(Chain::Tron, TRON_USDT_TOKEN_ID)), vec![TRON_VAULT]);
+        assert!(provider.contracts(&AssetId::from_chain(Chain::Bitcoin)).is_empty(), "a deposit channel address is made per swap");
+    }
 
     #[test]
     fn test_validate_minimum_amount() {

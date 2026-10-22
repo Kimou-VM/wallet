@@ -1,4 +1,5 @@
 use super::{
+    constants,
     constants::{PROXY_QUOTE_PATH, PROXY_SWAP_PATH},
     model::{OkxApiResponse, QuoteData, SwapDataResult},
     params::{build_quote_params, build_swap_params, max_slippage_bps},
@@ -13,7 +14,7 @@ use crate::{
 use async_trait::async_trait;
 use gem_client::{Client, ClientExt};
 use num_bigint::BigUint;
-use primitives::Chain;
+use primitives::AssetId;
 use std::str::FromStr;
 use std::{fmt::Debug, sync::Arc};
 
@@ -61,6 +62,10 @@ where
         SwapAmountMode::Fixed
     }
 
+    fn contracts(&self, from_asset: &AssetId) -> Vec<&'static str> {
+        constants::contracts(from_asset.chain)
+    }
+
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let params = build_quote_params(request)?;
         let response: OkxApiResponse<QuoteData> = self.client.post(PROXY_QUOTE_PATH, &params).await.map_err(SwapperError::from)?;
@@ -85,29 +90,7 @@ where
 }
 
 fn support_assets() -> Vec<SwapperChainAsset> {
-    vec![
-        SwapperChainAsset::All(Chain::Solana),
-        SwapperChainAsset::All(Chain::Ethereum),
-        SwapperChainAsset::All(Chain::SmartChain),
-        SwapperChainAsset::All(Chain::Polygon),
-        SwapperChainAsset::All(Chain::Arbitrum),
-        SwapperChainAsset::All(Chain::Optimism),
-        SwapperChainAsset::All(Chain::Base),
-        SwapperChainAsset::All(Chain::AvalancheC),
-        SwapperChainAsset::All(Chain::Fantom),
-        SwapperChainAsset::All(Chain::Manta),
-        SwapperChainAsset::All(Chain::Blast),
-        SwapperChainAsset::All(Chain::ZkSync),
-        SwapperChainAsset::All(Chain::Linea),
-        SwapperChainAsset::All(Chain::Mantle),
-        SwapperChainAsset::All(Chain::Plasma),
-        SwapperChainAsset::All(Chain::Hyperliquid),
-        SwapperChainAsset::All(Chain::Sonic),
-        SwapperChainAsset::All(Chain::Unichain),
-        SwapperChainAsset::All(Chain::Monad),
-        SwapperChainAsset::All(Chain::XLayer),
-        SwapperChainAsset::All(Chain::Robinhood),
-    ]
+    constants::supported_chains().map(SwapperChainAsset::All).collect()
 }
 
 #[cfg(test)]
@@ -118,8 +101,9 @@ mod tests {
     use gem_client::testkit::MockClient;
     use gem_solana::{SignatureBytes, VersionedTransaction, decode_transaction};
     use primitives::{
-        AssetId,
+        AssetId, Chain,
         asset_constants::{ETHEREUM_USDC_ASSET_ID, ETHEREUM_USDC_TOKEN_ID},
+        contract_constants::SOLANA_OKX_DEX_V2_PROGRAM_ID,
         testkit::signer_mock::{TEST_EVM_SENDER, TEST_SOLANA_SENDER},
     };
 
@@ -132,6 +116,19 @@ mod tests {
     fn test_support_assets_includes_new_okx_evm_chains() {
         assert!(support_assets().contains(&SwapperChainAsset::All(Chain::Plasma)));
         assert!(support_assets().contains(&SwapperChainAsset::All(Chain::Robinhood)));
+    }
+
+    #[test]
+    fn test_contracts() {
+        let provider = OkxProvider::mock(MockClient::new(), "{}");
+
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Ethereum)), vec!["0x8feAB81D36E7576107D5dE0758c1b839Be31B4F6", EVM_TOKEN_APPROVE]);
+        assert_eq!(provider.contracts(&ETHEREUM_USDC_ASSET_ID), provider.contracts(&AssetId::from_chain(Chain::Ethereum)));
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Solana)), vec![SOLANA_OKX_DEX_V2_PROGRAM_ID]);
+        assert!(provider.contracts(&AssetId::from_chain(Chain::Bitcoin)).is_empty());
+        for asset in support_assets() {
+            assert!(!provider.contracts(&asset.get_chain().as_asset_id()).is_empty(), "{:?} ships no contracts", asset.get_chain());
+        }
     }
 
     #[test]
@@ -231,6 +228,8 @@ mod tests {
         assert_eq!(quote_data.to, EVM_ROUTER);
         assert_eq!(quote_data.value, BigUint::from(0u64));
         assert_eq!(quote_data.data, "0xabc123");
+        let swapper: &dyn Swapper = &provider;
+        swapper.verify_contracts(&quote, &quote_data).unwrap();
         let approval = quote_data.approval.unwrap();
         assert_eq!(approval.token, ETHEREUM_USDC_TOKEN_ID);
         assert_eq!(approval.spender, EVM_TOKEN_APPROVE);
@@ -245,7 +244,7 @@ mod swap_integration_tests {
     use super::*;
     use crate::{SwapperQuoteAsset, SwapperSlippage, SwapperSlippageMode, testkit::mock_quote};
     use primitives::{
-        AssetId,
+        AssetId, Chain,
         asset_constants::{HYPEREVM_USDT_ASSET_ID, PLASMA_USDT_ASSET_ID, ROBINHOOD_USDG_ASSET_ID, SOLANA_USDC_ASSET_ID},
         testkit::signer_mock::TEST_SOLANA_SENDER,
     };

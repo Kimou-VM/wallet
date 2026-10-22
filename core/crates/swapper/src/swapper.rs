@@ -201,7 +201,9 @@ impl GemSwapper {
     }
 
     pub async fn get_quote_data(&self, quote: &Quote, data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
-        let quote_data = self.get_swapper_by_provider(&quote.data.provider.id)?.get_quote_data(quote, data).await?;
+        let swapper = self.get_swapper_by_provider(&quote.data.provider.id)?;
+        let quote_data = swapper.get_quote_data(quote, data).await?;
+        swapper.verify_contracts(quote, &quote_data)?;
         Ok(SwapperQuoteData {
             gas_limit: quote_data.gas_limit.map(|gas_limit| Self::gas_limit_with_multiplier(&quote.request.from_asset.chain(), gas_limit)),
             ..quote_data
@@ -225,7 +227,8 @@ mod tests {
 
     use primitives::{
         AssetId, Chain,
-        asset_constants::{ARC_USDC_ASSET_ID, ETHEREUM_USDC_ASSET_ID, STABLE_USDT0_ASSET_ID},
+        asset_constants::{ARC_USDC_ASSET_ID, ETHEREUM_USDC_ASSET_ID, ETHEREUM_USDC_TOKEN_ID, STABLE_USDT0_ASSET_ID},
+        swap::ApprovalData,
     };
 
     use super::*;
@@ -346,6 +349,51 @@ mod tests {
         );
         let pancake_error = result.errors.iter().find(|e| e.provider.as_deref() == Some(SwapperProvider::PancakeswapV3.id())).unwrap();
         assert!(pancake_error.error.to_string().contains("1264000"));
+    }
+
+    #[tokio::test]
+    async fn test_get_quote_data_binds_the_target_and_spender_to_the_provider_contracts() {
+        let request = mock_quote(SwapperQuoteAsset::from(ETHEREUM_USDC_ASSET_ID.clone()), SwapperQuoteAsset::from(AssetId::from_chain(Chain::Ethereum)));
+        let router = "0x8feab81d36e7576107d5de0758c1b839be31b4f6";
+        let token_approve = "0x40aA958dd87FC8305b97f2BA922CDdCa374bcD7f";
+        let approval = |spender: &str| ApprovalData {
+            token: ETHEREUM_USDC_TOKEN_ID.to_string(),
+            spender: spender.to_string(),
+            value: BigUint::from(1_000_000u64),
+            is_unlimited: false,
+        };
+        let swapper = |to: &str, spender: &str| {
+            let data = SwapperQuoteData::new_contract(to.to_string(), BigUint::ZERO, "0x".to_string(), Some(approval(spender)), None);
+            GemSwapper::mock(vec![Box::new(
+                MockSwapper::new(SwapperProvider::Okx, |request| Ok(Quote::mock_with_request(request)))
+                    .with_contracts(vec![router, token_approve])
+                    .with_quote_data(data),
+            )])
+        };
+        async fn quote_data(swapper: &GemSwapper, request: &QuoteRequest) -> Result<SwapperQuoteData, SwapperError> {
+            let quote = swapper.get_quote(request).await?.remove(0);
+            swapper.get_quote_data(&quote, FetchQuoteData::None).await
+        }
+
+        let bound = swapper(&router.to_uppercase().replace("0X", "0x"), token_approve);
+        assert!(quote_data(&bound, &request).await.is_ok(), "a shipped target compares without case");
+
+        let foreign_target = swapper("0x0000000000000000000000000000000000000001", token_approve);
+        assert_eq!(quote_data(&foreign_target, &request).await.unwrap_err(), SwapperError::InvalidRoute);
+
+        let foreign_spender = swapper(router, "0x0000000000000000000000000000000000000001");
+        assert_eq!(quote_data(&foreign_spender, &request).await.unwrap_err(), SwapperError::InvalidRoute);
+
+        let undeclared = GemSwapper::mock(vec![Box::new(
+            MockSwapper::new(SwapperProvider::UniswapV3, |request| Ok(Quote::mock_with_request(request))).with_quote_data(SwapperQuoteData::new_contract(
+                "0x0000000000000000000000000000000000000001".to_string(),
+                BigUint::ZERO,
+                "0x".to_string(),
+                None,
+                None,
+            )),
+        )]);
+        assert!(quote_data(&undeclared, &request).await.is_ok(), "a provider that ships no contracts is not bound");
     }
 
     #[tokio::test]
