@@ -503,6 +503,10 @@ struct Migrations {
             try db.addColumnIfMissing(PerpetualRecord.Columns.isEnabled.name, .boolean, to: PerpetualRecord.databaseTableName) { $0.notNull().defaults(to: true) }
         }
 
+        migrator.registerMigration("Index \(PerpetualRecord.databaseTableName) by name") { db in
+            try db.create(indexOn: PerpetualRecord.databaseTableName, columns: [PerpetualRecord.Columns.name.name], options: .ifNotExists)
+        }
+
         try migrator.migrate(dbQueue)
     }
 }
