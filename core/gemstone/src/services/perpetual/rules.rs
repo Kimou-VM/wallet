@@ -529,12 +529,9 @@ pub fn position_action(perpetual: &Perpetual, asset: &Asset, position: Option<Pe
         margin_type,
     };
     Ok(match kind {
-        GemPerpetualPositionKind::Open { direction } => {
-            let margin_type = if perpetual.is_isolated_only { PerpetualMarginType::Isolated } else { PerpetualMarginType::Cross };
-            GemPerpetualPositionAction::Open {
-                data: data(direction, perpetual.max_leverage, margin_type),
-            }
-        }
+        GemPerpetualPositionKind::Open { direction } => GemPerpetualPositionAction::Open {
+            data: data(direction, perpetual.max_leverage, PerpetualMarginType::Isolated),
+        },
         GemPerpetualPositionKind::Increase => {
             let position = position_for(perpetual, position)?;
             GemPerpetualPositionAction::Increase {
@@ -1571,6 +1568,7 @@ mod tests {
     fn test_position_action_reads_the_market_for_an_open_and_the_position_otherwise() {
         let market = Perpetual {
             identifier: "7".to_string(),
+            is_isolated_only: false,
             ..Perpetual::mock()
         };
         let asset = Asset::from_chain(Chain::HyperCore);
@@ -1582,8 +1580,16 @@ mod tests {
 
         let open = position_action(&market, &asset, None, open_long.clone()).unwrap();
         let GemPerpetualPositionAction::Open { data } = &open else { panic!("expected an open") };
-        assert_eq!((data.asset_index, data.leverage, &data.direction, &data.margin_type), (7, 20, &PerpetualDirection::Long, &PerpetualMarginType::Isolated));
+        assert_eq!(
+            (data.asset_index, data.leverage, &data.direction, &data.margin_type),
+            (7, 20, &PerpetualDirection::Long, &PerpetualMarginType::Isolated),
+            "every new position opens isolated, even where Hyperliquid allows cross"
+        );
         assert_eq!(data.base_asset.id, HYPERCORE_PERPETUAL_USDC.id);
+
+        let increase = position_action(&market, &asset, Some(held.clone()), GemPerpetualPositionKind::Increase).unwrap();
+        let GemPerpetualPositionAction::Increase { data } = &increase else { panic!("expected an increase") };
+        assert_eq!(data.margin_type, PerpetualMarginType::Cross, "a position opened cross stays cross");
 
         let reduce = position_action(&market, &asset, Some(held.clone()), GemPerpetualPositionKind::Reduce).unwrap();
         let GemPerpetualPositionAction::Reduce { data, position } = &reduce else { panic!("expected a reduce") };

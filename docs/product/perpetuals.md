@@ -46,6 +46,7 @@ flowchart LR
 | The chart covers the user's trades in that market | a dot over the candle for every trade it holds, green with ▲ for a buy (Open Long, Close Short) and red with ▼ for a sell (Open Short, Close Long), stacked oldest lowest, at most the latest four per candle, and only on candles whose middle is on the plot | the user sees where and how often they traded against the price; the trades come from the wallet's own activity, so the chart, Activity and both apps agree `test_candle_markers` |
 | The market has a position | the position shows, with Modify and Close in place of Long and Short | |
 | Long or Short opens | the leverage starts at the default from Settings | |
+| A position is opened | it is isolated, so only the margin the user set can be lost; a position that is already open keeps its margin type when it is increased, reduced or closed | on a unified account a cross position is backed by all the user's USDC on Hyperliquid |
 | The user changes the leverage | an untouched default take profit or stop loss is refreshed; an edited price is kept | |
 | The user reopens Auto Close before confirming | the prices already set, with their expected PnL | |
 | The user edits Auto Close on an open position | Confirm turns on as soon as the take profit or stop loss changes; what is wrong shows after tapping it | |
