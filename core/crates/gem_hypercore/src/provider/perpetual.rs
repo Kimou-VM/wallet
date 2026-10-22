@@ -154,13 +154,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_positions_takes_balance_from_spot_for_unified_account() {
-        let client = HyperCoreClient::mock_with_responses_by_request_type(vec![
+        let mut client = HyperCoreClient::mock_with_responses_by_request_type(vec![
             ("userAbstraction", include_bytes!("../../testdata/perpetual_balance_response_user_abstraction_unified.json").to_vec()),
             ("clearinghouseState", include_bytes!("../../testdata/perpetual_positions_response_clearinghouse_state.json").to_vec()),
             ("frontendOpenOrders", include_bytes!("../../testdata/perpetual_positions_response_open_orders.json").to_vec()),
             ("spotClearinghouseState", include_bytes!("../../testdata/perpetual_balance_response_spot_clearinghouse_state.json").to_vec()),
         ]);
 
+        client.config.perp_dexes = vec![PerpDex::Main];
         let account = client.get_positions("0x123".to_string()).await.unwrap();
         let summary = account.summary;
 
@@ -174,7 +175,7 @@ mod tests {
     async fn test_get_positions_for_classification_skips_account_and_balance_requests() {
         let seen_request_types = Arc::new(Mutex::new(Vec::new()));
         let seen_request_types_clone = Arc::clone(&seen_request_types);
-        let client = HyperCoreClient::mock_with_client(MockClient::new().with_post(move |path, body| {
+        let mut client = HyperCoreClient::mock_with_client(MockClient::new().with_post(move |path, body| {
             assert_eq!(path, "/info");
 
             let request: Value = serde_json::from_slice(body).unwrap();
@@ -188,6 +189,7 @@ mod tests {
             }
         }));
 
+        client.config.perp_dexes = vec![PerpDex::Main];
         let positions = client.get_positions_for_classification("0x123".to_string()).await.unwrap();
 
         assert_eq!(positions.len(), 1);
@@ -238,9 +240,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_positions_requests_only_the_main_dex_by_default() {
+    async fn test_get_positions_requests_only_the_configured_dex() {
         let seen_requests = Arc::new(Mutex::new(Vec::new()));
-        let client = HyperCoreClient::mock_with_responses_by_request(
+        let mut client = HyperCoreClient::mock_with_responses_by_request(
             vec![
                 (
                     serde_json::json!({"type": "userAbstraction", "user": "0x123"}),
@@ -258,6 +260,7 @@ mod tests {
             Arc::clone(&seen_requests),
         );
 
+        client.config.perp_dexes = vec![PerpDex::Main];
         let summary = client.get_positions("0x123".to_string()).await.unwrap().summary;
 
         assert_eq!(summary.positions[0].take_profit.as_ref().map(|order| order.price), Some(110.0));
@@ -297,7 +300,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_perpetual_portfolio_unified() {
         let seen_requests = Arc::new(Mutex::new(Vec::new()));
-        let client = HyperCoreClient::mock_with_responses_by_request(
+        let mut client = HyperCoreClient::mock_with_responses_by_request(
             vec![
                 (serde_json::json!({"type": "portfolio", "user": "0x123"}), include_bytes!("../../testdata/perpetual_portfolio_response.json").to_vec()),
                 (
@@ -312,6 +315,7 @@ mod tests {
             Arc::clone(&seen_requests),
         );
 
+        client.config.perp_dexes = vec![PerpDex::Main];
         let portfolio = ChainPerpetual::get_perpetual_portfolio(&client, "0x123".to_string(), PerpetualAccountMode::Unified).await.unwrap();
 
         assert_eq!(sorted_types(&seen_requests), vec!["clearinghouseState", "portfolio", "spotClearinghouseState"]);

@@ -509,7 +509,8 @@ mod tests {
     #[test]
     fn test_an_account_snapshot_keeps_its_balance_when_its_positions_cannot_be_stored() {
         block_on(async {
-            let testkit = PerpetualTestkit::with_unified_balance().await;
+            let mut testkit = PerpetualTestkit::with_unified_balance().await;
+            testkit.service.perp_dexes = vec![PerpDex::Main];
             testkit.store.rejects_positions.store(true, Ordering::SeqCst);
             let snapshot = include_bytes!("../../../../crates/gem_hypercore/testdata/ws_clearinghouse_state.json");
 
@@ -686,7 +687,7 @@ mod tests {
             let (first, second) = futures::join!(testkit.service.sync_enablement(None), testkit.service.sync_enablement(None));
 
             assert_eq!((first.unwrap(), second.unwrap()), (false, false));
-            assert_eq!(testkit.provider.requested_types(), vec!["metaAndAssetCtxs"]);
+            assert_eq!(testkit.provider.requested_types(), vec!["metaAndAssetCtxs"; testkit.service.perp_dexes.len()], "one sync asks each dex once");
         })
     }
 

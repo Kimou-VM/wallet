@@ -145,6 +145,7 @@ pub fn map_perpetuals_data(metadata: HypercoreMetadataResponse, dex: PerpDex) ->
 
             let open_interest_coins = metadata_item.and_then(|m| m.open_interest.parse::<f64>().ok()).unwrap_or(0.0);
             let open_interest_usd = open_interest_coins * current_price;
+            let volume_24h = metadata_item.and_then(|m| m.day_ntl_vlm.parse().ok()).unwrap_or(0.0);
 
             let perpetual_id = create_perpetual_id(&universe_asset.name);
             let perpetual = Perpetual {
@@ -156,11 +157,11 @@ pub fn map_perpetuals_data(metadata: HypercoreMetadataResponse, dex: PerpDex) ->
                 price: current_price,
                 price_percent_change_24h: price_change_24h,
                 open_interest: open_interest_usd,
-                volume_24h: metadata_item.and_then(|m| m.day_ntl_vlm.parse().ok()).unwrap_or(0.0),
+                volume_24h,
                 funding: funding_rate,
                 max_leverage: universe_asset.max_leverage as u8,
                 is_isolated_only: dex.is_isolated_only() || universe_asset.only_isolated.unwrap_or(false),
-                is_enabled: !universe_asset.is_delisted.unwrap_or(false),
+                is_enabled: !universe_asset.is_delisted.unwrap_or(false) && volume_24h >= dex.min_volume_24h(),
             };
 
             let symbol = perpetual_symbol(&universe_asset.name).to_string();
@@ -480,6 +481,33 @@ mod tests {
             result.iter().map(|data| (data.perpetual.name.as_str(), data.perpetual.identifier.as_str(), data.perpetual.is_enabled)).collect::<Vec<_>>(),
             vec![("BTC", "0", true), ("MATIC", "1", false), ("ETH", "2", true)]
         );
+    }
+
+    #[test]
+    fn test_map_perpetuals_data_disables_a_thin_xyz_market() {
+        let universe_response = HypercoreUniverseResponse {
+            universe: ["xyz:CL", "xyz:CAMBRICON"]
+                .map(|name| UniverseAsset {
+                    name: name.to_string(),
+                    ..UniverseAsset::mock()
+                })
+                .to_vec(),
+        };
+        let asset_metadata = vec![
+            AssetMetadata {
+                day_ntl_vlm: "245000000".to_string(),
+                ..AssetMetadata::mock()
+            },
+            AssetMetadata {
+                day_ntl_vlm: "2000".to_string(),
+                ..AssetMetadata::mock()
+            },
+        ];
+        let metadata_response = HypercoreMetadataResponse(universe_response, asset_metadata);
+        let enabled = |dex| map_perpetuals_data(metadata_response.clone(), dex).iter().map(|data| data.perpetual.is_enabled).collect::<Vec<_>>();
+
+        assert_eq!(enabled(PerpDex::Xyz), vec![true, false], "an xyz market trading under a million a day is kept but not offered");
+        assert_eq!(enabled(PerpDex::Main), vec![true, true]);
     }
 
     #[test]

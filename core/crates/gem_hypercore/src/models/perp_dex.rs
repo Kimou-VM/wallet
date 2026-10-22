@@ -3,6 +3,7 @@ use strum::{AsRefStr, EnumString};
 
 const HIP3_PERP_ASSET_OFFSET: u32 = 100_000;
 const HIP3_PERP_ASSET_STRIDE: u32 = 10_000;
+const HIP3_MIN_VOLUME_24H: f64 = 1_000_000.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, AsRefStr, EnumString, Deserialize)]
 #[serde(try_from = "String")]
@@ -37,6 +38,13 @@ impl PerpDex {
         match self {
             Self::Main => false,
             Self::Xyz => true,
+        }
+    }
+
+    pub fn min_volume_24h(self) -> f64 {
+        match self {
+            Self::Main => 0.0,
+            Self::Xyz => HIP3_MIN_VOLUME_24H,
         }
     }
 

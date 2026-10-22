@@ -39,6 +39,7 @@ flowchart LR
 | The user long-presses a market | it is pinned | |
 | The user searches | positions and markets are filtered | |
 | Hyperliquid delists a market | it leaves the list, pins and search; its trades stay in Activity and still open it, without Long or Short | a delisted market cannot be traded, but past trades keep their market |
+| An xyz market trades under `$1M` a day | it is treated like a delisted market: not offered, while a position in it still shows and closes | a thin market fills far from its price |
 | The market has fewer than 14 candles | the chart draws them at the width of 14, newest on the right | wider bodies stop reading as a trend |
 | The chart shows its time labels | at most four, on round times of the user's own clock (quarter hours, six hours, whole days, calendar months); a pan slides them with their candles and only a pinch changes the step | a label that jumps or re-spaces while the user drags cannot be read |
 | The chart covers the user's trades in that market | a dot over the candle for every trade it holds, green with ▲ for a buy (Open Long, Close Short) and red with ▼ for a sell (Open Short, Close Long), stacked oldest lowest, at most the latest four per candle, and only on candles whose middle is on the plot | the user sees where and how often they traded against the price; the trades come from the wallet's own activity, so the chart, Activity and both apps agree `test_candle_markers` |

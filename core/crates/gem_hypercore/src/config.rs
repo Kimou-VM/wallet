@@ -15,7 +15,7 @@ impl Default for HypercoreConfig {
             builder_address: BUILDER_ADDRESS.to_string(),
             referral_code: REFERRAL_CODE.to_string(),
             max_builder_fee_bps: 45,
-            perp_dexes: vec![PerpDex::Main],
+            perp_dexes: vec![PerpDex::Main, PerpDex::Xyz],
         }
     }
 }
