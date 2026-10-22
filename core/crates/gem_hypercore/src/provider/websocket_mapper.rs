@@ -39,7 +39,12 @@ pub fn parse_websocket_data(data: &[u8], mode: PerpetualAccountMode) -> Result<H
         RawSocketMessage::Candle(candlestick) => Ok(HyperliquidSocketMessage::Candle { candle: candlestick.into() }),
         RawSocketMessage::MarketData(data) => Ok(HyperliquidSocketMessage::MarketData { market: map_active_asset_ctx(data) }),
         RawSocketMessage::MarketPrices(data) => Ok(HyperliquidSocketMessage::MarketPrices {
-            prices: data.mids.into_iter().filter_map(|(coin, price)| price.parse::<f64>().ok().map(|price| (coin, price))).collect(),
+            prices: data
+                .mids
+                .into_iter()
+                .filter(|(coin, _)| is_perpetual_coin(coin))
+                .filter_map(|(coin, price)| price.parse::<f64>().ok().map(|price| (coin, price)))
+                .collect(),
         }),
         RawSocketMessage::SubscriptionResponse(data) => Ok(HyperliquidSocketMessage::SubscriptionResponse {
             subscription_type: data.subscription.subscription_type,
@@ -47,6 +52,10 @@ pub fn parse_websocket_data(data: &[u8], mode: PerpetualAccountMode) -> Result<H
         RawSocketMessage::Error(message) => Ok(HyperliquidSocketMessage::Error { message }),
         RawSocketMessage::Unknown => Ok(HyperliquidSocketMessage::Unknown),
     }
+}
+
+fn is_perpetual_coin(coin: &str) -> bool {
+    coin.chars().all(|char| char.is_ascii_alphanumeric() || char == ':')
 }
 
 fn map_active_asset_ctx(data: ActiveAssetCtxData) -> PerpetualMarketData {
@@ -115,17 +124,17 @@ mod tests {
 
     #[test]
     fn test_parse_all_mids() {
-        let json = include_bytes!("../../testdata/ws_all_mids.json");
-        let HyperliquidSocketMessage::MarketPrices { prices } = parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() else {
-            panic!("expected MarketPrices");
+        let prices = |json: &[u8]| match parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() {
+            HyperliquidSocketMessage::MarketPrices { prices } => prices,
+            message => panic!("expected MarketPrices, got {message:?}"),
         };
 
-        assert_eq!(prices.len(), 5);
-        assert_eq!(prices["BTC"], 104633.0);
-        assert_eq!(prices["ETH"], 3321.1);
-        assert_eq!(prices["SOL"], 260.48);
-        assert_eq!(prices["DOGE"], 0.40381);
-        assert_eq!(prices["HYPE"], 26.65);
+        assert_eq!(
+            prices(include_bytes!("../../testdata/ws_all_mids.json")),
+            HashMap::from([("BTC".to_string(), 84779.5), ("ETH".to_string(), 2499.55), ("kPEPE".to_string(), 0.004675)]),
+            "spot (@107, PURR/USDC) and outcome (#141870) mids are not perpetuals"
+        );
+        assert_eq!(prices(br#"{"channel":"allMids","data":{"dex":"xyz","mids":{"xyz:NVDA":"222.165"}}}"#), HashMap::from([("xyz:NVDA".to_string(), 222.165)]));
     }
 
     #[test]
