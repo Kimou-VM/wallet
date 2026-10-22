@@ -62,7 +62,7 @@ flowchart LR
 
 ## Choosing a quote
 
-The quote that gives the most wins. A provider that runs on-chain, with no third-party service between the wallet and the trade, wins instead when its quote is within `0.1%` of the best, or within `0.05%` for the Solana pools: Orca, Raydium, PumpSwap and Meteora (`test_solana_pools_are_preferred_within_5_bps_of_the_best_quote`). When more than one of them is that close, the one that gives the most wins. For a 100% swap, a provider that leaves nothing behind within `0.25%` still comes before all of them.
+The quote that gives the most wins. A provider that runs on-chain, with no third-party service between the wallet and the trade, wins instead when its quote is within `0.1%` of the best, or within `0.05%` for the Solana pools: Orca, Raydium, PumpSwap and Meteora (`test_solana_pools_are_preferred_within_5_bps_of_the_best_quote`). SunSwap wins within `1%`: SUN pays `99%` of the energy of a swap through its router, so it costs the user a fraction of a TRX, while a USDT deposit to another provider pays its own energy (`test_sunswap_is_preferred_within_100_bps_of_the_best_quote`). When more than one of them is that close, the one that gives the most wins. For a 100% swap, a provider that leaves nothing behind within `0.25%` still comes before all of them.
 
 A quote that gives less than half of the best one is not shown. Quotes that far behind come from nearly empty pools: in 82 pairs quoted with every provider on 2026-10-18, `30` of the `118` quotes that lost were more than half behind and `18` of those more than `90%` behind, while three-quarters of the rest were within `3%` (`test_quotes_giving_less_than_half_of_the_best_are_dropped`).
 
@@ -74,6 +74,7 @@ A quote that gives less than half of the best one is not shown. Quotes that far 
 | PumpSwap | the quote is read from the pool, its token vaults and pump.fun's fee schedule, and the swap goes straight to the pool |
 | Meteora | the quote is read from the DAMM v2 pool account or the DLMM pair and its bins, and the swap goes straight to the pool |
 | THORChain | the quote comes from THORChain's own node and the deposit goes straight to its vault |
+| SunSwap | the quote is read from SunSwap's v3 pools and the swap goes straight to SUN's router |
 
 Uniswap, PancakeSwap, Aerodrome, Raydium and Meteora each show as one provider. A provider like this asks its pool types at the same time, keeps the quote that gives the most, and builds the swap with the pool type that gave it, so Uniswap v2, v3 and v4 compete inside one Uniswap row and the approval comes from the version that quoted (`test_group_quotes_best_member_and_builds_with_it`, `test_grouped_providers_build_with_the_member_that_quoted`).
 

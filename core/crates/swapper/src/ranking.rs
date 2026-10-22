@@ -193,6 +193,26 @@ mod tests {
     }
 
     #[test]
+    fn test_sunswap_is_preferred_within_100_bps_of_the_best_quote() {
+        let tron = request(AssetId::from_chain(Chain::Tron), false);
+        let rank = |sunswap_out: &str| {
+            providers(rank_quotes(
+                &tron,
+                vec![
+                    quote(&tron, SwapperProvider::Thorchain, "10000"),
+                    quote(&tron, SwapperProvider::Relay, "9995"),
+                    quote(&tron, SwapperProvider::SunswapV3, sunswap_out),
+                ],
+                &quote_preferences(),
+                deposit_only_near_intents,
+            ))
+        };
+
+        assert_eq!(rank("9900"), vec![SwapperProvider::SunswapV3, SwapperProvider::Thorchain, SwapperProvider::Relay]);
+        assert_eq!(rank("9899"), vec![SwapperProvider::Thorchain, SwapperProvider::Relay, SwapperProvider::SunswapV3], "further than 100 bps, the best quote wins");
+    }
+
+    #[test]
     fn test_across_is_preferred_within_10_bps_of_the_best_quote() {
         let ethereum = request(AssetId::from_chain(Chain::Ethereum), false);
         let rank = |across_out: &str| {

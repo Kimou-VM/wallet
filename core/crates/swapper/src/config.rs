@@ -47,6 +47,10 @@ pub fn quote_preferences() -> Vec<QuotePreference> {
             providers: vec![SwapperProvider::Orca, SwapperProvider::RaydiumClmm, SwapperProvider::PumpSwap, SwapperProvider::MeteoraDammV2],
             tolerance_bps: 5,
         },
+        QuotePreference::Providers {
+            providers: vec![SwapperProvider::SunswapV3],
+            tolerance_bps: 100,
+        },
         QuotePreference::DustFreeMaxAmount { tolerance_bps: 25 },
     ]
 }
