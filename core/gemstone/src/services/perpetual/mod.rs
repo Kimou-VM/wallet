@@ -178,10 +178,7 @@ impl GemPerpetualService {
 
     async fn update_deposit_balances(&self) -> Result<(), GemServiceError> {
         let wallet = self.session.require_current_wallet().await?;
-        match self.wallet_preferences.get_perpetual_account_mode(wallet.id.clone()) {
-            PerpetualAccountMode::Standard => self.balance.update(wallet.id.clone(), self.deposit_assets(wallet.id).into_iter().map(|asset| asset.id).collect()).await,
-            PerpetualAccountMode::Unified => Ok(()),
-        }
+        self.balance.update(wallet.id.clone(), self.deposit_assets(wallet.id).into_iter().map(|asset| asset.id).collect()).await
     }
 
     pub async fn sync_current_positions(&self) -> Result<(), GemServiceError> {
@@ -771,7 +768,8 @@ mod tests {
                 testkit.select_wallet(&wallet);
                 testkit.preferences.set_perpetual_markets_updated_at(Some(Utc::now().timestamp())).unwrap();
 
-                assert_eq!(testkit.service.refresh(GemMarketsRefreshTrigger::Scheduled).await, vec![]);
+                let failures = testkit.service.refresh(GemMarketsRefreshTrigger::Scheduled).await;
+                assert!(failures.iter().all(|failure| failure.step == GemPerpetualRefreshStep::DepositBalances), "only the Arbitrum deposit balance has no node here");
 
                 let stored = testkit.balances.balances.lock().unwrap();
                 assert_eq!(stored[&wallet.id][0].available.to_string(), "12093224");
