@@ -5,13 +5,13 @@ use primitives::{AssetId, PerpetualId, perpetual::Perpetual};
 
 use crate::models::{NewPerpetualRow, PerpetualRow};
 use crate::schema::perpetuals;
-use crate::sql_types::{AssetId as AssetIdRow, PerpetualIdRow};
+use crate::sql_types::{AssetId as AssetIdRow, PerpetualIdRow, PerpetualProviderRow};
 use crate::{DatabaseClient, DatabaseError};
 
 pub trait PerpetualsRepository {
     fn get_associated_asset_ids(&mut self) -> Result<HashMap<PerpetualId, AssetId>, DatabaseError>;
 
-    fn update_perpetuals(&mut self, values: Vec<Perpetual>) -> Result<usize, DatabaseError>;
+    fn set_perpetuals(&mut self, values: Vec<Perpetual>) -> Result<usize, DatabaseError>;
 
     fn get_perpetuals(&mut self) -> Result<Vec<Perpetual>, DatabaseError>;
 }
@@ -48,12 +48,13 @@ impl PerpetualsRepository for DatabaseClient {
             .collect())
     }
 
-    fn update_perpetuals(&mut self, values: Vec<Perpetual>) -> Result<usize, DatabaseError> {
-        if values.is_empty() {
+    fn set_perpetuals(&mut self, values: Vec<Perpetual>) -> Result<usize, DatabaseError> {
+        let Some(provider) = values.first().map(|value| PerpetualProviderRow::from(value.provider.clone())) else {
             return Ok(0);
-        }
+        };
+        let ids: Vec<String> = values.iter().map(|value| value.id.to_string()).collect();
         let values = values.into_iter().map(NewPerpetualRow::from_primitive).collect::<Vec<_>>();
-        Ok(diesel::insert_into(perpetuals::table)
+        let updated = diesel::insert_into(perpetuals::table)
             .values(&values)
             .on_conflict(perpetuals::id)
             .do_update()
@@ -70,11 +71,59 @@ impl PerpetualsRepository for DatabaseClient {
                 perpetuals::is_isolated_only.eq(excluded(perpetuals::is_isolated_only)),
                 perpetuals::is_enabled.eq(excluded(perpetuals::is_enabled)),
             ))
-            .execute(&mut self.connection)?)
+            .execute(&mut self.connection)?;
+        diesel::update(perpetuals::table.filter(perpetuals::provider.eq(provider)).filter(perpetuals::is_enabled.eq(true)).filter(perpetuals::id.ne_all(ids)))
+            .set(perpetuals::is_enabled.eq(false))
+            .execute(&mut self.connection)?;
+        Ok(updated)
     }
 
     fn get_perpetuals(&mut self) -> Result<Vec<Perpetual>, DatabaseError> {
         let rows = perpetuals::table.select(PerpetualRow::as_select()).load(&mut self.connection)?;
         Ok(rows.iter().map(PerpetualRow::as_primitive).collect())
+    }
+}
+
+#[cfg(all(test, feature = "database_integration_tests"))]
+mod database_integration_tests {
+    use primitives::{Asset, AssetId, Chain, PerpetualId, PerpetualProvider, perpetual::Perpetual};
+
+    use crate::{AssetsRepository, ChainsRepository, Database, DatabaseError, PerpetualsRepository};
+
+    fn market(name: &str) -> (Asset, Perpetual) {
+        let asset_id = AssetId::from_token(Chain::HyperCore, &format!("perpetual::{name}"));
+        let asset = Asset {
+            id: asset_id.clone(),
+            ..Asset::from_chain(Chain::HyperCore)
+        };
+        let perpetual = Perpetual {
+            id: PerpetualId::new(PerpetualProvider::Hypercore, name),
+            name: name.to_string(),
+            asset_id,
+            ..Perpetual::mock()
+        };
+        (asset, perpetual)
+    }
+
+    #[tokio::test]
+    async fn test_set_perpetuals_disables_markets_the_sync_no_longer_returns() {
+        let database = Database::mock();
+        let (btc_asset, btc) = market("BTC");
+        let (oil_asset, oil) = market("flx:OIL");
+        let perpetuals = database
+            .run(move |client| -> Result<_, DatabaseError> {
+                client.add_chains(vec![Chain::HyperCore])?;
+                client.add_assets(vec![btc_asset.as_basic_primitive(), oil_asset.as_basic_primitive()])?;
+                client.set_perpetuals(vec![btc.clone(), oil])?;
+                client.set_perpetuals(vec![btc])?;
+                client.get_perpetuals()
+            })
+            .await
+            .unwrap();
+
+        let enabled = |name: &str| perpetuals.iter().find(|perpetual| perpetual.name == name).map(|perpetual| perpetual.is_enabled);
+        assert_eq!(enabled("BTC"), Some(true));
+        assert_eq!(enabled("flx:OIL"), Some(false), "a market the sync no longer returns stays stored but is not offered");
+        assert_eq!(database.run(|client| client.set_perpetuals(vec![])).await.unwrap(), 0, "an empty sync disables nothing");
     }
 }

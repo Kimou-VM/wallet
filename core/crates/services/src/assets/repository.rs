@@ -39,7 +39,7 @@ pub(crate) trait Repository: Send + Sync {
     async fn update_image_flags(&self, chain: Chain, asset_ids: HashSet<AssetId>) -> Result<(usize, usize), DatabaseError>;
     async fn update_price_flags(&self) -> Result<(usize, usize), DatabaseError>;
     async fn update_usage_ranks(&self, windows: Vec<(NaiveDateTime, i64)>, retain_since: NaiveDateTime, batch_size: usize) -> Result<usize, DatabaseError>;
-    async fn update_perpetuals(&self, assets: Vec<Asset>, asset_updates: Vec<AssetUpdate>, perpetuals: Vec<Perpetual>) -> Result<Result<usize, DatabaseError>, DatabaseError>;
+    async fn set_perpetuals(&self, assets: Vec<Asset>, asset_updates: Vec<AssetUpdate>, perpetuals: Vec<Perpetual>) -> Result<Result<usize, DatabaseError>, DatabaseError>;
     async fn get_asset_catalog(&self) -> Result<AssetCatalog, DatabaseError>;
     async fn get_list_tag(&self, tag_id: String) -> Result<Option<Tag>, DatabaseError>;
     async fn get_list_tags(&self) -> Result<Vec<Tag>, DatabaseError>;
@@ -182,13 +182,13 @@ impl Repository for PostgresRepository {
             .await
     }
 
-    async fn update_perpetuals(&self, assets: Vec<Asset>, asset_updates: Vec<AssetUpdate>, perpetuals: Vec<Perpetual>) -> Result<Result<usize, DatabaseError>, DatabaseError> {
+    async fn set_perpetuals(&self, assets: Vec<Asset>, asset_updates: Vec<AssetUpdate>, perpetuals: Vec<Perpetual>) -> Result<Result<usize, DatabaseError>, DatabaseError> {
         self.database
             .run(move |client| {
                 let asset_ids = assets.ids().ids();
                 client.set_assets(assets)?;
                 client.update_assets(vec![AssetFilter::Ids(asset_ids)], asset_updates)?;
-                Ok(client.update_perpetuals(perpetuals))
+                Ok(client.set_perpetuals(perpetuals))
             })
             .await
     }

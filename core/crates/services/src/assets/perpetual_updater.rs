@@ -35,7 +35,7 @@ impl PerpetualUpdater {
             AssetUpdate::IsBuyable(false),
             AssetUpdate::IsSellable(false),
         ];
-        let perpetuals_update = self.repository.update_perpetuals(assets, asset_updates, perpetuals).await?;
+        let perpetuals_update = self.repository.set_perpetuals(assets, asset_updates, perpetuals).await?;
 
         if let Err(error) = perpetuals_update {
             error_with_fields!("failed perpetuals update", &error, chain = chain.as_ref());
