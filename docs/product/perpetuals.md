@@ -23,6 +23,15 @@ flowchart LR
     A --> E[Withdraw the withdrawable balance] --> C
 ```
 
+## Markets
+
+Markets come from two sets on Hyperliquid:
+
+| Set | Markets | Shown as |
+|---|---|---|
+| Hyperliquid's own markets | Bitcoin, Ether, Solana | `BTC`, `ETH`, `SOL` |
+| xyz markets: stocks, indexes and commodities that trade.xyz runs on Hyperliquid | Apple, Nvidia, WTI crude oil, Brent crude oil | `xyz:AAPL`, `xyz:NVDA`, `xyz:CL`, `xyz:BRENTOIL` |
+
 ## Expected results
 
 | When | Expected | Why |
@@ -40,7 +49,8 @@ flowchart LR
 | The user searches | positions and markets are filtered | |
 | Hyperliquid delists a market | it leaves the list, pins and search; its trades stay in Activity and still open it, without Long or Short | a delisted market cannot be traded, but past trades keep their market |
 | An xyz market trades under `$1M` a day | it is treated like a delisted market: not offered, while a position in it still shows and closes | a thin market fills far from its price |
-| The user searches from the wallet | perpetual results come only from the main Hyperliquid markets; xyz markets show in the Perpetuals list and its search | older app versions cannot trade xyz markets, and they read the same search |
+| A market's name shows (the list, search, a position, a pin, a toast) | Hyperliquid's own markets by their plain name, `BTC`; xyz markets with their `xyz:` prefix, `xyz:AAPL`, the name Hyperliquid gives them | users can tell a stock or commodity market run by another team, isolated only and with its own fees, from Hyperliquid's own |
+| The user searches from the wallet | perpetual results come only from Hyperliquid's own markets; xyz markets show in the Perpetuals list and its search | older app versions cannot trade xyz markets, and they read the same search |
 | The market has fewer than 14 candles | the chart draws them at the width of 14, newest on the right | wider bodies stop reading as a trend |
 | The chart shows its time labels | at most four, on round times of the user's own clock (quarter hours, six hours, whole days, calendar months); a pan slides them with their candles and only a pinch changes the step | a label that jumps or re-spaces while the user drags cannot be read |
 | The chart covers the user's trades in that market | a dot over the candle for every trade it holds, green with ▲ for a buy (Open Long, Close Short) and red with ▼ for a sell (Open Short, Close Long), stacked oldest lowest, at most the latest four per candle, and only on candles whose middle is on the plot | the user sees where and how often they traded against the price; the trades come from the wallet's own activity, so the chart, Activity and both apps agree `test_candle_markers` |
