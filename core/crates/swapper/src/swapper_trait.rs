@@ -52,13 +52,19 @@ impl<'a> dyn Swapper + 'a {
                 _ => *contract == address,
             })
         };
-        if authorized_addresses(data).all(is_contract) { Ok(()) } else { Err(SwapperError::InvalidRoute) }
+        if data.data_type == SwapQuoteDataType::Contract && !is_contract(&data.to) {
+            return Err(SwapperError::InvalidRoute);
+        }
+        if let Some(approval) = &data.approval
+            && !is_contract(&approval.spender)
+        {
+            return Err(SwapperError::InvalidRoute);
+        }
+        if let Some(permit2) = &data.permit2
+            && !is_contract(&permit2.spender)
+        {
+            return Err(SwapperError::InvalidRoute);
+        }
+        Ok(())
     }
-}
-
-fn authorized_addresses(data: &SwapperQuoteData) -> impl Iterator<Item = &str> {
-    let target = (data.data_type == SwapQuoteDataType::Contract).then_some(data.to.as_str());
-    let spender = data.approval.as_ref().map(|approval| approval.spender.as_str());
-    let permit2_spender = data.permit2.as_ref().map(|permit2| permit2.spender.as_str());
-    target.into_iter().chain(spender).chain(permit2_spender)
 }
