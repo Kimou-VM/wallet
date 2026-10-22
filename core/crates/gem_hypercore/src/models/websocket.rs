@@ -172,7 +172,7 @@ pub struct PositionsDiff {
 
 #[derive(Debug)]
 pub enum HyperliquidSocketMessage {
-    AccountState { dex: PerpDex, balance: Option<PerpetualBalance>, positions: Vec<PerpetualPosition> },
+    AccountState { dex: PerpDex, balance: PerpetualBalance, positions: Vec<PerpetualPosition> },
     SpotState { balance: PerpetualBalance },
     OpenOrders { dex: PerpDex, orders: Vec<OpenOrder> },
     Candle { candle: ChartCandleUpdate },

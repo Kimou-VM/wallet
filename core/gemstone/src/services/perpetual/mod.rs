@@ -41,7 +41,7 @@ use crate::services::toast::GemToast;
 use crate::services::transfer::{GemRecentActivityScope, GemRecentActivityService};
 use crate::services::wallet_preferences::GemWalletPreferencesService;
 use crate::services::wallet_session::GemWalletSessionService;
-use model::{GemPerpetualConnection, GemPerpetualRefreshFailure, GemPerpetualRefreshStep};
+use model::{GemPerpetualRefreshFailure, GemPerpetualRefreshStep};
 
 pub use autoclose::{GemAutocloseEstimate, GemAutocloseField, GemAutocloseModify};
 pub use candles::{GemCandleRequest, GemCandleResult, GemCandleSession, GemCandleViewState};
@@ -148,14 +148,13 @@ impl GemPerpetualService {
         Ok(GemToast::pinned(name, pinned))
     }
 
-    pub async fn connection(&self, wallet: Wallet) -> Result<Option<GemPerpetualConnection>, GemServiceError> {
+    pub async fn connection_address(&self, wallet: Wallet) -> Result<Option<String>, GemServiceError> {
         let Some(account) = hyperliquid_account(&wallet.accounts) else {
             return Ok(None);
         };
-        let chain = Chain::HyperCore;
         let address = account.address.clone();
-        let mode = self.account_mode(wallet.id, chain, address.clone()).await?;
-        Ok(Some(GemPerpetualConnection { address, mode }))
+        self.update_account_mode(wallet.id, Chain::HyperCore, address.clone()).await?;
+        Ok(Some(address))
     }
 }
 
@@ -213,15 +212,18 @@ impl GemPerpetualService {
         self.store.save_perpetuals(changed).await
     }
 
-    pub async fn get_portfolio(&self, chain: Chain, address: String) -> Result<PerpetualPortfolio, GemServiceError> {
-        Ok(self.gateway.get_perpetual_portfolio(chain, address).await?)
+    pub async fn get_portfolio(&self, wallet_id: WalletId, chain: Chain, address: String) -> Result<PerpetualPortfolio, GemServiceError> {
+        let mode = self.wallet_preferences.get_perpetual_account_mode(wallet_id);
+        Ok(self.gateway.get_perpetual_portfolio(chain, address, mode).await?)
     }
 
-    pub async fn on_socket_message(&self, wallet_id: WalletId, mode: PerpetualAccountMode, data: Vec<u8>) -> Result<GemPerpetualSocketUpdate, GemServiceError> {
-        let message = parse_websocket_data(&data, mode).map_err(GemServiceError::core)?;
+    pub async fn on_socket_message(&self, wallet_id: WalletId, data: Vec<u8>) -> Result<GemPerpetualSocketUpdate, GemServiceError> {
+        let message = parse_websocket_data(&data).map_err(GemServiceError::core)?;
         match message {
             HyperliquidSocketMessage::AccountState { dex, balance, positions } => {
-                if let Some(total) = balance.and_then(|balance| self.total_balance(wallet_id.clone(), dex, balance)) {
+                if self.wallet_preferences.includes_perpetual_collateral(wallet_id.clone())
+                    && let Some(total) = self.total_balance(wallet_id.clone(), dex, balance)
+                {
                     self.update_balance(wallet_id.clone(), total).await?;
                 }
                 let positions = self.with_stored_markets(positions).await?;
@@ -231,7 +233,9 @@ impl GemPerpetualService {
                 Ok(GemPerpetualSocketUpdate::Applied)
             }
             HyperliquidSocketMessage::SpotState { balance } => {
-                self.update_balance(wallet_id, balance).await?;
+                if !self.wallet_preferences.includes_perpetual_collateral(wallet_id.clone()) {
+                    self.update_balance(wallet_id, balance).await?;
+                }
                 Ok(GemPerpetualSocketUpdate::Applied)
             }
             HyperliquidSocketMessage::OpenOrders { dex, orders } => {
@@ -286,13 +290,10 @@ impl GemPerpetualService {
         Ok(positions.into_iter().filter(|position| stored.iter().any(|perpetual| perpetual.id == position.perpetual_id)).collect())
     }
 
-    async fn account_mode(&self, wallet_id: WalletId, chain: Chain, address: String) -> Result<PerpetualAccountMode, GemServiceError> {
+    async fn update_account_mode(&self, wallet_id: WalletId, chain: Chain, address: String) -> Result<(), GemServiceError> {
         match self.gateway.get_perpetual_account_mode(chain, address).await {
-            Ok(mode) => {
-                self.wallet_preferences.set_perpetual_account_mode(wallet_id, mode)?;
-                Ok(mode)
-            }
-            Err(_) => Ok(self.wallet_preferences.get_perpetual_account_mode(wallet_id)),
+            Ok(mode) => self.wallet_preferences.set_perpetual_account_mode(wallet_id, mode),
+            Err(_) => Ok(()),
         }
     }
 }
@@ -362,7 +363,7 @@ mod tests {
     const SUBSCRIPTION: &str = r#"{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"allMids"}}}"#;
 
     fn message(testkit: &PerpetualTestkit, payload: &str) -> GemPerpetualSocketUpdate {
-        block_on(testkit.service.on_socket_message(testkit.wallet_id.clone(), PerpetualAccountMode::Standard, payload.as_bytes().to_vec())).unwrap()
+        block_on(testkit.service.on_socket_message(testkit.wallet_id.clone(), payload.as_bytes().to_vec())).unwrap()
     }
 
     #[test]
@@ -500,11 +501,7 @@ mod tests {
     fn test_a_new_channel_that_carries_a_payload_is_reported_as_an_error() {
         let testkit = PerpetualTestkit::new();
 
-        let update = block_on(
-            testkit
-                .service
-                .on_socket_message(testkit.wallet_id.clone(), PerpetualAccountMode::Standard, br#"{"channel":"somethingElse","data":{}}"#.to_vec()),
-        );
+        let update = block_on(testkit.service.on_socket_message(testkit.wallet_id.clone(), br#"{"channel":"somethingElse","data":{}}"#.to_vec()));
 
         assert!(
             matches!(update, Err(GemServiceError::Core { .. })),
@@ -519,7 +516,7 @@ mod tests {
             testkit.store.rejects_positions.store(true, Ordering::SeqCst);
             let snapshot = include_bytes!("../../../../crates/gem_hypercore/testdata/ws_clearinghouse_state.json");
 
-            let update = testkit.service.on_socket_message(testkit.wallet_id.clone(), PerpetualAccountMode::Standard, snapshot.to_vec()).await;
+            let update = testkit.service.on_socket_message(testkit.wallet_id.clone(), snapshot.to_vec()).await;
 
             assert!(update.is_err());
             assert_eq!(testkit.balances.balances.lock().unwrap()[&testkit.wallet_id][0].available.to_string(), "14400000000");
@@ -546,6 +543,23 @@ mod tests {
         assert_eq!(available(&testkit), Some((14_400_000_000u64 + 900_000_000u64).to_string()));
         let held: Vec<String> = testkit.store.positions.lock().unwrap().iter().map(|position| position.perpetual_id.symbol.clone()).collect();
         assert_eq!(held, vec!["ETH".to_string(), "xyz:NVDA".to_string()], "the xyz snapshot does not delete the main dex position");
+    }
+
+    #[test]
+    fn test_the_stored_account_mode_picks_the_balance_message_that_counts() {
+        let testkit = block_on(PerpetualTestkit::with_unified_balance());
+        let available = |testkit: &PerpetualTestkit| testkit.balances.balances.lock().unwrap().get(&testkit.wallet_id).map(|balances| balances[0].available.to_string());
+        let spot_state = include_str!("../../../../crates/gem_hypercore/testdata/ws_spot_state.json");
+
+        message(&testkit, spot_state);
+        assert_eq!(available(&testkit), None, "a standard account's spot USDC is not its perpetual balance");
+
+        testkit.wallet_preferences.set_perpetual_account_mode(testkit.wallet_id.clone(), PerpetualAccountMode::Unified).unwrap();
+        message(&testkit, include_str!("../../../../crates/gem_hypercore/testdata/ws_clearinghouse_state.json"));
+        assert_eq!(available(&testkit), None, "a unified account's dex snapshot holds only the margin in use");
+
+        message(&testkit, spot_state);
+        assert_eq!(available(&testkit), Some("3797316".to_string()), "the switch to unified is read from the stored mode without a new subscription");
     }
 
     #[test]
@@ -589,7 +603,7 @@ mod tests {
     fn test_a_payload_that_is_not_a_socket_message_is_an_error() {
         let testkit = PerpetualTestkit::new();
 
-        let error = block_on(testkit.service.on_socket_message(testkit.wallet_id.clone(), PerpetualAccountMode::Standard, b"not json".to_vec()));
+        let error = block_on(testkit.service.on_socket_message(testkit.wallet_id.clone(), b"not json".to_vec()));
 
         assert!(matches!(error, Err(GemServiceError::Core { .. })), "{error:?}");
     }
@@ -737,15 +751,10 @@ mod tests {
                 let testkit = PerpetualTestkit::with_unified_balance().await;
                 let wallet = Wallet::mock_with_accounts(Account::mock_chains(&chains, "0xc64c"));
 
-                let connection = testkit.service.connection(wallet.clone()).await.unwrap();
+                let address = testkit.service.connection_address(wallet.clone()).await.unwrap();
 
-                assert_eq!(
-                    connection,
-                    Some(GemPerpetualConnection {
-                        address: "0xc64c".to_string(),
-                        mode: PerpetualAccountMode::Unified,
-                    })
-                );
+                assert_eq!(address, Some("0xc64c".to_string()));
+                assert_eq!(testkit.wallet_preferences.get_perpetual_account_mode(wallet.id), PerpetualAccountMode::Unified);
                 assert_eq!(testkit.provider.requested_types(), vec!["userAbstraction"]);
                 assert!(testkit.store.position_writes.lock().unwrap().is_empty());
                 assert!(testkit.balances.balances.lock().unwrap().is_empty());
@@ -795,7 +804,7 @@ mod tests {
             let wallet = Wallet::mock_with_accounts(Account::mock_chains(&[Chain::HyperCore], "0xc64c"));
             testkit.select_wallet(&wallet);
 
-            testkit.service.connection(wallet).await.unwrap();
+            testkit.service.connection_address(wallet).await.unwrap();
             testkit.service.sync_current_positions().await.unwrap();
 
             let mode_requests = testkit.provider.requested_types().iter().filter(|kind| *kind == "userAbstraction").count();
@@ -841,9 +850,9 @@ mod tests {
             let testkit = PerpetualTestkit::new();
             testkit.wallet_preferences.set_perpetual_account_mode(testkit.wallet_id.clone(), PerpetualAccountMode::Unified).unwrap();
 
-            let mode = testkit.service.account_mode(testkit.wallet_id.clone(), Chain::HyperCore, "0xc64c".to_string()).await.unwrap();
+            testkit.service.update_account_mode(testkit.wallet_id.clone(), Chain::HyperCore, "0xc64c".to_string()).await.unwrap();
 
-            assert_eq!(mode, PerpetualAccountMode::Unified);
+            assert_eq!(testkit.wallet_preferences.get_perpetual_account_mode(testkit.wallet_id.clone()), PerpetualAccountMode::Unified);
         })
     }
 
@@ -852,9 +861,9 @@ mod tests {
         block_on(async {
             let testkit = PerpetualTestkit::new();
 
-            let mode = testkit.service.account_mode(testkit.wallet_id.clone(), Chain::HyperCore, "0xc64c".to_string()).await.unwrap();
+            testkit.service.update_account_mode(testkit.wallet_id.clone(), Chain::HyperCore, "0xc64c".to_string()).await.unwrap();
 
-            assert_eq!(mode, PerpetualAccountMode::Standard);
+            assert_eq!(testkit.wallet_preferences.get_perpetual_account_mode(testkit.wallet_id.clone()), PerpetualAccountMode::Standard);
         })
     }
 }

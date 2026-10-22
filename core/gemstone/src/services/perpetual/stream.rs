@@ -6,8 +6,8 @@ use gem_hypercore::{
     models::websocket::HyperliquidRequest,
     provider::{websocket_mapper::account_subscriptions, websocket_subscriptions::WebSocketSubscriptions},
 };
+use primitives::WalletId;
 use primitives::chart::ChartCandleUpdate;
-use primitives::{PerpetualAccountMode, WalletId};
 
 use super::GemPerpetualService;
 use super::model::GemPerpetualSocketUpdate;
@@ -38,8 +38,8 @@ impl GemPerpetualStreamService {
         }
     }
 
-    pub async fn connected(&self, address: String, mode: PerpetualAccountMode) -> Result<(), GemServiceError> {
-        let requests = self.subscriptions.lock().await.connected(account_subscriptions(address, mode, &self.perpetual.perp_dexes));
+    pub async fn connected(&self, address: String) -> Result<(), GemServiceError> {
+        let requests = self.subscriptions.lock().await.connected(account_subscriptions(address, &self.perpetual.perp_dexes));
         self.send(requests).await
     }
 
@@ -63,8 +63,8 @@ impl GemPerpetualStreamService {
         self.send(requests).await
     }
 
-    pub async fn candle_update(&self, wallet_id: WalletId, mode: PerpetualAccountMode, data: Vec<u8>) -> Result<Option<ChartCandleUpdate>, GemServiceError> {
-        match self.perpetual.on_socket_message(wallet_id, mode, data).await? {
+    pub async fn candle_update(&self, wallet_id: WalletId, data: Vec<u8>) -> Result<Option<ChartCandleUpdate>, GemServiceError> {
+        match self.perpetual.on_socket_message(wallet_id, data).await? {
             GemPerpetualSocketUpdate::Candle { candle } => Ok(Some(candle)),
             GemPerpetualSocketUpdate::Applied | GemPerpetualSocketUpdate::SubscriptionResponse { .. } | GemPerpetualSocketUpdate::Unknown => Ok(None),
             GemPerpetualSocketUpdate::Error { message } => Err(GemServiceError::Core { msg: message }),

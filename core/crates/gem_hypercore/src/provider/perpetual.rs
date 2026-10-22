@@ -7,13 +7,13 @@ use gem_client::Client;
 use primitives::{
     ChartPeriod, PerpetualPosition,
     chart::ChartCandleStick,
-    perpetual::{PerpetualAccountMode, PerpetualAccountPositions, PerpetualAddress, PerpetualData, PerpetualPositionsSummary},
+    perpetual::{PerpetualAccountMode, PerpetualAccountPositions, PerpetualAddress, PerpetualBalance, PerpetualData, PerpetualPositionsSummary},
     portfolio::PerpetualPortfolio,
 };
 
 use crate::{
     models::{perp_dex::PerpDex, position::AssetPositions},
-    provider::perpetual_mapper::{map_candlesticks, map_perpetual_addresses, map_perpetual_balance_from_spot, map_perpetual_portfolio, map_perpetuals_data, map_positions},
+    provider::perpetual_mapper::{map_candlesticks, map_perpetual_addresses, map_perpetual_balance, map_perpetual_balance_from_spot, map_perpetual_portfolio, map_perpetuals_data, map_positions},
     rpc::client::HyperCoreClient,
 };
 
@@ -45,6 +45,13 @@ impl<C: Client> HyperCoreClient<C> {
         }))
         .await
     }
+
+    async fn get_spot_collateral(&self, address: &str, mode: PerpetualAccountMode) -> Result<Option<PerpetualBalance>, Box<dyn Error + Sync + Send>> {
+        match mode {
+            PerpetualAccountMode::Unified => Ok(Some(map_perpetual_balance_from_spot(&self.get_spot_balances(address).await?))),
+            PerpetualAccountMode::Standard => Ok(None),
+        }
+    }
 }
 
 #[async_trait]
@@ -52,19 +59,10 @@ impl<C: Client> ChainPerpetual for HyperCoreClient<C> {
     async fn get_positions(&self, address: String) -> Result<PerpetualAccountPositions, Box<dyn Error + Sync + Send>> {
         let (mode, states) = try_join!(self.get_user_abstraction(&address), self.get_clearinghouse_states(&address))?;
         let mode = PerpetualAccountMode::from(mode);
-        let spot_balances = async {
-            match mode {
-                PerpetualAccountMode::Unified => self.get_spot_balances(&address).await.map(Some),
-                PerpetualAccountMode::Standard => Ok(None),
-            }
-        };
-        let (summaries, spot_balances) = try_join!(self.get_position_summaries(&address, states), spot_balances)?;
+        let (summaries, spot_collateral) = try_join!(self.get_position_summaries(&address, states), self.get_spot_collateral(&address, mode))?;
 
         let (positions, balances): (Vec<_>, Vec<_>) = summaries.into_iter().map(|summary| (summary.positions, summary.balance)).unzip();
-        let balance = match spot_balances {
-            Some(balances) => map_perpetual_balance_from_spot(&balances),
-            None => balances.into_iter().sum(),
-        };
+        let balance = spot_collateral.unwrap_or_else(|| balances.into_iter().sum());
         let positions = positions.into_iter().flatten().collect();
 
         Ok(PerpetualAccountPositions {
@@ -106,10 +104,11 @@ impl<C: Client> ChainPerpetual for HyperCoreClient<C> {
         Ok(map_candlesticks(candlesticks))
     }
 
-    async fn get_perpetual_portfolio(&self, address: String) -> Result<PerpetualPortfolio, Box<dyn Error + Sync + Send>> {
-        let (response, states) = try_join!(self.get_perpetual_portfolio(&address), self.get_clearinghouse_states(&address))?;
+    async fn get_perpetual_portfolio(&self, address: String, mode: PerpetualAccountMode) -> Result<PerpetualPortfolio, Box<dyn Error + Sync + Send>> {
+        let (response, states, spot_collateral) = try_join!(self.get_perpetual_portfolio(&address), self.get_clearinghouse_states(&address), self.get_spot_collateral(&address, mode))?;
         let positions: Vec<AssetPositions> = states.into_iter().map(|(_, positions)| positions).collect();
-        Ok(map_perpetual_portfolio(response, &positions))
+        let balance = spot_collateral.unwrap_or_else(|| positions.iter().map(map_perpetual_balance).sum());
+        Ok(map_perpetual_portfolio(response, mode, &positions, &balance))
     }
 
     async fn get_perpetual_addresses(&self) -> Result<Vec<PerpetualAddress>, Box<dyn Error + Sync + Send>> {
@@ -284,15 +283,40 @@ mod tests {
         );
         client.config.perp_dexes = vec![PerpDex::Main, PerpDex::Xyz];
 
-        let portfolio = ChainPerpetual::get_perpetual_portfolio(&client, "0x123".to_string()).await.unwrap();
+        let portfolio = ChainPerpetual::get_perpetual_portfolio(&client, "0x123".to_string(), PerpetualAccountMode::Standard).await.unwrap();
 
         assert_eq!(
             sorted_types(&seen_requests),
             vec!["clearinghouseState", "clearinghouseState:xyz", "portfolio"],
-            "the portfolio already covers every dex, so it is asked for once"
+            "the portfolio already covers every dex, so it is asked for once, and a standard account needs no spot balance"
         );
-        assert_eq!(portfolio.day.unwrap().account_value_history.len(), 2);
+        assert_eq!(portfolio.all_time.unwrap().volume, 11_038_949_929.92);
         assert_eq!(portfolio.account_summary.unwrap().account_value, 10000.0 + 10000.0);
+    }
+
+    #[tokio::test]
+    async fn test_get_perpetual_portfolio_unified() {
+        let seen_requests = Arc::new(Mutex::new(Vec::new()));
+        let client = HyperCoreClient::mock_with_responses_by_request(
+            vec![
+                (serde_json::json!({"type": "portfolio", "user": "0x123"}), include_bytes!("../../testdata/perpetual_portfolio_response.json").to_vec()),
+                (
+                    load_testdata("perpetual_positions_request_clearinghouse_state.json"),
+                    include_bytes!("../../testdata/perpetual_positions_response_clearinghouse_state.json").to_vec(),
+                ),
+                (
+                    serde_json::json!({"type": "spotClearinghouseState", "user": "0x123"}),
+                    include_bytes!("../../testdata/perpetual_balance_response_spot_clearinghouse_state.json").to_vec(),
+                ),
+            ],
+            Arc::clone(&seen_requests),
+        );
+
+        let portfolio = ChainPerpetual::get_perpetual_portfolio(&client, "0x123".to_string(), PerpetualAccountMode::Unified).await.unwrap();
+
+        assert_eq!(sorted_types(&seen_requests), vec!["clearinghouseState", "portfolio", "spotClearinghouseState"]);
+        assert_eq!(portfolio.all_time.unwrap().volume, 11_038_949_929.92);
+        assert_eq!(portfolio.account_summary.unwrap().account_value, 4.331289);
     }
 
     fn sorted_types(requests: &Mutex<Vec<Value>>) -> Vec<String> {
@@ -315,7 +339,7 @@ mod chain_integration_tests {
     use crate::models::perp_dex::PerpDex;
     use crate::provider::testkit::{TEST_ADDRESS, create_hypercore_test_client};
     use chain_traits::ChainPerpetual;
-    use primitives::ChartPeriod;
+    use primitives::{ChartPeriod, PerpetualAccountMode};
 
     #[tokio::test]
     async fn test_hypercore_get_xyz_perpetuals_data() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -369,7 +393,7 @@ mod chain_integration_tests {
     #[tokio::test]
     async fn test_hypercore_get_perpetual_portfolio() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let client = create_hypercore_test_client();
-        let portfolio = ChainPerpetual::get_perpetual_portfolio(&client, TEST_ADDRESS.to_string()).await?;
+        let portfolio = ChainPerpetual::get_perpetual_portfolio(&client, TEST_ADDRESS.to_string(), PerpetualAccountMode::Standard).await?;
 
         println!("Perpetual portfolio day: {:?}", portfolio.day.is_some());
 

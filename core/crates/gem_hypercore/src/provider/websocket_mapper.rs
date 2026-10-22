@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use primitives::{PerpetualAccountMode, PerpetualMarketData, PerpetualPosition};
+use primitives::{PerpetualMarketData, PerpetualPosition};
 
 use crate::models::{
     metadata::perpetual_coin,
@@ -11,33 +11,28 @@ use crate::models::{
 
 use super::perpetual_mapper::{map_perpetual_balance_from_spot, map_positions, map_tp_sl_from_orders};
 
-pub fn account_subscriptions(address: String, mode: PerpetualAccountMode, dexes: &[PerpDex]) -> Vec<HyperliquidSubscription> {
-    let dex_subscriptions = dexes.iter().flat_map(|dex| {
-        [
-            HyperliquidSubscription::AccountState { address: address.clone(), dex: dex.name() },
-            HyperliquidSubscription::OpenOrders { address: address.clone(), dex: dex.name() },
-        ]
-    });
-    let spot_state = match mode {
-        PerpetualAccountMode::Standard => None,
-        PerpetualAccountMode::Unified => Some(HyperliquidSubscription::SpotState { address: address.clone() }),
-    };
-    dex_subscriptions.chain(spot_state).collect()
+pub fn account_subscriptions(address: String, dexes: &[PerpDex]) -> Vec<HyperliquidSubscription> {
+    dexes
+        .iter()
+        .flat_map(|dex| {
+            [
+                HyperliquidSubscription::AccountState { address: address.clone(), dex: dex.name() },
+                HyperliquidSubscription::OpenOrders { address: address.clone(), dex: dex.name() },
+            ]
+        })
+        .chain([HyperliquidSubscription::SpotState { address: address.clone() }])
+        .collect()
 }
 
-pub fn parse_websocket_data(data: &[u8], mode: PerpetualAccountMode) -> Result<HyperliquidSocketMessage, serde_json::Error> {
+pub fn parse_websocket_data(data: &[u8]) -> Result<HyperliquidSocketMessage, serde_json::Error> {
     let raw: RawSocketMessage = serde_json::from_slice(data)?;
 
     match raw {
         RawSocketMessage::AccountState(data) => {
             let summary = map_positions(data.clearinghouse_state, data.address, &[]);
-            let balance = match mode {
-                PerpetualAccountMode::Unified => None,
-                PerpetualAccountMode::Standard => Some(summary.balance),
-            };
             Ok(HyperliquidSocketMessage::AccountState {
                 dex: data.dex,
-                balance,
+                balance: summary.balance,
                 positions: summary.positions,
             })
         }
@@ -139,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_parse_all_mids() {
-        let prices = |json: &[u8]| match parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() {
+        let prices = |json: &[u8]| match parse_websocket_data(json).unwrap() {
             HyperliquidSocketMessage::MarketPrices { prices } => prices,
             message => panic!("expected MarketPrices, got {message:?}"),
         };
@@ -155,7 +150,7 @@ mod tests {
     #[test]
     fn test_parse_active_asset_ctx() {
         let json = include_bytes!("../../testdata/ws_active_asset_ctx.json");
-        let HyperliquidSocketMessage::MarketData { market } = parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() else {
+        let HyperliquidSocketMessage::MarketData { market } = parse_websocket_data(json).unwrap() else {
             panic!("expected MarketData");
         };
 
@@ -189,13 +184,13 @@ mod tests {
           }
         }"#;
 
-        assert!(parse_websocket_data(json, PerpetualAccountMode::Standard).is_err());
+        assert!(parse_websocket_data(json).is_err());
     }
 
     #[test]
     fn test_parse_candle() {
         let json = include_bytes!("../../testdata/ws_candle.json");
-        let HyperliquidSocketMessage::Candle { candle: update } = parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() else {
+        let HyperliquidSocketMessage::Candle { candle: update } = parse_websocket_data(json).unwrap() else {
             panic!("expected Candle");
         };
 
@@ -211,7 +206,7 @@ mod tests {
     #[test]
     fn test_parse_open_orders() {
         let json = include_bytes!("../../testdata/ws_open_orders.json");
-        let HyperliquidSocketMessage::OpenOrders { dex, orders } = parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() else {
+        let HyperliquidSocketMessage::OpenOrders { dex, orders } = parse_websocket_data(json).unwrap() else {
             panic!("expected OpenOrders");
         };
 
@@ -234,10 +229,9 @@ mod tests {
     #[test]
     fn test_parse_clearinghouse_state() {
         let json = include_bytes!("../../testdata/ws_clearinghouse_state.json");
-        let HyperliquidSocketMessage::AccountState { dex, balance, positions } = parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() else {
+        let HyperliquidSocketMessage::AccountState { dex, balance, positions } = parse_websocket_data(json).unwrap() else {
             panic!("expected AccountState");
         };
-        let balance = balance.expect("clearinghouse account owns its balance");
 
         assert_eq!(dex, PerpDex::Main);
         assert_eq!(balance.available, 15230.5 - 830.5);
@@ -263,20 +257,9 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_clearinghouse_state_drops_balance_for_spot_collateral() {
-        let json = include_bytes!("../../testdata/ws_clearinghouse_state.json");
-        let HyperliquidSocketMessage::AccountState { balance, positions, .. } = parse_websocket_data(json, PerpetualAccountMode::Unified).unwrap() else {
-            panic!("expected AccountState");
-        };
-
-        assert!(balance.is_none());
-        assert_eq!(positions.len(), 1);
-    }
-
-    #[test]
     fn test_parse_spot_state() {
         let json = include_bytes!("../../testdata/ws_spot_state.json");
-        let HyperliquidSocketMessage::SpotState { balance } = parse_websocket_data(json, PerpetualAccountMode::Unified).unwrap() else {
+        let HyperliquidSocketMessage::SpotState { balance } = parse_websocket_data(json).unwrap() else {
             panic!("expected SpotState");
         };
 
@@ -295,10 +278,13 @@ mod tests {
             ]
         };
 
-        assert_eq!(account_subscriptions(address.clone(), PerpetualAccountMode::Standard, &[PerpDex::Main]), dex_state(PerpDex::Main).to_vec());
+        let spot_state = HyperliquidSubscription::SpotState { address: address.clone() };
+
+        assert_eq!(account_subscriptions(address.clone(), &[PerpDex::Main]), [dex_state(PerpDex::Main).to_vec(), vec![spot_state.clone()]].concat());
         assert_eq!(
-            account_subscriptions(address.clone(), PerpetualAccountMode::Unified, &[PerpDex::Main, PerpDex::Xyz]),
-            [dex_state(PerpDex::Main).to_vec(), dex_state(PerpDex::Xyz).to_vec(), vec![HyperliquidSubscription::SpotState { address: address.clone() }]].concat()
+            account_subscriptions(address.clone(), &[PerpDex::Main, PerpDex::Xyz]),
+            [dex_state(PerpDex::Main).to_vec(), dex_state(PerpDex::Xyz).to_vec(), vec![spot_state]].concat(),
+            "every account follows its spot balance, so a switch to unified needs no new subscription"
         );
         assert_eq!(
             serde_json::to_value(dex_state(PerpDex::Xyz)).unwrap(),
@@ -338,7 +324,7 @@ mod tests {
     fn test_parse_error_channel() {
         let json = br#"{"channel":"error","data":"Already subscribed: {\"type\":\"candle\",\"interval\":\"30m\",\"coin\":\"UNI\"}"}"#;
 
-        match parse_websocket_data(json, PerpetualAccountMode::Standard).unwrap() {
+        match parse_websocket_data(json).unwrap() {
             HyperliquidSocketMessage::Error { message } => {
                 assert_eq!(message, r#"Already subscribed: {"type":"candle","interval":"30m","coin":"UNI"}"#);
             }
