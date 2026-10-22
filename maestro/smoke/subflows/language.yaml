@@ -9,11 +9,27 @@ appId: ${APP_ID}
           id: "settingsTab"
       - tapOn:
           id: "preferences"
-      - tapOn:
-          id: "language"
-      - tapOn: "Deutsch"
-      - tapOn: "Deutschland"
-      - back
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              id: "language"
+          commands:
+            - tapOn:
+                id: "language"
+            - tapOn: "Deutsch"
+            - tapOn: "Deutschland"
+            - back
+            - extendedWaitUntil:
+                visible: "Sicherheit"
+                timeout: 15000
+            - takeScreenshot: ${output.journey}_language
+            - tapOn:
+                id: "preferences"
+            - tapOn:
+                id: "language"
+            - tapOn: "System default"
+            - back
 - runFlow:
     when:
       platform: iOS
@@ -27,20 +43,10 @@ appId: ${APP_ID}
           timeout: 30000
       - tapOn:
           id: "settingsTab"
-- extendedWaitUntil:
-    visible: "Sicherheit"
-    timeout: 15000
-- takeScreenshot: ${output.journey}_language
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - tapOn:
-          id: "preferences"
-      - tapOn:
-          id: "language"
-      - tapOn: "System default"
-      - back
+      - extendedWaitUntil:
+          visible: "Sicherheit"
+          timeout: 15000
+      - takeScreenshot: ${output.journey}_language
 - runFlow: launch.yaml
 - tapOn:
     id: "settingsTab"
