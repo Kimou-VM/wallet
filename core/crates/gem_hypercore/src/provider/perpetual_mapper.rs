@@ -1,11 +1,9 @@
-use std::collections::BTreeMap;
-
 use primitives::{
     Asset, AssetType, Perpetual, PerpetualBalance, PerpetualDirection, PerpetualId, PerpetualMarginType, PerpetualOrderType, PerpetualPosition, PerpetualProvider, PerpetualTriggerOrder,
-    chart::{ChartCandleStick, ChartDateValue},
+    chart::ChartCandleStick,
     known_assets::USDC_SYMBOL,
     perpetual::{PerpetualAddress, PerpetualData, PerpetualMetadata, PerpetualPositionsSummary},
-    portfolio::{PerpetualAccountSummary, PerpetualPortfolio, PerpetualPortfolioTimeframeData},
+    portfolio::{PerpetualAccountSummary, PerpetualPortfolio},
 };
 
 use crate::models::{
@@ -13,13 +11,12 @@ use crate::models::{
     candlestick::Candlestick,
     metadata::{HypercoreMetadataResponse, perpetual_asset_id},
     order::OpenOrder,
+    perp_dex::PerpDex,
     portfolio::HypercorePortfolioResponse,
     position::{AssetPositions, LeverageType, Position},
     referral::{Referral, ReferralTokenState},
 };
 
-const HIP3_PERP_ASSET_OFFSET: u32 = 100_000;
-const HIP3_PERP_ASSET_STRIDE: u32 = 10_000;
 const USDC_TOKEN_INDEX: i32 = 0;
 
 pub(crate) fn map_perpetual_addresses(referral: Referral) -> Vec<PerpetualAddress> {
@@ -122,7 +119,7 @@ pub fn map_position(position: Position, address: String, orders: &[OpenOrder]) -
     }
 }
 
-pub fn map_perpetuals_data(metadata: HypercoreMetadataResponse, perp_dex_index: u32) -> Vec<PerpetualData> {
+pub fn map_perpetuals_data(metadata: HypercoreMetadataResponse, dex: PerpDex) -> Vec<PerpetualData> {
     let universe = metadata.universe();
     let asset_metadata = metadata.asset_metadata();
 
@@ -134,7 +131,7 @@ pub fn map_perpetuals_data(metadata: HypercoreMetadataResponse, perp_dex_index: 
             let metadata_item = asset_metadata.get(index);
 
             let asset_id = universe_asset.asset_id();
-            let asset_index = perp_asset_index(perp_dex_index, index as u32);
+            let asset_index = dex.asset_index(index as u32);
 
             let current_price = metadata_item.and_then(|m| m.mid_px.as_ref().and_then(|mid| mid.parse().ok()).or_else(|| m.mark_px.parse().ok())).unwrap_or(0.0);
 
@@ -183,25 +180,7 @@ pub fn map_candlesticks(candlesticks: Vec<Candlestick>) -> Vec<ChartCandleStick>
     candlesticks.iter().map(ChartCandleStick::from).collect()
 }
 
-pub fn map_account_summary(positions: &AssetPositions) -> PerpetualAccountSummary {
-    let account_value = positions.margin_summary.account_value.parse::<f64>().unwrap_or(0.0);
-    let total_ntl_pos = positions.margin_summary.total_ntl_pos.parse::<f64>().unwrap_or(0.0);
-    let total_margin_used = positions.margin_summary.total_margin_used.parse::<f64>().unwrap_or(0.0);
-
-    let account_leverage = if account_value > 0.0 { total_ntl_pos / account_value } else { 0.0 };
-    let margin_usage = if account_value > 0.0 { total_margin_used / account_value } else { 0.0 };
-
-    let unrealized_pnl: f64 = positions.asset_positions.iter().map(|p| p.position.unrealized_pnl.parse::<f64>().unwrap_or(0.0)).sum();
-
-    PerpetualAccountSummary {
-        account_value,
-        account_leverage,
-        margin_usage,
-        unrealized_pnl,
-    }
-}
-
-pub fn map_perpetual_portfolio(response: HypercorePortfolioResponse, positions: &AssetPositions) -> PerpetualPortfolio {
+pub fn map_perpetual_portfolio(response: HypercorePortfolioResponse, positions: &[AssetPositions]) -> PerpetualPortfolio {
     let (day, week, month, all_time) = response.timeframes.into_iter().fold((None, None, None, None), |(day, week, month, all_time), (timeframe, data)| match timeframe.as_str() {
         "perpDay" => (Some(data.into()), week, month, all_time),
         "perpWeek" => (day, Some(data.into()), month, all_time),
@@ -219,15 +198,7 @@ pub fn map_perpetual_portfolio(response: HypercorePortfolioResponse, positions: 
     }
 }
 
-fn perp_asset_index(perp_dex_index: u32, meta_index: u32) -> u32 {
-    if perp_dex_index == 0 {
-        meta_index
-    } else {
-        HIP3_PERP_ASSET_OFFSET + perp_dex_index * HIP3_PERP_ASSET_STRIDE + meta_index
-    }
-}
-
-pub fn map_account_summary_aggregate(positions: &[AssetPositions]) -> PerpetualAccountSummary {
+fn map_account_summary(positions: &[AssetPositions]) -> PerpetualAccountSummary {
     let account_value: f64 = positions.iter().map(|p| p.margin_summary.account_value.parse().unwrap_or(0.0)).sum();
     let total_ntl_pos: f64 = positions.iter().map(|p| p.margin_summary.total_ntl_pos.parse().unwrap_or(0.0)).sum();
     let total_margin_used: f64 = positions.iter().map(|p| p.margin_summary.total_margin_used.parse().unwrap_or(0.0)).sum();
@@ -242,55 +213,6 @@ pub fn map_account_summary_aggregate(positions: &[AssetPositions]) -> PerpetualA
         margin_usage,
         unrealized_pnl,
     }
-}
-
-pub fn merge_perpetual_portfolios(portfolios: Vec<PerpetualPortfolio>, account_summary: Option<PerpetualAccountSummary>) -> PerpetualPortfolio {
-    let mut day = Vec::new();
-    let mut week = Vec::new();
-    let mut month = Vec::new();
-    let mut all_time = Vec::new();
-
-    for portfolio in portfolios {
-        day.extend(portfolio.day);
-        week.extend(portfolio.week);
-        month.extend(portfolio.month);
-        all_time.extend(portfolio.all_time);
-    }
-
-    PerpetualPortfolio {
-        day: merge_portfolio_timeframes(day),
-        week: merge_portfolio_timeframes(week),
-        month: merge_portfolio_timeframes(month),
-        all_time: merge_portfolio_timeframes(all_time),
-        account_summary,
-    }
-}
-
-fn merge_portfolio_timeframes(values: Vec<PerpetualPortfolioTimeframeData>) -> Option<PerpetualPortfolioTimeframeData> {
-    if values.is_empty() {
-        return None;
-    }
-
-    let volume: f64 = values.iter().map(|v| v.volume).sum();
-    let (account_value_histories, pnl_histories): (Vec<_>, Vec<_>) = values.into_iter().map(|v| (v.account_value_history, v.pnl_history)).unzip();
-
-    Some(PerpetualPortfolioTimeframeData {
-        account_value_history: merge_chart_histories(account_value_histories),
-        pnl_history: merge_chart_histories(pnl_histories),
-        volume,
-    })
-}
-
-fn merge_chart_histories(values: Vec<Vec<ChartDateValue>>) -> Vec<ChartDateValue> {
-    let mut grouped = BTreeMap::new();
-    for history in values {
-        for point in history {
-            let entry = grouped.entry(point.date).or_insert(0.0);
-            *entry += point.value;
-        }
-    }
-
-    grouped.into_iter().map(|(date, value)| ChartDateValue { date, value }).collect()
 }
 
 fn determine_order_type(order_type_str: &str) -> PerpetualOrderType {
@@ -455,7 +377,7 @@ mod tests {
         }];
 
         let metadata_response = HypercoreMetadataResponse(universe_response, asset_metadata);
-        let result = map_perpetuals_data(metadata_response, 0);
+        let result = map_perpetuals_data(metadata_response, PerpDex::Main);
 
         assert_eq!(result.len(), 1);
 
@@ -488,9 +410,9 @@ mod tests {
         let asset_metadata = vec![AssetMetadata::mock()];
 
         let metadata_response = HypercoreMetadataResponse(universe_response, asset_metadata);
-        let result = map_perpetuals_data(metadata_response, 2);
+        let result = map_perpetuals_data(metadata_response, PerpDex::Xyz);
 
-        assert_eq!(result[0].perpetual.identifier, "120000");
+        assert_eq!(result[0].perpetual.identifier, "110000");
     }
 
     #[test]
@@ -513,7 +435,7 @@ mod tests {
         let asset_metadata = vec![AssetMetadata::mock(), AssetMetadata::mock()];
 
         let metadata_response = HypercoreMetadataResponse(universe_response, asset_metadata);
-        let result = map_perpetuals_data(metadata_response, 0);
+        let result = map_perpetuals_data(metadata_response, PerpDex::Main);
 
         assert_eq!(result.len(), 2);
         assert!(result[0].perpetual.is_isolated_only);
@@ -524,7 +446,7 @@ mod tests {
     fn test_map_perpetuals_data_disables_delisted() {
         let metadata: HypercoreMetadataResponse = serde_json::from_str(include_str!("../../testdata/perpetual_markets_response_meta_and_asset_ctxs.json")).unwrap();
 
-        let result = map_perpetuals_data(metadata, 0);
+        let result = map_perpetuals_data(metadata, PerpDex::Main);
 
         assert_eq!(
             result.iter().map(|data| (data.perpetual.name.as_str(), data.perpetual.identifier.as_str(), data.perpetual.is_enabled)).collect::<Vec<_>>(),
@@ -861,7 +783,7 @@ mod tests {
         };
         let positions = AssetPositions::mock();
 
-        let result = map_perpetual_portfolio(response, &positions);
+        let result = map_perpetual_portfolio(response, &[positions]);
 
         assert_eq!(result.day.unwrap().volume, 100.0);
         assert_eq!(result.week.unwrap().volume, 500.0);
@@ -879,81 +801,12 @@ mod tests {
     fn test_map_account_summary() {
         use crate::testkit::*;
 
-        let positions = AssetPositions::mock();
-        let summary = map_account_summary(&positions);
+        let summary = map_account_summary(&[AssetPositions::mock(), AssetPositions::mock()]);
 
-        assert_eq!(summary.account_value, 10000.0);
+        assert_eq!(summary.account_value, 20000.0, "the main dex and a HIP-3 dex add up");
         assert_eq!(summary.account_leverage, 0.5);
         assert_eq!(summary.margin_usage, 0.2);
         assert_eq!(summary.unrealized_pnl, 0.0);
-    }
-
-    #[test]
-    fn test_map_account_summary_aggregate() {
-        use crate::testkit::*;
-
-        let positions = vec![AssetPositions::mock(), AssetPositions::mock()];
-        let summary = map_account_summary_aggregate(&positions);
-
-        assert_eq!(summary.account_value, 20000.0);
-        assert_eq!(summary.account_leverage, 0.5);
-        assert_eq!(summary.margin_usage, 0.2);
-        assert_eq!(summary.unrealized_pnl, 0.0);
-    }
-
-    #[test]
-    fn test_perp_asset_index() {
-        assert_eq!(perp_asset_index(0, 0), 0);
-        assert_eq!(perp_asset_index(0, 5), 5);
-        assert_eq!(perp_asset_index(1, 0), 110_000);
-        assert_eq!(perp_asset_index(1, 3), 110_003);
-        assert_eq!(perp_asset_index(2, 0), 120_000);
-        assert_eq!(perp_asset_index(2, 7), 120_007);
-    }
-
-    #[test]
-    fn test_merge_chart_histories() {
-        use chrono::{TimeZone, Utc};
-
-        let d1 = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
-        let d2 = Utc.with_ymd_and_hms(2024, 1, 2, 0, 0, 0).unwrap();
-        let d3 = Utc.with_ymd_and_hms(2024, 1, 3, 0, 0, 0).unwrap();
-
-        let histories = vec![
-            vec![ChartDateValue { date: d1, value: 100.0 }, ChartDateValue { date: d2, value: 200.0 }],
-            vec![ChartDateValue { date: d1, value: 50.0 }, ChartDateValue { date: d3, value: 300.0 }],
-        ];
-
-        let merged = merge_chart_histories(histories);
-        assert_eq!(merged.len(), 3);
-        assert_eq!(merged[0].value, 150.0);
-        assert_eq!(merged[1].value, 200.0);
-        assert_eq!(merged[2].value, 300.0);
-    }
-
-    #[test]
-    fn test_merge_perpetual_portfolios() {
-        let portfolios = vec![PerpetualPortfolio::mock(), PerpetualPortfolio::mock()];
-
-        let summary = PerpetualAccountSummary {
-            account_value: 1000.0,
-            account_leverage: 2.0,
-            margin_usage: 0.5,
-            unrealized_pnl: 30.0,
-        };
-
-        let merged = merge_perpetual_portfolios(portfolios, Some(summary));
-
-        let day = merged.day.unwrap();
-        assert_eq!(day.volume, 10000.0);
-        assert_eq!(day.account_value_history.len(), 1);
-        assert_eq!(day.account_value_history[0].value, 2000.0);
-        assert_eq!(day.pnl_history[0].value, 100.0);
-
-        assert!(merged.week.is_none());
-
-        let summary = merged.account_summary.unwrap();
-        assert_eq!(summary.account_value, 1000.0);
     }
 
     #[test]
