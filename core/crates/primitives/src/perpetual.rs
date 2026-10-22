@@ -249,4 +249,11 @@ impl PerpetualType {
             Self::Reduce { data } => &data.data.base_asset,
         }
     }
+
+    pub fn adds_exposure(&self) -> bool {
+        match self {
+            Self::Open { .. } | Self::Increase { .. } => true,
+            Self::Close { .. } | Self::Reduce { .. } | Self::Modify { .. } => false,
+        }
+    }
 }
