@@ -365,10 +365,10 @@ fn order_amounts(usd_amount: f64, leverage: u8, price: f64) -> (f64, f64, f64) {
     (size, fiat_value, margin_amount)
 }
 
-pub fn includes_perpetual_collateral(mode: PerpetualAccountMode) -> bool {
+pub fn spot_is_perpetual_collateral(mode: PerpetualAccountMode) -> bool {
     match mode {
-        PerpetualAccountMode::Standard => true,
-        PerpetualAccountMode::Unified => false,
+        PerpetualAccountMode::Standard => false,
+        PerpetualAccountMode::Unified => true,
     }
 }
 
@@ -1231,8 +1231,8 @@ mod tests {
 
     #[test]
     fn test_perpetual_collateral_counts_only_in_standard_mode() {
-        assert!(includes_perpetual_collateral(PerpetualAccountMode::Standard));
-        assert!(!includes_perpetual_collateral(PerpetualAccountMode::Unified));
+        assert!(!spot_is_perpetual_collateral(PerpetualAccountMode::Standard));
+        assert!(spot_is_perpetual_collateral(PerpetualAccountMode::Unified));
     }
 
     #[test]

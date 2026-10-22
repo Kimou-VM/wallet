@@ -221,7 +221,7 @@ impl GemPerpetualService {
         let message = parse_websocket_data(&data).map_err(GemServiceError::core)?;
         match message {
             HyperliquidSocketMessage::AccountState { dex, balance, positions } => {
-                if self.wallet_preferences.includes_perpetual_collateral(wallet_id.clone())
+                if !rules::spot_is_perpetual_collateral(self.wallet_preferences.get_perpetual_account_mode(wallet_id.clone()))
                     && let Some(total) = self.total_balance(wallet_id.clone(), dex, balance)
                 {
                     self.update_balance(wallet_id.clone(), total).await?;
@@ -233,7 +233,7 @@ impl GemPerpetualService {
                 Ok(GemPerpetualSocketUpdate::Applied)
             }
             HyperliquidSocketMessage::SpotState { balance } => {
-                if !self.wallet_preferences.includes_perpetual_collateral(wallet_id.clone()) {
+                if rules::spot_is_perpetual_collateral(self.wallet_preferences.get_perpetual_account_mode(wallet_id.clone())) {
                     self.update_balance(wallet_id, balance).await?;
                 }
                 Ok(GemPerpetualSocketUpdate::Applied)
