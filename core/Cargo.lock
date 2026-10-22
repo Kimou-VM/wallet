@@ -6878,6 +6878,7 @@ dependencies = [
  "futures",
  "gem_client",
  "gem_evm",
+ "gem_hypercore",
  "gem_jsonrpc",
  "gem_solana",
  "gem_ton",
