@@ -8,6 +8,8 @@ on:
       - "rust-toolchain.toml"
       - ".github/actions/**"
       - ".github/workflows/core-ci.yml"
+      - ".github/workflows/publish-containers.yml"
+      - ".github/docker-bake.hcl"
   pull_request:
     branches: ["main"]
     paths:
@@ -114,3 +116,11 @@ jobs:
         run: just test-database
         env:
           DATABASE_URL: "postgres://postgres:postgres@localhost/postgres"
+
+  publish:
+    needs: [lint, unit_test, check_schema]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish-containers.yml
