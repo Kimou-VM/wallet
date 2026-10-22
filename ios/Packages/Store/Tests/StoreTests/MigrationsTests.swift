@@ -173,7 +173,7 @@ struct MigrationsTests {
 
         try dbQueue.write { db in
             try db.drop(indexOn: table, columns: [name])
-            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = ?", arguments: ["Index \(table) by name"])
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = ?", arguments: ["Add isEnabled and the name index to \(table)"])
         }
         var upgrade = Migrations()
         try upgrade.run(dbQueue: dbQueue)
