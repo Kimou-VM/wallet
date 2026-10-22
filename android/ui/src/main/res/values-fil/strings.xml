@@ -169,6 +169,7 @@
   <string name="settings_disable_value">Huwag paganahin ang %1$s</string>
   <string name="settings_preferences_title">Mga Kagustuhan</string>
   <string name="settings_preferences_perpetual_default_leverage">Default na Leverage</string>
+  <string name="settings_preferences_perpetual_default_margin">Default na Margin</string>
   <string name="settings_preferences_perpetual_default_take_profit">Default na Take Profit</string>
   <string name="settings_preferences_perpetual_default_stop_loss">Default na Stop Loss</string>
   <string name="settings_appearance_title">Anyo</string>

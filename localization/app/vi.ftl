@@ -193,6 +193,7 @@ settings_hide_balance = Ẩn số dư
 settings_disable_value = Vô hiệu hóa %@
 settings_preferences_title = Sở thích
 settings_preferences_perpetual_default_leverage = Đòn bẩy mặc định
+settings_preferences_perpetual_default_margin = Ký quỹ mặc định
 settings_preferences_perpetual_default_take_profit = Take Profit mặc định
 settings_preferences_perpetual_default_stop_loss = Stop Loss mặc định
 settings_appearance_title = Giao diện

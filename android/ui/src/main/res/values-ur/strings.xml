@@ -169,6 +169,7 @@
   <string name="settings_disable_value">غیر فعال کریں %1$s</string>
   <string name="settings_preferences_title">ترجیحات</string>
   <string name="settings_preferences_perpetual_default_leverage">ڈیفالٹ لیوریج</string>
+  <string name="settings_preferences_perpetual_default_margin">ڈیفالٹ مارجن</string>
   <string name="settings_preferences_perpetual_default_take_profit">ڈیفالٹ ٹیک پرافٹ</string>
   <string name="settings_preferences_perpetual_default_stop_loss">ڈیفالٹ اسٹاپ لاس</string>
   <string name="settings_appearance_title">ظاہری شکل</string>

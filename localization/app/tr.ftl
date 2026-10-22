@@ -193,6 +193,7 @@ settings_hide_balance = Bakiyeyi Gizle
 settings_disable_value = %@ yi devre dışı bırak
 settings_preferences_title = Tercihler
 settings_preferences_perpetual_default_leverage = Varsayılan Kaldıraç
+settings_preferences_perpetual_default_margin = Varsayılan Marj
 settings_preferences_perpetual_default_take_profit = Varsayılan Take Profit
 settings_preferences_perpetual_default_stop_loss = Varsayılan Stop Loss
 settings_appearance_title = Görünüm

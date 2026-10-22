@@ -193,6 +193,7 @@ settings_hide_balance = Skjul saldo
 settings_disable_value = Deaktiver %@
 settings_preferences_title = Præferencer
 settings_preferences_perpetual_default_leverage = Standardgearing
+settings_preferences_perpetual_default_margin = Standardmargin
 settings_preferences_perpetual_default_take_profit = Standard Take Profit
 settings_preferences_perpetual_default_stop_loss = Standard Stop Loss
 settings_appearance_title = Udseende

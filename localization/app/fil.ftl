@@ -193,6 +193,7 @@ settings_hide_balance = Itago ang Balanse
 settings_disable_value = Huwag paganahin ang %@
 settings_preferences_title = Mga Kagustuhan
 settings_preferences_perpetual_default_leverage = Default na Leverage
+settings_preferences_perpetual_default_margin = Default na Margin
 settings_preferences_perpetual_default_take_profit = Default na Take Profit
 settings_preferences_perpetual_default_stop_loss = Default na Stop Loss
 settings_appearance_title = Anyo

@@ -169,6 +169,7 @@
   <string name="settings_disable_value">Вимкнути %1$s</string>
   <string name="settings_preferences_title">Налаштування</string>
   <string name="settings_preferences_perpetual_default_leverage">Плече за замовчуванням</string>
+  <string name="settings_preferences_perpetual_default_margin">Маржа за замовчуванням</string>
   <string name="settings_preferences_perpetual_default_take_profit">Тейк-профіт за замовчуванням</string>
   <string name="settings_preferences_perpetual_default_stop_loss">Стоп-лосс за замовчуванням</string>
   <string name="settings_appearance_title">Оформлення</string>

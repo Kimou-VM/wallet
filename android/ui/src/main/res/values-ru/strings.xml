@@ -169,6 +169,7 @@
   <string name="settings_disable_value">Отключить %1$s</string>
   <string name="settings_preferences_title">Настройки</string>
   <string name="settings_preferences_perpetual_default_leverage">Плечо по умолчанию</string>
+  <string name="settings_preferences_perpetual_default_margin">Маржа по умолчанию</string>
   <string name="settings_preferences_perpetual_default_take_profit">Тейк-профит по умолчанию</string>
   <string name="settings_preferences_perpetual_default_stop_loss">Стоп-лосс по умолчанию</string>
   <string name="settings_appearance_title">Оформление</string>

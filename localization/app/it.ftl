@@ -193,6 +193,7 @@ settings_hide_balance = Nascondi saldo
 settings_disable_value = Disabilita %@
 settings_preferences_title = Preferenze
 settings_preferences_perpetual_default_leverage = Leva finanziaria predefinita
+settings_preferences_perpetual_default_margin = Margine predefinito
 settings_preferences_perpetual_default_take_profit = Take Profit predefinito
 settings_preferences_perpetual_default_stop_loss = Stop Loss predefinito
 settings_appearance_title = Aspetto

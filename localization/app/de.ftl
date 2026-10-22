@@ -193,6 +193,7 @@ settings_hide_balance = Guthaben ausblenden
 settings_disable_value = %@ deaktivieren
 settings_preferences_title = Einstellungen
 settings_preferences_perpetual_default_leverage = Standardhebel
+settings_preferences_perpetual_default_margin = Standard-Marge
 settings_preferences_perpetual_default_take_profit = Standard-Take-Profit
 settings_preferences_perpetual_default_stop_loss = Standard-Stop-Loss
 settings_appearance_title = Erscheinungsbild

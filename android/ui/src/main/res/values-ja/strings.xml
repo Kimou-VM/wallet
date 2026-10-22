@@ -169,6 +169,7 @@
   <string name="settings_disable_value">%1$sを無効にする</string>
   <string name="settings_preferences_title">設定</string>
   <string name="settings_preferences_perpetual_default_leverage">デフォルトレバレッジ</string>
+  <string name="settings_preferences_perpetual_default_margin">デフォルトマージンモード</string>
   <string name="settings_preferences_perpetual_default_take_profit">デフォルト利確</string>
   <string name="settings_preferences_perpetual_default_stop_loss">デフォルト損切り</string>
   <string name="settings_appearance_title">外観</string>

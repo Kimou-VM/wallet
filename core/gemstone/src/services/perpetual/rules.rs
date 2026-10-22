@@ -516,7 +516,7 @@ pub(crate) fn margin_amount_value(position: &PerpetualPosition) -> BigUint {
     gem_hypercore::perpetual_formatter::usdc_value(position.margin_amount)
 }
 
-pub fn position_action(perpetual: &Perpetual, asset: &Asset, position: Option<PerpetualPosition>, kind: GemPerpetualPositionKind) -> Result<GemPerpetualPositionAction, GemServiceError> {
+pub fn position_action(perpetual: &Perpetual, asset: &Asset, position: Option<PerpetualPosition>, kind: GemPerpetualPositionKind, margin_type: PerpetualMarginType) -> Result<GemPerpetualPositionAction, GemServiceError> {
     let asset_index = asset_index(perpetual)?;
     let data = |direction: PerpetualDirection, leverage: u8, margin_type: PerpetualMarginType| GemPerpetualTransferData {
         provider: perpetual.provider.clone(),
@@ -529,9 +529,12 @@ pub fn position_action(perpetual: &Perpetual, asset: &Asset, position: Option<Pe
         margin_type,
     };
     Ok(match kind {
-        GemPerpetualPositionKind::Open { direction } => GemPerpetualPositionAction::Open {
-            data: data(direction, perpetual.max_leverage, PerpetualMarginType::Isolated),
-        },
+        GemPerpetualPositionKind::Open { direction } => {
+            let margin_type = if perpetual.is_isolated_only { PerpetualMarginType::Isolated } else { margin_type };
+            GemPerpetualPositionAction::Open {
+                data: data(direction, perpetual.max_leverage, margin_type),
+            }
+        }
         GemPerpetualPositionKind::Increase => {
             let position = position_for(perpetual, position)?;
             GemPerpetualPositionAction::Increase {
@@ -1578,20 +1581,24 @@ mod tests {
         held.margin_amount = 2.5;
         let open_long = GemPerpetualPositionKind::Open { direction: PerpetualDirection::Long };
 
-        let open = position_action(&market, &asset, None, open_long.clone()).unwrap();
+        let open = position_action(&market, &asset, None, open_long.clone(), PerpetualMarginType::Isolated).unwrap();
         let GemPerpetualPositionAction::Open { data } = &open else { panic!("expected an open") };
-        assert_eq!(
-            (data.asset_index, data.leverage, &data.direction, &data.margin_type),
-            (7, 20, &PerpetualDirection::Long, &PerpetualMarginType::Isolated),
-            "every new position opens isolated, even where Hyperliquid allows cross"
-        );
+        assert_eq!((data.asset_index, data.leverage, &data.direction, &data.margin_type), (7, 20, &PerpetualDirection::Long, &PerpetualMarginType::Isolated));
         assert_eq!(data.base_asset.id, HYPERCORE_PERPETUAL_USDC.id);
 
-        let increase = position_action(&market, &asset, Some(held.clone()), GemPerpetualPositionKind::Increase).unwrap();
+        let opened_margin = |market: &Perpetual, margin_type: PerpetualMarginType| match position_action(market, &asset, None, open_long.clone(), margin_type).unwrap() {
+            GemPerpetualPositionAction::Open { data } => data.margin_type,
+            action => panic!("expected an open, got {action:?}"),
+        };
+        let isolated_only = Perpetual { is_isolated_only: true, ..market.clone() };
+        assert_eq!(opened_margin(&market, PerpetualMarginType::Cross), PerpetualMarginType::Cross, "the margin type the user chose in Settings");
+        assert_eq!(opened_margin(&isolated_only, PerpetualMarginType::Cross), PerpetualMarginType::Isolated, "a market that only allows isolated stays isolated");
+
+        let increase = position_action(&market, &asset, Some(held.clone()), GemPerpetualPositionKind::Increase, PerpetualMarginType::Isolated).unwrap();
         let GemPerpetualPositionAction::Increase { data } = &increase else { panic!("expected an increase") };
         assert_eq!(data.margin_type, PerpetualMarginType::Cross, "a position opened cross stays cross");
 
-        let reduce = position_action(&market, &asset, Some(held.clone()), GemPerpetualPositionKind::Reduce).unwrap();
+        let reduce = position_action(&market, &asset, Some(held.clone()), GemPerpetualPositionKind::Reduce, PerpetualMarginType::Isolated).unwrap();
         let GemPerpetualPositionAction::Reduce { data, position } = &reduce else { panic!("expected a reduce") };
         assert_eq!(
             (&data.direction, data.leverage, &data.margin_type),
@@ -1612,12 +1619,15 @@ mod tests {
         let encoded = serde_json::to_string(&reduce).unwrap();
         assert_eq!(serde_json::from_str::<GemPerpetualPositionAction>(&encoded).unwrap(), reduce, "the action survives a route round trip");
 
-        assert!(position_action(&market, &asset, None, GemPerpetualPositionKind::Increase).is_err(), "increasing needs a position");
+        assert!(
+            position_action(&market, &asset, None, GemPerpetualPositionKind::Increase, PerpetualMarginType::Isolated).is_err(),
+            "increasing needs a position"
+        );
         let unindexed = Perpetual {
             identifier: "BTC".to_string(),
             ..Perpetual::mock()
         };
-        assert!(position_action(&unindexed, &asset, None, open_long).is_err());
+        assert!(position_action(&unindexed, &asset, None, open_long, PerpetualMarginType::Isolated).is_err());
     }
 
     #[test]
@@ -1645,7 +1655,7 @@ mod tests {
                         pnl: 0.78,
                         ..PerpetualPosition::mock()
                     };
-                    let action = position_action(&market, &asset, Some(held.clone()), GemPerpetualPositionKind::Reduce).unwrap();
+                    let action = position_action(&market, &asset, Some(held.clone()), GemPerpetualPositionKind::Reduce, PerpetualMarginType::Isolated).unwrap();
                     let close = close_transfer(&market, &asset, Some(held)).unwrap();
                     for use_max_amount in [false, true] {
                         let reduce = order_transfer(action.clone(), BigInt::from(6_000_000 / u64::from(leverage)), use_max_amount, leverage, None, None);
@@ -1672,7 +1682,7 @@ mod tests {
                 margin_amount: 40.0,
                 ..PerpetualPosition::mock()
             };
-            let action = position_action(&market, &asset, Some(held), GemPerpetualPositionKind::Reduce).unwrap();
+            let action = position_action(&market, &asset, Some(held), GemPerpetualPositionKind::Reduce, PerpetualMarginType::Isolated).unwrap();
             for use_max_amount in [false, true] {
                 let transfer = order_transfer(action.clone(), 12_000_000.into(), use_max_amount, 1, None, None);
                 let reduced = match transfer.input_type.get_perpetual_type().unwrap() {
@@ -1689,7 +1699,7 @@ mod tests {
     fn test_order_transfer_and_close_transfer_address_the_provider() {
         let market = Perpetual::mock();
         let asset = Asset::from_chain(Chain::HyperCore);
-        let open = position_action(&market, &asset, None, GemPerpetualPositionKind::Open { direction: PerpetualDirection::Long }).unwrap();
+        let open = position_action(&market, &asset, None, GemPerpetualPositionKind::Open { direction: PerpetualDirection::Long }, PerpetualMarginType::Isolated).unwrap();
         let transfer = order_transfer(open, BigInt::from(50_000_000), false, 8, Some(120.5), None);
         let TransactionInputType::Perpetual {
             perpetual_type: PerpetualType::Open { data },
@@ -1723,7 +1733,7 @@ mod tests {
         let market = Perpetual::mock();
         let asset = Asset::from_chain(Chain::HyperCore);
         let chain_collateral = collateral_asset_id(Chain::HyperCore).unwrap();
-        let open = position_action(&market, &asset, None, GemPerpetualPositionKind::Open { direction: PerpetualDirection::Long }).unwrap();
+        let open = position_action(&market, &asset, None, GemPerpetualPositionKind::Open { direction: PerpetualDirection::Long }, PerpetualMarginType::Isolated).unwrap();
         let transfers = [order_transfer(open, BigInt::from(50_000_000), false, 8, None, None), close_transfer(&market, &asset, Some(PerpetualPosition::mock())).unwrap()];
 
         for transfer in transfers {

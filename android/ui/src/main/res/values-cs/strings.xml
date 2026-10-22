@@ -169,6 +169,7 @@
   <string name="settings_disable_value">Zakázat %1$s</string>
   <string name="settings_preferences_title">Předvolby</string>
   <string name="settings_preferences_perpetual_default_leverage">Výchozí pákový efekt</string>
+  <string name="settings_preferences_perpetual_default_margin">Výchozí marže</string>
   <string name="settings_preferences_perpetual_default_take_profit">Výchozí take profit</string>
   <string name="settings_preferences_perpetual_default_stop_loss">Výchozí stop loss</string>
   <string name="settings_appearance_title">Vzhled</string>

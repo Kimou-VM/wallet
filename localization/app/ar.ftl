@@ -193,6 +193,7 @@ settings_hide_balance = إخفاء الرصيد
 settings_disable_value = تعطيل %@
 settings_preferences_title = التفضيلات
 settings_preferences_perpetual_default_leverage = الرافعة المالية الافتراضية
+settings_preferences_perpetual_default_margin = الهامش الافتراضي
 settings_preferences_perpetual_default_take_profit = جني الأرباح الافتراضي
 settings_preferences_perpetual_default_stop_loss = إيقاف الخسارة الافتراضي
 settings_appearance_title = المظهر

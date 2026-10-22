@@ -169,6 +169,7 @@
   <string name="settings_disable_value">غیرفعال کردن %1$s</string>
   <string name="settings_preferences_title">تنظیمات برگزیده</string>
   <string name="settings_preferences_perpetual_default_leverage">اهرم پیش‌فرض</string>
+  <string name="settings_preferences_perpetual_default_margin">حاشیه پیش‌فرض</string>
   <string name="settings_preferences_perpetual_default_take_profit">حد سود پیشفرض</string>
   <string name="settings_preferences_perpetual_default_stop_loss">حد ضرر پیشفرض</string>
   <string name="settings_appearance_title">ظاهر</string>

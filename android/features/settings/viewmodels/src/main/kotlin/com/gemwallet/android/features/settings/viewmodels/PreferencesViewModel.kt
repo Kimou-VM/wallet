@@ -70,6 +70,7 @@ class PreferencesViewModel @Inject constructor(
         val defaults = perpetualDefaults.value
         val updated = when (setting) {
             PerpetualSetting.Leverage -> defaults.copy(leverage = value.toUByte())
+            PerpetualSetting.MarginType -> defaults.copy(marginType = value.toUByte())
             PerpetualSetting.TakeProfit -> defaults.copy(takeProfitPercent = value.toUByte())
             PerpetualSetting.StopLoss -> defaults.copy(stopLossPercent = value.toUByte())
         }

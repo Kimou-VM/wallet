@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use primitives::ChartPeriod;
 use primitives::currency::Currency;
-use primitives::{Appearance, AssetId, Chain, ConfigResponse, Device, WalletType};
+use primitives::{Appearance, AssetId, Chain, ConfigResponse, Device, PerpetualMarginType, WalletType};
 
 use crate::config::perpetual_config;
 use crate::services::assets::AssetList;
@@ -37,6 +37,7 @@ const PERPETUAL_MARKETS_UPDATED_AT: &str = "perpetual_markets_updated_at";
 const PERPETUAL_PRICES_UPDATED_AT: &str = "perpetual_prices_updated_at";
 const SWAP_SLIPPAGE_BPS: &str = "swap_slippage_bps";
 const PERPETUAL_LEVERAGE: &str = "perpetual_leverage";
+const PERPETUAL_MARGIN_TYPE: &str = "perpetual_margin_type";
 const PERPETUAL_TAKE_PROFIT: &str = "perpetual_take_profit";
 const PERPETUAL_STOP_LOSS: &str = "perpetual_stop_loss";
 const IS_PERPETUAL_ENABLED: &str = "is_perpetual_enabled";
@@ -203,6 +204,14 @@ impl GemPreferencesService {
 
     pub fn set_perpetual_leverage(&self, leverage: u8) -> Result<(), GemServiceError> {
         self.set_observed(PERPETUAL_LEVERAGE, leverage.to_string())
+    }
+
+    pub fn get_perpetual_margin_type(&self) -> PerpetualMarginType {
+        self.store.get(PERPETUAL_MARGIN_TYPE.to_string()).and_then(|value| value.parse().ok()).unwrap_or(PerpetualMarginType::Isolated)
+    }
+
+    pub fn set_perpetual_margin_type(&self, margin_type: PerpetualMarginType) -> Result<(), GemServiceError> {
+        self.set_observed(PERPETUAL_MARGIN_TYPE, margin_type.as_ref().to_string())
     }
 
     pub fn get_perpetual_take_profit_percent(&self) -> u8 {

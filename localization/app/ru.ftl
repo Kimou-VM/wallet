@@ -193,6 +193,7 @@ settings_hide_balance = Скрыть баланс
 settings_disable_value = Отключить %@
 settings_preferences_title = Настройки
 settings_preferences_perpetual_default_leverage = Плечо по умолчанию
+settings_preferences_perpetual_default_margin = Маржа по умолчанию
 settings_preferences_perpetual_default_take_profit = Тейк-профит по умолчанию
 settings_preferences_perpetual_default_stop_loss = Стоп-лосс по умолчанию
 settings_appearance_title = Оформление

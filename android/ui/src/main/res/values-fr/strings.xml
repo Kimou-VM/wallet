@@ -169,6 +169,7 @@
   <string name="settings_disable_value">Désactiver %1$s</string>
   <string name="settings_preferences_title">Préférences</string>
   <string name="settings_preferences_perpetual_default_leverage">effet de levier par défaut</string>
+  <string name="settings_preferences_perpetual_default_margin">Marge par défaut</string>
   <string name="settings_preferences_perpetual_default_take_profit">Take Profit par défaut</string>
   <string name="settings_preferences_perpetual_default_stop_loss">Stop Loss par défaut</string>
   <string name="settings_appearance_title">Apparence</string>

@@ -193,6 +193,7 @@ settings_hide_balance = ব্যালেন্স লুকান
 settings_disable_value = %@ অক্ষম করুন
 settings_preferences_title = পছন্দসমূহ
 settings_preferences_perpetual_default_leverage = ডিফল্ট লিভারেজ
+settings_preferences_perpetual_default_margin = ডিফল্ট মার্জিন
 settings_preferences_perpetual_default_take_profit = ডিফল্ট টেক প্রফিট
 settings_preferences_perpetual_default_stop_loss = ডিফল্ট স্টপ লস
 settings_appearance_title = চেহারা

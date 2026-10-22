@@ -193,6 +193,7 @@ settings_hide_balance = 残高を非表示
 settings_disable_value = %@を無効にする
 settings_preferences_title = 設定
 settings_preferences_perpetual_default_leverage = デフォルトレバレッジ
+settings_preferences_perpetual_default_margin = デフォルトマージンモード
 settings_preferences_perpetual_default_take_profit = デフォルト利確
 settings_preferences_perpetual_default_stop_loss = デフォルト損切り
 settings_appearance_title = 外観

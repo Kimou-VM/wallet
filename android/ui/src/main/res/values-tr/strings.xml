@@ -169,6 +169,7 @@
   <string name="settings_disable_value">%1$s yi devre dışı bırak</string>
   <string name="settings_preferences_title">Tercihler</string>
   <string name="settings_preferences_perpetual_default_leverage">Varsayılan Kaldıraç</string>
+  <string name="settings_preferences_perpetual_default_margin">Varsayılan Marj</string>
   <string name="settings_preferences_perpetual_default_take_profit">Varsayılan Take Profit</string>
   <string name="settings_preferences_perpetual_default_stop_loss">Varsayılan Stop Loss</string>
   <string name="settings_appearance_title">Görünüm</string>

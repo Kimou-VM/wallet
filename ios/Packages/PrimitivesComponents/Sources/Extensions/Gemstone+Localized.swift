@@ -214,6 +214,8 @@ public extension GemLocalizedText {
             PriceChangeCalculator().pnlText(formattedAmount: amount.text(), formattedPercentage: percent.text())
         case let .margin(amount, marginType):
             "\(amount.text()) (\(marginType.toPrimitives().title))"
+        case let .marginType(marginType):
+            marginType.toPrimitives().title
         case let .position(direction, leverage):
             "\(direction.toPrimitives().title.uppercased()) \(leverage.text())"
         case let .priceAlertLabel(label):
@@ -867,6 +869,7 @@ public extension GemListRowTitle {
         case .perpetuals: Localized.Perpetuals.title
         case .perpetualLeverage: Localized.Settings.Preferences.Perpetual.defaultLeverage
         case .perpetualTakeProfit: Localized.Settings.Preferences.Perpetual.defaultTakeProfit
+        case .perpetualMarginType: Localized.Settings.Preferences.Perpetual.defaultMargin
         case .perpetualStopLoss: Localized.Settings.Preferences.Perpetual.defaultStopLoss
         case .dailyVolume: Localized.Markets.dailyVolume
         case .openInterest: Localized.Info.Perpetual.OpenInterest.title

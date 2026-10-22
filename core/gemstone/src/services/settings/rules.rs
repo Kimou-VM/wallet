@@ -1,4 +1,4 @@
-use primitives::{Currency, PlatformStore, Release};
+use primitives::{Currency, PerpetualMarginType, PlatformStore, Release};
 
 use crate::config::perpetual_config;
 use crate::config::public::PublicUrl;
@@ -12,6 +12,7 @@ use crate::services::localization::GemLocalizedText;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
 pub struct GemPerpetualDefaults {
     pub leverage: u8,
+    pub margin_type: u8,
     pub take_profit_percent: u8,
     pub stop_loss_percent: u8,
 }
@@ -43,6 +44,7 @@ pub fn leverage_option(value: u8) -> GemPickerOption {
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct GemPerpetualPickers {
     pub leverage: Vec<GemPickerOption>,
+    pub margin_type: Vec<GemPickerOption>,
     pub take_profit: Vec<GemPickerOption>,
     pub stop_loss: Vec<GemPickerOption>,
 }
@@ -50,9 +52,24 @@ pub struct GemPerpetualPickers {
 pub fn perpetual_pickers() -> GemPerpetualPickers {
     GemPerpetualPickers {
         leverage: perpetual_config::LEVERAGE_OPTIONS.iter().map(|value| leverage_option(*value)).collect(),
+        margin_type: perpetual_config::MARGIN_TYPE_OPTIONS
+            .into_iter()
+            .map(|margin_type| GemPickerOption {
+                value: margin_type_value(&margin_type),
+                label: GemLocalizedText::MarginType { margin_type },
+            })
+            .collect(),
         take_profit: autoclose_options(perpetual_config::TAKE_PROFIT_PERCENT_OPTIONS),
         stop_loss: autoclose_options(perpetual_config::STOP_LOSS_PERCENT_OPTIONS),
     }
+}
+
+pub fn margin_type_value(margin_type: &PerpetualMarginType) -> u8 {
+    perpetual_config::MARGIN_TYPE_OPTIONS.iter().position(|option| option == margin_type).unwrap_or_default() as u8
+}
+
+pub fn margin_type(value: u8) -> PerpetualMarginType {
+    perpetual_config::MARGIN_TYPE_OPTIONS.get(value as usize).cloned().unwrap_or(PerpetualMarginType::Isolated)
 }
 
 fn autoclose_options(values: &[u8]) -> Vec<GemPickerOption> {
@@ -110,6 +127,9 @@ pub fn preferences_sections(input: PreferencesInput) -> Vec<GemListSection> {
                 input
                     .perpetuals_enabled
                     .then(|| picker(GemListRowTitle::PerpetualLeverage, label(&pickers.leverage, input.perpetual_defaults.leverage), GemRowAction::PerpetualLeverage)),
+                input
+                    .perpetuals_enabled
+                    .then(|| picker(GemListRowTitle::PerpetualMarginType, label(&pickers.margin_type, input.perpetual_defaults.margin_type), GemRowAction::PerpetualMarginType)),
                 input.perpetuals_enabled.then(|| {
                     picker(
                         GemListRowTitle::PerpetualTakeProfit,
@@ -296,6 +316,7 @@ mod tests {
             perpetuals_enabled,
             perpetual_defaults: GemPerpetualDefaults {
                 leverage: 5,
+                margin_type: 0,
                 take_profit_percent: 25,
                 stop_loss_percent: 0,
             },
@@ -312,7 +333,13 @@ mod tests {
             preferences_sections(preferences_input(true, Some("English")))
                 .last()
                 .map(|section| section.rows.iter().filter_map(row_title).collect::<Vec<_>>()),
-            Some(vec![GemListRowTitle::Perpetuals, GemListRowTitle::PerpetualLeverage, GemListRowTitle::PerpetualTakeProfit, GemListRowTitle::PerpetualStopLoss])
+            Some(vec![
+                GemListRowTitle::Perpetuals,
+                GemListRowTitle::PerpetualLeverage,
+                GemListRowTitle::PerpetualMarginType,
+                GemListRowTitle::PerpetualTakeProfit,
+                GemListRowTitle::PerpetualStopLoss
+            ])
         );
     }
 
@@ -329,7 +356,25 @@ mod tests {
         );
         assert_eq!(pickers.take_profit.first().map(|option| option.label.clone()), Some(GemLocalizedText::None), "no take profit reads as none");
         assert_eq!(
-            preferences_sections(preferences_input(true, None)).last().map(|section| section.rows.clone()).unwrap_or_default()[3],
+            pickers.margin_type.iter().map(|option| option.label.clone()).collect::<Vec<_>>(),
+            vec![
+                GemLocalizedText::MarginType { margin_type: PerpetualMarginType::Isolated },
+                GemLocalizedText::MarginType { margin_type: PerpetualMarginType::Cross }
+            ],
+            "isolated comes first as the default"
+        );
+        let rows = preferences_sections(preferences_input(true, None)).last().map(|section| section.rows.clone()).unwrap_or_default();
+        assert_eq!(
+            rows[2],
+            GemListRow::Picker {
+                title: GemListRowTitle::PerpetualMarginType,
+                value: GemLocalizedText::MarginType { margin_type: PerpetualMarginType::Isolated },
+                icon: GemListRowIcon::None,
+                action: GemRowAction::PerpetualMarginType,
+            }
+        );
+        assert_eq!(
+            rows[4],
             GemListRow::Picker {
                 title: GemListRowTitle::PerpetualStopLoss,
                 value: GemLocalizedText::None,

@@ -193,6 +193,7 @@ settings_hide_balance = बैलेंस छिपाएँ
 settings_disable_value = %@ अक्षम करें
 settings_preferences_title = प्राथमिकताएँ
 settings_preferences_perpetual_default_leverage = डिफ़ॉल्ट उत्तोलन
+settings_preferences_perpetual_default_margin = डिफ़ॉल्ट मार्जिन
 settings_preferences_perpetual_default_take_profit = डिफ़ॉल्ट टेक प्रॉफिट
 settings_preferences_perpetual_default_stop_loss = डिफ़ॉल्ट स्टॉप लॉस
 settings_appearance_title = दिखावट

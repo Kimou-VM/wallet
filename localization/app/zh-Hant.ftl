@@ -193,6 +193,7 @@ settings_hide_balance = 隱藏餘額
 settings_disable_value = 停用 %@
 settings_preferences_title = 偏好設定
 settings_preferences_perpetual_default_leverage = 預設槓桿
+settings_preferences_perpetual_default_margin = 預設保證金模式
 settings_preferences_perpetual_default_take_profit = 預設止盈
 settings_preferences_perpetual_default_stop_loss = 預設止損
 settings_appearance_title = 外觀

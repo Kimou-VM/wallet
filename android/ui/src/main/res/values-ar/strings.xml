@@ -169,6 +169,7 @@
   <string name="settings_disable_value">تعطيل %1$s</string>
   <string name="settings_preferences_title">التفضيلات</string>
   <string name="settings_preferences_perpetual_default_leverage">الرافعة المالية الافتراضية</string>
+  <string name="settings_preferences_perpetual_default_margin">الهامش الافتراضي</string>
   <string name="settings_preferences_perpetual_default_take_profit">جني الأرباح الافتراضي</string>
   <string name="settings_preferences_perpetual_default_stop_loss">إيقاف الخسارة الافتراضي</string>
   <string name="settings_appearance_title">المظهر</string>

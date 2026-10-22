@@ -15,10 +15,11 @@ struct PreferencesSceneViewModelTests {
     @Test
     func theDefaultsComeFromCore() {
         let settings = GemSettingsServiceMock()
-        settings.perpetualDefaultsValue = GemPerpetualDefaults(leverage: 10, takeProfitPercent: 25, stopLossPercent: 5)
+        settings.perpetualDefaultsValue = GemPerpetualDefaults(leverage: 10, marginType: 0, takeProfitPercent: 25, stopLossPercent: 5)
         let model = PreferencesSceneViewModel.mock(settings: settings)
 
         #expect(model.perpetualLeverage.value == 10)
+        #expect(model.perpetualMarginType.label == .marginType(marginType: .isolated))
         #expect(model.perpetualTakeProfit.value == 25)
         #expect(model.perpetualStopLoss.value == 5)
         #expect(model.perpetualLeverage.displayText == "10x")
@@ -28,7 +29,7 @@ struct PreferencesSceneViewModelTests {
     @Test
     func changingALeverageWritesEveryDefaultBack() {
         let settings = GemSettingsServiceMock()
-        settings.perpetualDefaultsValue = GemPerpetualDefaults(leverage: 3, takeProfitPercent: 25, stopLossPercent: 10)
+        settings.perpetualDefaultsValue = GemPerpetualDefaults(leverage: 3, marginType: 0, takeProfitPercent: 25, stopLossPercent: 10)
         let model = PreferencesSceneViewModel.mock(settings: settings)
 
         model.perpetualLeverage = GemPickerOption(value: 20, label: .number(number: .mock(value: 20)))
@@ -49,6 +50,18 @@ struct PreferencesSceneViewModelTests {
 
         #expect(settings.storedDefaults.map(\.takeProfitPercent) == [50, 50])
         #expect(settings.storedDefaults.last?.stopLossPercent == 20)
+    }
+
+    @Test
+    func choosingCrossWritesTheMarginTypeBack() {
+        let settings = GemSettingsServiceMock()
+        let model = PreferencesSceneViewModel.mock(settings: settings)
+        let cross = model.marginTypeOptions.first { $0.label == .marginType(marginType: .cross) }!
+
+        model.perpetualMarginType = cross
+
+        #expect(settings.storedDefaults.last?.marginType == cross.value)
+        #expect(settings.storedDefaults.last?.leverage == 3)
     }
 
     @Test

@@ -193,6 +193,7 @@ settings_hide_balance = Sembunyikan Baki
 settings_disable_value = Lumpuhkan %@
 settings_preferences_title = Keutamaan
 settings_preferences_perpetual_default_leverage = Leveraj Lalai
+settings_preferences_perpetual_default_margin = Margin lalai
 settings_preferences_perpetual_default_take_profit = Take Profit lalai
 settings_preferences_perpetual_default_stop_loss = Stop Loss lalai
 settings_appearance_title = Penampilan

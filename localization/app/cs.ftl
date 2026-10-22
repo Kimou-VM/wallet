@@ -193,6 +193,7 @@ settings_hide_balance = Skrýt zůstatek
 settings_disable_value = Zakázat %@
 settings_preferences_title = Předvolby
 settings_preferences_perpetual_default_leverage = Výchozí pákový efekt
+settings_preferences_perpetual_default_margin = Výchozí marže
 settings_preferences_perpetual_default_take_profit = Výchozí take profit
 settings_preferences_perpetual_default_stop_loss = Výchozí stop loss
 settings_appearance_title = Vzhled

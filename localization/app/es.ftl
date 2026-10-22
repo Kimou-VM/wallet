@@ -193,6 +193,7 @@ settings_hide_balance = Ocultar saldo
 settings_disable_value = Deshabilitar %@
 settings_preferences_title = Preferencias
 settings_preferences_perpetual_default_leverage = Apalancamiento por defecto
+settings_preferences_perpetual_default_margin = Margen predeterminado
 settings_preferences_perpetual_default_take_profit = Take Profit predeterminado
 settings_preferences_perpetual_default_stop_loss = Stop Loss predeterminado
 settings_appearance_title = Apariencia

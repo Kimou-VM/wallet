@@ -193,6 +193,7 @@ settings_hide_balance = Sembunyikan Saldo
 settings_disable_value = Nonaktifkan %@
 settings_preferences_title = Preferensi
 settings_preferences_perpetual_default_leverage = Leverage Default
+settings_preferences_perpetual_default_margin = Margin default
 settings_preferences_perpetual_default_take_profit = Take Profit default
 settings_preferences_perpetual_default_stop_loss = Stop Loss default
 settings_appearance_title = Tampilan

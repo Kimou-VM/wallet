@@ -83,6 +83,7 @@ fun GemRowAction.detailsAction(assetId: AssetId, network: AssetAction.Navigation
     GemRowAction.Contacts,
     GemRowAction.Perpetuals,
     GemRowAction.PerpetualLeverage,
+    GemRowAction.PerpetualMarginType,
     GemRowAction.PerpetualTakeProfit,
     GemRowAction.PerpetualStopLoss,
     GemRowAction.PushNotifications,

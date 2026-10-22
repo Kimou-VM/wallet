@@ -169,6 +169,7 @@
   <string name="settings_disable_value">ปิดใช้งาน %1$s</string>
   <string name="settings_preferences_title">การตั้งค่า</string>
   <string name="settings_preferences_perpetual_default_leverage">เลเวอเรจเริ่มต้น</string>
+  <string name="settings_preferences_perpetual_default_margin">มาร์จินเริ่มต้น</string>
   <string name="settings_preferences_perpetual_default_take_profit">Take Profit เริ่มต้น</string>
   <string name="settings_preferences_perpetual_default_stop_loss">Stop Loss เริ่มต้น</string>
   <string name="settings_appearance_title">ลักษณะที่ปรากฏ</string>

@@ -23,6 +23,7 @@ public final class PreferencesSceneViewModel {
     private let pickers: GemPerpetualPickers
 
     var isPresentingLeveragePicker = false
+    var isPresentingMarginTypePicker = false
     var isPresentingTakeProfitPicker = false
     var isPresentingStopLossPicker = false
 
@@ -35,6 +36,7 @@ public final class PreferencesSceneViewModel {
         let defaults = settings.perpetualDefaults()
         pickers = settings.perpetualPickers()
         perpetualLeverage = Self.option(pickers.leverage, defaults.leverage)
+        perpetualMarginType = Self.option(pickers.marginType, defaults.marginType)
         perpetualTakeProfit = Self.option(pickers.takeProfit, defaults.takeProfitPercent)
         perpetualStopLoss = Self.option(pickers.stopLoss, defaults.stopLossPercent)
     }
@@ -45,6 +47,10 @@ public final class PreferencesSceneViewModel {
 
     var leverageTitle: String {
         GemListRowTitle.perpetualLeverage.text
+    }
+
+    var marginTypeTitle: String {
+        GemListRowTitle.perpetualMarginType.text
     }
 
     var takeProfitTitle: String {
@@ -79,6 +85,14 @@ public final class PreferencesSceneViewModel {
         pickers.leverage
     }
 
+    var perpetualMarginType: GemPickerOption {
+        didSet { persistPerpetualDefaults() }
+    }
+
+    var marginTypeOptions: [GemPickerOption] {
+        pickers.marginType
+    }
+
     var perpetualTakeProfit: GemPickerOption {
         didSet { persistPerpetualDefaults() }
     }
@@ -92,6 +106,7 @@ public final class PreferencesSceneViewModel {
             try settings.setPerpetualDefaults(
                 defaults: GemPerpetualDefaults(
                     leverage: perpetualLeverage.value,
+                    marginType: perpetualMarginType.value,
                     takeProfitPercent: perpetualTakeProfit.value,
                     stopLossPercent: perpetualStopLoss.value,
                 ),
@@ -134,6 +149,7 @@ extension PreferencesSceneViewModel {
     func onSelect(_ action: GemRowAction) {
         switch action {
         case .perpetualLeverage: isPresentingLeveragePicker = true
+        case .perpetualMarginType: isPresentingMarginTypePicker = true
         case .perpetualTakeProfit: isPresentingTakeProfitPicker = true
         case .perpetualStopLoss: isPresentingStopLossPicker = true
         default: break

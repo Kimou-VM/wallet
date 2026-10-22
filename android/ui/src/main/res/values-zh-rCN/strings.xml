@@ -169,6 +169,7 @@
   <string name="settings_disable_value">禁用 %1$s</string>
   <string name="settings_preferences_title">偏好设置</string>
   <string name="settings_preferences_perpetual_default_leverage">默认杠杆</string>
+  <string name="settings_preferences_perpetual_default_margin">默认保证金模式</string>
   <string name="settings_preferences_perpetual_default_take_profit">默认止盈</string>
   <string name="settings_preferences_perpetual_default_stop_loss">默认止损</string>
   <string name="settings_appearance_title">外观</string>

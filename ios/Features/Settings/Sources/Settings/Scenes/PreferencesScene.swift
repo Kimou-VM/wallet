@@ -31,6 +31,13 @@ public struct PreferencesScene: View {
                 selection: $model.perpetualLeverage,
             )
         }
+        .sheet(isPresented: $model.isPresentingMarginTypePicker) {
+            WheelPickerSheet(
+                title: model.marginTypeTitle,
+                options: model.marginTypeOptions,
+                selection: $model.perpetualMarginType,
+            )
+        }
         .sheet(isPresented: $model.isPresentingTakeProfitPicker) {
             WheelPickerSheet(
                 title: model.takeProfitTitle,

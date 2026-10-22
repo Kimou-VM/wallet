@@ -56,6 +56,7 @@ pub enum GemLocalizedText {
     CurrentPrice { price: GemFormattedNumber },
     Pnl { amount: GemFormattedNumber, percent: GemFormattedNumber },
     Margin { amount: GemFormattedNumber, margin_type: PerpetualMarginType },
+    MarginType { margin_type: PerpetualMarginType },
     Position { direction: PerpetualDirection, leverage: GemFormattedNumber },
     PriceAlertLabel { label: GemPriceAlertLabel },
     Apr { value: Option<GemFormattedNumber> },

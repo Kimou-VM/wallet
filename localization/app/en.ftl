@@ -367,6 +367,8 @@ settings_disable_value = Disable %@
 settings_preferences_title = Preferences
 # Settings > Preferences > Perpetuals row for the default leverage used when opening a perpetual position.
 settings_preferences_perpetual_default_leverage = Default Leverage
+# Settings > Preferences > Perpetuals row for the default margin type (isolated or cross) used when opening a perpetual position.
+settings_preferences_perpetual_default_margin = Default Margin
 # Settings > Preferences > Perpetuals row for the default take-profit percentage on new perpetual positions.
 settings_preferences_perpetual_default_take_profit = Default Take Profit
 # Settings > Preferences > Perpetuals row for the default stop-loss percentage on new perpetual positions.

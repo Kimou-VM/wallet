@@ -193,6 +193,7 @@ settings_hide_balance = הסתר יתרה
 settings_disable_value = השבת %@
 settings_preferences_title = העדפות
 settings_preferences_perpetual_default_leverage = מינוף ברירת מחדל
+settings_preferences_perpetual_default_margin = מרג'ין כברירת מחדל
 settings_preferences_perpetual_default_take_profit = Take Profit כברירת מחדל
 settings_preferences_perpetual_default_stop_loss = Stop Loss כברירת מחדל
 settings_appearance_title = מראה

@@ -169,6 +169,7 @@
   <string name="settings_disable_value">%1$s অক্ষম করুন</string>
   <string name="settings_preferences_title">পছন্দসমূহ</string>
   <string name="settings_preferences_perpetual_default_leverage">ডিফল্ট লিভারেজ</string>
+  <string name="settings_preferences_perpetual_default_margin">ডিফল্ট মার্জিন</string>
   <string name="settings_preferences_perpetual_default_take_profit">ডিফল্ট টেক প্রফিট</string>
   <string name="settings_preferences_perpetual_default_stop_loss">ডিফল্ট স্টপ লস</string>
   <string name="settings_appearance_title">চেহারা</string>

@@ -193,6 +193,7 @@ settings_hide_balance = Ukryj saldo
 settings_disable_value = Wyłącz %@
 settings_preferences_title = Preferencje
 settings_preferences_perpetual_default_leverage = Domyślna dźwignia
+settings_preferences_perpetual_default_margin = Domyślny margines
 settings_preferences_perpetual_default_take_profit = Domyślny take profit
 settings_preferences_perpetual_default_stop_loss = Domyślny stop loss
 settings_appearance_title = Wygląd

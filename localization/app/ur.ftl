@@ -193,6 +193,7 @@ settings_hide_balance = بیلنس چھپائیں
 settings_disable_value = غیر فعال کریں %@
 settings_preferences_title = ترجیحات
 settings_preferences_perpetual_default_leverage = ڈیفالٹ لیوریج
+settings_preferences_perpetual_default_margin = ڈیفالٹ مارجن
 settings_preferences_perpetual_default_take_profit = ڈیفالٹ ٹیک پرافٹ
 settings_preferences_perpetual_default_stop_loss = ڈیفالٹ اسٹاپ لاس
 settings_appearance_title = ظاہری شکل

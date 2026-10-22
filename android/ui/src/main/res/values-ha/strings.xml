@@ -169,6 +169,7 @@
   <string name="settings_disable_value">A kashe %1$s</string>
   <string name="settings_preferences_title">Abubuwan da ake so</string>
   <string name="settings_preferences_perpetual_default_leverage">Tsohuwar Leverage</string>
+  <string name="settings_preferences_perpetual_default_margin">Margin na asali</string>
   <string name="settings_preferences_perpetual_default_take_profit">Take Profit na asali</string>
   <string name="settings_preferences_perpetual_default_stop_loss">Stop Loss na asali</string>
   <string name="settings_appearance_title">Kamanni</string>

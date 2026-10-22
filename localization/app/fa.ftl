@@ -193,6 +193,7 @@ settings_hide_balance = مخفی کردن موجودی
 settings_disable_value = غیرفعال کردن %@
 settings_preferences_title = تنظیمات برگزیده
 settings_preferences_perpetual_default_leverage = اهرم پیش‌فرض
+settings_preferences_perpetual_default_margin = حاشیه پیش‌فرض
 settings_preferences_perpetual_default_take_profit = حد سود پیشفرض
 settings_preferences_perpetual_default_stop_loss = حد ضرر پیشفرض
 settings_appearance_title = ظاهر

@@ -169,6 +169,7 @@
   <string name="settings_disable_value">Deshabilitar %1$s</string>
   <string name="settings_preferences_title">Preferencias</string>
   <string name="settings_preferences_perpetual_default_leverage">Apalancamiento por defecto</string>
+  <string name="settings_preferences_perpetual_default_margin">Margen predeterminado</string>
   <string name="settings_preferences_perpetual_default_take_profit">Take Profit predeterminado</string>
   <string name="settings_preferences_perpetual_default_stop_loss">Stop Loss predeterminado</string>
   <string name="settings_appearance_title">Apariencia</string>

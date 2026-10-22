@@ -1312,6 +1312,8 @@ public enum Localized {
       public enum Perpetual {
         /// Default Leverage
         public static let defaultLeverage = Localized.tr("Localizable", "settings.preferences.perpetual.default_leverage", fallback: "Default Leverage")
+        /// Default Margin
+        public static let defaultMargin = Localized.tr("Localizable", "settings.preferences.perpetual.default_margin", fallback: "Default Margin")
         /// Default Stop Loss
         public static let defaultStopLoss = Localized.tr("Localizable", "settings.preferences.perpetual.default_stop_loss", fallback: "Default Stop Loss")
         /// Default Take Profit

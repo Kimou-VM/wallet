@@ -46,7 +46,7 @@ impl GemPerpetualDetailsService {
     }
 
     pub fn position_action(&self, perpetual: Perpetual, asset: Asset, position: Option<PerpetualPosition>, kind: GemPerpetualPositionKind) -> Result<GemPerpetualPositionAction, GemServiceError> {
-        rules::position_action(&perpetual, &asset, position, kind)
+        rules::position_action(&perpetual, &asset, position, kind, self.preferences.get_perpetual_margin_type())
     }
 
     pub fn close_transfer(&self, perpetual: Perpetual, asset: Asset, position: Option<PerpetualPosition>) -> Result<GemTransferData, GemServiceError> {

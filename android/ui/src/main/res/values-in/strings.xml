@@ -169,6 +169,7 @@
   <string name="settings_disable_value">Nonaktifkan %1$s</string>
   <string name="settings_preferences_title">Preferensi</string>
   <string name="settings_preferences_perpetual_default_leverage">Leverage Default</string>
+  <string name="settings_preferences_perpetual_default_margin">Margin default</string>
   <string name="settings_preferences_perpetual_default_take_profit">Take Profit default</string>
   <string name="settings_preferences_perpetual_default_stop_loss">Stop Loss default</string>
   <string name="settings_appearance_title">Tampilan</string>

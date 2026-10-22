@@ -43,6 +43,7 @@ impl GemSettingsService {
     pub fn perpetual_defaults(&self) -> GemPerpetualDefaults {
         GemPerpetualDefaults {
             leverage: self.preferences.get_perpetual_leverage(),
+            margin_type: rules::margin_type_value(&self.preferences.get_perpetual_margin_type()),
             take_profit_percent: self.preferences.get_perpetual_take_profit_percent(),
             stop_loss_percent: self.preferences.get_perpetual_stop_loss_percent(),
         }
@@ -50,6 +51,7 @@ impl GemSettingsService {
 
     pub fn set_perpetual_defaults(&self, defaults: GemPerpetualDefaults) -> Result<(), GemServiceError> {
         self.preferences.set_perpetual_leverage(defaults.leverage)?;
+        self.preferences.set_perpetual_margin_type(rules::margin_type(defaults.margin_type))?;
         self.preferences.set_perpetual_take_profit_percent(defaults.take_profit_percent)?;
         self.preferences.set_perpetual_stop_loss_percent(defaults.stop_loss_percent)
     }
@@ -98,8 +100,21 @@ mod tests {
     #[test]
     fn test_the_perpetual_defaults_the_screen_shows_are_the_ones_it_last_wrote() {
         let service = GemSettingsService::mock();
+        assert_eq!(service.preferences.get_perpetual_margin_type(), primitives::PerpetualMarginType::Isolated, "isolated until the user picks cross");
+        let cross = service
+            .perpetual_pickers()
+            .margin_type
+            .into_iter()
+            .find(|option| {
+                option.label
+                    == GemLocalizedText::MarginType {
+                        margin_type: primitives::PerpetualMarginType::Cross,
+                    }
+            })
+            .unwrap();
         let written = GemPerpetualDefaults {
             leverage: 7,
+            margin_type: cross.value,
             take_profit_percent: 30,
             stop_loss_percent: 12,
         };
@@ -107,6 +122,7 @@ mod tests {
         service.set_perpetual_defaults(written).unwrap();
 
         assert_eq!(service.perpetual_defaults(), written);
+        assert_eq!(service.preferences.get_perpetual_margin_type(), primitives::PerpetualMarginType::Cross);
     }
 
     #[test]

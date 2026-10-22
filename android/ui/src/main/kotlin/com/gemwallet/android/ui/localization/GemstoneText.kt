@@ -323,6 +323,7 @@ fun GemLocalizedText.string(context: Context): String = when (this) {
     is GemLocalizedText.Pnl -> GemPriceChangeCalculator().use { it.pnlText(amount.text(), percent.text()) }
 
     is GemLocalizedText.Margin -> "${amount.text()} (${context.getString(marginType.stringRes())})"
+    is GemLocalizedText.MarginType -> context.getString(marginType.stringRes())
 
     is GemLocalizedText.Position -> "${context.getString(direction.toPrimitives().stringRes()).uppercase()} ${leverage.text()}"
 
@@ -801,6 +802,7 @@ fun GemListRowTitle.text(context: Context): String = when (this) {
     GemListRowTitle.PERPETUALS -> context.getString(R.string.perpetuals_title)
     GemListRowTitle.PERPETUAL_LEVERAGE -> context.getString(R.string.settings_preferences_perpetual_default_leverage)
     GemListRowTitle.PERPETUAL_TAKE_PROFIT -> context.getString(R.string.settings_preferences_perpetual_default_take_profit)
+    GemListRowTitle.PERPETUAL_MARGIN_TYPE -> context.getString(R.string.settings_preferences_perpetual_default_margin)
     GemListRowTitle.PERPETUAL_STOP_LOSS -> context.getString(R.string.settings_preferences_perpetual_default_stop_loss)
     GemListRowTitle.DAILY_VOLUME -> context.getString(R.string.markets_daily_volume)
     GemListRowTitle.OPEN_INTEREST -> context.getString(R.string.info_perpetual_open_interest_title)

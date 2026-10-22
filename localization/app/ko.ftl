@@ -193,6 +193,7 @@ settings_hide_balance = 잔액 숨기기
 settings_disable_value = %@ 비활성화
 settings_preferences_title = 환경 설정
 settings_preferences_perpetual_default_leverage = 기본 레버리지
+settings_preferences_perpetual_default_margin = 기본 마진 모드
 settings_preferences_perpetual_default_take_profit = 기본 익절
 settings_preferences_perpetual_default_stop_loss = 기본 손절
 settings_appearance_title = 화면 모드

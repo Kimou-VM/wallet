@@ -193,6 +193,7 @@ settings_hide_balance = 隐藏余额
 settings_disable_value = 禁用 %@
 settings_preferences_title = 偏好设置
 settings_preferences_perpetual_default_leverage = 默认杠杆
+settings_preferences_perpetual_default_margin = 默认保证金模式
 settings_preferences_perpetual_default_take_profit = 默认止盈
 settings_preferences_perpetual_default_stop_loss = 默认止损
 settings_appearance_title = 外观

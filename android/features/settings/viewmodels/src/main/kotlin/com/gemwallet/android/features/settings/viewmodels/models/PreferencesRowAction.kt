@@ -15,16 +15,18 @@ sealed interface PreferencesRowAction {
     data class Option(val setting: PerpetualSetting) : PreferencesRowAction
 }
 
-enum class PerpetualSetting { Leverage, TakeProfit, StopLoss }
+enum class PerpetualSetting { Leverage, MarginType, TakeProfit, StopLoss }
 
 fun GemPerpetualPickers.of(setting: PerpetualSetting): List<GemPickerOption> = when (setting) {
     PerpetualSetting.Leverage -> leverage
+    PerpetualSetting.MarginType -> marginType
     PerpetualSetting.TakeProfit -> takeProfit
     PerpetualSetting.StopLoss -> stopLoss
 }
 
 fun GemPerpetualDefaults.value(setting: PerpetualSetting): Int = when (setting) {
     PerpetualSetting.Leverage -> leverage.toInt()
+    PerpetualSetting.MarginType -> marginType.toInt()
     PerpetualSetting.TakeProfit -> takeProfitPercent.toInt()
     PerpetualSetting.StopLoss -> stopLossPercent.toInt()
 }
@@ -37,6 +39,7 @@ fun GemListRow.preferencesAction(): PreferencesRowAction? = when (action()) {
     GemRowAction.Appearance -> PreferencesRowAction.Appearance
     GemRowAction.Perpetuals -> (this as? GemListRow.Toggle)?.let { PreferencesRowAction.Perpetuals(it.isOn) }
     GemRowAction.PerpetualLeverage -> PreferencesRowAction.Option(PerpetualSetting.Leverage)
+    GemRowAction.PerpetualMarginType -> PreferencesRowAction.Option(PerpetualSetting.MarginType)
     GemRowAction.PerpetualTakeProfit -> PreferencesRowAction.Option(PerpetualSetting.TakeProfit)
     GemRowAction.PerpetualStopLoss -> PreferencesRowAction.Option(PerpetualSetting.StopLoss)
     else -> null

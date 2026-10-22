@@ -367,7 +367,7 @@ public final class GemCurrencyServiceMock: GemCurrencyServiceProtocol, @unchecke
 public final class GemSettingsServiceMock: GemSettingsServiceProtocol, @unchecked Sendable {
     public var sectionsValue: [GemListSection] = []
     var securitySectionsValue: [GemListSection] = []
-    public var perpetualDefaultsValue = GemPerpetualDefaults(leverage: 3, takeProfitPercent: 25, stopLossPercent: 10)
+    public var perpetualDefaultsValue = GemPerpetualDefaults(leverage: 3, marginType: 0, takeProfitPercent: 25, stopLossPercent: 10)
     var preferencesSectionsValue: [GemListSection] = []
     var pickersValue = GemSettingsService(preferences: GemPreferencesService(store: GemPreferencesStoreMock())).perpetualPickers()
     public var setDefaultsError: Error?

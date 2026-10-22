@@ -193,6 +193,7 @@ settings_hide_balance = Ficha Salio
 settings_disable_value = Zima %@
 settings_preferences_title = Mapendeleo
 settings_preferences_perpetual_default_leverage = Uwiano wa Mtaji Chaguomsingi
+settings_preferences_perpetual_default_margin = Margin chaguomsingi
 settings_preferences_perpetual_default_take_profit = Take Profit chaguomsingi
 settings_preferences_perpetual_default_stop_loss = Stop Loss chaguomsingi
 settings_appearance_title = Muonekano

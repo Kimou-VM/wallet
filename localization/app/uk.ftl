@@ -193,6 +193,7 @@ settings_hide_balance = Приховати баланс
 settings_disable_value = Вимкнути %@
 settings_preferences_title = Налаштування
 settings_preferences_perpetual_default_leverage = Плече за замовчуванням
+settings_preferences_perpetual_default_margin = Маржа за замовчуванням
 settings_preferences_perpetual_default_take_profit = Тейк-профіт за замовчуванням
 settings_preferences_perpetual_default_stop_loss = Стоп-лосс за замовчуванням
 settings_appearance_title = Оформлення

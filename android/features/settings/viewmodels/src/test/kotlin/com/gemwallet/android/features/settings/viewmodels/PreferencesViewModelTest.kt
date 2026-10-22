@@ -58,10 +58,11 @@ class PreferencesViewModelTest {
     private val settingsService = mockk<GemSettingsServiceInterface>(relaxed = true) {
         every { perpetualPickers() } returns GemPerpetualPickers(
             leverage = listOf(GemPickerOption(1u, GemLocalizedText.Text("1x")), GemPickerOption(20u, GemLocalizedText.Text("20x"))),
+            marginType = listOf(GemPickerOption(0u, GemLocalizedText.Text("Isolated")), GemPickerOption(1u, GemLocalizedText.Text("Cross"))),
             takeProfit = listOf(GemPickerOption(0u, GemLocalizedText.None), GemPickerOption(25u, GemLocalizedText.Text("25%"))),
             stopLoss = listOf(GemPickerOption(0u, GemLocalizedText.None), GemPickerOption(10u, GemLocalizedText.Text("10%"))),
         )
-        every { perpetualDefaults() } returns GemPerpetualDefaults(leverage = 2u, takeProfitPercent = 25u, stopLossPercent = 10u)
+        every { perpetualDefaults() } returns GemPerpetualDefaults(leverage = 2u, marginType = 0u, takeProfitPercent = 25u, stopLossPercent = 10u)
         every { preferencesSections(any(), any()) } answers {
             sectionRequests += 1
             listOf(
@@ -111,7 +112,19 @@ class PreferencesViewModelTest {
         viewModel.setPerpetualOption(PerpetualSetting.Leverage, leverage.value.toInt()).join()
         advanceUntilIdle()
 
-        verify { settingsService.setPerpetualDefaults(GemPerpetualDefaults(leverage = leverage.value, takeProfitPercent = 25u, stopLossPercent = 10u)) }
+        verify { settingsService.setPerpetualDefaults(GemPerpetualDefaults(leverage = leverage.value, marginType = 0u, takeProfitPercent = 25u, stopLossPercent = 10u)) }
         assertEquals(leverage.value, viewModel.perpetualDefaults.value.leverage)
+    }
+
+    @Test
+    fun `choosing cross writes the margin type and keeps the other defaults`() = runTest(testDispatcher) {
+        viewModel.sections.first { it.isNotEmpty() }
+        val cross = viewModel.perpetualOptions.marginType.last()
+
+        viewModel.setPerpetualOption(PerpetualSetting.MarginType, cross.value.toInt()).join()
+        advanceUntilIdle()
+
+        verify { settingsService.setPerpetualDefaults(GemPerpetualDefaults(leverage = 2u, marginType = cross.value, takeProfitPercent = 25u, stopLossPercent = 10u)) }
+        assertEquals(cross.value, viewModel.perpetualDefaults.value.marginType)
     }
 }
