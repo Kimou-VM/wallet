@@ -1,3 +1,4 @@
+use crate::Deployment;
 use primitives::swap::{SlippageMode, SwapStatus};
 use serde::{Deserialize, Serialize};
 
@@ -75,6 +76,34 @@ pub struct SquidTransactionRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct SquidMessage {
+    type_url: String,
+    value: SquidMessageValue,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct SquidMessageValue {
+    contract: Option<String>,
+    receiver: Option<String>,
+}
+
+impl SquidTransactionRequest {
+    pub fn validate_destination(&self, contract: &Deployment) -> Result<(), SwapperError> {
+        let message: SquidMessage = serde_json::from_str(&self.data).map_err(SwapperError::transaction_error)?;
+        let destination = match message.type_url.as_str() {
+            "/cosmwasm.wasm.v1.MsgExecuteContract" => message.value.contract,
+            "/ibc.applications.transfer.v1.MsgTransfer" => message.value.receiver,
+            _ => None,
+        };
+        match destination {
+            Some(destination) if Deployment::contains(contract.chain, &[contract.contract], &destination) => Ok(()),
+            _ => Err(SwapperError::InvalidRoute),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SquidStatusResponse {
     pub squid_transaction_status: SquidStatus,
 }
@@ -103,6 +132,33 @@ impl SquidStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::squid::SQUID_COSMOS_MULTICALL;
+
+    #[test]
+    fn test_validate_destination_is_the_multicall() {
+        let ibc: SquidRouteResponse = serde_json::from_str(include_str!("testdata/route_tia_to_osmo_usdc.json")).unwrap();
+        let ibc = ibc.route.transaction_request.unwrap();
+        assert!(ibc.validate_destination(&SQUID_COSMOS_MULTICALL).is_ok(), "an IBC transfer is received by the multicall");
+
+        let same_network: serde_json::Value = serde_json::from_str(include_str!("testdata/route_osmo_to_osmo_usdc.json")).unwrap();
+        let execute = SquidTransactionRequest {
+            data: same_network["route"]["transactionRequest"]["data"].as_str().unwrap().to_string(),
+            ..ibc.clone()
+        };
+        assert!(execute.validate_destination(&SQUID_COSMOS_MULTICALL).is_ok(), "a same-network swap calls the multicall");
+
+        let foreign = SquidTransactionRequest {
+            data: ibc.data.replace(SQUID_COSMOS_MULTICALL.contract, "osmo1knwywgnzs3a2p39k7337klt6daqrhyvnluljuv"),
+            ..ibc.clone()
+        };
+        assert_eq!(foreign.validate_destination(&SQUID_COSMOS_MULTICALL), Err(SwapperError::InvalidRoute));
+
+        let plain_send = SquidTransactionRequest {
+            data: execute.data.replace("/cosmwasm.wasm.v1.MsgExecuteContract", "/cosmos.bank.v1beta1.MsgSend"),
+            ..execute
+        };
+        assert_eq!(plain_send.validate_destination(&SQUID_COSMOS_MULTICALL), Err(SwapperError::InvalidRoute));
+    }
 
     #[test]
     fn test_estimate_slippage_bps() {

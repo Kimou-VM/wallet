@@ -127,6 +127,9 @@ where
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let from_value = request.value.clone();
         let (response, _, _) = self.get_route(request, &from_value.to_string(), true).await?;
+        if let Some(transaction) = &response.route.transaction_request {
+            transaction.validate_destination(&SQUID_COSMOS_MULTICALL)?;
+        }
 
         Ok(Quote {
             from_value,
@@ -149,6 +152,7 @@ where
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
         let (response, fee, fee_address) = self.get_route(&quote.request, &quote.from_value.to_string(), false).await?;
         let tx = response.route.transaction_request.ok_or(SwapperError::InvalidRoute)?;
+        tx.validate_destination(&SQUID_COSMOS_MULTICALL)?;
 
         let swap_msg: serde_json::Value = serde_json::from_str(&tx.data).map_err(SwapperError::transaction_error)?;
         let messages = match fee_address {

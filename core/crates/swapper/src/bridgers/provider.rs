@@ -138,6 +138,10 @@ impl Swapper for Bridgers {
         SwapAmountMode::Fixed
     }
 
+    fn contracts(&self, from_asset: &AssetId) -> Vec<&'static str> {
+        Network::from_chain(from_asset.chain).and_then(|network| network.router()).into_iter().collect()
+    }
+
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let bridgers_request = BridgersQuoteRequest::new(request, request.value.clone())?;
         let (quote, _) = futures::try_join!(self.client.get_quote(&bridgers_request), self.check_destination(request))?;
@@ -186,6 +190,21 @@ impl Swapper for Bridgers {
             ChainType::Xrp => self.get_xrp_quote_data(network, &request.from_asset.asset_id(), to_code, &swap, quote.from_value.clone()).await,
             _ => Err(SwapperError::NotSupportedChain),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::alien::mock::ProviderMock;
+
+    #[test]
+    fn test_contracts() {
+        let provider = Bridgers::new(Arc::new(ProviderMock::new(String::new())));
+
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::SmartChain)), vec!["0xc1d13492285eb664951E201BF7C80c7c6318a1b5"]);
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Ton)), vec!["EQCqTuPS-cMN9SSRhaFrwJOGL7dKkFF8C0a05g2WzI9uRJ19"]);
+        assert!(provider.contracts(&AssetId::from_chain(Chain::Tron)).is_empty(), "Bridgers has no Tron router");
     }
 }
 
