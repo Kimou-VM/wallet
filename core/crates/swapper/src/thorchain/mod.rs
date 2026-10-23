@@ -67,10 +67,6 @@ impl THORChainNetwork {
         }
     }
 
-    pub fn is_router(&self, chain: Chain, address: &str) -> bool {
-        Deployment::contracts(self.routers(), chain).iter().any(|router| router.eq_ignore_ascii_case(address))
-    }
-
     pub fn chain(&self) -> Chain {
         match self {
             Self::Thorchain => Chain::Thorchain,

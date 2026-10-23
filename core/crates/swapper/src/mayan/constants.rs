@@ -1,3 +1,4 @@
+use crate::Deployment;
 pub use primitives::contract_constants::{SOLANA_MAYAN_CPI_PROXY_PROGRAM_ID as MAYAN_CPI_PROXY_PROGRAM_ID, SOLANA_MAYAN_SWIFT_V2_PROGRAM_ID as MAYAN_SWIFT_V2_PROGRAM_ID};
 use primitives::{Chain, contract_constants::MAYAN_SWIFT_CONTRACT};
 
@@ -35,12 +36,12 @@ pub const SDK_VERSION: &str = "15_3_0";
 
 pub const MAYAN_MAX_SLIPPAGE_BPS: u32 = 500;
 
-pub const MAYAN_DEPOSIT_CONTRACTS: [(Chain, &str); 6] = [
-    (Chain::Ethereum, MAYAN_FORWARDER),
-    (Chain::Ethereum, MAYAN_MCTP),
-    (Chain::Ethereum, MAYAN_SWIFT_CONTRACT),
-    (Chain::Solana, MAYAN_CPI_PROXY_PROGRAM_ID),
-    (Chain::Sui, SUI_MCTP_PACKAGE_ID),
-    (Chain::Sui, SUI_FAST_MCTP_PACKAGE_ID),
+pub const MAYAN_DEPOSIT_CONTRACTS: &[Deployment] = &[
+    Deployment::new(Chain::Ethereum, MAYAN_FORWARDER),
+    Deployment::new(Chain::Ethereum, MAYAN_MCTP),
+    Deployment::new(Chain::Ethereum, MAYAN_SWIFT_CONTRACT),
+    Deployment::new(Chain::Solana, MAYAN_CPI_PROXY_PROGRAM_ID),
+    Deployment::new(Chain::Sui, SUI_MCTP_PACKAGE_ID),
+    Deployment::new(Chain::Sui, SUI_FAST_MCTP_PACKAGE_ID),
 ];
-pub const MAYAN_SEND_CONTRACTS: [(Chain, &str); 2] = [(Chain::Ethereum, MAYAN_FAST_MCTP), (Chain::Ethereum, MAYAN_SWIFT_V2_DESTINATION)];
+pub const MAYAN_SEND_CONTRACTS: &[Deployment] = &[Deployment::new(Chain::Ethereum, MAYAN_FAST_MCTP), Deployment::new(Chain::Ethereum, MAYAN_SWIFT_V2_DESTINATION)];

@@ -162,7 +162,8 @@ where
             });
         }
 
-        if from_asset.use_evm_router() && !quote.router.as_deref().is_some_and(|router| self.network.is_router(from_asset.chain.chain(), router)) {
+        let routers = self.contracts(&request.from_asset.asset_id());
+        if from_asset.use_evm_router() && !quote.router.as_deref().is_some_and(|router| Deployment::contains(from_asset.chain.chain(), &routers, router)) {
             return Err(SwapperError::InvalidRoute);
         }
 
@@ -383,13 +384,6 @@ mod tests {
         assert_eq!(data.to, "t1Ku2KLyndDPsR32jwnrTMd3yvi9tfFP8ML");
         assert_eq!(data.value, BigUint::from(10000000u64));
         assert_eq!(data.memo, Some("=:b:bc1qdestination:0/1/0:g1:50".to_string()));
-    }
-
-    #[test]
-    fn test_is_router() {
-        assert!(THORChainNetwork::Thorchain.is_router(Chain::SmartChain, "0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b"));
-        assert!(!THORChainNetwork::Thorchain.is_router(Chain::Ethereum, "0xb30ec53f98ff5947ede720d32ac2da7e52a5f56b"));
-        assert!(!THORChainNetwork::Mayachain.is_router(Chain::Ethereum, "0xD37BbE5744D730a1d98d8DC97c42F0Ca46aD7146"));
     }
 
     #[test]

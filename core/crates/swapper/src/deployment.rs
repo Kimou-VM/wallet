@@ -1,4 +1,4 @@
-use primitives::Chain;
+use primitives::{Chain, ChainType};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Deployment {
@@ -27,6 +27,13 @@ impl Deployment {
         }
         contracts
     }
+
+    pub fn contains(chain: Chain, contracts: &[&str], address: &str) -> bool {
+        contracts.iter().any(|contract| match chain.chain_type() {
+            ChainType::Ethereum => contract.eq_ignore_ascii_case(address),
+            _ => *contract == address,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -44,5 +51,12 @@ mod tests {
         assert_eq!(Deployment::contracts(&deployments, Chain::Ethereum), vec!["0xrouter", "0xspender"]);
         assert_eq!(Deployment::contracts(&deployments, Chain::Base), vec!["0xvault"]);
         assert!(Deployment::contracts(&deployments, Chain::Solana).is_empty());
+    }
+
+    #[test]
+    fn test_contains() {
+        assert!(Deployment::contains(Chain::Ethereum, &["0xRouter"], "0xROUTER"));
+        assert!(!Deployment::contains(Chain::Solana, &["program"], "PROGRAM"));
+        assert!(!Deployment::contains(Chain::Ethereum, &[], "0xRouter"));
     }
 }

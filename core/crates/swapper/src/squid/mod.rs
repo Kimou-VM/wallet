@@ -7,7 +7,7 @@ mod testkit;
 
 use std::sync::LazyLock;
 
-use crate::models::SwapperChainAsset;
+use crate::{Deployment, models::SwapperChainAsset};
 use primitives::{
     AssetId, Chain,
     asset_constants::{COSMOS_USDC_TOKEN_ID, INJECTIVE_USDC_TOKEN_ID, OSMOSIS_USDC_TOKEN_ID, OSMOSIS_USDT_TOKEN_ID, SEI_USDC_TOKEN_ID},
@@ -15,7 +15,7 @@ use primitives::{
 
 pub use provider::Squid;
 
-pub const SQUID_COSMOS_MULTICALL: (Chain, &str) = (Chain::Osmosis, "osmo1n6ney9tsf55etz9nrmzyd8wa7e64qd3s06a74fqs30ka8pps6cvqtsycr6");
+pub const SQUID_COSMOS_MULTICALL: Deployment = Deployment::new(Chain::Osmosis, "osmo1n6ney9tsf55etz9nrmzyd8wa7e64qd3s06a74fqs30ka8pps6cvqtsycr6");
 
 static SUPPORTED_CHAINS: LazyLock<Vec<SwapperChainAsset>> = LazyLock::new(|| {
     vec![

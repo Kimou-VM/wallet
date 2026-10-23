@@ -1,8 +1,9 @@
 use gem_evm::address::ethereum_address_checksum;
 use gem_ton::Address as TonAddress;
+use gem_tron::address::TronAddress;
 use primitives::{Chain, ChainType, chain_evm::EVMChain};
 
-use crate::SwapAmountMode;
+use crate::{SwapAmountMode, SwapperError};
 
 pub(super) const BITCOIN_CHAIN_ID: u64 = 8253038;
 pub(super) const BITCOIN_CURRENCY: &str = "bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqmql8k8";
@@ -71,6 +72,14 @@ impl RelayChain {
         match self {
             Self::Bitcoin => true,
             Self::Evm(_) | Self::Tron | Self::Solana | Self::Ton => false,
+        }
+    }
+
+    pub fn contract_address(&self, address: &str) -> Result<String, SwapperError> {
+        match self {
+            Self::Tron => Ok(TronAddress::parse_hex_or_base58(address).map_err(|_| SwapperError::InvalidRoute)?.to_string()),
+            Self::Ton => Ok(TonAddress::parse(address)?.encode_bounceable()),
+            Self::Evm(_) | Self::Bitcoin | Self::Solana => Ok(address.to_string()),
         }
     }
 

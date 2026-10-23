@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
-use gem_ton::{Address, models::TonConnectMessage};
-use gem_tron::address::TronAddress;
+use gem_ton::models::TonConnectMessage;
 use num_bigint::BigUint;
 use num_traits::Zero;
 use primitives::{
@@ -12,18 +11,31 @@ use primitives::{
 use super::{
     asset::map_currency_to_asset_id,
     chain::RelayChain,
+    contracts,
     model::{RelayQuoteResponse, RelayRequest, RelayRequestAppFees},
 };
 use crate::{
-    SwapResult, SwapperError, SwapperProvider, SwapperQuoteData,
+    Deployment, SwapResult, SwapperError, SwapperProvider, SwapperQuoteData,
     approval::{DEFAULT_EVM_SWAP_GAS_LIMIT, DEFAULT_TRON_SWAP_ENERGY_LIMIT, get_swap_gas_limit_with_approval},
 };
 
 pub fn validate_quote_response(from_chain: RelayChain, quote_response: &RelayQuoteResponse, value: &BigUint) -> Result<(), SwapperError> {
     match from_chain {
         RelayChain::Bitcoin => map_bitcoin_quote_data(quote_response, value).map(drop),
-        RelayChain::Evm(_) | RelayChain::Tron | RelayChain::Solana | RelayChain::Ton => Ok(()),
+        RelayChain::Evm(_) | RelayChain::Tron | RelayChain::Ton => validate_targets(from_chain, quote_response),
+        RelayChain::Solana => Ok(()),
     }
+}
+
+fn validate_targets(from_chain: RelayChain, quote_response: &RelayQuoteResponse) -> Result<(), SwapperError> {
+    let chain = from_chain.to_chain();
+    let contracts = contracts::contracts(chain);
+    for target in quote_response.targets() {
+        if !Deployment::contains(chain, &contracts, &from_chain.contract_address(&target)?) {
+            return Err(SwapperError::InvalidRoute);
+        }
+    }
+    Ok(())
 }
 
 pub fn map_bitcoin_quote_data(quote_response: &RelayQuoteResponse, value: &BigUint) -> Result<SwapperQuoteData, SwapperError> {
@@ -50,10 +62,10 @@ pub fn map_evm_quote_data(quote_response: &RelayQuoteResponse, approval: Option<
 pub fn map_tron_quote_data(quote_response: &RelayQuoteResponse, approval: Option<ApprovalData>) -> Result<SwapperQuoteData, SwapperError> {
     let tron = quote_response.get_tron_step().ok_or(SwapperError::InvalidRoute)?;
     let transaction = tron.trigger_smart_contract().ok_or(SwapperError::InvalidRoute)?;
-    let contract = TronAddress::parse_hex_or_base58(&transaction.contract_address).map_err(|_| SwapperError::InvalidRoute)?;
+    let contract = RelayChain::Tron.contract_address(&transaction.contract_address)?;
     let gas_limit = get_swap_gas_limit_with_approval(&approval, None, DEFAULT_TRON_SWAP_ENERGY_LIMIT);
     Ok(SwapperQuoteData::new_contract(
-        contract.to_string(),
+        contract,
         BigUint::from(transaction.call_value.unwrap_or_default()),
         transaction.data.clone(),
         approval,
@@ -66,7 +78,7 @@ pub fn map_ton_quote_data(quote_response: &RelayQuoteResponse) -> Result<Swapper
     let messages = ton
         .messages
         .iter()
-        .map(|message| Ok(TonConnectMessage::new(Address::parse(&message.to)?.encode_bounceable(), &BigUint::from_str(&message.value)?, Some(message.body.clone()))))
+        .map(|message| Ok(TonConnectMessage::new(RelayChain::Ton.contract_address(&message.to)?, &BigUint::from_str(&message.value)?, Some(message.body.clone()))))
         .collect::<Result<Vec<_>, SwapperError>>()?;
     TonConnectMessage::swap_quote_data(&messages).map_err(|_| SwapperError::InvalidRoute)
 }
@@ -123,8 +135,22 @@ mod tests {
     use primitives::{
         AssetId, Chain,
         asset_constants::{BASE_USDC_ASSET_ID, ETHEREUM_USDC_ASSET_ID},
+        chain_evm::EVMChain,
         swap::SwapStatus,
     };
+
+    #[test]
+    fn test_validate_quote_response_binds_targets_to_shipped_contracts() {
+        let celo = include_str!("testdata/quote_celo_native_to_bsc_usdt.json");
+        let shipped: RelayQuoteResponse = serde_json::from_str(celo).unwrap();
+        assert!(validate_quote_response(RelayChain::Evm(EVMChain::Celo), &shipped, &BigUint::ZERO).is_ok());
+
+        let tron: RelayQuoteResponse = serde_json::from_str(include_str!("testdata/quote_tron_to_base_usdc.json")).unwrap();
+        assert!(validate_quote_response(RelayChain::Tron, &tron, &BigUint::ZERO).is_ok(), "a hex Tron contract matches the shipped base58 depository");
+
+        let foreign: RelayQuoteResponse = serde_json::from_str(&celo.replace("0xccc88a9d1b4ed6b0eaba998850414b24f1c315be", "0x0000000000000000000000000000000000000001")).unwrap();
+        assert_eq!(validate_quote_response(RelayChain::Evm(EVMChain::Celo), &foreign, &BigUint::ZERO).unwrap_err(), SwapperError::InvalidRoute);
+    }
 
     #[test]
     fn test_map_bitcoin_quote_data() {
@@ -142,7 +168,8 @@ mod tests {
         let evm = RelayQuoteResponse::mock_with_steps(vec![Step::mock_transaction("deposit", "0xrouter", "0", "0x")]);
         assert_eq!(map_bitcoin_quote_data(&evm, &value), Err(SwapperError::InvalidRoute));
         assert_eq!(validate_quote_response(RelayChain::Bitcoin, &evm, &value), Err(SwapperError::InvalidRoute));
-        assert_eq!(validate_quote_response(RelayChain::Tron, &evm, &value), Ok(()));
+        assert_eq!(validate_quote_response(RelayChain::Tron, &evm, &value), Err(SwapperError::InvalidRoute));
+        assert_eq!(validate_quote_response(RelayChain::Solana, &evm, &value), Ok(()));
         assert_eq!(validate_quote_response(RelayChain::Bitcoin, &response, &value), Ok(()));
     }
 

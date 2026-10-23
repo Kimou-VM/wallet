@@ -1,7 +1,7 @@
 use super::{
     asset::{supported_assets as mayan_supported_assets, token_id_for_asset},
     client::MayanClient,
-    constants::{MAYAN_DEPOSIT_CONTRACTS, MAYAN_MAX_SLIPPAGE_BPS, MAYAN_SEND_CONTRACTS},
+    constants::{MAYAN_DEPOSIT_CONTRACTS, MAYAN_FORWARDER, MAYAN_MAX_SLIPPAGE_BPS, MAYAN_SEND_CONTRACTS},
     mapper::map_swap_result,
     model::{MayanChain, MayanQuote, MayanTransactionResult, QuoteParams, SwiftVersion},
     tx_builder::{fast_mctp, mctp, mono_chain, swift},
@@ -19,7 +19,7 @@ use crate::{
 use async_trait::async_trait;
 use gem_client::Client;
 use gem_evm::rpc::client::FUNCTION_ERC20_DECIMALS;
-use primitives::{Chain, ChainType, HOUR, contract_constants::EVM_ZERO_ADDRESS, decode_hex};
+use primitives::{AssetId, Chain, ChainType, HOUR, contract_constants::EVM_ZERO_ADDRESS, decode_hex};
 use std::{collections::BTreeSet, fmt::Debug, sync::Arc};
 
 #[derive(Debug)]
@@ -111,6 +111,13 @@ where
         SwapAmountMode::Fixed
     }
 
+    fn contracts(&self, from_asset: &AssetId) -> Vec<&'static str> {
+        match from_asset.chain.chain_type() {
+            ChainType::Ethereum => vec![MAYAN_FORWARDER],
+            _ => Vec::new(),
+        }
+    }
+
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         if !self.supports_chain_pair(request.from_asset.chain(), request.to_asset.chain()) {
             return Err(SwapperError::NotSupportedChain);
@@ -183,8 +190,8 @@ where
 
     async fn get_vault_addresses(&self, _from_timestamp: Option<u64>) -> Result<VaultAddresses, SwapperError> {
         let api_addresses = MayanChain::unique_addresses(self.price_client.get_chains().await?);
-        let deposit: BTreeSet<String> = MAYAN_DEPOSIT_CONTRACTS.iter().map(|(_, address)| address.to_string()).chain(api_addresses.iter().cloned()).collect();
-        let send: BTreeSet<String> = MAYAN_SEND_CONTRACTS.iter().map(|(_, address)| address.to_string()).chain(api_addresses).collect();
+        let deposit: BTreeSet<String> = MAYAN_DEPOSIT_CONTRACTS.iter().map(|contract| contract.contract.to_string()).chain(api_addresses.iter().cloned()).collect();
+        let send: BTreeSet<String> = MAYAN_SEND_CONTRACTS.iter().map(|contract| contract.contract.to_string()).chain(api_addresses).collect();
 
         Ok(VaultAddresses {
             deposit: deposit.into_iter().collect(),
@@ -236,6 +243,15 @@ mod tests {
     use super::*;
     use crate::testkit::mock_quote;
     use num_bigint::BigUint;
+
+    #[test]
+    fn test_contracts() {
+        let provider = Mayan::with_clients(MayanClient::new(MockClient::new()), MayanClient::new(MockClient::new()), Arc::new(ProviderMock::new("{}".to_string())));
+
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Ethereum)), vec![MAYAN_FORWARDER]);
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Base)), vec![MAYAN_FORWARDER]);
+        assert!(provider.contracts(&AssetId::from_chain(Chain::Solana)).is_empty(), "the Solana and Sui transactions carry their programs inside");
+    }
 
     #[test]
     fn test_map_quote_error() {

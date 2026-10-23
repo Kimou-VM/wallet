@@ -71,8 +71,13 @@ fn provider_contracts() -> Vec<ScanAddress> {
     let contracts = chainflip::VAULT_ADDRESSES
         .iter()
         .map(|vault| (SwapProvider::Chainflip, vault.chain, vault.contract))
-        .chain(mayan::MAYAN_DEPOSIT_CONTRACTS.into_iter().chain(mayan::MAYAN_SEND_CONTRACTS).map(|(chain, contract)| (SwapProvider::Mayan, chain, contract)))
-        .chain([(SwapProvider::Squid, squid::SQUID_COSMOS_MULTICALL.0, squid::SQUID_COSMOS_MULTICALL.1)])
+        .chain(
+            mayan::MAYAN_DEPOSIT_CONTRACTS
+                .iter()
+                .chain(mayan::MAYAN_SEND_CONTRACTS)
+                .map(|contract| (SwapProvider::Mayan, contract.chain, contract.contract)),
+        )
+        .chain([(SwapProvider::Squid, squid::SQUID_COSMOS_MULTICALL.chain, squid::SQUID_COSMOS_MULTICALL.contract)])
         .map(|(provider, chain, address)| ScanAddress::contract(chain, address, provider.name()));
     let treasuries = near_intents::TREASURY_ADDRESSES.into_iter().map(|(chain, treasury)| ScanAddress {
         address_type: Some(AddressType::Address),

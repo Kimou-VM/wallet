@@ -92,7 +92,11 @@ impl RelayQuoteResponse {
     }
 
     pub fn router_address(&self) -> Option<String> {
-        self.steps.iter().filter(|step| step.id != STEP_APPROVE).find_map(Step::to_address)
+        self.targets().next()
+    }
+
+    pub fn targets(&self) -> impl Iterator<Item = String> + '_ {
+        self.steps.iter().filter(|step| step.id != STEP_APPROVE).filter_map(Step::to_address)
     }
 }
 

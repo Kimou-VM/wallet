@@ -5,7 +5,6 @@ use std::sync::Arc;
 use alloy_primitives::U256;
 use async_trait::async_trait;
 use gem_client::Client;
-use gem_tron::address::TronAddress;
 use primitives::{
     AssetId, EvmNativeCurrency,
     swap::{ApprovalData, SlippageMode},
@@ -15,7 +14,7 @@ use super::{
     asset::{SUPPORTED_CHAINS, asset_to_currency},
     chain::{RelayChain, TON_CHAIN_ID},
     client::RelayClient,
-    mapper,
+    contracts, mapper,
     model::{RelayAppFee, RelayQuoteRequest, RelayQuoteResponse},
     solana, ton,
 };
@@ -73,6 +72,10 @@ where
 
     fn amount_mode(&self, request: &QuoteRequest) -> SwapAmountMode {
         RelayChain::from_chain(&request.from_asset.chain()).map_or(SwapAmountMode::Fixed, |chain| chain.amount_mode())
+    }
+
+    fn contracts(&self, from_asset: &AssetId) -> Vec<&'static str> {
+        contracts::contracts(from_asset.chain)
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
@@ -185,12 +188,8 @@ where
             },
         };
 
-        let spender = quote_response.router_address().ok_or(SwapperError::InvalidRoute)?;
+        let spender = chain.contract_address(&quote_response.router_address().ok_or(SwapperError::InvalidRoute)?)?;
         let amount = U256::from_str(&quote.from_value.to_string()).map_err(SwapperError::from)?;
-        let spender = match chain {
-            RelayChain::Tron => TronAddress::parse_hex_or_base58(&spender).map_err(|_| SwapperError::InvalidRoute)?.to_string(),
-            RelayChain::Evm(_) | RelayChain::Bitcoin | RelayChain::Solana | RelayChain::Ton => spender,
-        };
         check_token_approval(quote.request.wallet_address.clone(), token, spender, amount, self.rpc_provider.clone(), from_asset_id.chain).await
     }
 }

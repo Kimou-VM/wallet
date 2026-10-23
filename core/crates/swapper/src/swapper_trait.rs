@@ -1,6 +1,7 @@
 use super::{
     SwapperProviderMode, SwapperQuoteData,
     cross_chain::VaultAddresses,
+    deployment::Deployment,
     error::SwapperError,
     models::{FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapResult, SwapResultRequest, SwapperChainAsset},
 };
@@ -8,7 +9,7 @@ use async_trait::async_trait;
 use std::fmt::Debug;
 
 use primitives::{
-    AssetId, Chain, ChainType,
+    AssetId, Chain,
     swap::{SwapQuoteDataType, SwapStatus},
 };
 
@@ -46,12 +47,7 @@ impl<'a> dyn Swapper + 'a {
         if contracts.is_empty() {
             return Ok(());
         }
-        let is_contract = |address: &str| {
-            contracts.iter().any(|contract| match from_asset.chain.chain_type() {
-                ChainType::Ethereum => contract.eq_ignore_ascii_case(address),
-                _ => *contract == address,
-            })
-        };
+        let is_contract = |address: &str| Deployment::contains(from_asset.chain, &contracts, address);
         if data.data_type == SwapQuoteDataType::Contract && !is_contract(&data.to) {
             return Err(SwapperError::InvalidRoute);
         }
