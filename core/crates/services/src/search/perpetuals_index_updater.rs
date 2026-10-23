@@ -4,11 +4,8 @@ use std::sync::Arc;
 use super::repository::{PerpetualsIndexData, Repository};
 use super::sync::{SearchSyncClient, SearchSyncResult};
 use config_keys::ConfigKey;
-use gem_hypercore::models::perp_dex::PerpDex;
 use primitives::{Asset, AssetId, Perpetual, PerpetualId};
 use search_index::{PERPETUALS_INDEX_NAME, PerpetualDocument, sanitize_index_primary_id};
-
-const SEARCHED_PERP_DEXES: [PerpDex; 1] = [PerpDex::Main];
 
 pub struct PerpetualsIndexUpdater {
     repository: Arc<dyn Repository>,
@@ -55,15 +52,11 @@ impl PerpetualsIndexUpdater {
                 let perpetual_id = perpetual.id.to_string();
                 let asset = assets_map.get(&perpetual.asset_id.to_string())?.clone();
                 let associated_asset = associated_asset_ids.get(&perpetual.id).and_then(|asset_id| assets_map.get(&asset_id.to_string())).cloned();
-                let is_searched = SEARCHED_PERP_DEXES.iter().any(|dex| dex.holds(&perpetual.name));
                 Some(PerpetualDocument {
                     id: sanitize_index_primary_id(&perpetual_id),
                     associated_asset,
                     tags: perpetuals_tags_map.get(&perpetual_id).cloned(),
-                    perpetual: Perpetual {
-                        is_enabled: perpetual.is_enabled && is_searched,
-                        ..perpetual
-                    },
+                    perpetual,
                     asset,
                 })
             })
@@ -89,18 +82,11 @@ mod tests {
         let assets_map = HashMap::from([(solana.id.to_string(), solana.clone()), (hypercore.id.to_string(), hypercore)]);
         let associated_asset_ids = HashMap::from([(sol.id.clone(), solana.id.clone())]);
 
-        let crude_oil = Perpetual {
-            id: PerpetualId::new(PerpetualProvider::Hypercore, "xyz:CL"),
-            name: "xyz:CL".to_string(),
-            ..Perpetual::mock()
-        };
-
-        let documents = PerpetualsIndexUpdater::build_documents(vec![sol, btc, crude_oil], &assets_map, &HashMap::new(), &associated_asset_ids);
+        let documents = PerpetualsIndexUpdater::build_documents(vec![sol, btc], &assets_map, &HashMap::new(), &associated_asset_ids);
 
         assert_eq!(
-            documents.into_iter().map(|document| (document.id, document.associated_asset, document.perpetual.is_enabled)).collect::<Vec<_>>(),
-            vec![("hypercoreSOL".to_string(), Some(solana), true), ("hypercoreBTC".to_string(), None, true), ("hypercorexyzCL".to_string(), None, false),],
-            "a market on a dex search does not serve yet stays indexed but disabled, so older apps never get it"
+            documents.into_iter().map(|document| (document.id, document.associated_asset)).collect::<Vec<_>>(),
+            vec![("hypercoreSOL".to_string(), Some(solana)), ("hypercoreBTC".to_string(), None)]
         );
     }
 }
