@@ -94,13 +94,11 @@ public extension GemNameService {
 
 public final class GemNameServiceMock: GemNameServiceProtocol, @unchecked Sendable {
     private let rules = GemNameService.mock()
-    private let addressNames: [Primitives.AddressName]
     private let nameRecord: Gemstone.NameRecord?
     private let error: Error?
     public private(set) var requestedNames: [String] = []
 
-    public init(addressNames: [Primitives.AddressName] = [], nameRecord: Gemstone.NameRecord? = nil, error: Error? = nil) {
-        self.addressNames = addressNames
+    public init(nameRecord: Gemstone.NameRecord? = nil, error: Error? = nil) {
         self.nameRecord = nameRecord
         self.error = error
     }
@@ -149,7 +147,6 @@ public final class GemStakeServiceMock: GemStakeServiceProtocol, @unchecked Send
     private let validators: [Gemstone.DelegationValidator]
     private let infoRows: [GemListRow]
     private let freezes: Bool
-    private let wholeAmounts: Bool
     private let claimRewardsDestination: GemStakeDestination?
     private let refreshState: GemLoadState
 
@@ -159,7 +156,6 @@ public final class GemStakeServiceMock: GemStakeServiceProtocol, @unchecked Send
         validators: [Gemstone.DelegationValidator] = [],
         infoRows: [GemListRow] = [],
         freezes: Bool = false,
-        wholeAmounts: Bool = false,
         claimRewardsDestination: GemStakeDestination? = nil,
         refreshState: GemLoadState = .data,
     ) {
@@ -168,7 +164,6 @@ public final class GemStakeServiceMock: GemStakeServiceProtocol, @unchecked Send
         self.validators = validators
         self.infoRows = infoRows
         self.freezes = freezes
-        self.wholeAmounts = wholeAmounts
         self.claimRewardsDestination = claimRewardsDestination
         self.refreshState = refreshState
     }
@@ -276,13 +271,9 @@ private func loadedPhase(state: GemLoadState, hasRows: Bool, kind: GemEmptyState
 }
 
 public final class GemTransactionStateServiceMock: GemTransactionStateServiceProtocol, @unchecked Sendable {
-    private var status: (any GemTransactionStatusService)?
-
     public init() {}
 
-    public func setStatus(status: any GemTransactionStatusService) {
-        self.status = status
-    }
+    public func setStatus(status _: any GemTransactionStatusService) {}
 
     public func trackPending() async throws {}
 

@@ -31,9 +31,9 @@ struct InfoSheetView: View {
 
             VStack(spacing: .small) {
                 Text(model.title)
-                    .textStyle(model.titleStyle)
+                    .textStyle(.boldTitle)
                 Text(.init(model.description))
-                    .textStyle(model.descriptionStyle)
+                    .textStyle(.bodySecondary)
             }
             .multilineTextAlignment(.center)
             .minimumScaleFactor(0.85)

@@ -27,8 +27,6 @@ public actor GemDeviceServiceMock: GemDeviceServiceProtocol {
 }
 
 public final class GemPreferencesServiceMock: GemPreferencesServiceProtocol, @unchecked Sendable {
-    private var skippedAppVersion: String?
-
     public init(perpetualEnabled: Bool = false) {
         self.perpetualEnabled = perpetualEnabled
     }

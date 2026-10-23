@@ -7,7 +7,6 @@ import struct Gemstone.GemInfoSheet
 import enum Gemstone.GemInfoTopic
 import Localization
 import PrimitivesComponents
-import Style
 import SwiftUI
 
 public typealias InfoSheetAction = @MainActor @Sendable () -> Void
@@ -33,8 +32,6 @@ public struct InfoSheetModel: Identifiable, Sendable {
     public let image: InfoSheetImage?
     public let button: InfoSheetButton?
     public let secondaryButtons: [InfoSheetButton]
-    public let titleStyle: TextStyle
-    public let descriptionStyle: TextStyle
 
     public var buttonTitle: String {
         button?.title ?? Localized.Common.learnMore
@@ -46,16 +43,12 @@ public struct InfoSheetModel: Identifiable, Sendable {
         image: InfoSheetImage? = nil,
         button: InfoSheetButton? = nil,
         secondaryButtons: [InfoSheetButton] = [],
-        titleStyle: TextStyle = .boldTitle,
-        descriptionStyle: TextStyle = .bodySecondary,
     ) {
         self.title = title
         self.description = description
         self.image = image
         self.button = button
         self.secondaryButtons = secondaryButtons
-        self.titleStyle = titleStyle
-        self.descriptionStyle = descriptionStyle
     }
 
     var shouldShowButton: Bool {

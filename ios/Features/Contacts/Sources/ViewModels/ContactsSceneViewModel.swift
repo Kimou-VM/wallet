@@ -101,11 +101,11 @@ public final class ContactsSceneViewModel {
 
     func items(_ list: GemContactList) -> [(contact: ContactData, listItem: ListItemModel)] {
         zip(contacts, list.rows).map { contact, row in
-            (contact, listItemModel(contact: contact, row: row))
+            (contact, listItemModel(row: row))
         }
     }
 
-    private func listItemModel(contact _: ContactData, row: GemContactRow) -> ListItemModel {
+    private func listItemModel(row: GemContactRow) -> ListItemModel {
         ListItemModel(
             title: row.title,
             titleExtra: row.subtitle,

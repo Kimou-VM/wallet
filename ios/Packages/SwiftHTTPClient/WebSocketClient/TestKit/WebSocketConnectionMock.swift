@@ -5,7 +5,6 @@ import WebSocketClient
 
 public actor WebSocketConnectionMock: WebSocketConnectable {
     private var continuation: AsyncStream<WebSocketEvent>.Continuation?
-    private var sentData: [Data] = []
     private let onConnect: @Sendable () -> Void
     private let onDisconnect: @Sendable () -> Void
 
@@ -39,11 +38,10 @@ public actor WebSocketConnectionMock: WebSocketConnectable {
         return 0.1
     }
 
-    public func send(_ text: String) async throws {
+    public func send(_: String) async throws {
         guard state == .connected else {
             throw WebSocketError.notConnected
         }
-        sentData.append(Data(text.utf8))
     }
 
     // MARK: - Mock Control API
