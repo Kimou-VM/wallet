@@ -2,6 +2,8 @@
 
 import Foundation
 import GRDB
+import Primitives
+import PrimitivesTestKit
 @testable import Store
 import StoreTestKit
 import Testing
@@ -180,5 +182,46 @@ struct MigrationsTests {
         try upgrade.runChanges(dbQueue: dbQueue)
 
         #expect(try dbQueue.read { try $0.indexes(on: table).map(\.columns) }.contains([name]))
+    }
+
+    @Test
+    func accountsWithoutAnExtendedPublicKeyAreSavedAfterAnUpgradeFromTheNotNullSchema() throws {
+        let table = AccountRecord.databaseTableName
+        let walletId = "multicoin_0xabc"
+        let dbQueue = try DatabaseQueue()
+        var migrations = Migrations()
+        try migrations.run(dbQueue: dbQueue)
+        try migrations.runChanges(dbQueue: dbQueue)
+        try dbQueue.write { db in
+            try db.drop(table: table)
+            try db.execute(sql: """
+            CREATE TABLE \(table) (
+                walletId TEXT NOT NULL REFERENCES \(WalletRecord.databaseTableName)(id) ON DELETE CASCADE,
+                chain TEXT NOT NULL,
+                address TEXT NOT NULL,
+                extendedPublicKey TEXT NOT NULL,
+                publicKey TEXT,
+                "index" NUMERIC NOT NULL DEFAULT 0,
+                derivationPath TEXT NOT NULL,
+                UNIQUE (walletId, chain, derivationPath, address)
+            );
+            CREATE INDEX \(table)_on_walletId ON \(table)(walletId);
+            INSERT INTO \(WalletRecord.databaseTableName) (id, name, type) VALUES ('\(walletId)', 'Main', 'multicoin');
+            INSERT INTO \(AssetRecord.databaseTableName) (id, chain, name, symbol, decimals, type) VALUES ('ethereum', 'ethereum', 'Ethereum', 'ETH', 18, 'NATIVE');
+            INSERT INTO \(table) (walletId, chain, address, extendedPublicKey, derivationPath) VALUES ('\(walletId)', 'ethereum', '0xabc', 'xpub', '');
+            """)
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = ?", arguments: ["Make extendedPublicKey nullable in \(table)"])
+        }
+
+        var upgrade = Migrations()
+        try upgrade.run(dbQueue: dbQueue)
+        try upgrade.runChanges(dbQueue: dbQueue)
+        try dbQueue.write { db in
+            try Account.mock(chain: .ethereum, address: "0xdef").toRecord(walletId: walletId).upsert(db)
+        }
+
+        let accounts = try dbQueue.read { try AccountRecord.order(AccountRecord.Columns.address).fetchAll($0) }
+        #expect(accounts.map(\.address) == ["0xabc", "0xdef"])
+        #expect(accounts.map(\.extendedPublicKey) == ["xpub", nil])
     }
 }

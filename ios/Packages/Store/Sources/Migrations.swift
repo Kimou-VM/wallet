@@ -504,6 +504,18 @@ struct Migrations {
             try db.create(indexOn: PerpetualRecord.databaseTableName, columns: [PerpetualRecord.Columns.name.name], options: .ifNotExists)
         }
 
+        migrator.registerMigration("Make extendedPublicKey nullable in \(AccountRecord.databaseTableName)") { db in
+            let table = AccountRecord.databaseTableName
+            let column = AccountRecord.Columns.extendedPublicKey.name
+            guard try db.columns(in: table).contains(where: { $0.name == column && $0.isNotNull }) else { return }
+            try db.alter(table: table) {
+                $0.rename(column: column, to: "legacyExtendedPublicKey")
+                $0.add(column: column, .text)
+            }
+            try db.execute(sql: "UPDATE \(table) SET \(column) = legacyExtendedPublicKey")
+            try db.alter(table: table) { $0.drop(column: "legacyExtendedPublicKey") }
+        }
+
         try migrator.migrate(dbQueue)
     }
 }
