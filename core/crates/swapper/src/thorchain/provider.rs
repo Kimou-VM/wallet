@@ -390,7 +390,11 @@ mod tests {
     fn test_contracts() {
         let swapper = ThorChain::new(Arc::new(ProviderMock::new(String::new()))).unwrap();
 
-        assert_eq!(swapper.contracts(&AssetId::from_token(Chain::Ethereum, ETHEREUM_USDC_TOKEN_ID)), vec!["0xD37BbE5744D730a1d98d8DC97c42F0Ca46aD7146"]);
+        assert_eq!(
+            swapper.contracts(&AssetId::from_token(Chain::Ethereum, ETHEREUM_USDC_TOKEN_ID)),
+            vec!["0xD37BbE5744D730a1d98d8DC97c42F0Ca46aD7146", "0x00dc6100103BC402d490aEE3F9a5560cBd91f1d4"],
+            "the live V4 router and the V6.1 router THORChain will switch to"
+        );
         assert_eq!(swapper.contracts(&AssetId::from_token(Chain::AvalancheC, AVALANCHE_USDC_TOKEN_ID)).len(), 2);
         assert!(swapper.contracts(&Chain::Ethereum.as_asset_id()).is_empty(), "a coin deposit goes to the vault the network names");
     }
