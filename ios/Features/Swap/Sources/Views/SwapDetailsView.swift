@@ -3,6 +3,7 @@
 import Components
 import Foundation
 import struct Gemstone.GemInfoSheet
+import struct Gemstone.GemProviderLoadingRow
 import struct Gemstone.GemProviderRow
 import struct Gemstone.GemSwapDetails
 import enum Gemstone.SwapProvider
@@ -17,6 +18,7 @@ public struct SwapDetailsView: View {
     @Environment(\.dismiss) private var dismiss
     private let details: GemSwapDetails?
     private let providers: StateViewType<[GemProviderRow]>
+    private let pendingProviders: [GemProviderLoadingRow]
     private let allowSelectProvider: Bool
     private let onSelectProvider: ((SwapProvider) -> Void)?
 
@@ -27,11 +29,13 @@ public struct SwapDetailsView: View {
     public init(
         details: GemSwapDetails?,
         providers: StateViewType<[GemProviderRow]> = .data([]),
+        pendingProviders: [GemProviderLoadingRow] = [],
         allowSelectProvider: Bool = false,
         onSelectProvider: ((SwapProvider) -> Void)? = nil,
     ) {
         self.details = details
         self.providers = providers
+        self.pendingProviders = pendingProviders
         self.allowSelectProvider = allowSelectProvider
         self.onSelectProvider = onSelectProvider
     }
@@ -42,6 +46,13 @@ public struct SwapDetailsView: View {
             case .data:
                 if let details {
                     listView(details)
+                } else {
+                    SelectableListView(
+                        model: .constant(providersModel),
+                        onFinishSelection: onFinishProviderSelection,
+                        listContent: { ListItemView(model: $0.listItem) },
+                        trailingRows: pendingRows,
+                    )
                 }
             case let .error(error): List { ListItemErrorView(errorTitle: Localized.Errors.errorOccurred, error: error) }
             case .loading: LoadingView()
@@ -53,7 +64,7 @@ public struct SwapDetailsView: View {
                 Button("", systemImage: SystemImage.checkmark, action: { dismiss() })
             }
         }
-        .navigationTitle(Localized.Common.details)
+        .navigationTitle(details == nil ? Localized.Buy.Providers.title : Localized.Common.details)
         .navigationBarTitleDisplayMode(.inline)
         .listSectionSpacing(.compact)
         .contentMargins([.top], .extraSmall, for: .scrollContent)
@@ -62,16 +73,29 @@ public struct SwapDetailsView: View {
         }
         .sheet(isPresented: $isPresentingProviderSelection) {
             SelectableListNavigationStack(
-                model: ProvidersViewModel(state: providers.map { .plain($0) }),
-                onFinishSelection: {
-                    if case let .swap(provider) = $0.first?.kind {
-                        onSelectProvider?(provider)
-                    }
-                    isPresentingProviderSelection = false
-                },
+                model: .constant(providersModel),
+                onFinishSelection: onFinishProviderSelection,
                 listContent: { ListItemView(model: $0.listItem) },
+                trailingRows: pendingRows,
             )
         }
+    }
+
+    private var providersModel: ProvidersViewModel {
+        ProvidersViewModel(state: providers.map { .plain($0) })
+    }
+
+    private func pendingRows() -> some View {
+        ForEach(pendingProviders) {
+            ListItemView(model: $0.listItem)
+        }
+    }
+
+    private func onFinishProviderSelection(_ rows: [GemProviderRow]) {
+        if case let .swap(provider) = rows.first?.kind {
+            onSelectProvider?(provider)
+        }
+        isPresentingProviderSelection = false
     }
 
     private func listView(_ details: GemSwapDetails) -> some View {

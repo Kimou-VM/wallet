@@ -4,9 +4,13 @@ Trade one asset for another from inside the wallet, on one network or across two
 
 ```mermaid
 flowchart LR
-    A[Pick the pair] --> B[Enter amount] --> C[Quotes from every provider at once] --> D{Any quote?}
-    D -- no --> E[No quote available, Try Again]
-    D -- yes --> F[Best quote shown] --> G[Swap] --> H{Price impact 10% or more?}
+    A[Pick the pair] --> B[Enter amount] --> C[Every provider asked at once] --> D{All, all but one, or the short wait?}
+    D -- no quote by the close --> E[No quote available, Try Again]
+    D -- yes --> P{Loses more than 1%?}
+    P -- yes, providers still quoting --> W[You Receive keeps its spinner, Details shows 2/4] --> P
+    P -- no, or every provider answered --> F[Best quote so far shown] --> G[Swap] --> H{Price impact 10% or more?}
+    F -- a better answer --> U[You Receive updates in place] --> F
+    F -- the close --> X[Silent providers left out]
     H -- yes --> I[High Price Impact warning]
     I -- proceed --> J[Confirm]
     H -- no --> J
@@ -31,10 +35,61 @@ flowchart LR
 A quote lives `1 minute` when the swap stays on one network and `5 minutes` when it crosses networks, because a cross-network provider gives a new deposit with every answer.
 
 1. The user opens Swap from the wallet screen, an asset, or Swap Again on a past swap; the pair is filled in, never the same asset on both sides.
-2. The user types an amount or taps 25%, 50% or 100%; every provider that serves the pair is asked at once and You Receive shows the best quote.
+2. The user types an amount or taps 25%, 50% or 100%; every provider that serves the pair is asked at once and You Receive shows the best quote so far, see [Asking the providers](#asking-the-providers).
 3. Details lists the Provider, the Rate, the Estimated Time, the Minimum Receive and the Slippage; Providers lets the user pick another provider.
 4. Slippage is Auto (`1%`, `3%` on Solana) or a chosen value between `0.1%` and `20%`.
 5. Swap prepares the trade with the chosen provider and opens the confirmation screen, which asks that provider again once the quote is old and signs the trade with one authentication.
+
+## Asking the providers
+
+Every provider that serves the pair is asked at once, and a slow one never holds back the others. You Receive shows the first quote as soon as one of these holds:
+
+1. every provider has answered;
+2. all but one have answered, counting only once at least two have;
+3. a short wait after the first quote has passed.
+
+So one provider shows when it answers, two show when both have answered or the wait has passed, four show at the third answer, and Solana's six on one network, Jupiter, Orca, Raydium, PumpSwap, Meteora and OKX, show at the fifth.
+
+```mermaid
+sequenceDiagram
+    participant S as Swap
+    participant P as Providers
+    S->>P: every provider that serves the pair, at once
+    P-->>S: first quote
+    Note over S: shown at all, all but one, or the short wait, unless it loses more than 1%
+    P-->>S: a better quote
+    Note over S: You Receive updates in place
+    Note over S,P: the close: a provider still silent is left out
+```
+
+| Pair | Short wait after the first quote | Round closes after the request |
+|---|---|---|
+| Both assets on one network | `0.5 s` | `6 s` |
+| Across networks | `1 s` | `12 s` |
+
+What You Receive and the Details row show through one round, with the example values from the design, paying `0.15 ETH` for SOL with four providers:
+
+```mermaid
+flowchart TB
+    W["Waiting<br/>You Receive: spinner<br/>no Details row"]
+    F["First quote<br/>You Receive: 3.43 SOL, $354.81<br/>Details: spinner 3/4, rate ›"]
+    H["Held, loses more than 1%<br/>You Receive: spinner<br/>Details: spinner 2/4 ›"]
+    A["Round over<br/>You Receive: 3.44 SOL, $355.69<br/>Details: rate ›"]
+    N["No quote<br/>No quote available, Try Again"]
+    W -- "all, all but one, or the short wait" --> F
+    W -- "best so far loses more than 1%" --> H
+    W -- "no quote by the close" --> N
+    H -- "a quote within 1%" --> F
+    F -- "a better quote rolls in" --> F
+    F -- "all answered, or the close" --> A
+    H -- "all answered, or the close" --> A
+```
+
+The short wait counts from the first quote, so a slow connection still gets every answer; the long close leaves room for slow connections and slow providers. While the round is open, the Details row shows a small spinner and how many providers answered of those asked, as `3/4`, before the rate, Swap works, and Providers lists each provider that answered and a loading row for each one still quoting. You Receive's spinner sits at the start of the row, centered on its height; the first quote and its fiat value fade in at their usual places over it, without moving, and a better quote then rolls You Receive and its fiat value to the new amount, ranked as in [Choosing a quote](#choosing-a-quote). When the round closes, a provider still silent is left out and the spinner and `3/4` fade out; with no quote at all, No quote available shows with Try Again.
+
+A quote that loses more than `1%` against the market price, the point where Details starts showing the Price Impact, is not shown early: You Receive keeps its spinner and the Details row shows only the spinner and `2/4`, with no rate, until a provider gives a quote within `1%` or the round ends. Tapping it opens Providers with the quotes so far, and a provider the user picks there shows at once. When every provider has answered or the round closes, the best quote shows with its Price Impact, and the `10%` High Price Impact confirmation still asks first. A pair without prices has no Price Impact, so its quotes are never held.
+
+All of these numbers live in one place, the quote round settings next to the High Price Impact threshold, so they can be tuned together.
 
 ## Swapping the whole balance
 
@@ -322,7 +377,18 @@ A deposit no relayer fills is refunded once its fill deadline passes. The deadli
 | The user picks an asset | quotes are asked at once | |
 | The user types an amount | quotes are asked shortly after typing stops | |
 | The screen stays open | quotes refresh every `30 seconds` | |
-| A refresh, including going back from Confirm | You Receive shows only the loading indicator until the new quote arrives, never the old amount with it | |
+| A refresh, including going back from Confirm | You Receive shows only the loading indicator until the new round's first quote, never the old amount with it | |
+| Three of four providers answered and the fourth is still quoting | the best of the three fades in, Details shows a spinner and `3/4` before the rate, and Swap works | one slow provider never holds back the others (`test_the_first_quote_shows_once_every_provider_or_all_but_one_answered`) |
+| One of two providers answered | its quote shows `1 s` later across networks, `0.5 s` on one network, unless the other answers first | the short wait lets the other answer on a slow connection (`test_the_wait_after_the_first_quote_shows_it_and_depends_on_the_pair`) |
+| A better quote arrives while the round is open | You Receive and its fiat value roll to it in place | the best quote wins, as before (`test_a_late_better_quote_replaces_the_shown_one_and_the_progress_goes_with_the_last_answer`) |
+| Providers is opened while the round is open | a row for each provider that answered and a loading row for each one still quoting | (`test_the_providers_list_shows_a_loading_row_for_each_provider_still_quoting`) |
+| The user picked a provider in Providers and a better quote arrives | the picked provider stays | the user's choice wins (`test_the_users_choice_wins_over_a_later_answer`) |
+| The user tapped Swap and a provider answers afterwards | the trade does not change; Confirm asks that provider again once the quote is old | the trade on Confirm is the one the user chose (`test_the_users_choice_wins_over_a_later_answer`) |
+| A provider is still silent `6 s` after the request on one network, `12 s` across networks | it is left out and the spinner and `3/4` fade out | the round always closes (`test_a_provider_silent_past_the_timeout_or_failing_hard_is_left_out`) |
+| No provider gave a quote by the close | No quote available with Try Again | (`test_no_quote_once_every_provider_answered_is_the_error`) |
+| The best quote so far loses more than `1%` and providers are still quoting | You Receive keeps its spinner, Details shows the spinner and `1/4` without a rate, and tapping it opens Providers with the quotes so far | an early quote from a thin pool should not be the first number the user sees when a better one may follow (`test_a_quote_losing_more_than_the_hold_waits_and_a_better_late_quote_shows_at_once`) |
+| A quote within `1%` then arrives | it shows at once, with the spinner and the count on Details while the rest answer | |
+| Every provider answered or the round closed and the best quote still loses more than `1%` | it shows with its Price Impact | the user still decides (`test_a_held_quote_shows_once_the_round_ends`) |
 | A refresh while Details is open | Details shows the loading indicator until the new quote arrives, never the old quote's details | it matches You Receive |
 | A refresh fails while Details is open | Details stays open and shows the error, as the Swap screen does | |
 | The selected quote's `get_quote_data` call fails | an error alert; the quote, Details and the Swap button stay, so tapping Swap prepares it again, with no inline error row and no Try Again | quote fetching succeeded; only the later transaction-data preparation failed, and Try Again belongs to a failed quote |
@@ -351,7 +417,7 @@ A deposit no relayer fills is refunded once its fill deadline passes. The deadli
 
 - Regional restrictions follow the shared [Feature availability](../PRODUCT.md#feature-availability) table.
 - A quote is never cached: every eligible provider is asked again for the live amount, and every quote is priced on live chain state. Only the facts that never change are kept, and for `5 minutes` which pools lost at that exact amount, as [On-chain quotes](#on-chain-quotes) lists.
-- Every eligible provider is awaited, so the slowest one decides how long a quote takes.
+- A slow provider never holds back a quote another provider already gave: the first quote shows at all answers, all but one, or the short wait, unless it loses more than `1%`, and the round closes `6 s` or `12 s` after the request, as [Asking the providers](#asking-the-providers) says.
 - Swap never signs anything: the confirmation screen holds the only authentication and signs the trade it loaded and showed.
 - A Solana swap the wallet signs alone is built without a recent blockhash and signed with the one the confirmation screen fetched on its last load or refresh, so the swap and the screen never fetch one each. A transaction another party has already signed, or one that uses a durable nonce, keeps its own (`test_sign_swap_uses_the_confirmation_blockhash`).
 - The Slippage row reads Auto on both screens until the user picks a value.

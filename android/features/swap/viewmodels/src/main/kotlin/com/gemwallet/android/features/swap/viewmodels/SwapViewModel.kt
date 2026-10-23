@@ -21,7 +21,6 @@ import com.gemwallet.android.ext.toAssetId
 import com.gemwallet.android.ext.toGem
 import com.gemwallet.android.ext.toIdentifier
 import com.gemwallet.android.math.numberFormat
-import com.gemwallet.android.model.text
 import com.gemwallet.android.ui.models.navigation.RouteArgument
 import com.wallet.core.primitives.AssetId
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,9 +29,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,10 +48,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -68,7 +67,6 @@ import uniffi.gemstone.GemSwapErrorDisplay
 import uniffi.gemstone.GemSwapPairSelection
 import uniffi.gemstone.GemSwapQuoteInput
 import uniffi.gemstone.GemSwapQuoteServiceInterface
-import uniffi.gemstone.GemSwapQuotesResult
 import uniffi.gemstone.GemSwapRequest
 import uniffi.gemstone.GemSwapViewState
 import uniffi.gemstone.SwapProvider
@@ -95,7 +93,6 @@ class SwapViewModel @Inject constructor(
     private val session = MutableStateFlow(service.newSession())
 
     val payValue: TextFieldState = TextFieldState()
-    val receiveValue: TextFieldState = TextFieldState()
 
     private val payValueFlow = snapshotFlow { payValue.text }
         .map { it.toString() }
@@ -138,11 +135,11 @@ class SwapViewModel @Inject constructor(
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private val quoteResults = quoteInput
+    private val quoteRequests = quoteInput
         .distinctUntilChangedBy { it?.request }
         .flatMapLatest { input ->
             if (input == null) {
-                return@flatMapLatest flowOf<GemSwapQuotesResult?>(null)
+                return@flatMapLatest emptyFlow<Unit>()
             }
 
             quoteRefreshEnabled.flatMapLatest { isEnabled ->
@@ -153,13 +150,11 @@ class SwapViewModel @Inject constructor(
                 val isSettled = payValueFlow.value == settledPayValue.value || payValueFlow.value == presetPayValue
                 val debounce = if (isSettled) Duration.ZERO else GemConstants.swapQuoteDebounce
                 merge(flowOf(debounce), refreshRequests.map { Duration.ZERO })
-                    .transformLatest { wait ->
+                    .mapLatest { wait ->
                         delay(wait)
                         while (currentCoroutineContext().isActive) {
                             onQuoteFetchStarted(input.request)
-                            val results = requestQuotes(input)
-                            emit(results)
-                            if (results.error != null) {
+                            if (!requestQuotes(input)) {
                                 break
                             }
                             delay(GemConstants.swapQuoteRefreshInterval)
@@ -186,13 +181,15 @@ class SwapViewModel @Inject constructor(
         }
             .flowOn(ioDispatcher)
             .launchIn(viewModelScope)
-        quoteResults
-            .onEach(::onQuoteResults)
-            .flowOn(ioDispatcher)
+        quoteRequests
             .launchIn(viewModelScope)
-        viewState.map { it.receiveAmount?.text().orEmpty() }
+        viewState.map { it.firstQuoteWait }
             .distinctUntilChanged()
-            .onEach(::setReceive)
+            .mapLatest { wait ->
+                wait ?: return@mapLatest
+                delay(wait.milliseconds.toLong())
+                session.update { it.onFirstQuoteWaitEnded(wait.request) }
+            }
             .launchIn(viewModelScope)
         combine(payAssetIdFlow, receiveAssetIdFlow) { pay, receive -> listOfNotNull(pay, receive).map { it.toIdentifier() } }
             .distinctUntilChanged()
@@ -324,8 +321,8 @@ class SwapViewModel @Inject constructor(
             infoSheet.value = GemInfoTopic.RegionUnavailable
             return@launch
         }
-        val quote = viewState.value.quote ?: return@launch
         val started = session.value.startTransfer() ?: return@launch
+        val quote = started.quote() ?: return@launch
         val transfer = started.transferPhase
         session.value = started
 
@@ -365,19 +362,25 @@ class SwapViewModel @Inject constructor(
         session.update { it.onFetchStarted(requestKey) }
     }
 
-    private suspend fun requestQuotes(input: GemSwapQuoteInput): GemSwapQuotesResult = try {
-        val quotes = service.getQuotes(input)
-        currentCoroutineContext().ensureActive()
-        GemSwapQuotesResult(request = input.request, quotes = quotes, error = null)
-    } catch (error: Throwable) {
-        if (error is CancellationException) throw error
-        val quoteError = error as? SwapperException ?: SwapperException.ComputeQuoteException(error.message ?: error.toString())
-        GemSwapQuotesResult(request = input.request, quotes = emptyList(), error = quoteError)
-    }
-
-    private fun onQuoteResults(results: GemSwapQuotesResult?) {
-        results ?: return
-        session.update { it.onQuoteResults(results) }
+    private suspend fun requestQuotes(input: GemSwapQuoteInput): Boolean {
+        val quoteProviders = try {
+            service.quoteProviders(input)
+        } catch (error: Throwable) {
+            if (error is CancellationException) throw error
+            val quoteError = error as? SwapperException ?: SwapperException.ComputeQuoteException(error.message ?: error.toString())
+            session.update { it.onQuotesFailed(input.request, quoteError) }
+            return false
+        }
+        session.update { it.onQuotesRequested(input.request, quoteProviders.providers) }
+        coroutineScope {
+            quoteProviders.providers.forEach { provider ->
+                launch {
+                    val answer = service.quote(quoteProviders.request, provider)
+                    session.update { it.onProviderAnswer(input.request, answer) }
+                }
+            }
+        }
+        return session.value.refreshesQuotes(true)
     }
 
     private fun setMinimumAmount() {
@@ -390,11 +393,6 @@ class SwapViewModel @Inject constructor(
         presetPayValue = text
         payValue.clearText()
         payValue.setTextAndPlaceCursorAtEnd(text)
-    }
-
-    private suspend fun setReceive(amount: String) = withContext(Dispatchers.Main) {
-        receiveValue.clearText()
-        receiveValue.setTextAndPlaceCursorAtEnd(amount)
     }
 
     companion object {

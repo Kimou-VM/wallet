@@ -1,15 +1,11 @@
-use crate::ranking::rank_quotes;
+use crate::ranking::{leaves_no_dust, rank_quotes};
 use crate::{
     AssetList, FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapQuoteError, SwapQuotes, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperProviderMode, SwapperQuoteData,
     across, alien::RpcProvider, bridgers, cetus_clmm, chainflip, config::quote_preferences, cross_chain::VaultAddresses, dedust, hyperion, hyperliquid, jupiter, mayan, meteora_damm_v2, meteora_dlmm, near_intents, okx, orca, panora,
     provider_group::ProviderGroup, pump_swap, raydium_amm, raydium_clmm, raydium_cpmm, relay, solana_dex, squid, stonfi, swaps_xyz, thorchain, uniswap,
 };
 use primitives::{AssetId, Chain, EVMChain};
-use std::{
-    collections::{BTreeSet, HashSet},
-    fmt::Debug,
-    sync::Arc,
-};
+use std::{collections::HashSet, fmt::Debug, sync::Arc};
 
 #[derive(Debug)]
 pub struct GemSwapper {
@@ -29,8 +25,8 @@ impl GemSwapper {
         supported_chains.contains(&from_chain) && supported_chains.contains(&to_chain)
     }
 
-    fn amount_mode(&self, quote: &Quote) -> Option<SwapAmountMode> {
-        self.get_swapper_by_provider(&quote.data.provider.id).ok().map(|swapper| swapper.amount_mode(&quote.request))
+    pub fn leaves_no_dust(&self, quote: &Quote) -> bool {
+        leaves_no_dust(quote, self.get_swapper_by_provider(&quote.data.provider.id).ok().map(|swapper| swapper.amount_mode(&quote.request)))
     }
 
     fn get_swapper_by_provider(&self, provider: &SwapperProvider) -> Result<&dyn Swapper, SwapperError> {
@@ -135,7 +131,7 @@ impl GemSwapper {
         from_asset.chain == to_asset.chain && ((from_asset.is_native() && to_asset.is_native_mirror()) || (from_asset.is_native_mirror() && to_asset.is_native()))
     }
 
-    fn get_providers_for_request(&self, request: &QuoteRequest) -> Result<Vec<ProviderType>, SwapperError> {
+    pub fn get_providers_for_request(&self, request: &QuoteRequest) -> Result<Vec<ProviderType>, SwapperError> {
         if request.from_asset.id == request.to_asset.id || Self::is_native_mirror_pair(&request.from_asset.asset_id(), &request.to_asset.asset_id()) {
             return Err(SwapperError::NoQuoteAvailable);
         }
@@ -154,34 +150,29 @@ impl GemSwapper {
         Ok(providers)
     }
 
-    pub async fn get_quote(&self, request: &QuoteRequest) -> Result<Vec<Quote>, SwapperError> {
-        let SwapQuotes { quotes, errors } = self.get_quotes(request).await?;
-        if quotes.is_empty() {
-            return Err(SwapperError::combined(errors.into_iter().map(|error| error.error).collect()));
+    pub async fn get_quotes(&self, request: &QuoteRequest) -> Result<SwapQuotes, SwapperError> {
+        let providers = self.get_providers_for_request(request)?;
+        let quote_results = futures::future::join_all(providers.iter().map(|provider| async move { (provider.id, self.get_provider_quote(&provider.id, request).await) })).await;
+
+        let mut quotes = Vec::new();
+        let mut errors = Vec::new();
+        for (provider, result) in quote_results {
+            match result {
+                Ok(quote) => quotes.push(quote),
+                Err(error) => errors.push(SwapQuoteError::new(Some(provider.id().to_string()), error)),
+            }
         }
-        Ok(quotes)
+        Ok(SwapQuotes {
+            quotes: rank_quotes(request, quotes, &quote_preferences(), |quote| self.leaves_no_dust(quote)),
+            errors,
+        })
     }
 
-    pub async fn get_quotes(&self, request: &QuoteRequest) -> Result<SwapQuotes, SwapperError> {
-        let provider_ids: BTreeSet<_> = self.get_providers_for_request(request)?.into_iter().map(|p| p.id).collect();
-        let (from_asset, to_asset) = (&request.from_asset.asset_id(), &request.to_asset.asset_id());
-        let quotes_futures = self.swappers.iter().filter(|x| provider_ids.contains(&x.provider().id)).map(|x| {
-            let provider_id = x.provider().id.id().to_string();
-            async move {
-                let request = Self::quote_request_for_mode(x.amount_mode(request), request).map_err(|error| (provider_id.clone(), error))?;
-                x.preload_routes(from_asset, to_asset).await;
-                x.get_quote(&request).await.map_err(|error| (provider_id, error))
-            }
-        });
-
-        let quote_results = futures::future::join_all(quotes_futures).await;
-
-        let (quotes, errors): (Vec<_>, Vec<_>) = quote_results.into_iter().partition(Result::is_ok);
-        let quotes = quotes.into_iter().filter_map(Result::ok).collect();
-        let errors = errors.into_iter().filter_map(Result::err).map(|(provider_id, error)| SwapQuoteError::new(Some(provider_id), error)).collect();
-
-        let quotes = rank_quotes(request, quotes, &quote_preferences(), |quote| self.amount_mode(quote));
-        Ok(SwapQuotes { quotes, errors })
+    pub async fn get_provider_quote(&self, provider: &SwapperProvider, request: &QuoteRequest) -> Result<Quote, SwapperError> {
+        let swapper = self.get_swapper_by_provider(provider)?;
+        let request = Self::quote_request_for_mode(swapper.amount_mode(request), request)?;
+        swapper.preload_routes(&request.from_asset.asset_id(), &request.to_asset.asset_id()).await;
+        swapper.get_quote(&request).await
     }
 
     fn quote_request_for_mode(mode: SwapAmountMode, request: &QuoteRequest) -> Result<QuoteRequest, SwapperError> {
@@ -371,7 +362,7 @@ mod tests {
             )])
         };
         async fn quote_data(swapper: &GemSwapper, request: &QuoteRequest) -> Result<SwapperQuoteData, SwapperError> {
-            let quote = swapper.get_quote(request).await?.remove(0);
+            let quote = swapper.get_quotes(request).await?.quotes.remove(0);
             swapper.get_quote_data(&quote, FetchQuoteData::None).await
         }
 
@@ -406,7 +397,7 @@ mod tests {
         };
         let gem_swapper = GemSwapper::mock(vec![Box::new(MockSwapper::new(SwapperProvider::UniswapV3, |request| Ok(Quote::mock_with_request(request))))]);
 
-        let quotes = gem_swapper.get_quote(&request).await.unwrap();
+        let quotes = gem_swapper.get_quotes(&request).await.unwrap().quotes;
         let requoted = gem_swapper.get_quote_by_provider(&SwapperProvider::UniswapV3, &quotes[0].request).await.unwrap();
 
         assert!(quotes[0].request.value < request.value, "the first quote of a max swap keeps the fee reserve back");
@@ -437,46 +428,11 @@ mod tests {
             "a contract call spends exactly what it is asked, so the fee reserve comes off first"
         );
     }
-
-    #[tokio::test]
-    async fn test_get_quote_aggregates_provider_errors() {
-        let request = mock_quote(SwapperQuoteAsset::from(AssetId::from_chain(Chain::Ethereum)), SwapperQuoteAsset::from(ETHEREUM_USDC_ASSET_ID.clone()));
-        let known_minimums = GemSwapper::mock(vec![
-            Box::new(MockSwapper::new(SwapperProvider::PancakeswapV3, |_| Err(SwapperError::InputAmountError { min_amount: Some("5000000".into()) }))),
-            Box::new(MockSwapper::new(SwapperProvider::UniswapV4, |_| Err(SwapperError::InputAmountError { min_amount: Some("1264000".into()) }))),
-            Box::new(MockSwapper::new(SwapperProvider::Jupiter, |_| Err(SwapperError::NoQuoteAvailable))),
-        ]);
-        assert_eq!(known_minimums.get_quote(&request).await.unwrap_err(), SwapperError::InputAmountError { min_amount: Some("1264000".into()) });
-
-        let unknown_minimum = GemSwapper::mock(vec![
-            Box::new(MockSwapper::new(SwapperProvider::UniswapV3, |_| Err(SwapperError::InputAmountError { min_amount: None }))),
-            Box::new(MockSwapper::new(SwapperProvider::UniswapV4, |_| Err(SwapperError::InputAmountError { min_amount: Some("1264000".into()) }))),
-        ]);
-        assert_eq!(unknown_minimum.get_quote(&request).await.unwrap_err(), SwapperError::InputAmountError { min_amount: None });
-
-        let route_errors = GemSwapper::mock(vec![
-            Box::new(MockSwapper::new(SwapperProvider::UniswapV3, |_| Err(SwapperError::NoQuoteAvailable))),
-            Box::new(MockSwapper::new(SwapperProvider::Jupiter, |_| Err(SwapperError::ComputeQuoteError("HTTP error: status 500".into())))),
-        ]);
-        assert_eq!(route_errors.get_quote(&request).await.unwrap_err(), SwapperError::NoQuoteAvailable);
-
-        let offline = GemSwapper::mock(vec![
-            Box::new(MockSwapper::new(SwapperProvider::UniswapV3, |_| Err(SwapperError::Offline))),
-            Box::new(MockSwapper::new(SwapperProvider::Jupiter, |_| Err(SwapperError::Offline))),
-        ]);
-        assert_eq!(offline.get_quote(&request).await.unwrap_err(), SwapperError::Offline);
-
-        let partly_offline = GemSwapper::mock(vec![
-            Box::new(MockSwapper::new(SwapperProvider::UniswapV3, |_| Err(SwapperError::Offline))),
-            Box::new(MockSwapper::new(SwapperProvider::Jupiter, |_| Err(SwapperError::NoQuoteAvailable))),
-        ]);
-        assert_eq!(partly_offline.get_quote(&request).await.unwrap_err(), SwapperError::NoQuoteAvailable);
-    }
 }
 
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {
-    use std::{sync::Arc, time::Instant};
+    use std::{collections::BTreeSet, sync::Arc, time::Instant};
 
     use num_bigint::BigUint;
     use primitives::{

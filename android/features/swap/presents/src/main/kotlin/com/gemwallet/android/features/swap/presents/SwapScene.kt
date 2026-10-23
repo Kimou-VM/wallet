@@ -25,6 +25,7 @@ import com.gemwallet.android.features.swap.presents.components.SwapButton
 import com.gemwallet.android.features.swap.presents.components.SwapQuoteError
 import com.gemwallet.android.features.swap.presents.components.SwapToken
 import com.gemwallet.android.features.swap.viewmodels.SwapViewModel
+import com.gemwallet.android.model.text
 import com.gemwallet.android.ui.R
 import com.gemwallet.android.ui.components.PercentSuggestionsBar
 import com.gemwallet.android.ui.components.buttons.IndicatorButton
@@ -43,7 +44,7 @@ import com.wallet.core.primitives.AssetData
 import uniffi.gemstone.GemSwapViewState
 
 @Composable
-internal fun SwapScene(viewState: GemSwapViewState, pay: AssetData?, receive: AssetData?, payValue: TextFieldState, receiveValue: TextFieldState, showsSlippageIndicator: Boolean, onAction: (SwapAction) -> Unit) {
+internal fun SwapScene(viewState: GemSwapViewState, pay: AssetData?, receive: AssetData?, payValue: TextFieldState, showsSlippageIndicator: Boolean, onAction: (SwapAction) -> Unit) {
     val focusManager = LocalFocusManager.current
     fun clearAmountFocus() {
         focusManager.clearFocus(force = true)
@@ -121,8 +122,9 @@ internal fun SwapScene(viewState: GemSwapViewState, pay: AssetData?, receive: As
                 SwapToken(
                     item = receive,
                     side = viewState.receive,
-                    state = receiveValue,
                     calculating = viewState.isReceiveLoading,
+                    quote = viewState.receiveAmount?.text(),
+                    isQuote = true,
                     onBalanceClick = {},
                     onAssetSelect = {
                         clearAmountFocus()
@@ -132,8 +134,8 @@ internal fun SwapScene(viewState: GemSwapViewState, pay: AssetData?, receive: As
                 )
             }
             item {
-                viewState.details?.let {
-                    SwapDetailsSummaryItem(details = it, onClick = { onAction(SwapAction.ShowDetails) })
+                if (viewState.details != null || viewState.quoteProgress != null) {
+                    SwapDetailsSummaryItem(details = viewState.details, progress = viewState.quoteProgress, onClick = { onAction(SwapAction.ShowDetails) })
                 }
             }
 

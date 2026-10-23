@@ -56,7 +56,6 @@ fun SwapScreen(
         pay = pay,
         receive = receive,
         payValue = viewModel.payValue,
-        receiveValue = viewModel.receiveValue,
         showsSlippageIndicator = selectedSlippage != null,
         onAction = { action ->
             when (action) {
@@ -101,6 +100,7 @@ fun SwapScreen(
         details = viewState.details,
         quotesState = viewState.quotesState,
         providers = viewState.providers,
+        pendingProviders = viewState.pendingProviders,
         isProviderSelectable = viewState.allowsProviderSelection,
         onDismiss = { isShowDetails = false },
         expansion = SheetExpansion.Full,
