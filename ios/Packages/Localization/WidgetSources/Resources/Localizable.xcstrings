@@ -539,7 +539,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "En iyi kripto para birimlerinin fiyatlarını takip edin"
+            "value": "Önde gelen kripto paraların fiyatlarını takip edin"
           }
         },
         "uk": {
@@ -580,7 +580,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "أعلى سعر للعملات المشفرة"
+            "value": "أسعار العملات المشفرة الرائدة"
           }
         },
         "bn": {
@@ -592,7 +592,7 @@
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nejlepší cena kryptoměn"
+            "value": "Ceny předních kryptoměn"
           }
         },
         "da": {
@@ -622,7 +622,7 @@
         "fa": {
           "stringUnit": {
             "state": "translated",
-            "value": "بالاترین قیمت کریپتو"
+            "value": "قیمت ارزهای دیجیتال برتر"
           }
         },
         "fil": {
@@ -634,7 +634,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Meilleur prix des cryptomonnaies"
+            "value": "Prix des principales cryptomonnaies"
           }
         },
         "ha": {
@@ -646,7 +646,7 @@
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "מחיר הקריפטו הגבוה ביותר"
+            "value": "מחירי מטבעות קריפטו מובילים"
           }
         },
         "hi": {
@@ -664,7 +664,7 @@
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Prezzo massimo delle criptovalute"
+            "value": "Prezzi delle principali criptovalute"
           }
         },
         "ja": {
@@ -676,13 +676,13 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "최고 암호화폐 가격"
+            "value": "주요 암호화폐 가격"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "Harga Kripto Tertinggi"
+            "value": "Harga Kripto Teratas"
           }
         },
         "nl": {
@@ -694,19 +694,19 @@
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Najwyższa cena kryptowaluty"
+            "value": "Ceny czołowych kryptowalut"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Preço máximo de criptomoedas"
+            "value": "Preços das principais criptomoedas"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Preț maxim al criptomonedelor"
+            "value": "Prețurile criptomonedelor de top"
           }
         },
         "ru": {
@@ -724,19 +724,19 @@
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "ราคาคริปโตสูงสุด"
+            "value": "ราคาคริปโตชั้นนำ"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "En İyi Kripto Fiyatı"
+            "value": "Önde Gelen Kripto Fiyatları"
           }
         },
         "uk": {
           "stringUnit": {
             "state": "translated",
-            "value": "Найвища ціна криптовалюти"
+            "value": "Ціни провідних криптовалют"
           }
         },
         "ur": {

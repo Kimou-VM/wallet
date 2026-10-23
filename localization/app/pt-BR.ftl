@@ -44,7 +44,7 @@ common_pinned_asset = Fixado: %@
 common_unpinned_asset = Desafixado: %@
 common_skip = Pular
 common_warning = Aviso
-common_learn_more = Saber mais
+common_learn_more = Saiba mais
 common_description = Descrição
 common_emoji = Emoji
 common_avatar = Avatar
@@ -81,12 +81,12 @@ wallet_import_action = Importar
 wallet_multicoin = Multimoeda
 wallet_import_address_field = Endereço ou Nome
 wallet_manage_token_list = Gerenciar Tokens
-wallet_scan_qr_code = Digitalize o código QR
+wallet_scan_qr_code = Escanear código QR
 wallet_scan = Escanear
 wallet_scan_hint = Envie, pague ou conecte-se a um DApp
 wallet_scan_hint_address = Endereço da carteira
 wallet_default_name = Carteira #%d
-wallet_default_name_chain = %@ Carteira #%d
+wallet_default_name_chain = Carteira %@ #%d
 wallet_copy_address = Copiar endereço
 wallet_watch_tooltip_title = Carteira somente de observação. Você não controla esses fundos.
 wallet_watch_empty_state_title = Você está observando esta carteira.
@@ -100,7 +100,7 @@ wallet_receive_collection = Receber coleção
 wallet_more = Mais
 wallet_import_contract_address_field = Contrato ou ID do token
 wallet_import_address_warning = Você pode visualizar saldos e transações para este endereço, mas **não pode enviar ou vender fundos**.
-wallet_deposit = Depósito
+wallet_deposit = Depositar
 wallet_withdraw = Retirar
 wallet_available_balance = Disponível: %@
 # Used in the insufficient network fee sheet for the buy option subtitle.
@@ -124,7 +124,7 @@ receive_warning = Este é o seu endereço — envie apenas %@ na rede %@.
 
 buy_title = Comprar %@
 buy_providers_title = Provedores
-buy_rate = Taxa
+buy_rate = Cotação
 buy_no_results = Não há cotações disponíveis
 
 # Transfer
@@ -224,7 +224,7 @@ errors_error_occurred = Ocorreu um erro!
 errors_invalid_network_id = ID de rede inválida
 errors_error = Erro
 errors_cancelled = Cancelado
-errors_connections_user_cancelled = Usuário cancelado
+errors_connections_user_cancelled = Cancelado pelo usuário
 errors_not_supported = Não suportado
 errors_permissions_not_granted = Permissões não concedidas
 errors_unknown = Desconhecido
@@ -247,7 +247,7 @@ errors_connections_not_found = Esta conexão não existe mais.
 errors_connections_relay_unavailable = Não foi possível acessar o WalletConnect. Verifique sua conexão com a internet e tente novamente.
 errors_swap_amount_too_small = Quantidade muito pequena
 errors_scan_transaction_malicious_description = Esta transação não pode ser concluída — o endereço da carteira de destino está vinculado a atividades suspeitas ou prejudiciais.
-errors_scan_transaction_memo_required = %@ O endereço da carteira de destino requer uma etiqueta/memorando de destino
+errors_scan_transaction_memo_required = O endereço da carteira de destino %@ requer uma tag de destino/memorando
 errors_scan_transaction_malicious_title = Atividade suspeita
 errors_connections_malicious_origin = Esta conexão provém de uma fonte não confiável.
 errors_no_data_available = Não há dados disponíveis.
@@ -330,7 +330,7 @@ asset_added_to_wallet = Adicionado à carteira
 asset_hidden_from_wallet = Oculto da carteira
 asset_resources = Recursos
 asset_verification_verified = Verificado
-asset_all_time_high = Maior de todos os tempos
+asset_all_time_high = Máxima histórica
 asset_all_time_low = Mínima histórica
 
 # Charts
@@ -342,11 +342,11 @@ charts_month = 1M
 charts_year = 1 ano
 charts_all = Todos
 charts_entry = Entrada
-charts_price_open = Abrir
-charts_price_close = Fechar
+charts_price_open = Abertura
+charts_price_close = Fechamento
 charts_price_high = Alto
 charts_price_low = Baixo
-charts_price_change = Mudar
+charts_price_change = Variação
 
 # Date
 
@@ -381,7 +381,7 @@ swap_slippage_auto_description = Define automaticamente o melhor deslizamento pa
 swap_price_impact_warning_description = Você perderá %@ dos seus %@ nesta negociação. Tem certeza de que deseja prosseguir?
 swap_price_impact_warning_title = Alto Impacto de Preço
 swap_estimated_time_title = Tempo estimado
-swap_min_receive = Recepção mínima
+swap_min_receive = Mínimo a receber
 swap_use_minimum_amount = Use o valor mínimo
 
 # Stake
@@ -454,7 +454,7 @@ social_reddit = Reddit
 social_telegram = Telegram
 social_github = GitHub
 social_youtube = YouTube
-social_links = Ligações
+social_links = Links
 social_facebook = Facebook
 social_coingecko = CoinGecko
 social_website = Site
@@ -502,9 +502,9 @@ banner_stake_description = Ganhe recompensas %@ no seu stake enquanto você dorm
 banner_activate_asset_description = Para usar o ativo %@, você deve primeiro habilitá-lo na rede %@ atendendo aos requisitos específicos da rede.
 banner_asset_status_title = Ativo Suspeito
 banner_asset_status_description = O token pode ser inseguro ou enganoso. Prossiga apenas se você confiar totalmente.
-banner_onboarding_title = Sua carteira está pronta.
+banner_onboarding_title = Sua carteira está pronta
 banner_onboarding_description = Compre ou receba criptomoedas para começar.
-banner_perpetuals_title = Negocie perpétuas no Hyperliquid
+banner_perpetuals_title = Negocie perpétuos no Hyperliquid
 banner_perpetuals_description = Deposite, negocie e ganhe com perpétuos Hyperliquid
 
 # Filter
@@ -519,11 +519,11 @@ filter_has_balance = Com saldo
 price_alerts_enabled_for = Alerta de preço habilitado para %@
 price_alerts_disabled_for = Alerta de preço desabilitado para %@
 price_alerts_get_notified_explain_message = Seja notificado quando houver uma mudança significativa de preço em seus criptoativos favoritos.
-price_alerts_direction_over = Acabou
+price_alerts_direction_over = Acima
 price_alerts_direction_under = Abaixo
 price_alerts_direction_increases_by = Aumenta em
 price_alerts_direction_decreases_by = Diminui em
-price_alerts_set_alert_price_over = Quando o preço acaba
+price_alerts_set_alert_price_over = Quando o preço está acima
 price_alerts_set_alert_price_under = Quando o preço está abaixo
 price_alerts_set_alert_price_increases_by = Quando o preço aumenta em
 price_alerts_set_alert_price_decreases_by = Quando o preço diminui em
@@ -547,7 +547,7 @@ lock_fifteen_minutes = 15 minutos
 lock_one_hour = 1 hora
 lock_six_hours = 6 horas
 lock_require_authentication = Exigir autenticação
-lock_unlock = Desbloqueio
+lock_unlock = Desbloquear
 lock_footer = Proteja o acesso a este aplicativo no seu dispositivo
 lock_passcode = Senha
 lock_passcode_off_title = O código do dispositivo está desativado
@@ -594,10 +594,10 @@ info_perpetual_funding_payments_description = Os pagamentos de financiamento sã
 info_perpetual_liquidation_price_title = Preço de liquidação
 info_perpetual_liquidation_price_description = O preço de liquidação é o nível de preço no qual a sua posição será automaticamente fechada para evitar novas perdas. Quando o preço de mercado atinge este nível, a sua posição é liquidada e você perde a sua margem.
 info_perpetual_open_interest_title = Contratos em Aberto
-info_perpetual_open_interest_description = Os contratos em aberto representam o valor total de todos os contratos perpétuos pendentes que não foram liquidados. Ele fornece informações sobre a atividade e a liquidez do mercado.
+info_perpetual_open_interest_description = Os contratos em aberto representam o valor total de todos os contratos perpétuos pendentes que não foram liquidados. Esse indicador fornece informações sobre a atividade e a liquidez do mercado.
 info_no_quote_description = Não é possível retornar uma cotação para o par de tokens selecionado, possivelmente devido à baixa quantidade, falta de liquidez ou limitações técnicas.
 info_stake_reserved_title = Reservado para taxa de rede
-info_stake_reserved_description = Uma pequena quantia fica na sua carteira para cobrir taxas de operações como retirada de stake ou reivindicação de recompensas.
+info_stake_reserved_description = Uma pequena quantia fica na sua carteira para cobrir taxas de operações como remoção de stake ou resgate de recompensas.
 info_stake_apr_description = Taxa Percentual Anual (APR) é a taxa de recompensa anual por fazer stake da sua criptomoeda.
 info_stake_frozen_required_title = Congele TRX para fazer stake
 info_stake_frozen_required_description = Fazer stake na TRON tem duas etapas. Primeiro congele TRX e depois faça stake para ganhar recompensas.
@@ -606,7 +606,7 @@ info_fully_diluted_valuation_title = Avaliação totalmente diluída
 info_fully_diluted_valuation_description = O valor de mercado teórico se todas as moedas estivessem em circulação. Calculado como o preço multiplicado pela oferta máxima.
 info_circulating_supply_description = O número de moedas atualmente disponíveis e negociadas no mercado.
 info_total_supply_description = O número total de moedas existentes, incluindo moedas bloqueadas ou reservadas.
-info_max_supply_title = Suprimento máximo
+info_max_supply_title = Fornecimento máximo
 info_max_supply_description = O número máximo de moedas que jamais existirão.
 info_perpetual_funding_apr_title = APR de financiamento
 info_perpetual_funding_apr_description = A taxa anualizada pela qual as posições compradas pagam as posições vendidas (se for negativa, as posições vendidas pagam as posições compradas). Não há taxas associadas ao financiamento, que é uma transferência ponto a ponto entre usuários para empurrar os preços em direção ao preço à vista.
@@ -616,7 +616,7 @@ info_swap_minimum_amount_description = %@ requer no mínimo %@, mas o valor é %
 
 # Input
 
-input_enter_amount_to = Insira o valor em %@
+input_enter_amount_to = Insira o valor para %@
 
 # Nft
 
@@ -663,7 +663,7 @@ onboarding_security_create_wallet_no_recovery_title = Não podemos ajudar você 
 onboarding_accept_terms_title = Aceitar Termos
 onboarding_accept_terms_message = Leia e concorde com os seguintes termos antes de continuar.
 onboarding_accept_terms_item1_message = Entendo que sou o único responsável pela segurança e backup das minhas carteiras, não a Gem.
-onboarding_accept_terms_item2_message = Entendo que o Gem não é um banco nem uma bolsa de valores, e usá-lo para fins ilegais é estritamente proibido.
+onboarding_accept_terms_item2_message = Entendo que a Gem não é um banco nem uma corretora, e usá-la para fins ilegais é estritamente proibido.
 onboarding_accept_terms_item3_message = Entendo que se eu perder o acesso às minhas carteiras, a Gem não será responsável e não poderá ajudar de forma alguma.
 onboarding_accept_terms_continue = Concordar e continuar
 
@@ -688,7 +688,7 @@ perpetual_open_direction = Abrir %@
 perpetual_close_direction = Fechar %@
 perpetual_leverage = Alavancagem
 perpetual_auto_close = Fechamento automático
-perpetual_auto_close_take_profit = Obter lucro
+perpetual_auto_close_take_profit = Take Profit
 perpetual_market_price = Preço de mercado
 perpetual_take_profit = TP
 perpetual_stop_loss = SL
@@ -702,7 +702,7 @@ perpetual_auto_close_stop_loss = Stop Loss
 perpetual_value = Valor
 perpetual_unrealized_pnl = Lucro e Perda não realizados
 perpetual_volume = Volume
-perpetual_all_time_pnl = Todos os tempos PnL
+perpetual_all_time_pnl = PnL total
 perpetual_margin_usage = Utilização da margem
 perpetual_account_leverage = Alavancagem da conta
 perpetual_margin_cross = Cross
@@ -751,17 +751,17 @@ rewards_state_empty_description = Crie ou importe uma carteira multimoeda para c
 
 recent_activity_title = Recentes
 recent_activity_state_empty_title = Seus recentes aparecerão aqui
-recent_activity_state_empty_description = Os recursos que você usou recentemente aparecerão aqui
+recent_activity_state_empty_description = Os ativos que você usou recentemente aparecerão aqui
 
 # Notifications
 
-notifications_inapp_state_empty_title = Ainda não há notificações.
+notifications_inapp_state_empty_title = Ainda não há notificações
 notifications_inapp_state_empty_description = Você verá atualizações sobre suas notificações aqui.
 
 # Earn
 
-earn_state_empty_title = Suas posições aparecerão aqui.
-earn_state_empty_description = Faça seu primeiro depósito %@
+earn_state_empty_title = Suas posições aparecerão aqui
+earn_state_empty_description = Faça seu primeiro depósito de %@
 
 # Contacts
 
@@ -775,10 +775,10 @@ contacts_add_to_existing_contact = Adicionar a contato
 
 # Simulation
 
-simulation_header_unlimited_asset = Ilimitado %@
-simulation_warning_unlimited_token_approval_description = Isso dá ao gastador acesso ao uso desse token até que você revogue a aprovação ou ele expire.
+simulation_header_unlimited_asset = %@ ilimitado
+simulation_warning_unlimited_token_approval_description = Isso permite que o endereço autorizado use este token até que você revogue a aprovação ou ela expire.
 simulation_warning_externally_owned_spender_description = Esta aprovação permite que um endereço de carteira comum (EOA) use seus ativos. Confirme somente se você confia neste endereço.
-simulation_warning_nft_collection_approval_title = É solicitado acesso à coleção completa de NFTs.
+simulation_warning_nft_collection_approval_title = Acesso total à coleção de NFTs solicitado
 simulation_warning_unlimited_token_approval_title = Aprovação ilimitada de tokens
 
 # Application

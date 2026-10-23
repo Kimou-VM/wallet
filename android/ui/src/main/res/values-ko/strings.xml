@@ -297,8 +297,8 @@
   <string name="charts_year">1년</string>
   <string name="charts_all">모두</string>
   <string name="charts_entry">입장</string>
-  <string name="charts_price_open">열려 있는</string>
-  <string name="charts_price_close">닫다</string>
+  <string name="charts_price_open">시가</string>
+  <string name="charts_price_close">종가</string>
   <string name="charts_price_high">높은</string>
   <string name="charts_price_low">낮은</string>
   <string name="charts_price_change">변화</string>
@@ -376,7 +376,7 @@
   <string name="private_key_do_not_share_title">개인 키를 공유하지 마세요!</string>
   <string name="private_key_do_not_share_description">누군가 개인 키를 알고 있다면 이 계정을 완전히 통제하게 됩니다!</string>
   <string name="private_key_screenshot_detected_description">스크린샷은 다른 앱에서 접근할 수 있으며, 이런 방식으로 저장할 경우 개인 키가 위험에 노출될 수 있습니다.</string>
-  <string name="social_x">X (formerly Twitter)</string>
+  <string name="social_x">X(구 트위터)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>
   <string name="social_telegram">Telegram</string>
@@ -430,7 +430,7 @@
   <string name="price_alerts_direction_under">아래</string>
   <string name="price_alerts_direction_increases_by">증가하다</string>
   <string name="price_alerts_direction_decreases_by">감소</string>
-  <string name="price_alerts_set_alert_price_over">가격이 끝나면</string>
+  <string name="price_alerts_set_alert_price_over">가격이 위일 때</string>
   <string name="price_alerts_set_alert_price_under">가격이 아래일 때</string>
   <string name="price_alerts_set_alert_price_increases_by">가격이 상승하면</string>
   <string name="price_alerts_set_alert_price_decreases_by">가격이 하락하면</string>

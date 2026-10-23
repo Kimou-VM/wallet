@@ -25,7 +25,7 @@ common_copied = Kopyalandı: %@
 common_copied_to_clipboard = Panoya kopyalandı
 common_recommended = Tavsiye edilen
 common_all = Tümü
-common_not_available = Müsait değil
+common_not_available = Mevcut değil
 common_phrase = İfade
 common_manage = Yönet
 common_type = Tip
@@ -39,13 +39,13 @@ common_open_settings = Ayarları aç
 common_pin = Sabitle
 common_pinned = Sabitlendi
 common_lists = Listeler
-common_unpin = Kaldır
+common_unpin = Sabitlemeyi Kaldır
 common_pinned_asset = Sabitlendi: %@
 common_unpinned_asset = Sabitleme kaldırıldı: %@
 common_skip = Atla
 common_warning = Uyarı
 common_learn_more = Daha fazla bilgi edin
-common_description = Tanım
+common_description = Açıklama
 common_emoji = Emoji
 common_avatar = Avatar
 common_percentage = Yüzde
@@ -69,7 +69,7 @@ welcome_title = Gem Ailesine Hoş Geldiniz
 # Wallet
 
 wallet_create_new_wallet = Yeni Cüzdan Oluştur
-wallet_import_existing_wallet = Mevcut Bir Cüzdanı İçe Aktarma
+wallet_import_existing_wallet = Mevcut Bir Cüzdanı İçe Aktar
 wallet_send = Gönder
 wallet_receive = Al
 wallet_buy = Satın Al
@@ -85,8 +85,8 @@ wallet_scan_qr_code = QR Kodunu Tara
 wallet_scan = Tara
 wallet_scan_hint = Gönderin, ödeyin veya bir DApp'e bağlanın
 wallet_scan_hint_address = Cüzdan adresi
-wallet_default_name = Cüzdan # %d
-wallet_default_name_chain = %@ Cüzdan # %d
+wallet_default_name = Cüzdan #%d
+wallet_default_name_chain = %@ Cüzdanı #%d
 wallet_copy_address = Adresi Kopyala
 wallet_watch_tooltip_title = Yalnızca izleme cüzdanı. Bu fonlar sizin kontrolünüzde değil.
 wallet_watch_empty_state_title = Bu cüzdanı izliyorsunuz.
@@ -174,11 +174,11 @@ settings_privacy_policy = Gizlilik Politikası
 settings_title = Ayarlar
 settings_developer = Geliştirici
 settings_version = Sürüm
-settings_community = Toplum
+settings_community = Topluluk
 settings_aboutus = Hakkımızda
 settings_networks_title = Ağlar
 settings_networks_source = Kaynak
-settings_networks_explorer = Kaşif
+settings_networks_explorer = Blok Gezgini
 settings_currency = Para birimi
 settings_website = Web Sitesini Ziyaret Et
 settings_security = Güvenlik
@@ -190,7 +190,7 @@ settings_language = Dil
 settings_support = Destek
 settings_price_alerts_title = Fiyat Uyarıları
 settings_hide_balance = Bakiyeyi Gizle
-settings_disable_value = %@ yi devre dışı bırak
+settings_disable_value = %@ özelliğini devre dışı bırak
 settings_preferences_title = Tercihler
 settings_preferences_perpetual_default_leverage = Varsayılan Kaldıraç
 settings_preferences_perpetual_default_margin = Varsayılan Marj
@@ -275,7 +275,7 @@ activity_state_empty_search_title = Hiçbir etkinlik bulunamadı
 
 update_app_title = Yeni güncelleme mevcut!
 update_app_description = Uygulamanın %@ sürümü artık mevcut. Güncelleyin ve en son özelliklerin ve iyileştirmelerin keyfini çıkarın.
-update_app_action = Güncelleme
+update_app_action = Güncelle
 update_app_permission_title = Kuruluma izin ver
 update_app_permission_description = Ayarlara gidin ve harici kaynaklardan yüklemeye izin verin
 update_app_permission_open_settings = Ayarlara git
@@ -294,7 +294,7 @@ transaction_status_failed = Başarısız
 transaction_status_reverted = Geri alındı
 transaction_title_received = Alındı
 transaction_title_sent = Gönderildi
-transaction_swap_again = Tekrar Değiştir
+transaction_swap_again = Tekrar Takas Et
 transaction_status_completed = Tamamlandı
 transaction_status_inprogress = Devam Ediyor
 transaction_status_refunded = Para iadesi yapıldı
@@ -308,7 +308,7 @@ asset_price = Fiyat
 asset_market_cap = Piyasa değeri
 asset_trading_volume = İşlem Hacmi (24 saat)
 asset_total_supply = Toplam Arz
-asset_circulating_supply = Dolaşımdaki Tedarik
+asset_circulating_supply = Dolaşımdaki Arz
 asset_balances_reserved = Rezerve
 asset_view_token_on = Jetonu %@ üzerinde görüntüle
 asset_view_address_on = %@ üzerinde adresi görüntüle
@@ -322,7 +322,7 @@ asset_state_empty_description = %@ alın, takas edin veya satın alın
 asset_verification_unverified = Doğrulanmamış
 asset_verification_suspicious = Şüpheli
 asset_verification_warning_title = Ne Eklediğinizi Bilin
-asset_verification_warning_message = Sahte veya kötü amaçlı belirteçler de dahil olmak üzere herkes bir tane oluşturabilir.
+asset_verification_warning_message = Sahte veya kötü amaçlı token'lar da dahil olmak üzere herkes bir tane oluşturabilir.
 asset_buy_asset = %@ satın al
 asset_get_asset = %@ al
 asset_add_to_wallet = Cüzdana ekle
@@ -342,8 +342,8 @@ charts_month = 1M
 charts_year = 1Y
 charts_all = Tümü
 charts_entry = Giriş
-charts_price_open = Açık
-charts_price_close = Kapalı
+charts_price_open = Açılış
+charts_price_close = Kapanış
 charts_price_high = Yüksek
 charts_price_low = Düşük
 charts_price_change = Değişim
@@ -359,20 +359,20 @@ date_day_time = %@, %@
 wallet_connect_title = WalletConnect
 wallet_connect_connection_title = Bağlantı
 wallet_connect_disconnect = Bağlantıyı kes
-wallet_connect_connect_title = Bağlamak
+wallet_connect_connect_title = Bağlan
 wallet_connect_app = Uygulama
 wallet_connect_brand_name = WalletConnect
 wallet_connect_no_active_connections = Etkin bağlantı yok
 wallet_connect_state_empty_description = DApp'e bağlanmak için kodu tarayın veya yapıştırın
 wallet_connect_permissions_title = İzinler
-wallet_connect_permissions_view_balance = Bakiyenizi ve işlemlerinizi görüntüleyin.
-wallet_connect_permissions_approval_requests = Onay isteklerini gönderin
+wallet_connect_permissions_view_balance = Bakiyenizi ve işlemlerinizi görüntüleme
+wallet_connect_permissions_approval_requests = Onay istekleri gönderme
 wallet_connect_request_expired = İstek süresi doldu
 
 # Swap
 
-swap_you_pay = Öde
-swap_you_receive = Alacağın
+swap_you_pay = Ödeyeceğiniz
+swap_you_receive = Alacağınız
 swap_price_impact = Fiyat Etkisi
 swap_slippage = Kayma
 swap_slippage_warning = Yüksek kayma. Takasınız beklenenden daha kötü bir fiyattan gerçekleşebilir.
@@ -406,7 +406,7 @@ stake_state_empty_validators_title = Hiçbir doğrulayıcı bulunamadı
 stake_resource = Kaynak
 stake_resource_energy = Enerji
 stake_resource_bandwidth = Bant genişliği
-stake_delegations = Yetkilendirmeler
+stake_delegations = Delegasyonlar
 
 # Assets
 
@@ -496,11 +496,11 @@ fee_rate_base = Temel Ücret
 # Banner
 
 banner_account_activation_title = Hesap Aktivasyon Ücreti
-banner_account_activation_description = %@ ağı, tek seferlik bir ücret gerektirir %@.
+banner_account_activation_description = %@ ağı, %@ tutarında tek seferlik bir ücret gerektirir.
 banner_stake_title = %@ stake etmeye başlayın
 banner_stake_description = Uyurken %@ ödül kazanın.
 banner_activate_asset_description = %@ varlığını kullanmak için, öncelikle ağın özel gereksinimlerini karşılayarak %@ ağında etkinleştirmeniz gerekir.
-banner_asset_status_title = Şüpheli Öğe
+banner_asset_status_title = Şüpheli Varlık
 banner_asset_status_description = Token güvenli olmayabilir veya yanıltıcı olabilir. Yalnızca tamamen güveniyorsanız devam edin.
 banner_onboarding_title = Cüzdanınız hazır
 banner_onboarding_description = Başlamak için kripto satın alın veya alın
@@ -524,7 +524,7 @@ price_alerts_direction_under = Altında
 price_alerts_direction_increases_by = Artış
 price_alerts_direction_decreases_by = Azalır
 price_alerts_set_alert_price_over = Fiyat şunun üzerindeyken
-price_alerts_set_alert_price_under = Fiyat düşük olduğunda
+price_alerts_set_alert_price_under = Fiyat şunun altındayken
 price_alerts_set_alert_price_increases_by = Fiyat arttığında
 price_alerts_set_alert_price_decreases_by = Fiyat düştüğünde
 price_alerts_set_alert_set_target_price = Hedef fiyatı belirle
@@ -555,7 +555,7 @@ lock_passcode_off_description = Gem, cihazınızın parolasıyla kilitli. Gem'i 
 
 # Verify
 
-verify_phrase_title = Onaylamak
+verify_phrase_title = Onayla
 
 # Warnings
 
@@ -574,7 +574,7 @@ info_watch_wallet_title = İzleme Cüzdanı
 info_watch_wallet_description = Erişiminizin olmadığı, ancak işlemlerini ve hareketlerini izleyebileceğiniz bir cüzdan.
 info_payment_verification_title = Ödeme Doğrulaması
 info_payment_verification_description = Satıcı ödemeden önce ek bilgi gerektiriyor.
-info_network_fee_description = %@ ağındaki her işlem, işleminizi gerçekleştirmek için madencilere Gem Wallet'a değil, %@ tutarında bir ücret ödenmesini gerektirir. Ağ ücretleri ağ kullanımına göre değişir.
+info_network_fee_description = %@ ağındaki her işlem, işleminizi gerçekleştirmek için madencilere Gem Wallet'a değil, %@ cinsinden bir ücret ödenmesini gerektirir. Ağ ücretleri ağ kullanımına göre değişir.
 info_transaction_error_description = İşlem, yetersiz fon, geçersiz giriş veya ağ tarafından reddedilme gibi bir hata nedeniyle tamamlanamadı. Lütfen ayrıntıları inceleyin ve tekrar deneyin.
 info_transaction_pending_description = İşlem gönderildi ve ağda onay bekleniyor. İşlem süreleri değişiklik gösterebilir. Lütfen güncellemeler için tekrar kontrol edin.
 info_estimated_confirmation_description = Bu tahmin işlem ücreti ve mevcut %@ ağı etkinliğine dayanır. Gerçek onay süresi değişebilir ve garanti edilmez.
@@ -583,33 +583,33 @@ info_lock_time_description = Kilitlenme süresi (bağ çözme veya dondurmayı k
 info_price_impact_description = Fiyat etkisi, işlem boyutunuzdan kaynaklanan token fiyatındaki değişikliktir. Daha yüksek fiyat etkisi, düşük likidite veya büyük sipariş boyutu nedeniyle daha az token aldığınız anlamına gelir.
 info_slippage_description = Kayma, bir işlemin beklenen fiyatı ile gerçekleştirildiği gerçek fiyat arasındaki farkı ifade eder.
 info_asset_status_unverified_description = Doğrulanmamış token'lar güvenilir üçüncü taraf hizmetleri tarafından yeterince doğrulanmamıştır. Airdrop'lar, transferler veya manuel içe aktarmalar nedeniyle cüzdanınızda görünebilirler.
-info_asset_status_suspicious_description = Şüpheli veya spam token'lar potansiyel dolandırıcılık veya zararlı varlıklar olarak tanımlanır. Airdrop'lar, transferler veya manuel ithalatlar nedeniyle cüzdanınızda görünebilirler.
+info_asset_status_suspicious_description = Şüpheli veya spam token'lar potansiyel dolandırıcılık veya zararlı varlıklar olarak tanımlanır. Airdrop'lar, transferler veya manuel içe aktarmalar nedeniyle cüzdanınızda görünebilirler.
 info_balance_required_title = %@ gerekli
 info_insufficient_network_fee_balance_description = Bu işlem %@ ağ ücreti için %@ gerektirir, ancak yalnızca %@ kullanılabilir. Devam etmek için %@ daha gerekiyor.
 info_insufficient_balance_title = Yetersiz Bakiye
 info_balance_required_description = Bu işlem %@ gerektirir, ancak yalnızca %@ kullanılabilir. Devam etmek için %@ daha gerekiyor.
 info_account_minimum_balance_title = Minimum bakiye
 info_perpetual_funding_payments_title = Finansman Ödemeleri
-info_perpetual_funding_payments_description = Fonlama ödemeleri, daimi sözleşme fiyatını dayanak varlığın spot fiyatına yakın tutmak için yatırımcılar arasında yapılan periyodik ödemelerdir. Pozitif fonlama, uzun pozisyonların kısa pozisyon ödediği anlamına gelirken, negatif fonlama, kısa pozisyonların uzun pozisyon ödediği anlamına gelir.
+info_perpetual_funding_payments_description = Fonlama ödemeleri, daimi sözleşme fiyatını dayanak varlığın spot fiyatına yakın tutmak için yatırımcılar arasında yapılan periyodik ödemelerdir. Pozitif fonlama, uzun pozisyonların kısa pozisyonlara ödeme yaptığı anlamına gelirken, negatif fonlama, kısa pozisyonların uzun pozisyonlara ödeme yaptığı anlamına gelir.
 info_perpetual_liquidation_price_title = Tasfiye Fiyatı
 info_perpetual_liquidation_price_description = Tasfiye fiyatı, daha fazla kaybın önlenmesi amacıyla pozisyonunuzun otomatik olarak kapatılacağı fiyat seviyesidir. Piyasa fiyatı bu seviyeye ulaştığında pozisyonunuz tasfiye edilir ve marjınızı kaybedersiniz.
 info_perpetual_open_interest_title = Açık Pozisyon
-info_perpetual_open_interest_description = Açık faiz, ödenmemiş tüm kalıcı sözleşmelerin toplam değerini temsil eder. Piyasa faaliyetleri ve likidite hakkında bilgi sağlar.
+info_perpetual_open_interest_description = Açık pozisyon, henüz kapatılmamış tüm daimi sözleşmelerin toplam değerini temsil eder. Piyasa faaliyetleri ve likidite hakkında bilgi sağlar.
 info_no_quote_description = Seçilen token çifti için bir fiyat teklifi döndürülemiyor; bunun nedeni muhtemelen düşük miktar, likidite eksikliği veya teknik sınırlamalar olabilir.
 info_stake_reserved_title = Ağ ücreti için ayrıldı
 info_stake_reserved_description = Cüzdanınızda, stake'lerinizi iptal etme veya ödül talep etme gibi işlemlerin ücretlerini karşılamak için küçük bir miktar kalır.
-info_stake_apr_description = Yıllık Yüzde Oranı (APR), kripto paranızı stake etmeniz durumunda ödeyeceğiniz yıllık ödül oranıdır.
+info_stake_apr_description = Yıllık Yüzde Oranı (APR), kripto paranızı stake ettiğinizde kazanacağınız yıllık ödül oranıdır.
 info_stake_frozen_required_title = Stake için TRX'i dondurun
 info_stake_frozen_required_description = TRON'da staking iki adımdan oluşur. Önce TRX'i dondurun, ardından ödül kazanmak için stake edin.
 info_perpetual_auto_close_description = Pozisyonunuzu belirlenen fiyat seviyelerinde otomatik olarak kapatın. Kâr Al özelliği kazançlarınızı sabitler, Zarar Durdur özelliği ise kayıplarınızı sınırlar.
 info_fully_diluted_valuation_title = Tamamen Seyreltilmiş Değerleme
-info_fully_diluted_valuation_description = Tüm madeni paraların dolaşımda olması durumunda teorik piyasa değeri. Fiyatın maksimum arzla çarpılmasıyla hesaplanır.
+info_fully_diluted_valuation_description = Tüm coin'lerin dolaşımda olması durumunda teorik piyasa değeri. Fiyatın maksimum arzla çarpılmasıyla hesaplanır.
 info_circulating_supply_description = Piyasada şu anda mevcut olan ve işlem gören kripto para birimi sayısı.
 info_total_supply_description = Kilitli veya rezerve edilmiş paralar da dahil olmak üzere mevcut toplam para sayısı.
-info_max_supply_title = Maksimum Tedarik
-info_max_supply_description = Var olabilecek maksimum madeni para sayısı.
+info_max_supply_title = Maksimum Arz
+info_max_supply_description = Var olabilecek maksimum coin sayısı.
 info_perpetual_funding_apr_title = Finansman APR'si
-info_perpetual_funding_apr_description = Uzun pozisyonların kısa pozisyon ödediği yıllık oran (negatifse kısa pozisyonların uzun pozisyon ödediği). Fiyatları spot fiyata doğru itmek için kullanıcılar arasında eşler arası transfer olan finansmanla ilgili herhangi bir ücret yoktur.
+info_perpetual_funding_apr_description = Uzun pozisyonların kısa pozisyonlara ödeme yaptığı yıllık oran (negatifse kısa pozisyonlar uzun pozisyonlara öder). Fiyatları spot fiyata doğru itmek için kullanıcılar arasında eşler arası transfer olan finansmanla ilgili herhangi bir ücret yoktur.
 info_minimum_amount_title = Asgari Tutar
 info_minimum_amount_description = %@ ağında, bu işlem için minimum tutar %@.
 info_swap_minimum_amount_description = %@ en az %@ gerektirir, ancak tutar %@. Devam etmek için %@ artırın.
@@ -653,7 +653,7 @@ networks_state_empty_search_title = Hiçbir ağ bulunamadı
 
 # Onboarding
 
-onboarding_security_create_wallet_intro_title = Gizli bir İfade alacaksınız; bu, cüzdanınıza erişmenin tek yoludur.
+onboarding_security_create_wallet_intro_title = Bir Gizli İfade alacaksınız; bu, cüzdanınıza erişmenin tek yoludur.
 onboarding_security_create_wallet_do_not_share_title = Kimseyle Paylaşmayın
 onboarding_security_create_wallet_do_not_share_subtitle = Gizli İfadenizi ele geçiren herkes cüzdanınızın tüm kontrolünü ele geçirebilir.
 onboarding_security_create_wallet_keep_safe_subtitle = Cüzdanınıza erişmenin tek yolu gizli ifadedir.
@@ -693,8 +693,8 @@ perpetual_market_price = Piyasa Fiyatı
 perpetual_take_profit = TP
 perpetual_stop_loss = SL
 perpetual_liquidation = Liq
-perpetual_increase_direction = %@ yi artırın
-perpetual_reduce_direction = %@ azalt
+perpetual_increase_direction = %@ Pozisyonu Artır
+perpetual_reduce_direction = %@ Pozisyonu Azalt
 perpetual_auto_close_expected_profit = Beklenen kar
 perpetual_auto_close_expected_loss = Beklenen kayıp
 perpetual_modify_position = Pozisyonu Değiştir
@@ -702,9 +702,9 @@ perpetual_auto_close_stop_loss = Zarar durdurma
 perpetual_value = Değer
 perpetual_unrealized_pnl = Gerçekleşmemiş Kar ve Zarar
 perpetual_volume = Hacim
-perpetual_all_time_pnl = Tüm Zamanların Kar ve Zarar Tablosu
+perpetual_all_time_pnl = Toplam PnL
 perpetual_margin_usage = Marj Kullanımı
-perpetual_account_leverage = Hesap Kaldıraç
+perpetual_account_leverage = Hesap Kaldıracı
 perpetual_margin_cross = Çapraz
 perpetual_margin_isolated = İzole
 
@@ -714,7 +714,7 @@ perpetuals_title = Perpetuals
 # Used in the wallet screen row that opens Perpetuals when the wallet holds no positions.
 perpetuals_trade = Perpetuals al-sat
 perpetuals_markets = Piyasalar
-perpetuals_empty_state_no_markets_found = Hiçbir pazar bulunamadı
+perpetuals_empty_state_no_markets_found = Hiçbir piyasa bulunamadı
 
 # Rewards
 
@@ -723,10 +723,10 @@ rewards_share_text = Referans linkimle Gem Wallet'a katılın ve ödüller kazan
 rewards_my_referral_code = Benim referans kodum
 rewards_invite_friends_title = Arkadaşlarınızı Davet Edin
 rewards_invite_friends_description = Katılan her arkadaşınız için %@ puan kazanın.
-rewards_referral_code = Yönlendirme Kodu
+rewards_referral_code = Referans Kodu
 rewards_invited_by = Davet Eden
 rewards_points = Puanlar
-rewards_referrals = Yönlendirmeler
+rewards_referrals = Referanslar
 rewards_earn_points_title = Puan Kazanın
 rewards_get_rewards_title = Ödüller Kazanın
 rewards_activate_referral_code_description = Arkadaşınızdan aldığınız bir referans kodunuz var mı?
@@ -750,25 +750,25 @@ rewards_state_empty_description = Arkadaşlarınızı davet etmek ve puan kazanm
 # Recent Activity
 
 recent_activity_title = Son Kullanılanlar
-recent_activity_state_empty_title = Son aramalarınız burada görünecek
+recent_activity_state_empty_title = Son kullandıklarınız burada görünecek
 recent_activity_state_empty_description = Yakın zamanda kullandığınız varlıklar burada görünecek
 
 # Notifications
 
-notifications_inapp_state_empty_title = Henüz hiçbir bildirim yok.
+notifications_inapp_state_empty_title = Henüz bildirim yok
 notifications_inapp_state_empty_description = Bildirimlerinizle ilgili güncellemeleri burada göreceksiniz.
 
 # Earn
 
-earn_state_empty_title = Pozisyonlarınız burada görünecektir.
+earn_state_empty_title = Pozisyonlarınız burada görünecek
 earn_state_empty_description = İlk %@ yatırma işleminizi yapın
 
 # Contacts
 
-contacts_title = İletişim
-contacts_contact = Temas etmek
+contacts_title = Kişiler
+contacts_contact = Kişi
 contacts_addresses = Adresler
-contacts_state_empty_title = İletişim yok
+contacts_state_empty_title = Kişi yok
 contacts_state_empty_description = Sık kullandığınız adresleri kaydedin.
 contacts_create_new_contact = Yeni Kişi Oluştur
 contacts_add_to_existing_contact = Kişiye Ekle
@@ -776,9 +776,9 @@ contacts_add_to_existing_contact = Kişiye Ekle
 # Simulation
 
 simulation_header_unlimited_asset = Sınırsız %@
-simulation_warning_unlimited_token_approval_description = Bu, harcayan tarafa, siz onayı iptal edene veya süresi dolana kadar bu jetonu kullanma erişimi sağlar.
+simulation_warning_unlimited_token_approval_description = Bu, harcayan tarafa, siz onayı iptal edene veya süresi dolana kadar bu token'ı kullanma erişimi sağlar.
 simulation_warning_externally_owned_spender_description = Bu onay, normal bir cüzdan adresinin (EOA) varlıklarınızı kullanmasına izin verir. Yalnızca bu adrese güveniyorsanız onaylayın.
-simulation_warning_nft_collection_approval_title = NFT koleksiyonunun tamamına erişim talep edildi.
+simulation_warning_nft_collection_approval_title = NFT koleksiyonunun tamamına erişim talep edildi
 simulation_warning_unlimited_token_approval_title = Sınırsız token onayı
 
 # Application
@@ -798,6 +798,6 @@ application_name = Gem
 
 rootcheck_security_alert = Güvenlik Uyarısı
 rootcheck_jailbreak_body = Cihazınız jailbreak yapılmış görünüyor. Bu, cüzdanınızı ve bakiyenizi riske atabilir.
-rootcheck_body = Cihazınızın kök erişimi var gibi görünüyor, bu da güvenlik risklerini önemli ölçüde artırabilir. Bu uygulamayı köklü bir cihazda kullanmak varlıklarınızı yetkisiz erişime ve olası kayba maruz bırakabilir. Fonlarınızın güvenliği için köklü olmayan bir cihaz kullanmanızı şiddetle öneririz.
+rootcheck_body = Cihazınızın root erişimi var gibi görünüyor, bu da güvenlik risklerini önemli ölçüde artırabilir. Bu uygulamayı root'lu bir cihazda kullanmak varlıklarınızı yetkisiz erişime ve olası kayba maruz bırakabilir. Fonlarınızın güvenliği için root'suz bir cihaz kullanmanızı şiddetle öneririz.
 rootcheck_ignore = Yoksay
 rootcheck_exit = Çıkış

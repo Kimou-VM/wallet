@@ -224,7 +224,7 @@ errors_error_occurred = Došlo k chybě!
 errors_invalid_network_id = Neplatné ID sítě
 errors_error = Chyba
 errors_cancelled = Zrušeno
-errors_connections_user_cancelled = Uživatel zrušen
+errors_connections_user_cancelled = Zrušeno uživatelem
 errors_not_supported = Není podporováno
 errors_permissions_not_granted = Oprávnění nebyla udělena
 errors_unknown = Neznámý
@@ -448,13 +448,13 @@ private_key_screenshot_detected_description = Snímky obrazovky mohou být pří
 
 # Social
 
-social_x = X (formerly Twitter)
+social_x = X (dříve Twitter)
 social_discord = Discord
 social_reddit = Reddit
 social_telegram = Telegram
 social_github = GitHub
 social_youtube = YouTube
-social_links = Links
+social_links = Odkazy
 social_facebook = Facebook
 social_coingecko = CoinGecko
 social_website = Website

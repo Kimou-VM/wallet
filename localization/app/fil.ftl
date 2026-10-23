@@ -224,7 +224,7 @@ errors_error_occurred = May naganap na error!
 errors_invalid_network_id = Di-wastong Network ID
 errors_error = Error
 errors_cancelled = Nakansela
-errors_connections_user_cancelled = Kinansela ang user
+errors_connections_user_cancelled = Kinansela ng user
 errors_not_supported = Hindi Sinusuportahan
 errors_permissions_not_granted = Hindi Ipinagkaloob ang Mga Pahintulot
 errors_unknown = Hindi alam
@@ -448,7 +448,7 @@ private_key_screenshot_detected_description = Maaaring ma-access ang mga screens
 
 # Social
 
-social_x = X (formerly Twitter)
+social_x = X (dating Twitter)
 social_discord = Discord
 social_reddit = Reddit
 social_telegram = Telegram

@@ -194,7 +194,7 @@
   <string name="errors_invalid_network_id">ID de réseau invalide</string>
   <string name="errors_error">Erreur</string>
   <string name="errors_cancelled">Annulé</string>
-  <string name="errors_connections_user_cancelled">Utilisateur annulé</string>
+  <string name="errors_connections_user_cancelled">Annulé par l\'utilisateur</string>
   <string name="errors_not_supported">Non pris en charge</string>
   <string name="errors_permissions_not_granted">Autorisations non accordées</string>
   <string name="errors_unknown">Inconnu</string>
@@ -297,10 +297,10 @@
   <string name="charts_year">1A</string>
   <string name="charts_all">Tous</string>
   <string name="charts_entry">Entrée</string>
-  <string name="charts_price_open">Ouvrir</string>
-  <string name="charts_price_close">Fermer</string>
+  <string name="charts_price_open">Ouverture</string>
+  <string name="charts_price_close">Clôture</string>
   <string name="charts_price_high">Haut</string>
-  <string name="charts_price_low">Faible</string>
+  <string name="charts_price_low">Bas</string>
   <string name="charts_price_change">Changement</string>
   <string name="date_today">Aujourd\'hui</string>
   <string name="date_yesterday">Hier</string>

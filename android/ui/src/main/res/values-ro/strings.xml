@@ -297,7 +297,7 @@
   <string name="charts_year">1Y</string>
   <string name="charts_all">Toate</string>
   <string name="charts_entry">Intrarea</string>
-  <string name="charts_price_open">Deschide</string>
+  <string name="charts_price_open">Deschidere</string>
   <string name="charts_price_close">Închidere</string>
   <string name="charts_price_high">Ridicat</string>
   <string name="charts_price_low">Scăzut</string>

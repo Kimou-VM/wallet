@@ -194,7 +194,7 @@
   <string name="errors_invalid_network_id">Neplatné ID sítě</string>
   <string name="errors_error">Chyba</string>
   <string name="errors_cancelled">Zrušeno</string>
-  <string name="errors_connections_user_cancelled">Uživatel zrušen</string>
+  <string name="errors_connections_user_cancelled">Zrušeno uživatelem</string>
   <string name="errors_not_supported">Není podporováno</string>
   <string name="errors_permissions_not_granted">Oprávnění nebyla udělena</string>
   <string name="errors_unknown">Neznámý</string>
@@ -376,13 +376,13 @@
   <string name="private_key_do_not_share_title">Nesdílejte svůj soukromý klíč!</string>
   <string name="private_key_do_not_share_description">Pokud má někdo váš soukromý klíč, bude mít plnou kontrolu nad tímto účtem!</string>
   <string name="private_key_screenshot_detected_description">Snímky obrazovky mohou být přístupné jiným aplikacím, pokud se uloží tímto způsobem, mohou ohrozit váš soukromý klíč.</string>
-  <string name="social_x">X (formerly Twitter)</string>
+  <string name="social_x">X (dříve Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>
   <string name="social_telegram">Telegram</string>
   <string name="social_github">GitHub</string>
   <string name="social_youtube">YouTube</string>
-  <string name="social_links">Links</string>
+  <string name="social_links">Odkazy</string>
   <string name="social_facebook">Facebook</string>
   <string name="social_coingecko">CoinGecko</string>
   <string name="social_website">Website</string>

@@ -194,7 +194,7 @@
   <string name="errors_invalid_network_id">ID di rete non valido</string>
   <string name="errors_error">Errore</string>
   <string name="errors_cancelled">Annullato</string>
-  <string name="errors_connections_user_cancelled">Utente cancellato</string>
+  <string name="errors_connections_user_cancelled">Annullato dall\'utente</string>
   <string name="errors_not_supported">Non supportato</string>
   <string name="errors_permissions_not_granted">Autorizzazioni non concesse</string>
   <string name="errors_unknown">Sconosciuto</string>
@@ -301,7 +301,7 @@
   <string name="charts_price_close">Chiusura</string>
   <string name="charts_price_high">Alto</string>
   <string name="charts_price_low">Basso</string>
-  <string name="charts_price_change">Modifica</string>
+  <string name="charts_price_change">Variazione</string>
   <string name="date_today">Oggi</string>
   <string name="date_yesterday">Ieri</string>
   <string name="date_day_time">%1$s, %2$s</string>

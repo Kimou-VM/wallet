@@ -1464,7 +1464,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Maior de todos os tempos"
+            "value": "Máxima histórica"
           }
         },
         "ro": {
@@ -2640,7 +2640,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dolaşımdaki Tedarik"
+            "value": "Dolaşımdaki Arz"
           }
         },
         "uk": {
@@ -6078,7 +6078,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sahte veya kötü amaçlı belirteçler de dahil olmak üzere herkes bir tane oluşturabilir."
+            "value": "Sahte veya kötü amaçlı token'lar da dahil olmak üzere herkes bir tane oluşturabilir."
           }
         },
         "uk": {
@@ -8179,7 +8179,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ ağı, tek seferlik bir ücret gerektirir %@."
+            "value": "%@ ağı, %@ tutarında tek seferlik bir ücret gerektirir."
           }
         },
         "uk": {
@@ -8943,7 +8943,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Şüpheli Öğe"
+            "value": "Şüpheli Varlık"
           }
         },
         "uk": {
@@ -9295,7 +9295,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sua carteira está pronta."
+            "value": "Sua carteira está pronta"
           }
         },
         "ro": {
@@ -9677,7 +9677,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Negocie perpétuas no Hyperliquid"
+            "value": "Negocie perpétuos no Hyperliquid"
           }
         },
         "ro": {
@@ -10632,7 +10632,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Taxa"
+            "value": "Cotação"
           }
         },
         "ro": {
@@ -11933,7 +11933,7 @@
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Modifica"
+            "value": "Variazione"
           }
         },
         "ja": {
@@ -11969,7 +11969,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mudar"
+            "value": "Variação"
           }
         },
         "ro": {
@@ -12058,7 +12058,7 @@
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Luk"
+            "value": "Lukning"
           }
         },
         "de": {
@@ -12094,7 +12094,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fermer"
+            "value": "Clôture"
           }
         },
         "ha": {
@@ -12136,7 +12136,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "닫다"
+            "value": "종가"
           }
         },
         "ms": {
@@ -12160,7 +12160,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fechar"
+            "value": "Fechamento"
           }
         },
         "ro": {
@@ -12190,7 +12190,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kapalı"
+            "value": "Kapanış"
           }
         },
         "uk": {
@@ -12476,7 +12476,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Faible"
+            "value": "Bas"
           }
         },
         "ha": {
@@ -12631,7 +12631,7 @@
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Åben"
+            "value": "Åbning"
           }
         },
         "de": {
@@ -12667,7 +12667,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ouvrir"
+            "value": "Ouverture"
           }
         },
         "ha": {
@@ -12709,7 +12709,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "열려 있는"
+            "value": "시가"
           }
         },
         "ms": {
@@ -12721,25 +12721,25 @@
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Openen"
+            "value": "Open"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Otwarte"
+            "value": "Otwarcie"
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Abrir"
+            "value": "Abertura"
           }
         },
         "ro": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deschide"
+            "value": "Deschidere"
           }
         },
         "ru": {
@@ -12763,7 +12763,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Açık"
+            "value": "Açılış"
           }
         },
         "uk": {
@@ -15437,7 +15437,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tanım"
+            "value": "Açıklama"
           }
         },
         "uk": {
@@ -17508,7 +17508,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Saber mais"
+            "value": "Saiba mais"
           }
         },
         "ro": {
@@ -19448,7 +19448,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Müsait değil"
+            "value": "Mevcut değil"
           }
         },
         "uk": {
@@ -23650,7 +23650,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kaldır"
+            "value": "Sabitlemeyi Kaldır"
           }
         },
         "uk": {
@@ -24987,7 +24987,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Temas etmek"
+            "value": "Kişi"
           }
         },
         "uk": {
@@ -25560,7 +25560,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "İletişim yok"
+            "value": "Kişi yok"
           }
         },
         "uk": {
@@ -25751,7 +25751,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "İletişim"
+            "value": "Kişiler"
           }
         },
         "uk": {
@@ -26485,7 +26485,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Faça seu primeiro depósito %@"
+            "value": "Faça seu primeiro depósito de %@"
           }
         },
         "ro": {
@@ -26676,7 +26676,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suas posições aparecerão aqui."
+            "value": "Suas posições aparecerão aqui"
           }
         },
         "ro": {
@@ -26706,7 +26706,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pozisyonlarınız burada görünecektir."
+            "value": "Pozisyonlarınız burada görünecek"
           }
         },
         "uk": {
@@ -29039,25 +29039,25 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تم إلغاء المستخدم"
+            "value": "تم الإلغاء بواسطة المستخدم"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "ব্যবহারকারী বাতিল করা হয়েছে"
+            "value": "ব্যবহারকারী বাতিল করেছেন"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Uživatel zrušen"
+            "value": "Zrušeno uživatelem"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bruger annulleret"
+            "value": "Annulleret af brugeren"
           }
         },
         "de": {
@@ -29087,13 +29087,13 @@
         "fil": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kinansela ang user"
+            "value": "Kinansela ng user"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Utilisateur annulé"
+            "value": "Annulé par l'utilisateur"
           }
         },
         "ha": {
@@ -29117,13 +29117,13 @@
         "id": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pengguna dibatalkan"
+            "value": "Dibatalkan oleh pengguna"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Utente cancellato"
+            "value": "Annullato dall'utente"
           }
         },
         "ja": {
@@ -29147,7 +29147,7 @@
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gebruiker geannuleerd"
+            "value": "Geannuleerd door gebruiker"
           }
         },
         "pl": {
@@ -29159,7 +29159,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Usuário cancelado"
+            "value": "Cancelado pelo usuário"
           }
         },
         "ro": {
@@ -34698,7 +34698,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ O endereço da carteira de destino requer uma etiqueta/memorando de destino"
+            "value": "O endereço da carteira de destino %@ requer uma tag de destino/memorando"
           }
         },
         "ro": {
@@ -39312,7 +39312,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Şüpheli veya spam token'lar potansiyel dolandırıcılık veya zararlı varlıklar olarak tanımlanır. Airdrop'lar, transferler veya manuel ithalatlar nedeniyle cüzdanınızda görünebilirler."
+            "value": "Şüpheli veya spam token'lar potansiyel dolandırıcılık veya zararlı varlıklar olarak tanımlanır. Airdrop'lar, transferler veya manuel içe aktarmalar nedeniyle cüzdanınızda görünebilirler."
           }
         },
         "uk": {
@@ -40458,7 +40458,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tüm madeni paraların dolaşımda olması durumunda teorik piyasa değeri. Fiyatın maksimum arzla çarpılmasıyla hesaplanır."
+            "value": "Tüm coin'lerin dolaşımda olması durumunda teorik piyasa değeri. Fiyatın maksimum arzla çarpılmasıyla hesaplanır."
           }
         },
         "uk": {
@@ -41413,7 +41413,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Var olabilecek maksimum madeni para sayısı."
+            "value": "Var olabilecek maksimum coin sayısı."
           }
         },
         "uk": {
@@ -41574,7 +41574,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Suprimento máximo"
+            "value": "Fornecimento máximo"
           }
         },
         "ro": {
@@ -41604,7 +41604,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Maksimum Tedarik"
+            "value": "Maksimum Arz"
           }
         },
         "uk": {
@@ -42177,7 +42177,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ ağındaki her işlem, işleminizi gerçekleştirmek için madencilere Gem Wallet'a değil, %@ tutarında bir ücret ödenmesini gerektirir. Ağ ücretleri ağ kullanımına göre değişir."
+            "value": "%@ ağındaki her işlem, işleminizi gerçekleştirmek için madencilere Gem Wallet'a değil, %@ cinsinden bir ücret ödenmesini gerektirir. Ağ ücretleri ağ kullanımına göre değişir."
           }
         },
         "uk": {
@@ -43323,7 +43323,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Uzun pozisyonların kısa pozisyon ödediği yıllık oran (negatifse kısa pozisyonların uzun pozisyon ödediği). Fiyatları spot fiyata doğru itmek için kullanıcılar arasında eşler arası transfer olan finansmanla ilgili herhangi bir ücret yoktur."
+            "value": "Uzun pozisyonların kısa pozisyonlara ödeme yaptığı yıllık oran (negatifse kısa pozisyonlar uzun pozisyonlara öder). Fiyatları spot fiyata doğru itmek için kullanıcılar arasında eşler arası transfer olan finansmanla ilgili herhangi bir ücret yoktur."
           }
         },
         "uk": {
@@ -43705,7 +43705,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fonlama ödemeleri, daimi sözleşme fiyatını dayanak varlığın spot fiyatına yakın tutmak için yatırımcılar arasında yapılan periyodik ödemelerdir. Pozitif fonlama, uzun pozisyonların kısa pozisyon ödediği anlamına gelirken, negatif fonlama, kısa pozisyonların uzun pozisyon ödediği anlamına gelir."
+            "value": "Fonlama ödemeleri, daimi sözleşme fiyatını dayanak varlığın spot fiyatına yakın tutmak için yatırımcılar arasında yapılan periyodik ödemelerdir. Pozitif fonlama, uzun pozisyonların kısa pozisyonlara ödeme yaptığı anlamına gelirken, negatif fonlama, kısa pozisyonların uzun pozisyonlara ödeme yaptığı anlamına gelir."
           }
         },
         "uk": {
@@ -44439,7 +44439,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Os contratos em aberto representam o valor total de todos os contratos perpétuos pendentes que não foram liquidados. Ele fornece informações sobre a atividade e a liquidez do mercado."
+            "value": "Os contratos em aberto representam o valor total de todos os contratos perpétuos pendentes que não foram liquidados. Esse indicador fornece informações sobre a atividade e a liquidez do mercado."
           }
         },
         "ro": {
@@ -44469,7 +44469,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Açık faiz, ödenmemiş tüm kalıcı sözleşmelerin toplam değerini temsil eder. Piyasa faaliyetleri ve likidite hakkında bilgi sağlar."
+            "value": "Açık pozisyon, henüz kapatılmamış tüm daimi sözleşmelerin toplam değerini temsil eder. Piyasa faaliyetleri ve likidite hakkında bilgi sağlar."
           }
         },
         "uk": {
@@ -45424,7 +45424,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yıllık Yüzde Oranı (APR), kripto paranızı stake etmeniz durumunda ödeyeceğiniz yıllık ödül oranıdır."
+            "value": "Yıllık Yüzde Oranı (APR), kripto paranızı stake ettiğinizde kazanacağınız yıllık ödül oranıdır."
           }
         },
         "uk": {
@@ -45585,7 +45585,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Uma pequena quantia fica na sua carteira para cobrir taxas de operações como retirada de stake ou reivindicação de recompensas."
+            "value": "Uma pequena quantia fica na sua carteira para cobrir taxas de operações como remoção de stake ou resgate de recompensas."
           }
         },
         "ro": {
@@ -47686,7 +47686,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Insira o valor em %@"
+            "value": "Insira o valor para %@"
           }
         },
         "ro": {
@@ -50169,7 +50169,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Desbloqueio"
+            "value": "Desbloquear"
           }
         },
         "ro": {
@@ -54944,7 +54944,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ainda não há notificações."
+            "value": "Ainda não há notificações"
           }
         },
         "ro": {
@@ -54974,7 +54974,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Henüz hiçbir bildirim yok."
+            "value": "Henüz bildirim yok"
           }
         },
         "uk": {
@@ -55517,7 +55517,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entendo que o Gem não é um banco nem uma bolsa de valores, e usá-lo para fins ilegais é estritamente proibido."
+            "value": "Entendo que a Gem não é um banco nem uma corretora, e usá-la para fins ilegais é estritamente proibido."
           }
         },
         "ro": {
@@ -56693,7 +56693,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gizli bir İfade alacaksınız; bu, cüzdanınıza erişmenin tek yoludur."
+            "value": "Bir Gizli İfade alacaksınız; bu, cüzdanınıza erişmenin tek yoludur."
           }
         },
         "uk": {
@@ -58030,7 +58030,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hesap Kaldıraç"
+            "value": "Hesap Kaldıracı"
           }
         },
         "uk": {
@@ -58191,7 +58191,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Todos os tempos PnL"
+            "value": "PnL total"
           }
         },
         "ro": {
@@ -58221,7 +58221,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tüm Zamanların Kar ve Zarar Tablosu"
+            "value": "Toplam PnL"
           }
         },
         "uk": {
@@ -59146,7 +59146,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Obter lucro"
+            "value": "Take Profit"
           }
         },
         "ro": {
@@ -59940,7 +59940,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ yi artırın"
+            "value": "%@ Pozisyonu Artır"
           }
         },
         "uk": {
@@ -62996,7 +62996,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ azalt"
+            "value": "%@ Pozisyonu Azalt"
           }
         },
         "uk": {
@@ -64715,7 +64715,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hiçbir pazar bulunamadı"
+            "value": "Hiçbir piyasa bulunamadı"
           }
         },
         "uk": {
@@ -66786,7 +66786,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Acabou"
+            "value": "Acima"
           }
         },
         "ro": {
@@ -66929,7 +66929,7 @@
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "के अंतर्गत"
+            "value": "नीचे"
           }
         },
         "id": {
@@ -67001,7 +67001,7 @@
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "ภายใต้"
+            "value": "ต่ำกว่า"
           }
         },
         "tr": {
@@ -67019,7 +67019,7 @@
         "ur": {
           "stringUnit": {
             "state": "translated",
-            "value": "کے تحت"
+            "value": "نیچے"
           }
         },
         "vi": {
@@ -68194,7 +68194,7 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "عندما ينتهي السعر"
+            "value": "عندما يكون السعر أعلى من"
           }
         },
         "bn": {
@@ -68290,7 +68290,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "가격이 끝나면"
+            "value": "가격이 위일 때"
           }
         },
         "ms": {
@@ -68314,7 +68314,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Quando o preço acaba"
+            "value": "Quando o preço está acima"
           }
         },
         "ro": {
@@ -68362,7 +68362,7 @@
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Khi giá đã qua"
+            "value": "Khi giá trên"
           }
         },
         "zh-Hans": {
@@ -68535,7 +68535,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fiyat düşük olduğunda"
+            "value": "Fiyat şunun altındayken"
           }
         },
         "uk": {
@@ -71561,7 +71561,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Os recursos que você usou recentemente aparecerão aqui"
+            "value": "Os ativos que você usou recentemente aparecerão aqui"
           }
         },
         "ro": {
@@ -71782,7 +71782,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Son aramalarınız burada görünecek"
+            "value": "Son kullandıklarınız burada görünecek"
           }
         },
         "uk": {
@@ -75411,7 +75411,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yönlendirme Kodu"
+            "value": "Referans Kodu"
           }
         },
         "uk": {
@@ -75602,7 +75602,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yönlendirmeler"
+            "value": "Referanslar"
           }
         },
         "uk": {
@@ -80568,7 +80568,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Toplum"
+            "value": "Topluluk"
           }
         },
         "uk": {
@@ -81141,7 +81141,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ yi devre dışı bırak"
+            "value": "%@ özelliğini devre dışı bırak"
           }
         },
         "uk": {
@@ -82096,7 +82096,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kaşif"
+            "value": "Blok Gezgini"
           }
         },
         "uk": {
@@ -85886,7 +85886,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ilimitado %@"
+            "value": "%@ ilimitado"
           }
         },
         "ro": {
@@ -86077,7 +86077,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "É solicitado acesso à coleção completa de NFTs."
+            "value": "Acesso total à coleção de NFTs solicitado"
           }
         },
         "ro": {
@@ -86107,7 +86107,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "NFT koleksiyonunun tamamına erişim talep edildi."
+            "value": "NFT koleksiyonunun tamamına erişim talep edildi"
           }
         },
         "uk": {
@@ -86268,7 +86268,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Isso dá ao gastador acesso ao uso desse token até que você revogue a aprovação ou ele expire."
+            "value": "Isso permite que o endereço autorizado use este token até que você revogue a aprovação ou ela expire."
           }
         },
         "ro": {
@@ -86298,7 +86298,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bu, harcayan tarafa, siz onayı iptal edene veya süresi dolana kadar bu jetonu kullanma erişimi sağlar."
+            "value": "Bu, harcayan tarafa, siz onayı iptal edene veya süresi dolana kadar bu token'ı kullanma erişimi sağlar."
           }
         },
         "uk": {
@@ -87873,13 +87873,13 @@
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "Links"
+            "value": "লিঙ্ক"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Links"
+            "value": "Odkazy"
           }
         },
         "da": {
@@ -87987,7 +87987,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ligações"
+            "value": "Links"
           }
         },
         "ro": {
@@ -88029,7 +88029,7 @@
         "ur": {
           "stringUnit": {
             "state": "translated",
-            "value": "Links"
+            "value": "لنکس"
           }
         },
         "vi": {
@@ -89210,19 +89210,19 @@
         "bn": {
           "stringUnit": {
             "state": "translated",
-            "value": "X (formerly Twitter)"
+            "value": "X (পূর্বে Twitter)"
           }
         },
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "X (formerly Twitter)"
+            "value": "X (dříve Twitter)"
           }
         },
         "da": {
           "stringUnit": {
             "state": "translated",
-            "value": "X (formerly Twitter)"
+            "value": "X (tidligere Twitter)"
           }
         },
         "de": {
@@ -89252,7 +89252,7 @@
         "fil": {
           "stringUnit": {
             "state": "translated",
-            "value": "X (formerly Twitter)"
+            "value": "X (dating Twitter)"
           }
         },
         "fr": {
@@ -89276,7 +89276,7 @@
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "X (formerly Twitter)"
+            "value": "X (पहले Twitter)"
           }
         },
         "id": {
@@ -89300,13 +89300,13 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "X (formerly Twitter)"
+            "value": "X(구 트위터)"
           }
         },
         "ms": {
           "stringUnit": {
             "state": "translated",
-            "value": "X (formerly Twitter)"
+            "value": "X (dahulunya Twitter)"
           }
         },
         "nl": {
@@ -89366,7 +89366,7 @@
         "ur": {
           "stringUnit": {
             "state": "translated",
-            "value": "X (formerly Twitter)"
+            "value": "X (سابقہ Twitter)"
           }
         },
         "vi": {
@@ -91073,7 +91073,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yetkilendirmeler"
+            "value": "Delegasyonlar"
           }
         },
         "uk": {
@@ -94481,7 +94481,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recepção mínima"
+            "value": "Mínimo a receber"
           }
         },
         "ro": {
@@ -96230,7 +96230,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Öde"
+            "value": "Ödeyeceğiniz"
           }
         },
         "uk": {
@@ -96421,7 +96421,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alacağın"
+            "value": "Alacağınız"
           }
         },
         "uk": {
@@ -99095,7 +99095,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tekrar Değiştir"
+            "value": "Tekrar Takas Et"
           }
         },
         "uk": {
@@ -106735,7 +106735,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Güncelleme"
+            "value": "Güncelle"
           }
         },
         "uk": {
@@ -107308,7 +107308,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Onaylamak"
+            "value": "Onayla"
           }
         },
         "uk": {
@@ -108454,7 +108454,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cüzdan # %d"
+            "value": "Cüzdan #%d"
           }
         },
         "uk": {
@@ -108615,7 +108615,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ Carteira #%d"
+            "value": "Carteira %@ #%d"
           }
         },
         "ro": {
@@ -108645,7 +108645,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ Cüzdan # %d"
+            "value": "%@ Cüzdanı #%d"
           }
         },
         "uk": {
@@ -108806,7 +108806,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Depósito"
+            "value": "Depositar"
           }
         },
         "ro": {
@@ -110364,7 +110364,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mevcut Bir Cüzdanı İçe Aktarma"
+            "value": "Mevcut Bir Cüzdanı İçe Aktar"
           }
         },
         "uk": {
@@ -113199,7 +113199,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Digitalize o código QR"
+            "value": "Escanear código QR"
           }
         },
         "ro": {
@@ -115521,7 +115521,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bağlamak"
+            "value": "Bağlan"
           }
         },
         "uk": {
@@ -116285,7 +116285,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Onay isteklerini gönderin"
+            "value": "Onay istekleri gönderme"
           }
         },
         "uk": {
@@ -116667,7 +116667,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bakiyenizi ve işlemlerinizi görüntüleyin."
+            "value": "Bakiyenizi ve işlemlerinizi görüntüleme"
           }
         },
         "uk": {

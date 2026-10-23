@@ -224,7 +224,7 @@ errors_error_occurred = একটি ত্রুটি ঘটেছে!
 errors_invalid_network_id = অবৈধ নেটওয়ার্ক আইডি
 errors_error = ত্রুটি
 errors_cancelled = বাতিল করা হয়েছে
-errors_connections_user_cancelled = ব্যবহারকারী বাতিল করা হয়েছে
+errors_connections_user_cancelled = ব্যবহারকারী বাতিল করেছেন
 errors_not_supported = সমর্থিত নয়
 errors_permissions_not_granted = অনুমতি দেওয়া হয়নি
 errors_unknown = অজানা
@@ -448,13 +448,13 @@ private_key_screenshot_detected_description = স্ক্রিনশটগু�
 
 # Social
 
-social_x = X (formerly Twitter)
+social_x = X (পূর্বে Twitter)
 social_discord = Discord
 social_reddit = Reddit
 social_telegram = Telegram
 social_github = GitHub
 social_youtube = YouTube
-social_links = Links
+social_links = লিঙ্ক
 social_facebook = Facebook
 social_coingecko = CoinGecko
 social_website = Website

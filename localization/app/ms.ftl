@@ -448,7 +448,7 @@ private_key_screenshot_detected_description = Tangkapan skrin mungkin boleh diak
 
 # Social
 
-social_x = X (formerly Twitter)
+social_x = X (dahulunya Twitter)
 social_discord = Discord
 social_reddit = Reddit
 social_telegram = Telegram

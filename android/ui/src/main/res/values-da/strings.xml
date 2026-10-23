@@ -194,7 +194,7 @@
   <string name="errors_invalid_network_id">Ugyldigt netværks-id</string>
   <string name="errors_error">Fejl</string>
   <string name="errors_cancelled">Annulleret</string>
-  <string name="errors_connections_user_cancelled">Bruger annulleret</string>
+  <string name="errors_connections_user_cancelled">Annulleret af brugeren</string>
   <string name="errors_not_supported">Ikke understøttet</string>
   <string name="errors_permissions_not_granted">Tilladelser ikke givet</string>
   <string name="errors_unknown">Ukendt</string>
@@ -297,8 +297,8 @@
   <string name="charts_year">1Y</string>
   <string name="charts_all">Alle</string>
   <string name="charts_entry">Indgang</string>
-  <string name="charts_price_open">Åben</string>
-  <string name="charts_price_close">Luk</string>
+  <string name="charts_price_open">Åbning</string>
+  <string name="charts_price_close">Lukning</string>
   <string name="charts_price_high">Høj</string>
   <string name="charts_price_low">Lav</string>
   <string name="charts_price_change">Forandring</string>
@@ -376,7 +376,7 @@
   <string name="private_key_do_not_share_title">Del ikke din private nøgle!</string>
   <string name="private_key_do_not_share_description">Hvis nogen har din private nøgle, vil de have fuld kontrol over denne konto!</string>
   <string name="private_key_screenshot_detected_description">Skærmbilleder kan være tilgængelige for andre apps, og de kan bringe din private nøgle i fare, hvis de gemmes på denne måde.</string>
-  <string name="social_x">X (formerly Twitter)</string>
+  <string name="social_x">X (tidligere Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>
   <string name="social_telegram">Telegram</string>

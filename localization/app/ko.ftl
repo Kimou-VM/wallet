@@ -342,8 +342,8 @@ charts_month = 1M
 charts_year = 1년
 charts_all = 모두
 charts_entry = 입장
-charts_price_open = 열려 있는
-charts_price_close = 닫다
+charts_price_open = 시가
+charts_price_close = 종가
 charts_price_high = 높은
 charts_price_low = 낮은
 charts_price_change = 변화
@@ -448,7 +448,7 @@ private_key_screenshot_detected_description = 스크린샷은 다른 앱에서 �
 
 # Social
 
-social_x = X (formerly Twitter)
+social_x = X(구 트위터)
 social_discord = Discord
 social_reddit = Reddit
 social_telegram = Telegram
@@ -523,7 +523,7 @@ price_alerts_direction_over = 오버
 price_alerts_direction_under = 아래
 price_alerts_direction_increases_by = 증가하다
 price_alerts_direction_decreases_by = 감소
-price_alerts_set_alert_price_over = 가격이 끝나면
+price_alerts_set_alert_price_over = 가격이 위일 때
 price_alerts_set_alert_price_under = 가격이 아래일 때
 price_alerts_set_alert_price_increases_by = 가격이 상승하면
 price_alerts_set_alert_price_decreases_by = 가격이 하락하면

@@ -297,7 +297,7 @@
   <string name="charts_year">1R</string>
   <string name="charts_all">Wszystko</string>
   <string name="charts_entry">Wejście</string>
-  <string name="charts_price_open">Otwarte</string>
+  <string name="charts_price_open">Otwarcie</string>
   <string name="charts_price_close">Zamknięcie</string>
   <string name="charts_price_high">Wysoki</string>
   <string name="charts_price_low">Niski</string>

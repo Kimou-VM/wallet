@@ -224,7 +224,7 @@ errors_error_occurred = Si è verificato un errore!
 errors_invalid_network_id = ID di rete non valido
 errors_error = Errore
 errors_cancelled = Annullato
-errors_connections_user_cancelled = Utente cancellato
+errors_connections_user_cancelled = Annullato dall'utente
 errors_not_supported = Non supportato
 errors_permissions_not_granted = Autorizzazioni non concesse
 errors_unknown = Sconosciuto
@@ -346,7 +346,7 @@ charts_price_open = Apertura
 charts_price_close = Chiusura
 charts_price_high = Alto
 charts_price_low = Basso
-charts_price_change = Modifica
+charts_price_change = Variazione
 
 # Date
 

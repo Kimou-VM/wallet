@@ -224,7 +224,7 @@ errors_error_occurred = Une erreur s'est produite !
 errors_invalid_network_id = ID de réseau invalide
 errors_error = Erreur
 errors_cancelled = Annulé
-errors_connections_user_cancelled = Utilisateur annulé
+errors_connections_user_cancelled = Annulé par l'utilisateur
 errors_not_supported = Non pris en charge
 errors_permissions_not_granted = Autorisations non accordées
 errors_unknown = Inconnu
@@ -342,10 +342,10 @@ charts_month = 1M
 charts_year = 1A
 charts_all = Tous
 charts_entry = Entrée
-charts_price_open = Ouvrir
-charts_price_close = Fermer
+charts_price_open = Ouverture
+charts_price_close = Clôture
 charts_price_high = Haut
-charts_price_low = Faible
+charts_price_low = Bas
 charts_price_change = Changement
 
 # Date

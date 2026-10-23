@@ -194,7 +194,7 @@
   <string name="errors_invalid_network_id">معرف الشبكة غير صالح</string>
   <string name="errors_error">خطأ</string>
   <string name="errors_cancelled">ملغى</string>
-  <string name="errors_connections_user_cancelled">تم إلغاء المستخدم</string>
+  <string name="errors_connections_user_cancelled">تم الإلغاء بواسطة المستخدم</string>
   <string name="errors_not_supported">غير مدعوم</string>
   <string name="errors_permissions_not_granted">لم يتم منح الأذونات</string>
   <string name="errors_unknown">مجهول</string>
@@ -430,7 +430,7 @@
   <string name="price_alerts_direction_under">تحت</string>
   <string name="price_alerts_direction_increases_by">يزيد بمقدار</string>
   <string name="price_alerts_direction_decreases_by">ينخفض بمقدار</string>
-  <string name="price_alerts_set_alert_price_over">عندما ينتهي السعر</string>
+  <string name="price_alerts_set_alert_price_over">عندما يكون السعر أعلى من</string>
   <string name="price_alerts_set_alert_price_under">عندما يكون السعر أقل من</string>
   <string name="price_alerts_set_alert_price_increases_by">عندما يرتفع السعر بمقدار</string>
   <string name="price_alerts_set_alert_price_decreases_by">عندما ينخفض السعر بمقدار</string>

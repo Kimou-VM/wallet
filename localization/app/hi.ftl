@@ -448,7 +448,7 @@ private_key_screenshot_detected_description = स्क्रीनशॉट अ
 
 # Social
 
-social_x = X (formerly Twitter)
+social_x = X (पहले Twitter)
 social_discord = Discord
 social_reddit = Reddit
 social_telegram = Telegram
@@ -520,7 +520,7 @@ price_alerts_enabled_for = %@ के लिए मूल्य अलर्ट �
 price_alerts_disabled_for = %@ के लिए मूल्य चेतावनी अक्षम की गई
 price_alerts_get_notified_explain_message = जब आपकी पसंदीदा क्रिप्टो परिसंपत्तियों में कोई महत्वपूर्ण मूल्य परिवर्तन हो तो सूचना प्राप्त करें।
 price_alerts_direction_over = ऊपर
-price_alerts_direction_under = के अंतर्गत
+price_alerts_direction_under = नीचे
 price_alerts_direction_increases_by = इतनी बढ़ने पर
 price_alerts_direction_decreases_by = घटता है
 price_alerts_set_alert_price_over = जब कीमत इससे ऊपर हो

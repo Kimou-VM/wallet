@@ -224,7 +224,7 @@ errors_error_occurred = Der opstod en fejl!
 errors_invalid_network_id = Ugyldigt netværks-id
 errors_error = Fejl
 errors_cancelled = Annulleret
-errors_connections_user_cancelled = Bruger annulleret
+errors_connections_user_cancelled = Annulleret af brugeren
 errors_not_supported = Ikke understøttet
 errors_permissions_not_granted = Tilladelser ikke givet
 errors_unknown = Ukendt
@@ -342,8 +342,8 @@ charts_month = 1M
 charts_year = 1Y
 charts_all = Alle
 charts_entry = Indgang
-charts_price_open = Åben
-charts_price_close = Luk
+charts_price_open = Åbning
+charts_price_close = Lukning
 charts_price_high = Høj
 charts_price_low = Lav
 charts_price_change = Forandring
@@ -448,7 +448,7 @@ private_key_screenshot_detected_description = Skærmbilleder kan være tilgænge
 
 # Social
 
-social_x = X (formerly Twitter)
+social_x = X (tidligere Twitter)
 social_discord = Discord
 social_reddit = Reddit
 social_telegram = Telegram

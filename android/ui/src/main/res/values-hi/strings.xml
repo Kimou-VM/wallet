@@ -376,7 +376,7 @@
   <string name="private_key_do_not_share_title">अपनी निजी कुंजी साझा न करें!</string>
   <string name="private_key_do_not_share_description">यदि किसी के पास आपकी निजी कुंजी है तो इस खाते पर उनका पूरा नियंत्रण होगा!</string>
   <string name="private_key_screenshot_detected_description">स्क्रीनशॉट अन्य ऐप्स के लिए सुलभ हो सकते हैं, यदि वे इस तरह से सहेजे गए तो वे आपकी निजी कुंजी को खतरे में डाल सकते हैं।</string>
-  <string name="social_x">X (formerly Twitter)</string>
+  <string name="social_x">X (पहले Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>
   <string name="social_telegram">Telegram</string>
@@ -427,7 +427,7 @@
   <string name="price_alerts_disabled_for">%1$s के लिए मूल्य चेतावनी अक्षम की गई</string>
   <string name="price_alerts_get_notified_explain_message">जब आपकी पसंदीदा क्रिप्टो परिसंपत्तियों में कोई महत्वपूर्ण मूल्य परिवर्तन हो तो सूचना प्राप्त करें।</string>
   <string name="price_alerts_direction_over">ऊपर</string>
-  <string name="price_alerts_direction_under">के अंतर्गत</string>
+  <string name="price_alerts_direction_under">नीचे</string>
   <string name="price_alerts_direction_increases_by">इतनी बढ़ने पर</string>
   <string name="price_alerts_direction_decreases_by">घटता है</string>
   <string name="price_alerts_set_alert_price_over">जब कीमत इससे ऊपर हो</string>

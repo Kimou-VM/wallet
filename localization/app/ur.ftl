@@ -448,13 +448,13 @@ private_key_screenshot_detected_description = اسکرین شاٹس دیگر ا�
 
 # Social
 
-social_x = X (formerly Twitter)
+social_x = X (سابقہ Twitter)
 social_discord = Discord
 social_reddit = Reddit
 social_telegram = Telegram
 social_github = GitHub
 social_youtube = YouTube
-social_links = Links
+social_links = لنکس
 social_facebook = Facebook
 social_coingecko = CoinGecko
 social_website = Website
@@ -520,7 +520,7 @@ price_alerts_enabled_for = قیمت کا الرٹ %@ کے لیے فعال ہے
 price_alerts_disabled_for = قیمت کا الرٹ %@ کے لیے غیر فعال کر دیا گیا
 price_alerts_get_notified_explain_message = جب آپ کے پسندیدہ کرپٹو اثاثوں میں قیمت میں نمایاں تبدیلی ہو تو اطلاع حاصل کریں۔
 price_alerts_direction_over = اوپر
-price_alerts_direction_under = کے تحت
+price_alerts_direction_under = نیچے
 price_alerts_direction_increases_by = سے بڑھتا ہے
 price_alerts_direction_decreases_by = سے کم ہوتا ہے
 price_alerts_set_alert_price_over = جب قیمت اس سے اوپر ہو

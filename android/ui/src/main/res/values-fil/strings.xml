@@ -194,7 +194,7 @@
   <string name="errors_invalid_network_id">Di-wastong Network ID</string>
   <string name="errors_error">Error</string>
   <string name="errors_cancelled">Nakansela</string>
-  <string name="errors_connections_user_cancelled">Kinansela ang user</string>
+  <string name="errors_connections_user_cancelled">Kinansela ng user</string>
   <string name="errors_not_supported">Hindi Sinusuportahan</string>
   <string name="errors_permissions_not_granted">Hindi Ipinagkaloob ang Mga Pahintulot</string>
   <string name="errors_unknown">Hindi alam</string>
@@ -376,7 +376,7 @@
   <string name="private_key_do_not_share_title">Huwag ibahagi ang iyong Pribadong Susi!</string>
   <string name="private_key_do_not_share_description">Kung may hawak ng iyong pribadong susi, magkakaroon sila ng ganap na kontrol sa account na ito!</string>
   <string name="private_key_screenshot_detected_description">Maaaring ma-access ang mga screenshot sa iba pang apps, maaari nilang ilagay sa panganib ang iyong pribadong susi kung ise-save sa ganitong paraan.</string>
-  <string name="social_x">X (formerly Twitter)</string>
+  <string name="social_x">X (dating Twitter)</string>
   <string name="social_discord">Discord</string>
   <string name="social_reddit">Reddit</string>
   <string name="social_telegram">Telegram</string>
