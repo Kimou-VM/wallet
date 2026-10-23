@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use gem_client::Client;
-use gem_cosmos::{address::CosmosAddress, models::message::send_msg_json};
+use gem_cosmos::models::message::send_msg_json;
 use primitives::{
     AssetId, Chain,
     chain_cosmos::CosmosChain,
@@ -16,7 +16,7 @@ use crate::{
     FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     config::get_swap_proxy_url,
     cross_chain::VaultAddresses,
-    fees::{DEFAULT_SWAP_FEE_BPS, bps_of, default_referral_fees},
+    fees::{DEFAULT_SWAP_FEE_BPS, bps_of, default_referral_address},
 };
 
 #[derive(Debug)]
@@ -55,19 +55,7 @@ where
     }
 
     fn get_fee_address(request: &QuoteRequest) -> Option<String> {
-        let fees = default_referral_fees();
-        let chain = request.from_asset.chain();
-        match chain {
-            Chain::Injective => Some(fees.injective.address).filter(|a: &String| !a.is_empty()),
-            Chain::Cosmos => Some(fees.cosmos.address).filter(|a: &String| !a.is_empty()),
-            _ => {
-                let cosmos_chain = CosmosChain::from_chain(chain)?;
-                if fees.cosmos.address.is_empty() {
-                    return None;
-                }
-                CosmosAddress::convert(&fees.cosmos.address, cosmos_chain.hrp()).ok()
-            }
-        }
+        Some(default_referral_address(request.from_asset.chain())).filter(|address| !address.is_empty())
     }
 
     fn build_route_request(request: &QuoteRequest, from_value: &str, quote_only: bool) -> Result<SquidRouteRequest, SwapperError> {
@@ -124,12 +112,13 @@ where
         SwapAmountMode::Fixed
     }
 
+    fn contracts(&self, from_asset: &AssetId) -> Vec<&'static str> {
+        CosmosChain::from_chain(from_asset.chain).map(|_| vec![SQUID_COSMOS_MULTICALL.contract]).unwrap_or_default()
+    }
+
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let from_value = request.value.clone();
         let (response, _, _) = self.get_route(request, &from_value.to_string(), true).await?;
-        if let Some(transaction) = &response.route.transaction_request {
-            transaction.validate_destination(&SQUID_COSMOS_MULTICALL)?;
-        }
 
         Ok(Quote {
             from_value,
@@ -151,10 +140,9 @@ where
 
     async fn get_quote_data(&self, quote: &Quote, _data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError> {
         let (response, fee, fee_address) = self.get_route(&quote.request, &quote.from_value.to_string(), false).await?;
-        let tx = response.route.transaction_request.ok_or(SwapperError::InvalidRoute)?;
-        tx.validate_destination(&SQUID_COSMOS_MULTICALL)?;
+        let transaction = response.route.transaction_request.ok_or(SwapperError::InvalidRoute)?;
 
-        let swap_msg: serde_json::Value = serde_json::from_str(&tx.data).map_err(SwapperError::transaction_error)?;
+        let swap_msg: serde_json::Value = serde_json::from_str(&transaction.data).map_err(SwapperError::transaction_error)?;
         let messages = match fee_address {
             Some(addr) if fee > 0 => {
                 let denom = Self::get_token_id(&quote.request.from_asset.asset_id())?;
@@ -165,13 +153,13 @@ where
         let data = serde_json::to_string(&messages).map_err(SwapperError::transaction_error)?;
 
         Ok(SwapperQuoteData {
-            to: tx.target,
+            to: transaction.target,
             data_type: SwapQuoteDataType::Contract,
-            value: BigUint::from_str(&tx.value).map_err(SwapperError::compute_quote_error)?,
+            value: BigUint::from_str(&transaction.value).map_err(SwapperError::compute_quote_error)?,
             data,
             memo: None,
             approval: None,
-            gas_limit: Some(tx.gas_limit),
+            gas_limit: Some(transaction.gas_limit),
             permit2: None,
         })
     }

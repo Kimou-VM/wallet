@@ -94,6 +94,10 @@ where
         SwapAmountMode::Fixed
     }
 
+    fn contracts(&self, _from_asset: &AssetId) -> Vec<&'static str> {
+        vec![JUPITER_PROGRAM_ID]
+    }
+
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let input_mint = Self::asset_mint(&request.from_asset.id)?;
         let output_mint = Self::asset_mint(&request.to_asset.id)?;
@@ -229,6 +233,8 @@ mod swap_integration_tests {
         assert_eq!(route.output, AssetId::from(Chain::Solana, Some(USDC_TOKEN_MINT.to_string())));
 
         let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+        let swapper: &dyn Swapper = &provider;
+        swapper.verify_contracts(&quote, &quote_data)?;
         assert_eq!(quote_data.to, JUPITER_PROGRAM_ID);
         assert!(decode_base64(&quote_data.data).unwrap().len() <= MAX_TRANSACTION_SIZE);
 

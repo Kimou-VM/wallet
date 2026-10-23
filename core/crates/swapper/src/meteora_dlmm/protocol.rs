@@ -20,6 +20,7 @@ impl DexProtocol for MeteoraDlmm {
 
     const PROVIDER: SwapperProvider = SwapperProvider::MeteoraDammV2;
     const PROGRAM_ID: Pubkey = meteora_dlmm_program();
+    const PROGRAM: &'static str = gem_solana::METEORA_DLMM_PROGRAM_ID;
 
     fn decode_pool(&self, data: &[u8]) -> Result<Pair, SwapperError> {
         Ok(Pair::decode(data)?)

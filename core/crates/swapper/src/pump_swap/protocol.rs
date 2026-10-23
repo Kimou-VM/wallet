@@ -22,6 +22,7 @@ impl DexProtocol for PumpSwap {
 
     const PROVIDER: SwapperProvider = SwapperProvider::PumpSwap;
     const PROGRAM_ID: Pubkey = pump_amm_program();
+    const PROGRAM: &'static str = gem_solana::PUMP_AMM_PROGRAM_ID;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         Pool::addresses(input_mint, output_mint)
@@ -236,6 +237,7 @@ mod tests {
         assert_eq!(requests.load(Ordering::SeqCst), 6);
 
         let quote_data = pump_swap.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
+        crate::contract_check::verify_solana_programs(&quote_data.data, &pump_swap.contracts(&quote.request.from_asset.asset_id())).unwrap();
         assert_eq!(requests.load(Ordering::SeqCst), 7);
         assert_eq!(quote_data.to, pump_amm_program().to_base58());
     }

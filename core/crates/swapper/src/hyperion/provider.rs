@@ -64,6 +64,7 @@ mod swap_integration_tests {
 
         let quote = provider.get_quote(&request).await?;
         let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+        (&provider as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
         let payload: TransactionPayload = serde_json::from_str(&quote_data.data)?;
         println!("APT->USDC quote: to_value={}, route={}, gas_limit={:?}", quote.to_value, quote.data.routes[0].route_data, quote_data.gas_limit);
 

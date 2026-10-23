@@ -19,6 +19,7 @@ impl DexProtocol for Orca {
 
     const PROVIDER: SwapperProvider = SwapperProvider::Orca;
     const PROGRAM_ID: Pubkey = orca_whirlpool_program();
+    const PROGRAM: &'static str = gem_solana::ORCA_WHIRLPOOL_PROGRAM_ID;
     const INTERMEDIATE_TOKEN_ACCOUNT: bool = false;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
@@ -174,6 +175,7 @@ mod tests {
         assert_eq!(requests.load(Ordering::SeqCst), 4);
 
         let quote_data = orca.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
+        crate::contract_check::verify_solana_programs(&quote_data.data, &orca.contracts(&quote.request.from_asset.asset_id())).unwrap();
         assert_eq!(requests.load(Ordering::SeqCst), 5);
         assert_eq!(quote_data.to, orca_whirlpool_program().to_base58());
 
@@ -314,6 +316,7 @@ mod tests {
         assert_eq!(requests.load(Ordering::SeqCst), 3);
 
         let quote_data = orca.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
+        crate::contract_check::verify_solana_programs(&quote_data.data, &orca.contracts(&quote.request.from_asset.asset_id())).unwrap();
         assert_eq!(requests.load(Ordering::SeqCst), 4);
         assert_eq!(quote_data.to, orca_whirlpool_program().to_base58());
     }

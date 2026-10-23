@@ -1,6 +1,8 @@
 use super::{DEFAULT_SWAP_FEE_BPS, STABLECOIN_SWAP_FEE_BPS};
 use crate::{QuoteRequest, fees::bps_of};
+use gem_cosmos::address::CosmosAddress;
 use gem_solana::{USDC_TOKEN_MINT, USDS_TOKEN_MINT, USDT_TOKEN_MINT, WSOL_TOKEN_ADDRESS};
+use primitives::chain_cosmos::CosmosChain;
 use primitives::{
     Chain, ChainType,
     swap::{
@@ -149,7 +151,11 @@ fn default_referral_fee(chain: Chain) -> ReferralFee {
 }
 
 pub fn default_referral_address(chain: Chain) -> String {
-    default_referral_fee(chain).address
+    let address = default_referral_fee(chain).address;
+    match CosmosChain::from_chain(chain) {
+        Some(cosmos_chain) if !matches!(chain, Chain::Cosmos | Chain::Thorchain | Chain::Injective) && !address.is_empty() => CosmosAddress::convert(&address, cosmos_chain.hrp()).unwrap_or_default(),
+        _ => address,
+    }
 }
 
 #[cfg(test)]

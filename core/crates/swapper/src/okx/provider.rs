@@ -199,6 +199,8 @@ mod tests {
         assert_ne!(okx_transaction, unsigned, "OKX fills the wallet signature slot with a placeholder");
         assert_eq!(decode_transaction(&quote_data.data).unwrap(), unsigned);
         assert_eq!(quote_data.to, "proVF4pMXVaYqmy4NjniPh4pqKNfMmsihgd4wdkCX3u");
+        let swapper: &dyn Swapper = &provider;
+        swapper.verify_contracts(&quote, &quote_data).unwrap();
         assert_eq!(quote_data.value, BigUint::from(0u64));
         assert!(quote_data.approval.is_none());
         assert_eq!(quote_data.gas_limit, unsigned.get_compute_unit_limit().map(|limit| limit.to_string()));
@@ -269,6 +271,8 @@ mod swap_integration_tests {
             assert!(quote.to_value > BigUint::ZERO);
 
             let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+
+            (&provider as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
             assert!(!quote_data.to.is_empty());
             assert_eq!(quote_data.value.to_string(), expected_value);
             assert!(!quote_data.data.is_empty());
@@ -285,6 +289,8 @@ mod swap_integration_tests {
         assert!(quote.to_value > BigUint::ZERO);
 
         let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+
+        (&provider as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
         assert!(!quote_data.to.is_empty());
         assert!(!quote_data.data.is_empty());
         Ok(())

@@ -115,6 +115,7 @@ mod swap_integration_tests {
 
         let quote = provider.get_quote(&request).await?;
         let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+        (&provider as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
         print_quote("SUI->USDC", &quote)?;
         print_quote_data("SUI->USDC", &quote_data);
 
@@ -140,6 +141,7 @@ mod swap_integration_tests {
 
         let quote = provider.get_quote(&request).await?;
         let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+        (&provider as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
         print_quote("USDC->SUI", &quote)?;
         print_quote_data("USDC->SUI", &quote_data);
 

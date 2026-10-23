@@ -156,6 +156,7 @@ mod swap_integration_tests {
         for (from, to, value) in [(ton(), usdt(), 1_000_000_000u64), (usdt(), ton(), 5_000_000), (usdt(), not(), 5_000_000), (ton(), stton(), 10_000_000_000)] {
             let quote = provider.get_quote(&mock_request(from, to, value)).await?;
             let data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+            (&provider as &dyn Swapper).verify_contracts(&quote, &data)?;
             let messages: Vec<TonConnectMessage> = serde_json::from_str(&data.data)?;
             println!("DeDust quote: to_value={} route={} messages={}", quote.to_value, quote.data.routes[0].route_data, messages.len());
 

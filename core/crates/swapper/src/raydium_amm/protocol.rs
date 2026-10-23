@@ -16,6 +16,7 @@ impl DexProtocol for RaydiumAmm {
 
     const PROVIDER: SwapperProvider = SwapperProvider::RaydiumClmm;
     const PROGRAM_ID: Pubkey = raydium_amm_program();
+    const PROGRAM: &'static str = gem_solana::RAYDIUM_AMM_PROGRAM_ID;
 
     fn decode_pool(&self, data: &[u8]) -> Result<Pool, SwapperError> {
         Pool::decode(data)
@@ -111,6 +112,7 @@ mod tests {
         assert_eq!(requests.load(Ordering::SeqCst), 6);
 
         let quote_data = amm.get_quote_data(&quote, FetchQuoteData::None).await.unwrap();
+        crate::contract_check::verify_solana_programs(&quote_data.data, &amm.contracts(&quote.request.from_asset.asset_id())).unwrap();
         assert_eq!(requests.load(Ordering::SeqCst), 7);
         assert_eq!(quote_data.to, raydium_amm_program().to_base58());
     }

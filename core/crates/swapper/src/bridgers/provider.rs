@@ -228,6 +228,7 @@ mod swap_integration_tests {
         for request in [mock_base_usdc_to_ton_usdt_request(), mock_ton_to_bsc_usdt_request(), mock_xrp_to_bsc_usdt_request()] {
             let quote = provider.get_quote(&request).await?;
             let data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+            (&provider as &dyn Swapper).verify_contracts(&quote, &data)?;
             let network = Network::from_chain(request.from_asset.chain())?;
 
             assert!(quote.to_value > BigUint::ZERO);
@@ -250,6 +251,7 @@ mod swap_integration_tests {
 
         let quote = provider.get_quote(&mock_ton_usdt_to_bsc_usdt_request()).await?;
         let data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+        (&provider as &dyn Swapper).verify_contracts(&quote, &data)?;
 
         assert_eq!((data.to.as_str(), data.value), ("EQCcPR6bD3c161LJe1hVCFni-z9y7fCkFtpSYwrKncccG4nG", BigUint::from(60_000_000u64)));
         assert_eq!(serde_json::from_str::<Vec<TonConnectMessage>>(&data.data)?.len(), 1);

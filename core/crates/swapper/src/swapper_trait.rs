@@ -1,17 +1,13 @@
 use super::{
-    SwapperProviderMode, SwapperQuoteData,
+    SwapperProviderMode, SwapperQuoteData, contract_check,
     cross_chain::VaultAddresses,
-    deployment::Deployment,
     error::SwapperError,
     models::{FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapResult, SwapResultRequest, SwapperChainAsset},
 };
 use async_trait::async_trait;
 use std::fmt::Debug;
 
-use primitives::{
-    AssetId, Chain,
-    swap::{SwapQuoteDataType, SwapStatus},
-};
+use primitives::{AssetId, Chain, swap::SwapStatus};
 
 #[async_trait]
 pub trait Swapper: Send + Sync + Debug {
@@ -43,24 +39,6 @@ impl<'a> dyn Swapper + 'a {
 
     pub fn verify_contracts(&self, quote: &Quote, data: &SwapperQuoteData) -> Result<(), SwapperError> {
         let from_asset = quote.request.from_asset.asset_id();
-        let contracts = self.contracts(&from_asset);
-        if contracts.is_empty() {
-            return Ok(());
-        }
-        let is_contract = |address: &str| Deployment::contains(from_asset.chain, &contracts, address);
-        if data.data_type == SwapQuoteDataType::Contract && !is_contract(&data.to) {
-            return Err(SwapperError::InvalidRoute);
-        }
-        if let Some(approval) = &data.approval
-            && !is_contract(&approval.spender)
-        {
-            return Err(SwapperError::InvalidRoute);
-        }
-        if let Some(permit2) = &data.permit2
-            && !is_contract(&permit2.spender)
-        {
-            return Err(SwapperError::InvalidRoute);
-        }
-        Ok(())
+        contract_check::verify(from_asset.chain, &self.contracts(&from_asset), data)
     }
 }

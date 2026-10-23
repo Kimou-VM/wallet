@@ -28,6 +28,7 @@ mod tests {
         let step = response.get_solana_step().unwrap();
 
         let quote_data = transaction(step).unwrap().encode("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T", &[]).unwrap();
+        crate::contract_check::verify_solana_programs(&quote_data.data, &crate::relay::contracts::contracts(primitives::Chain::Solana)).unwrap();
 
         let transaction = decode_transaction(&quote_data.data).unwrap();
         assert_eq!(transaction.num_required_signatures(), 1);

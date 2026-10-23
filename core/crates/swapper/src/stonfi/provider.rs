@@ -789,6 +789,8 @@ mod swap_integration_tests {
         println!("STON.fi TON -> USDT quote: {quote:?}");
 
         let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+
+        (&provider as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
         assert!(!quote_data.to.is_empty());
         assert!(quote_data.value > BigUint::ZERO);
         assert_eq!(serde_json::from_str::<Vec<TonConnectMessage>>(&quote_data.data)?.len(), 1);
@@ -818,6 +820,7 @@ mod swap_integration_tests {
             assert_eq!(quote.data.routes[0].input, request.from_asset.asset_id());
             assert_eq!(quote.data.routes[0].output, request.to_asset.asset_id());
             let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+            (&provider as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
             assert!(!quote_data.to.is_empty());
             assert!(quote_data.value > BigUint::ZERO);
             assert_eq!(serde_json::from_str::<Vec<TonConnectMessage>>(&quote_data.data)?.len(), 1);
@@ -849,6 +852,8 @@ mod swap_integration_tests {
         println!("STON.fi NOT -> USDT quote: {quote:?}");
 
         let quote_data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+
+        (&provider as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
         assert!(!quote_data.to.is_empty());
         assert!(quote_data.value > BigUint::ZERO);
         assert_eq!(serde_json::from_str::<Vec<TonConnectMessage>>(&quote_data.data)?.len(), 1);

@@ -261,6 +261,7 @@ mod swap_integration_tests {
         let provider = SunSwap::new(rpc_provider.clone());
         let quote = provider.get_quote(&request(AssetId::from_chain(Chain::Tron), TRON_USDT_ASSET_ID.clone(), 100_000_000)).await?;
         let data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+        (&provider as &dyn Swapper).verify_contracts(&quote, &data)?;
         let energy = simulate(rpc_provider, TRX_HOLDER, &data).await?;
         println!("100 TRX -> {} USDT, routes {:?}, energy {energy}", quote.to_value, quote.data.routes);
 
@@ -275,6 +276,7 @@ mod swap_integration_tests {
         let provider = SunSwap::new(dynode_provider([Chain::Tron]));
         let quote = provider.get_quote(&request(TRON_USDT_ASSET_ID.clone(), AssetId::from_chain(Chain::Tron), 10_000_000)).await?;
         let data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+        (&provider as &dyn Swapper).verify_contracts(&quote, &data)?;
         println!("10 USDT -> {} sun, approval {:?}, permit2 {:?}", quote.to_value, data.approval, data.permit2);
 
         assert!(quote.to_value > BigUint::from(10_000_000u64));
@@ -293,6 +295,7 @@ mod swap_integration_tests {
         };
         let quote = provider.get_quote(&request_from(holder, TRON_USDT_ASSET_ID.clone(), AssetId::from_chain(Chain::Tron), 1_000_000)).await?;
         let data = provider.get_quote_data(&quote, FetchQuoteData::None).await?;
+        (&provider as &dyn Swapper).verify_contracts(&quote, &data)?;
         let energy = simulate(rpc_provider, holder, &data).await?;
         println!("1 USDT -> {} sun from {holder} with an existing Permit2 allowance, energy {energy}", quote.to_value);
 

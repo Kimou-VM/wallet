@@ -16,6 +16,7 @@ impl DexProtocol for RaydiumCpmm {
 
     const PROVIDER: SwapperProvider = SwapperProvider::RaydiumClmm;
     const PROGRAM_ID: Pubkey = raydium_cpmm_program();
+    const PROGRAM: &'static str = gem_solana::RAYDIUM_CPMM_PROGRAM_ID;
 
     fn decode_pool(&self, data: &[u8]) -> Result<Pool, SwapperError> {
         Ok(Pool::decode(data)?)

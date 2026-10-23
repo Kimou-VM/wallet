@@ -19,6 +19,7 @@ impl DexProtocol for RaydiumClmm {
 
     const PROVIDER: SwapperProvider = SwapperProvider::RaydiumClmm;
     const PROGRAM_ID: Pubkey = raydium_clmm_program();
+    const PROGRAM: &'static str = gem_solana::RAYDIUM_CLMM_PROGRAM_ID;
 
     fn pool_addresses(&self, input_mint: &Pubkey, output_mint: &Pubkey) -> Result<Vec<Pubkey>, SwapperError> {
         PoolState::addresses(input_mint, output_mint)
