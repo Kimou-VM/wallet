@@ -88,14 +88,17 @@ extension FiatScene {
                         subtitle: quote.providerName,
                         assetImage: model.providerAssetImage(quote.provider),
                     )
-                    if viewState.canSelectProvider {
-                        NavigationCustomLink(
-                            with: view,
-                            action: model.onSelectFiatProviders,
-                        )
-                    } else {
-                        view
+                    Group {
+                        if viewState.canSelectProvider {
+                            NavigationCustomLink(
+                                with: view,
+                                action: model.onSelectFiatProviders,
+                            )
+                        } else {
+                            view
+                        }
                     }
+                    .accessibilityIdentifier("fiat_provider")
                     if let rateRow = viewState.rateRow {
                         GemListRowView(row: rateRow)
                     }

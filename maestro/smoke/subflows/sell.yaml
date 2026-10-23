@@ -12,7 +12,9 @@ appId: ${APP_ID}
 - tapOn: "Sell ?"
 - extendedWaitUntil:
     visible:
-      id: "main_action"
-      enabled: false
-    timeout: 15000
+      id: "fiat_provider"
+    timeout: 30000
+- assertVisible:
+    id: "main_action"
+    enabled: false
 - takeScreenshot: ${output.journey}_sell
