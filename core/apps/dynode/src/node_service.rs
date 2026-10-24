@@ -333,6 +333,14 @@ impl NodeService {
             return true;
         }
 
+        if response.status == StatusCode::BAD_REQUEST.as_u16()
+            && let Ok(body) = serde_json::from_slice::<Value>(&response.body)
+            && let Some(message) = body.get("error").and_then(Value::as_str)
+            && matcher.matches_message(message)
+        {
+            return true;
+        }
+
         match request.request_type() {
             RequestType::JsonRpc(_) if response.status == StatusCode::OK.as_u16() => {
                 if let Ok(error_response) = serde_json::from_slice::<JsonRpcErrorResponse>(&response.body) {
@@ -574,6 +582,27 @@ mod tests {
         let response = ProxyResponse::new(200, HeaderMap::new(), Bytes::from_static(br#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Exceeded the quota usage"},"id":1}"#));
 
         assert!(service.matches_response_error_signal(&request, &response, &service.retry_config.errors));
+    }
+
+    #[test]
+    fn test_matches_retry_http_error_message() {
+        let service = NodeService {
+            retry_config: RetryConfig::mock_with_errors(vec![], vec!["502 Bad Gateway"]),
+            ..NodeService::mock(ChainConfig::mock(Chain::Zcash))
+        };
+        let request = ProxyRequest::mock(Chain::Zcash, Method::POST, "/api/v2/sendtx/", b"0100beef");
+        let gateway_error = br#"{"error":"502 Bad Gateway invalid character '<' looking for beginning of value"}"#;
+
+        for (body, retry) in [
+            (gateway_error.as_slice(), true),
+            (br#"{"error":"-26: txn-mempool-conflict"}"#.as_slice(), false),
+            (br#"{"error":"transaction already in block chain"}"#.as_slice(), false),
+            (br#"{"error":"-26: min relay fee not met"}"#.as_slice(), false),
+            (br#"{"error":"invalid transaction"}"#.as_slice(), false),
+        ] {
+            let response = ProxyResponse::new(400, HeaderMap::new(), Bytes::copy_from_slice(body));
+            assert_eq!(service.matches_response_error_signal(&request, &response, &service.retry_config.errors), retry);
+        }
     }
 
     #[tokio::test]
