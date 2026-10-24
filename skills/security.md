@@ -23,6 +23,7 @@ Before editing these areas, identify the security invariants and confirm the cha
 - Validate external input defensively and prefer existing parsers, mappers, and domain types over ad hoc string handling
 - Prefer fail-closed behavior when security state is missing, invalid, or unsupported
 - Treat provider-returned spenders, routers, transaction targets, calldata, and approval metadata as untrusted. Validate authority against an independent provider-and-chain policy before constructing an approval, and bind the final transaction target to the validated route.
+- A swap provider declares the contracts its swaps may call or approve on each network, and the shared check refuses quote data that names anything else before it is signed. A provider that cannot declare, because it deposits to an address made per swap or builds the whole transaction on the device, stays unbound on purpose and the product doc's binding table says so.
 - Exact approval amount reduces exposure but does not make an attacker-selected spender safe. Permit2 and multi-call approval flows require separate validation of each authority boundary.
 
 ## Storage and Auth
