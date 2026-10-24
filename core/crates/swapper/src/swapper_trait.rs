@@ -38,7 +38,6 @@ impl<'a> dyn Swapper + 'a {
     }
 
     pub fn verify_contracts(&self, quote: &Quote, data: &SwapperQuoteData) -> Result<(), SwapperError> {
-        let from_asset = quote.request.from_asset.asset_id();
-        contract_check::verify(&from_asset, &self.contracts(&from_asset), data)
+        contract_check::verify(quote, &self.contracts(&quote.request.from_asset.asset_id()), data)
     }
 }

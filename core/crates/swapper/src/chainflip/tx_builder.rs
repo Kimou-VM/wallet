@@ -115,7 +115,13 @@ mod tests {
         let response: JsonRpcResponse<SolanaVaultSwapResponse> = serde_json::from_str(include_str!("./test/chainflip_sol_arb_usdc_quote_data.json"))?;
 
         let tx_b64 = build_solana_transaction(wallet_address, &response.result)?;
-        crate::contract_check::verify_solana_programs(&tx_b64, &["J88B7gmadHzTNGiy54c9Ms8BsEXNdB2fntFyhKpk3qoT"])?;
+        let mut request = crate::testkit::mock_quote(
+            crate::SwapperQuoteAsset::from(primitives::AssetId::from_chain(primitives::Chain::Solana)),
+            crate::SwapperQuoteAsset::from(primitives::AssetId::from_chain(primitives::Chain::Ethereum)),
+        );
+        request.wallet_address = wallet_address.to_string();
+        let built = SwapperQuoteData::new_contract(String::new(), BigUint::ZERO, tx_b64.clone(), None, None);
+        crate::contract_check::verify(&crate::Quote::mock_with_request(&request), &["J88B7gmadHzTNGiy54c9Ms8BsEXNdB2fntFyhKpk3qoT"], &built)?;
 
         assert_eq!(
             tx_b64,
