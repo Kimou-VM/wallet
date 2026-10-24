@@ -67,9 +67,15 @@ pub fn map_perpetual_balance(positions: &AssetPositions) -> PerpetualBalance {
 }
 
 pub fn map_perpetual_dexes_balance(states: &[(PerpDex, AssetPositions)]) -> PerpetualBalance {
-    let balance: PerpetualBalance = states.iter().map(|(_, positions)| map_perpetual_balance(positions)).sum();
-    let withdrawable = states.iter().find(|(dex, _)| *dex == PerpDex::Main).map_or(0.0, |(_, positions)| map_perpetual_balance(positions).withdrawable);
-    PerpetualBalance { withdrawable, ..balance }
+    total_dexes_balance(states.iter().map(|(dex, positions)| (*dex, map_perpetual_balance(positions))).collect())
+}
+
+pub fn total_dexes_balance(balances: Vec<(PerpDex, PerpetualBalance)>) -> PerpetualBalance {
+    let withdrawable = balances.iter().find(|(dex, _)| *dex == PerpDex::Main).map_or(0.0, |(_, balance)| balance.withdrawable);
+    PerpetualBalance {
+        withdrawable,
+        ..balances.into_iter().map(|(_, balance)| balance).sum()
+    }
 }
 
 pub fn map_perpetual_balance_from_spot(balances: &Balances) -> PerpetualBalance {

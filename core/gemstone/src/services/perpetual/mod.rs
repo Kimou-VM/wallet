@@ -17,6 +17,7 @@ use futures::lock::Mutex;
 use gem_hypercore::config::HypercoreConfig;
 use gem_hypercore::models::perp_dex::PerpDex;
 use gem_hypercore::models::websocket::HyperliquidSocketMessage;
+use gem_hypercore::provider::perpetual_mapper::total_dexes_balance;
 use gem_hypercore::provider::websocket_mapper::{diff_clearinghouse_positions, diff_open_orders_positions, parse_websocket_data};
 use primitives::perpetual::{PerpetualAccountPositions, PerpetualBalance, PerpetualData};
 use primitives::portfolio::PerpetualPortfolio;
@@ -276,7 +277,8 @@ impl GemPerpetualService {
     fn total_balance(&self, wallet_id: WalletId, dex: PerpDex, balance: PerpetualBalance) -> Option<PerpetualBalance> {
         let mut balances = self.dex_balances.lock().unwrap();
         balances.insert((wallet_id.clone(), dex), balance);
-        self.perp_dexes.iter().map(|dex| balances.get(&(wallet_id.clone(), *dex)).cloned()).sum()
+        let dexes = self.perp_dexes.iter().map(|dex| balances.get(&(wallet_id.clone(), *dex)).map(|balance| (*dex, balance.clone()))).collect::<Option<Vec<_>>>()?;
+        Some(total_dexes_balance(dexes))
     }
 
     async fn with_stored_markets(&self, positions: Vec<PerpetualPosition>) -> Result<Vec<PerpetualPosition>, GemServiceError> {
@@ -539,6 +541,8 @@ mod tests {
 
         message(&testkit, include_str!("../../../../crates/gem_hypercore/testdata/ws_clearinghouse_state_xyz.json"));
         assert_eq!(available(&testkit), Some((14_400_000_000u64 + 900_000_000u64).to_string()));
+        let withdrawable = testkit.balances.balances.lock().unwrap()[&testkit.wallet_id][0].withdrawable.to_string();
+        assert_eq!(withdrawable, "14400000000", "Hyperliquid pays a withdrawal from the main dex only");
         let held: Vec<String> = testkit.store.positions.lock().unwrap().iter().map(|position| position.perpetual_id.symbol.clone()).collect();
         assert_eq!(held, vec!["ETH".to_string(), "xyz:NVDA".to_string()], "the xyz snapshot does not delete the main dex position");
     }
