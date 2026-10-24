@@ -420,7 +420,7 @@ A provider's API may only move funds into contracts the app ships for it. Before
 | Network shape | What is bound | How |
 |---|---|---|
 | EVM and Tron | The contract called, the contract that receives a token allowance, and the Permit2 spender | Each must be a shipped contract; a call to the swapped token itself passes only when its transfer recipient is a shipped contract |
-| Solana | Every instruction | A provider's own program passes. System and Token transfers may pay only the wallet, Gem's fee wallet, their token accounts for the swapped assets, or an account the same transaction closes back to the wallet; closing an account must pay the wallet; approvals, authority changes and burns are refused; account creation, compute budget, memo and token setup pass |
+| Solana | Every instruction's program | Each must be the provider's own program or a standard Solana program (system, token, token account, compute budget, memo); where a transfer inside those standard programs pays is not yet bound |
 | TON | Every message | Each must go to a shipped contract |
 | Cosmos | Every message | A contract call or IBC transfer must name a shipped contract; a bank send may only pay Gem's fee address |
 
@@ -429,20 +429,20 @@ A provider's API may only move funds into contracts the app ships for it. Before
 | THORChain, Maya | EVM token deposit | The router | In the quote list and at Confirm |
 | THORChain, Maya | Coin deposit | The vault the node names: rotates, cannot be shipped | Not bound |
 | OKX | EVM | The router and its approval contract, per network | At Confirm |
-| OKX | Solana | Its program and the Solana rule above | At Confirm |
+| OKX | Solana | Its program; standard programs pass | At Confirm, program level only |
 | Relay | EVM | Its deposit contract, approval proxies and routers, per network | In the quote list and at Confirm |
 | Relay | Tron, TON | Its depository, every message | In the quote list and at Confirm |
-| Relay | Solana | Its depository program and the Solana rule above | At Confirm |
+| Relay | Solana | Its depository program; standard programs pass | At Confirm, program level only |
 | Relay, Chainflip, Near Intents, swaps.xyz | Bitcoin and other deposit-address swaps | A deposit address made per swap | Not bound |
 | Chainflip | EVM, Tron | The vault, including a token transfer into it | At Confirm, plus its own amount checks |
-| Chainflip | Solana | The vault program and the Solana rule above | At Confirm |
+| Chainflip | Solana | The vault program; standard programs pass | At Confirm, program level only |
 | Mayan | EVM | The forwarder | At Confirm |
-| Mayan | Solana | Its programs; calls through its proxy are not opened, the proxy's inner program is looked up from a table the check does not load | At Confirm, program level only |
+| Mayan | Solana | Its programs; calls through its proxy are not opened | At Confirm, program level only |
 | Mayan | Sui | Packages inside the transaction | Not bound |
 | Bridgers | EVM, TON coin | The router | At Confirm, plus its own check that the API named the same router |
 | Bridgers | TON tokens, XRP | The user's own jetton wallet, or a transfer to the router | Not bound |
 | Squid | Cosmos | The Osmosis multicall, in every message, and the fee to Gem | At Confirm |
-| Jupiter, Orca, Raydium, PumpSwap, Meteora | Solana | Their program and the Solana rule above | At Confirm |
+| Jupiter, Orca, Raydium, PumpSwap, Meteora | Solana | Their program; standard programs pass | At Confirm, program level only |
 | Uniswap family, Across, SunSwap, STON.fi, DeDust, Hyperion, Cetus, Hyperliquid | All | Built on the device against shipped contracts | Not bound by the check |
 
 A provider that names anything outside its list is left out of the quote list where its quote already names the contract (THORChain, Relay), and refused at Confirm everywhere. When a provider upgrades a contract, its swaps stop until the app update that ships the new address.
