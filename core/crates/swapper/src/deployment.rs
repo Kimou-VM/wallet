@@ -17,15 +17,21 @@ impl Deployment {
     }
 
     pub fn contracts(deployments: &[Self], chain: Chain) -> Vec<&'static str> {
-        let mut contracts: Vec<&'static str> = Vec::new();
-        for deployment in deployments.iter().filter(|deployment| deployment.chain == chain) {
-            for contract in [deployment.contract, deployment.spender] {
-                if !contracts.contains(&contract) {
-                    contracts.push(contract);
-                }
+        Self::addresses(deployments, chain, |deployment| deployment.contract)
+    }
+
+    pub fn spenders(deployments: &[Self], chain: Chain) -> Vec<&'static str> {
+        Self::addresses(deployments, chain, |deployment| deployment.spender)
+    }
+
+    fn addresses(deployments: &[Self], chain: Chain, address: fn(&Self) -> &'static str) -> Vec<&'static str> {
+        let mut addresses: Vec<&'static str> = Vec::new();
+        for address in deployments.iter().filter(|deployment| deployment.chain == chain).map(address) {
+            if !addresses.contains(&address) {
+                addresses.push(address);
             }
         }
-        contracts
+        addresses
     }
 
     pub fn contains(chain: Chain, contracts: &[&str], address: &str) -> bool {
@@ -48,7 +54,8 @@ mod tests {
             Deployment::new(Chain::Base, "0xvault"),
         ];
 
-        assert_eq!(Deployment::contracts(&deployments, Chain::Ethereum), vec!["0xrouter", "0xspender"]);
+        assert_eq!(Deployment::contracts(&deployments, Chain::Ethereum), vec!["0xrouter"]);
+        assert_eq!(Deployment::spenders(&deployments, Chain::Ethereum), vec!["0xspender", "0xrouter"]);
         assert_eq!(Deployment::contracts(&deployments, Chain::Base), vec!["0xvault"]);
         assert!(Deployment::contracts(&deployments, Chain::Solana).is_empty());
     }

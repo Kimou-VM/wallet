@@ -66,6 +66,10 @@ where
         constants::contracts(from_asset.chain)
     }
 
+    fn spenders(&self, from_asset: &AssetId) -> Vec<&'static str> {
+        constants::spenders(from_asset.chain)
+    }
+
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
         let params = build_quote_params(request)?;
         let response: OkxApiResponse<QuoteData> = self.client.post(PROXY_QUOTE_PATH, &params).await.map_err(SwapperError::from)?;
@@ -122,7 +126,8 @@ mod tests {
     fn test_contracts() {
         let provider = OkxProvider::mock(MockClient::new(), "{}");
 
-        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Ethereum)), vec!["0x8feAB81D36E7576107D5dE0758c1b839Be31B4F6", EVM_TOKEN_APPROVE]);
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Ethereum)), vec!["0x8feAB81D36E7576107D5dE0758c1b839Be31B4F6"]);
+        assert_eq!(provider.spenders(&AssetId::from_chain(Chain::Ethereum)), vec![EVM_TOKEN_APPROVE]);
         assert_eq!(provider.contracts(&ETHEREUM_USDC_ASSET_ID), provider.contracts(&AssetId::from_chain(Chain::Ethereum)));
         assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Solana)), vec![SOLANA_OKX_DEX_V2_PROGRAM_ID]);
         assert!(provider.contracts(&AssetId::from_chain(Chain::Bitcoin)).is_empty());

@@ -17,6 +17,9 @@ pub trait Swapper: Send + Sync + Debug {
     fn contracts(&self, _from_asset: &AssetId) -> Vec<&'static str> {
         Vec::new()
     }
+    fn spenders(&self, from_asset: &AssetId) -> Vec<&'static str> {
+        self.contracts(from_asset)
+    }
     async fn preload_routes(&self, _from_asset: &AssetId, _to_asset: &AssetId) {}
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError>;
     async fn get_quote_data(&self, quote: &Quote, data: FetchQuoteData) -> Result<SwapperQuoteData, SwapperError>;
@@ -39,6 +42,6 @@ impl<'a> dyn Swapper + 'a {
 
     pub fn verify_contracts(&self, quote: &Quote, data: &SwapperQuoteData) -> Result<(), SwapperError> {
         let from_asset = quote.request.from_asset.asset_id();
-        contract_check::verify(&from_asset, &self.contracts(&from_asset), data)
+        contract_check::verify(&from_asset, &self.contracts(&from_asset), &self.spenders(&from_asset), data)
     }
 }

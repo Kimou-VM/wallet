@@ -47,6 +47,10 @@ pub(super) fn contracts(chain: Chain) -> Vec<&'static str> {
     Deployment::contracts(DEPLOYMENTS, chain)
 }
 
+pub(super) fn spenders(chain: Chain) -> Vec<&'static str> {
+    Deployment::spenders(DEPLOYMENTS, chain)
+}
+
 pub(super) fn dex_ids(chain: Chain) -> Option<&'static str> {
     match chain {
         Chain::Solana => Some(SOLANA_DEX_IDS),

@@ -44,22 +44,24 @@ const RECEIVERS: &[Deployment] = &[
     Deployment::new(Chain::Berachain, "0x7F4babd2C7D35221e72Ab67Ea72Cba99573A0089"),
 ];
 
+pub(super) fn spenders(chain: Chain) -> Vec<&'static str> {
+    match chain {
+        Chain::Mantle | Chain::Linea => vec![MANTLE_LINEA_DEPOSITORY, MANTLE_LINEA_APPROVAL_PROXY, MANTLE_LINEA_APPROVAL_PROXY_V3_2],
+        Chain::Tron => vec![TRON_DEPOSITORY],
+        Chain::Ton => vec![TON_DEPOSITORY],
+        Chain::Solana => vec![SOLANA_RELAY_DEPOSITORY_PROGRAM_ID, SOLANA_RELAY_FORWARDER_PROGRAM_ID],
+        _ if chain.chain_type() == ChainType::Ethereum => vec![DEPOSITORY, APPROVAL_PROXY, APPROVAL_PROXY_V3_2],
+        _ => vec![],
+    }
+}
+
 pub(super) fn contracts(chain: Chain) -> Vec<&'static str> {
-    let shared: &[&'static str] = match chain {
-        Chain::Mantle | Chain::Linea => &[
-            MANTLE_LINEA_DEPOSITORY,
-            MANTLE_LINEA_APPROVAL_PROXY,
-            MANTLE_LINEA_APPROVAL_PROXY_V3_2,
-            MANTLE_LINEA_ERC20_ROUTER,
-            MANTLE_LINEA_ERC20_ROUTER_V3_2,
-        ],
-        Chain::Tron => &[TRON_DEPOSITORY],
-        Chain::Ton => &[TON_DEPOSITORY],
-        Chain::Solana => &[SOLANA_RELAY_DEPOSITORY_PROGRAM_ID, SOLANA_RELAY_FORWARDER_PROGRAM_ID],
-        _ if chain.chain_type() == ChainType::Ethereum => &[DEPOSITORY, APPROVAL_PROXY, APPROVAL_PROXY_V3_2, ERC20_ROUTER, ERC20_ROUTER_V3_2],
+    let routers: &[&'static str] = match chain {
+        Chain::Mantle | Chain::Linea => &[MANTLE_LINEA_ERC20_ROUTER, MANTLE_LINEA_ERC20_ROUTER_V3_2],
+        _ if chain.chain_type() == ChainType::Ethereum => &[ERC20_ROUTER, ERC20_ROUTER_V3_2],
         _ => &[],
     };
-    shared.iter().copied().chain(Deployment::contracts(RECEIVERS, chain)).collect()
+    spenders(chain).into_iter().chain(routers.iter().copied()).chain(Deployment::contracts(RECEIVERS, chain)).collect()
 }
 
 #[cfg(test)]
@@ -75,6 +77,7 @@ mod tests {
         assert_eq!(contracts(Chain::Tron), vec![TRON_DEPOSITORY]);
         assert_eq!(contracts(Chain::Ton), vec![TON_DEPOSITORY]);
         assert!(contracts(Chain::Bitcoin).is_empty(), "a Bitcoin deposit address is made per swap");
+        assert!(ethereum.contains(&ERC20_ROUTER) && !spenders(Chain::Ethereum).contains(&ERC20_ROUTER), "the router is called, never approved");
         assert_eq!(contracts(Chain::Solana), vec![SOLANA_RELAY_DEPOSITORY_PROGRAM_ID, SOLANA_RELAY_FORWARDER_PROGRAM_ID]);
     }
 }
