@@ -56,7 +56,7 @@ public final class SwapSceneViewModel {
         toAssetQuery.value
     }
 
-    var isPresentingPriceImpactConfirmation: String?
+    var isPresentingPriceImpactConfirmation: SwapPriceImpactConfirmation?
     var pairSelectorModel: SwapPairSelectorViewModel
 
     var viewState: GemSwapViewState {
@@ -270,7 +270,8 @@ extension SwapSceneViewModel {
         setLoadTrigger(isImmediate: true)
     }
 
-    func onSelectSwapConfirmation() async {
+    func onSelectSwapConfirmation(_ confirmation: SwapPriceImpactConfirmation) async {
+        guard viewState.quote == confirmation.quote, !viewState.isQuoteLoading else { return }
         await swap()
     }
 
@@ -431,12 +432,12 @@ extension SwapSceneViewModel {
         case .insufficientBalance: break
         case .useMinimumAmount: setMinimumAmount()
         case .swap:
-            if let warningText = viewState.details?.priceImpactWarning {
+            if let warning = viewState.details?.priceImpactWarning, let quote = viewState.quote {
                 guard service.isAvailable() else {
                     isPresentingInfoSheet = .info(InfoSheetModel(sheet: GemInfoTopic.regionUnavailable.infoSheet))
                     return
                 }
-                isPresentingPriceImpactConfirmation = warningText
+                isPresentingPriceImpactConfirmation = SwapPriceImpactConfirmation(warning: warning, quote: quote)
                 return
             }
             await swap()

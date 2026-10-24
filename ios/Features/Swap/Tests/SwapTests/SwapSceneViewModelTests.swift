@@ -306,7 +306,7 @@ struct SwapSceneViewModelTests {
         let model = SwapSceneViewModel.mock(service: service)
         await model.load()
 
-        await model.onSelectSwapConfirmation()
+        await model.onSelectActionButton()
 
         #expect(model.viewState.isTransferLoading == false)
         #expect(model.viewState.buttonAction == .swap)
@@ -327,10 +327,25 @@ struct SwapSceneViewModelTests {
         #expect(quote != nil)
         #expect(model.isPresentingInfoSheet == nil)
 
-        await model.onSelectSwapConfirmation()
+        await model.onSelectActionButton()
 
         #expect(model.isPresentingInfoSheet?.id == SwapSheetType.info(InfoSheetModel(sheet: GemInfoTopic.regionUnavailable.infoSheet)).id)
         #expect(model.viewState.quote == quote)
         #expect(model.session.transferPhase == .idle)
+    }
+
+    @Test
+    func priceImpactConfirmationSwapsOnlyTheQuoteItWarnedAbout() async throws {
+        let model = SwapSceneViewModel.mock(service: GemSwapQuoteServiceMock())
+        await model.load()
+        let quote = try #require(model.viewState.quote)
+        var replaced = quote
+        replaced.etaInSeconds = (quote.etaInSeconds ?? 0) + 1
+
+        await model.onSelectSwapConfirmation(SwapPriceImpactConfirmation(warning: "", quote: replaced))
+        #expect(model.session.refreshPausedUntilRestart == false, "a quote refreshed while the warning was open is not swapped")
+
+        await model.onSelectSwapConfirmation(SwapPriceImpactConfirmation(warning: "", quote: quote))
+        #expect(model.session.refreshPausedUntilRestart, "the quote the warning named goes to Confirm")
     }
 }

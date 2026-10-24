@@ -40,15 +40,15 @@ public struct SwapScene: View {
                     model.priceImpactWarningTitle,
                     presenting: $model.isPresentingPriceImpactConfirmation,
                     sensoryFeedback: .warning,
-                    actions: { _ in
+                    actions: { confirmation in
                         Button(
                             model.buttonViewModel.title,
                             role: .destructive,
-                            action: { Task { await model.onSelectSwapConfirmation() } },
+                            action: { Task { await model.onSelectSwapConfirmation(confirmation) } },
                         )
                     },
                     message: {
-                        Text(model.isPresentingPriceImpactConfirmation ?? "")
+                        Text(model.isPresentingPriceImpactConfirmation?.warning ?? "")
                     },
                 )
         }
