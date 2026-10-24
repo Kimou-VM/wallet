@@ -1,5 +1,5 @@
 use super::{
-    SwapperProviderMode, SwapperQuoteData, contract_check,
+    Contracts, SwapperProviderMode, SwapperQuoteData, contract_check,
     cross_chain::VaultAddresses,
     error::SwapperError,
     models::{FetchQuoteData, ProviderType, Quote, QuoteRequest, SwapAmountMode, SwapResult, SwapResultRequest, SwapperChainAsset},
@@ -14,11 +14,8 @@ pub trait Swapper: Send + Sync + Debug {
     fn provider(&self) -> &ProviderType;
     fn supported_assets(&self) -> Vec<SwapperChainAsset>;
     fn amount_mode(&self, request: &QuoteRequest) -> SwapAmountMode;
-    fn contracts(&self, _from_asset: &AssetId) -> Vec<&'static str> {
-        Vec::new()
-    }
-    fn spenders(&self, from_asset: &AssetId) -> Vec<&'static str> {
-        self.contracts(from_asset)
+    fn contracts(&self, _from_asset: &AssetId) -> Contracts {
+        Contracts::default()
     }
     async fn preload_routes(&self, _from_asset: &AssetId, _to_asset: &AssetId) {}
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError>;
@@ -42,6 +39,6 @@ impl<'a> dyn Swapper + 'a {
 
     pub fn verify_contracts(&self, quote: &Quote, data: &SwapperQuoteData) -> Result<(), SwapperError> {
         let from_asset = quote.request.from_asset.asset_id();
-        contract_check::verify(&from_asset, &self.contracts(&from_asset), &self.spenders(&from_asset), data)
+        contract_check::verify(&from_asset, &self.contracts(&from_asset), data)
     }
 }

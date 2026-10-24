@@ -12,7 +12,7 @@ use primitives::{
 };
 use serde::Deserialize;
 
-use crate::{Deployment, SwapperError, SwapperQuoteData, fees::default_referral_address};
+use crate::{Contracts, Deployment, SwapperError, SwapperQuoteData, fees::default_referral_address};
 
 const SOLANA_PROGRAMS: &[&str] = &[
     SOLANA_SYSTEM_PROGRAM_ID,
@@ -23,22 +23,22 @@ const SOLANA_PROGRAMS: &[&str] = &[
     SOLANA_MEMO_PROGRAM_ID,
 ];
 
-pub(crate) fn verify(from_asset: &AssetId, contracts: &[&str], spenders: &[&str], data: &SwapperQuoteData) -> Result<(), SwapperError> {
-    if contracts.is_empty() {
+pub(crate) fn verify(from_asset: &AssetId, contracts: &Contracts, data: &SwapperQuoteData) -> Result<(), SwapperError> {
+    if contracts.targets.is_empty() {
         return Ok(());
     }
     match from_asset.chain.chain_type() {
-        ChainType::Solana => verify_solana_programs(&data.data, contracts),
-        ChainType::Cosmos => verify_cosmos_messages(from_asset.chain, &data.data, contracts),
-        ChainType::Ton => verify_ton_messages(&data.data, contracts),
-        _ => verify_targets(from_asset, contracts, spenders, data),
+        ChainType::Solana => verify_solana_programs(&data.data, &contracts.targets),
+        ChainType::Cosmos => verify_cosmos_messages(from_asset.chain, &data.data, &contracts.targets),
+        ChainType::Ton => verify_ton_messages(&data.data, &contracts.targets),
+        _ => verify_targets(from_asset, contracts, data),
     }
 }
 
-fn verify_targets(from_asset: &AssetId, contracts: &[&str], spenders: &[&str], data: &SwapperQuoteData) -> Result<(), SwapperError> {
+fn verify_targets(from_asset: &AssetId, contracts: &Contracts, data: &SwapperQuoteData) -> Result<(), SwapperError> {
     let chain = from_asset.chain;
-    let is_contract = |address: &str| Deployment::contains(chain, contracts, address);
-    let is_spender = |address: &str| Deployment::contains(chain, spenders, address);
+    let is_contract = |address: &str| Deployment::contains(chain, &contracts.targets, address);
+    let is_spender = |address: &str| Deployment::contains(chain, &contracts.spenders, address);
     if data.data_type == SwapQuoteDataType::Contract && !is_contract(&data.to) && !token_transfer_recipient(from_asset, data).is_some_and(|recipient| is_contract(&recipient)) {
         return Err(SwapperError::InvalidRoute);
     }
@@ -148,7 +148,10 @@ mod tests {
         assert_eq!(verify_cosmos_messages(Chain::Celestia, &format!("[{foreign_send},{transfer}]"), &multicall), Err(SwapperError::InvalidRoute));
         let plain_send = execute.replace(MESSAGE_EXECUTE_CONTRACT, MESSAGE_SEND_BETA);
         assert_eq!(verify_cosmos_messages(Chain::Osmosis, &format!("[{plain_send}]"), &multicall), Err(SwapperError::InvalidRoute));
-        assert!(verify(&Chain::Osmosis.as_asset_id(), &[], &[], &SwapperQuoteData::mock()).is_ok(), "a provider that ships no contracts is not bound");
+        assert!(
+            verify(&Chain::Osmosis.as_asset_id(), &Contracts::default(), &SwapperQuoteData::mock()).is_ok(),
+            "a provider that ships no contracts is not bound"
+        );
     }
 
     #[test]
@@ -164,10 +167,10 @@ mod tests {
             SwapperQuoteData::new_contract(TRON_USDT_TOKEN_ID.to_string(), BigUint::ZERO, hex::encode(call.abi_encode()), None, None)
         };
 
-        assert!(verify(&usdt, &[vault], &[vault], &transfer(vault)).is_ok(), "a token transfer into the shipped vault is the deposit");
-        assert_eq!(verify(&usdt, &[vault], &[vault], &transfer("TDMakP1fbWc7XXoSWZpujpjRAuePPEn4oi")), Err(SwapperError::InvalidRoute));
+        assert!(verify(&usdt, &Contracts::new(vec![vault]), &transfer(vault)).is_ok(), "a token transfer into the shipped vault is the deposit");
+        assert_eq!(verify(&usdt, &Contracts::new(vec![vault]), &transfer("TDMakP1fbWc7XXoSWZpujpjRAuePPEn4oi")), Err(SwapperError::InvalidRoute));
         assert_eq!(
-            verify(&Chain::Tron.as_asset_id(), &[vault], &[vault], &transfer(vault)),
+            verify(&Chain::Tron.as_asset_id(), &Contracts::new(vec![vault]), &transfer(vault)),
             Err(SwapperError::InvalidRoute),
             "a coin swap may not call a token contract"
         );

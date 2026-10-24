@@ -1,4 +1,4 @@
-use crate::Deployment;
+use crate::{Contracts, Deployment};
 use primitives::{Chain, contract_constants::SOLANA_OKX_DEX_V2_PROGRAM_ID};
 
 pub(super) const PROXY_QUOTE_PATH: &str = "/v6/quote";
@@ -43,12 +43,8 @@ pub(super) fn chain_index(chain: Chain) -> Option<&'static str> {
     }
 }
 
-pub(super) fn contracts(chain: Chain) -> Vec<&'static str> {
+pub(super) fn contracts(chain: Chain) -> Contracts {
     Deployment::contracts(DEPLOYMENTS, chain)
-}
-
-pub(super) fn spenders(chain: Chain) -> Vec<&'static str> {
-    Deployment::spenders(DEPLOYMENTS, chain)
 }
 
 pub(super) fn dex_ids(chain: Chain) -> Option<&'static str> {

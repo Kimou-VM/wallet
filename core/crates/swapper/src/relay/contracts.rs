@@ -3,7 +3,7 @@ use primitives::{
     contract_constants::{SOLANA_RELAY_DEPOSITORY_PROGRAM_ID, SOLANA_RELAY_FORWARDER_PROGRAM_ID},
 };
 
-use crate::Deployment;
+use crate::{Contracts, Deployment};
 
 const DEPOSITORY: &str = "0x4cD00E387622C35bDDB9b4c962C136462338BC31";
 const APPROVAL_PROXY: &str = "0xCcC88a9d1B4ED6b0EABA998850414b24f1c315bE";
@@ -44,24 +44,22 @@ const RECEIVERS: &[Deployment] = &[
     Deployment::new(Chain::Berachain, "0x7F4babd2C7D35221e72Ab67Ea72Cba99573A0089"),
 ];
 
-pub(super) fn spenders(chain: Chain) -> Vec<&'static str> {
-    match chain {
-        Chain::Mantle | Chain::Linea => vec![MANTLE_LINEA_DEPOSITORY, MANTLE_LINEA_APPROVAL_PROXY, MANTLE_LINEA_APPROVAL_PROXY_V3_2],
-        Chain::Tron => vec![TRON_DEPOSITORY],
-        Chain::Ton => vec![TON_DEPOSITORY],
-        Chain::Solana => vec![SOLANA_RELAY_DEPOSITORY_PROGRAM_ID, SOLANA_RELAY_FORWARDER_PROGRAM_ID],
-        _ if chain.chain_type() == ChainType::Ethereum => vec![DEPOSITORY, APPROVAL_PROXY, APPROVAL_PROXY_V3_2],
-        _ => vec![],
-    }
-}
-
-pub(super) fn contracts(chain: Chain) -> Vec<&'static str> {
-    let routers: &[&'static str] = match chain {
-        Chain::Mantle | Chain::Linea => &[MANTLE_LINEA_ERC20_ROUTER, MANTLE_LINEA_ERC20_ROUTER_V3_2],
-        _ if chain.chain_type() == ChainType::Ethereum => &[ERC20_ROUTER, ERC20_ROUTER_V3_2],
-        _ => &[],
+pub(super) fn contracts(chain: Chain) -> Contracts {
+    let (spenders, routers): (&[&'static str], &[&'static str]) = match chain {
+        Chain::Mantle | Chain::Linea => (
+            &[MANTLE_LINEA_DEPOSITORY, MANTLE_LINEA_APPROVAL_PROXY, MANTLE_LINEA_APPROVAL_PROXY_V3_2],
+            &[MANTLE_LINEA_ERC20_ROUTER, MANTLE_LINEA_ERC20_ROUTER_V3_2],
+        ),
+        Chain::Tron => (&[TRON_DEPOSITORY], &[]),
+        Chain::Ton => (&[TON_DEPOSITORY], &[]),
+        Chain::Solana => (&[SOLANA_RELAY_DEPOSITORY_PROGRAM_ID, SOLANA_RELAY_FORWARDER_PROGRAM_ID], &[]),
+        _ if chain.chain_type() == ChainType::Ethereum => (&[DEPOSITORY, APPROVAL_PROXY, APPROVAL_PROXY_V3_2], &[ERC20_ROUTER, ERC20_ROUTER_V3_2]),
+        _ => (&[], &[]),
     };
-    spenders(chain).into_iter().chain(routers.iter().copied()).chain(Deployment::contracts(RECEIVERS, chain)).collect()
+    Contracts {
+        targets: [spenders, routers].concat().into_iter().chain(Deployment::contracts(RECEIVERS, chain).targets).collect(),
+        spenders: spenders.to_vec(),
+    }
 }
 
 #[cfg(test)]
@@ -71,13 +69,13 @@ mod tests {
     #[test]
     fn test_contracts() {
         let ethereum = contracts(Chain::Ethereum);
-        assert!(ethereum.contains(&DEPOSITORY) && ethereum.contains(&APPROVAL_PROXY) && ethereum.contains(&"0xa5F565650890fBA1824Ee0F21EbBbF660a179934"));
+        assert!(ethereum.targets.contains(&DEPOSITORY) && ethereum.targets.contains(&APPROVAL_PROXY) && ethereum.targets.contains(&"0xa5F565650890fBA1824Ee0F21EbBbF660a179934"));
         let linea = contracts(Chain::Linea);
-        assert!(linea.contains(&MANTLE_LINEA_DEPOSITORY) && !linea.contains(&DEPOSITORY));
-        assert_eq!(contracts(Chain::Tron), vec![TRON_DEPOSITORY]);
-        assert_eq!(contracts(Chain::Ton), vec![TON_DEPOSITORY]);
-        assert!(contracts(Chain::Bitcoin).is_empty(), "a Bitcoin deposit address is made per swap");
-        assert!(ethereum.contains(&ERC20_ROUTER) && !spenders(Chain::Ethereum).contains(&ERC20_ROUTER), "the router is called, never approved");
-        assert_eq!(contracts(Chain::Solana), vec![SOLANA_RELAY_DEPOSITORY_PROGRAM_ID, SOLANA_RELAY_FORWARDER_PROGRAM_ID]);
+        assert!(linea.targets.contains(&MANTLE_LINEA_DEPOSITORY) && !linea.targets.contains(&DEPOSITORY));
+        assert_eq!(contracts(Chain::Tron), Contracts::new(vec![TRON_DEPOSITORY]));
+        assert_eq!(contracts(Chain::Ton), Contracts::new(vec![TON_DEPOSITORY]));
+        assert_eq!(contracts(Chain::Bitcoin), Contracts::default(), "a Bitcoin deposit address is made per swap");
+        assert!(ethereum.targets.contains(&ERC20_ROUTER) && !ethereum.spenders.contains(&ERC20_ROUTER), "the router is called, never approved");
+        assert_eq!(contracts(Chain::Solana), Contracts::new(vec![SOLANA_RELAY_DEPOSITORY_PROGRAM_ID, SOLANA_RELAY_FORWARDER_PROGRAM_ID]));
     }
 }

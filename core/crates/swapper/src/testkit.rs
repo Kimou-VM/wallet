@@ -1,5 +1,6 @@
 use crate::{
-    AssetList, FetchQuoteData, Permit2ApprovalData, ProviderData, ProviderType, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData, SwapperSlippage, SwapperSlippageMode,
+    AssetList, Contracts, FetchQuoteData, Permit2ApprovalData, ProviderData, ProviderType, Route, SwapAmountMode, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteAsset, SwapperQuoteData, SwapperSlippage,
+    SwapperSlippageMode,
 };
 use async_trait::async_trait;
 use num_bigint::BigUint;
@@ -224,8 +225,8 @@ impl Swapper for MockSwapper {
         self.amount_mode
     }
 
-    fn contracts(&self, _from_asset: &AssetId) -> Vec<&'static str> {
-        self.contracts.clone()
+    fn contracts(&self, _from_asset: &AssetId) -> Contracts {
+        Contracts::new(self.contracts.clone())
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {

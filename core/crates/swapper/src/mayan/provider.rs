@@ -13,7 +13,7 @@ use super::{
 use crate::amount_to_value;
 use crate::client_factory::create_eth_client;
 use crate::{
-    FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
+    Contracts, FetchQuoteData, ProviderType, Quote, QuoteRequest, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     config::get_swap_proxy_url,
     cross_chain::VaultAddresses,
     fees::{default_referral_address, default_referral_fees},
@@ -118,8 +118,8 @@ where
         SwapAmountMode::Fixed
     }
 
-    fn contracts(&self, from_asset: &AssetId) -> Vec<&'static str> {
-        match from_asset.chain.chain_type() {
+    fn contracts(&self, from_asset: &AssetId) -> Contracts {
+        Contracts::new(match from_asset.chain.chain_type() {
             ChainType::Ethereum => vec![MAYAN_FORWARDER],
             ChainType::Solana => vec![
                 MAYAN_CPI_PROXY_PROGRAM_ID,
@@ -131,7 +131,7 @@ where
                 SOLANA_JUPITER_PROGRAM_ID,
             ],
             _ => Vec::new(),
-        }
+        })
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {
@@ -264,14 +264,14 @@ mod tests {
     fn test_contracts() {
         let provider = Mayan::with_clients(MayanClient::new(MockClient::new()), MayanClient::new(MockClient::new()), Arc::new(ProviderMock::new("{}".to_string())));
 
-        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Ethereum)), vec![MAYAN_FORWARDER]);
-        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Base)), vec![MAYAN_FORWARDER]);
-        assert!(provider.contracts(&AssetId::from_chain(Chain::Solana)).contains(&MAYAN_CPI_PROXY_PROGRAM_ID));
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Ethereum)), Contracts::new(vec![MAYAN_FORWARDER]));
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Base)), Contracts::new(vec![MAYAN_FORWARDER]));
+        assert!(provider.contracts(&AssetId::from_chain(Chain::Solana)).targets.contains(&MAYAN_CPI_PROXY_PROGRAM_ID));
         assert!(
-            provider.contracts(&AssetId::from_chain(Chain::Solana)).contains(&SOLANA_JUPITER_PROGRAM_ID),
+            provider.contracts(&AssetId::from_chain(Chain::Solana)).targets.contains(&SOLANA_JUPITER_PROGRAM_ID),
             "a route that swaps on Solana first calls Jupiter outside Mayan's proxy"
         );
-        assert!(provider.contracts(&AssetId::from_chain(Chain::Sui)).is_empty(), "a Sui transaction carries its packages inside");
+        assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Sui)), Contracts::default(), "a Sui transaction carries its packages inside");
     }
 
     #[test]

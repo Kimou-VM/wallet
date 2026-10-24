@@ -13,7 +13,7 @@ use primitives::{
 
 use super::{SQUID_COSMOS_MULTICALL, SUPPORTED_CHAINS, client::SquidClient, model::*};
 use crate::{
-    FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
+    Contracts, FetchQuoteData, ProviderData, ProviderType, Quote, QuoteRequest, Route, RpcClient, RpcProvider, SwapAmountMode, SwapResult, SwapResultRequest, Swapper, SwapperChainAsset, SwapperError, SwapperProvider, SwapperQuoteData,
     config::get_swap_proxy_url,
     cross_chain::VaultAddresses,
     fees::{DEFAULT_SWAP_FEE_BPS, bps_of, default_referral_address},
@@ -112,8 +112,8 @@ where
         SwapAmountMode::Fixed
     }
 
-    fn contracts(&self, from_asset: &AssetId) -> Vec<&'static str> {
-        CosmosChain::from_chain(from_asset.chain).map(|_| vec![SQUID_COSMOS_MULTICALL.contract]).unwrap_or_default()
+    fn contracts(&self, from_asset: &AssetId) -> Contracts {
+        CosmosChain::from_chain(from_asset.chain).map(|_| Contracts::new(vec![SQUID_COSMOS_MULTICALL.contract])).unwrap_or_default()
     }
 
     async fn get_quote(&self, request: &QuoteRequest) -> Result<Quote, SwapperError> {

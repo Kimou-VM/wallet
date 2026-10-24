@@ -1,5 +1,17 @@
 use primitives::{Chain, ChainType};
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Contracts {
+    pub targets: Vec<&'static str>,
+    pub spenders: Vec<&'static str>,
+}
+
+impl Contracts {
+    pub fn new(targets: Vec<&'static str>) -> Self {
+        Self { spenders: targets.clone(), targets }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Deployment {
     pub chain: Chain,
@@ -16,12 +28,11 @@ impl Deployment {
         Self { chain, contract, spender }
     }
 
-    pub fn contracts(deployments: &[Self], chain: Chain) -> Vec<&'static str> {
-        Self::addresses(deployments, chain, |deployment| deployment.contract)
-    }
-
-    pub fn spenders(deployments: &[Self], chain: Chain) -> Vec<&'static str> {
-        Self::addresses(deployments, chain, |deployment| deployment.spender)
+    pub fn contracts(deployments: &[Self], chain: Chain) -> Contracts {
+        Contracts {
+            targets: Self::addresses(deployments, chain, |deployment| deployment.contract),
+            spenders: Self::addresses(deployments, chain, |deployment| deployment.spender),
+        }
     }
 
     fn addresses(deployments: &[Self], chain: Chain, address: fn(&Self) -> &'static str) -> Vec<&'static str> {
@@ -54,10 +65,15 @@ mod tests {
             Deployment::new(Chain::Base, "0xvault"),
         ];
 
-        assert_eq!(Deployment::contracts(&deployments, Chain::Ethereum), vec!["0xrouter"]);
-        assert_eq!(Deployment::spenders(&deployments, Chain::Ethereum), vec!["0xspender", "0xrouter"]);
-        assert_eq!(Deployment::contracts(&deployments, Chain::Base), vec!["0xvault"]);
-        assert!(Deployment::contracts(&deployments, Chain::Solana).is_empty());
+        assert_eq!(
+            Deployment::contracts(&deployments, Chain::Ethereum),
+            Contracts {
+                targets: vec!["0xrouter"],
+                spenders: vec!["0xspender", "0xrouter"],
+            }
+        );
+        assert_eq!(Deployment::contracts(&deployments, Chain::Base), Contracts::new(vec!["0xvault"]));
+        assert_eq!(Deployment::contracts(&deployments, Chain::Solana), Contracts::default());
     }
 
     #[test]
