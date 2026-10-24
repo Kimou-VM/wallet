@@ -95,10 +95,6 @@ impl GemSwapQuoteAnswers {
         }
     }
 
-    fn progress(&self) -> String {
-        format!("{}/{}", self.answers.len(), self.providers.len())
-    }
-
     fn with_answer(&self, answer: GemSwapProviderAnswer) -> Option<Self> {
         self.pending().contains(&answer.provider()).then(|| Self {
             answers: [self.answers.clone(), vec![answer]].concat(),
@@ -338,7 +334,6 @@ pub struct GemSwapViewState {
     pub receive: GemSwapSideState,
     pub is_receive_loading: bool,
     pub receive_amount: Option<GemFormattedNumber>,
-    pub quote_progress: Option<String>,
     pub first_quote_wait: Option<GemSwapFirstQuoteWait>,
     pub providers: Vec<GemProviderRow>,
     pub pending_providers: Vec<GemProviderLoadingRow>,
@@ -542,9 +537,7 @@ impl GemSwapSession {
         match self.held_answers(pay.as_ref(), receive.as_ref()) {
             Some(answers) => GemSwapViewState {
                 quotes_state: self.quotes_state(pay.as_ref().map(|pay| &pay.asset)),
-                quote_progress: Some(answers.progress()),
                 details: None,
-                shows_details: true,
                 ..GemSwapSession {
                     quote_phase: GemSwapQuotePhase::Loading { request: answers.request.clone() },
                     ..self.clone()
@@ -568,13 +561,12 @@ impl GemSwapSession {
         let quote = self.pair_quote(pay.as_ref(), receive.as_ref());
         let is_receive_loading = self.is_quote_loading() && !is_transfer_loading;
         let receive_quote = quote.filter(|_| !is_receive_loading);
-        let quote_progress = receive_quote.and(self.open_answers()).map(GemSwapQuoteAnswers::progress);
         let details = pay
             .as_ref()
             .zip(receive.as_ref())
             .zip(quote)
             .map(|((pay, receive), quote)| quote_details(rules::swap_quote(quote), pay.asset.clone(), receive.asset.clone(), price_value(pay), price_value(receive), &currency));
-        let shows_details = quote_progress.is_some() || (details.is_some() && !self.is_quote_loading());
+        let shows_details = details.is_some() && !self.is_quote_loading();
         GemSwapViewState {
             quotes_state: self.quotes_state(pay.as_ref().map(|pay| &pay.asset)),
             action: self.action(),
@@ -617,7 +609,6 @@ impl GemSwapSession {
             },
             is_receive_loading,
             receive_amount: receive_quote.map(receive_amount),
-            quote_progress,
             first_quote_wait: self.first_quote_wait(),
             providers: receive
                 .as_ref()
@@ -1342,20 +1333,18 @@ mod tests {
     }
 
     #[test]
-    fn test_a_late_better_quote_replaces_the_shown_one_and_the_progress_goes_with_the_last_answer() {
+    fn test_a_late_better_quote_replaces_the_shown_one() {
         let first = two_of_three();
         let state = view(&first, 1000);
         assert_eq!(shown_provider(&first), Some(SwapperProvider::Relay));
-        assert_eq!(state.quote_progress, Some("2/3".to_string()));
+        assert!(state.shows_details, "Details shows the rate while the round is open");
         assert_eq!(state.button_state, GemButtonState::Enabled, "Swap works while the round is open");
 
         let better = first.on_provider_answer(GemSwapRequest::mock(), quote_answer(SwapperProvider::NearIntents, "11"));
         assert_eq!(shown_provider(&better), Some(SwapperProvider::NearIntents));
-        assert_eq!(view(&better, 1000).quote_progress, None);
 
         let left_out = first.on_provider_answer(GemSwapRequest::mock(), failed_answer(SwapperProvider::NearIntents, SwapperError::NoQuoteAvailable));
         assert_eq!(shown_provider(&left_out), Some(SwapperProvider::Relay), "a provider silent at the close is left out");
-        assert_eq!(view(&left_out, 1000).quote_progress, None);
         assert!(view(&left_out, 1000).pending_providers.is_empty());
     }
 
@@ -1380,7 +1369,7 @@ mod tests {
         let held = priced_view(&bad);
         assert!(held.is_receive_loading, "a quote losing 5% keeps the spinner while providers are still quoting");
         assert_eq!((held.receive_amount, held.details, held.button_state), (None, None, GemButtonState::Loading));
-        assert_eq!(held.quote_progress, Some("1/4".to_string()), "Details keeps the progress without a rate");
+        assert!(!held.shows_details, "Details stays hidden, as while waiting");
         assert_eq!((held.quotes_state, held.providers.len()), (GemSwapQuotesState::Quotes, 1), "Providers lists the quotes so far");
         assert!(view(&bad, 1000).details.is_some(), "a pair without prices is never held");
 
@@ -1390,7 +1379,7 @@ mod tests {
         let better = priced_view(&bad.on_provider_answer(GemSwapRequest::mock(), quote_answer(SwapperProvider::Mayan, "11")));
         assert!(!better.is_receive_loading, "a quote within the hold shows as soon as it arrives");
         assert_eq!(better.quote.map(|quote| quote.data.provider.id), Some(SwapperProvider::Mayan));
-        assert_eq!((better.quote_progress, better.details.is_some()), (Some("2/4".to_string()), true));
+        assert!(better.shows_details && better.details.is_some());
     }
 
     #[test]
@@ -1401,7 +1390,7 @@ mod tests {
 
         let closed = priced_view(&bad.on_provider_answer(GemSwapRequest::mock(), failed_answer(SwapperProvider::NearIntents, SwapperError::NoQuoteAvailable)));
         assert!(!closed.is_receive_loading, "every provider answered or the close came, so the best quote shows");
-        assert_eq!(closed.quote_progress, None);
+        assert!(closed.shows_details);
         assert!(closed.details.unwrap().summary.price_impact_row.is_some(), "Details shows the loss");
     }
 
@@ -1430,7 +1419,6 @@ mod tests {
         let started = start(&two_of_three()).unwrap();
         let after_swap = started.on_provider_answer(GemSwapRequest::mock(), quote_answer(SwapperProvider::NearIntents, "11"));
         assert_eq!(after_swap.quote(), started.quote(), "once Swap is tapped no later answer changes the trade");
-        assert_eq!(view(&after_swap, 1000).quote_progress, None);
     }
 
     #[test]

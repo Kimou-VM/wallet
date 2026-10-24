@@ -128,10 +128,6 @@ public final class SwapSceneViewModel {
         viewState.pendingProviders
     }
 
-    var quoteProgress: String? {
-        viewState.quoteProgress
-    }
-
     var showsSwapDetails: Bool {
         viewState.showsDetails
     }

@@ -1,13 +1,7 @@
 package com.gemwallet.android.ui.components.swap
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,7 +31,6 @@ import com.gemwallet.android.ui.components.list_item.property.DataBadgeChevron
 import com.gemwallet.android.ui.components.list_item.property.PropertyDataText
 import com.gemwallet.android.ui.components.list_item.property.PropertyItem
 import com.gemwallet.android.ui.components.list_item.property.PropertyTitleText
-import com.gemwallet.android.ui.components.progress.CircularProgressIndicator16
 import com.gemwallet.android.ui.components.progress.CircularProgressIndicator20
 import com.gemwallet.android.ui.components.screen.ModalBottomSheet
 import com.gemwallet.android.ui.components.screen.SheetExpansion
@@ -45,9 +38,7 @@ import com.gemwallet.android.ui.localization.text
 import com.gemwallet.android.ui.models.ListPosition
 import com.gemwallet.android.ui.style.color
 import com.gemwallet.android.ui.style.textStyle
-import com.gemwallet.android.ui.theme.Spacer4
 import com.gemwallet.android.ui.theme.pendingColor
-import com.gemwallet.android.ui.theme.space4
 import uniffi.gemstone.GemListRowTitle
 import uniffi.gemstone.GemProviderKind
 import uniffi.gemstone.GemProviderLoadingRow
@@ -57,16 +48,15 @@ import uniffi.gemstone.GemSwapQuotesState
 import uniffi.gemstone.SwapProvider
 
 @Composable
-fun SwapDetailsSummaryItem(details: GemSwapDetails?, onClick: () -> Unit, progress: String? = null, listPosition: ListPosition = ListPosition.Single) {
-    val priceImpact = details?.summary?.priceImpactRow?.takeIf { it.showsInSummary }?.value
+fun SwapDetailsSummaryItem(details: GemSwapDetails, onClick: () -> Unit, listPosition: ListPosition = ListPosition.Single) {
+    val priceImpact = details.summary.priceImpactRow?.takeIf { it.showsInSummary }?.value
 
     PropertyItem(
         modifier = Modifier.clickable(onClick = onClick),
         title = { PropertyTitleText(R.string.common_details) },
         data = {
-            QuoteProgress(progress)
             PropertyDataText(
-                text = details?.rate?.forward.orEmpty(),
+                text = details.rate?.forward.orEmpty(),
                 badge = {
                     DataBadgeChevron(
                         content = priceImpact?.let {
@@ -86,24 +76,6 @@ fun SwapDetailsSummaryItem(details: GemSwapDetails?, onClick: () -> Unit, progre
         },
         listPosition = listPosition,
     )
-}
-
-@Composable
-private fun QuoteProgress(progress: String?) {
-    AnimatedContent(
-        targetState = progress,
-        contentKey = { it != null },
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
-        label = "quote_progress",
-    ) { text ->
-        text?.let {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(space4)) {
-                CircularProgressIndicator16()
-                Text(text = it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-                Spacer4()
-            }
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
