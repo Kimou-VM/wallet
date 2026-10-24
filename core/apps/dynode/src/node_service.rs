@@ -164,7 +164,7 @@ impl NodeService {
             };
             match result {
                 Ok(response) => {
-                    let retry_error = self.matches_response_error_signal(request, &response, &self.retry_config.errors);
+                    let retry_error = self.matches_response_error_signal(&response, &self.retry_config.errors);
                     if !response.is_from_cache() {
                         self.report_active_node_outcome(upstream, request.chain, retry_error);
                     }
@@ -328,28 +328,17 @@ impl NodeService {
         }
     }
 
-    fn matches_response_error_signal(&self, request: &ProxyRequest, response: &ProxyResponse, matcher: &ErrorMatcherConfig) -> bool {
+    fn matches_response_error_signal(&self, response: &ProxyResponse, matcher: &ErrorMatcherConfig) -> bool {
         if matcher.matches_status(response.status) {
             return true;
         }
 
-        if response.status == StatusCode::BAD_REQUEST.as_u16()
-            && let Ok(body) = serde_json::from_slice::<Value>(&response.body)
-            && let Some(message) = body.get("error").and_then(Value::as_str)
-            && matcher.matches_message(message)
-        {
-            return true;
-        }
-
-        match request.request_type() {
-            RequestType::JsonRpc(_) if response.status == StatusCode::OK.as_u16() => {
-                if let Ok(error_response) = serde_json::from_slice::<JsonRpcErrorResponse>(&response.body) {
-                    return matcher.matches_message(&error_response.error.message);
-                }
-                false
-            }
-            _ => false,
-        }
+        let Ok(body) = serde_json::from_slice::<Value>(&response.body) else {
+            return false;
+        };
+        body.get("error")
+            .and_then(|error| error.as_str().or_else(|| error.get("message").and_then(Value::as_str)))
+            .is_some_and(|message| matcher.matches_message(message))
     }
 
     fn log_and_create_error_response(&self, request: &ProxyRequest, host: Option<&str>, error: NodeServiceError, upstream_data: Option<Value>) -> Result<ProxyResponse, BoxError> {
@@ -565,10 +554,9 @@ mod tests {
             ..NodeService::mock(ChainConfig::mock(Chain::Ethereum))
         };
 
-        let request = ProxyRequest::mock(Chain::Ethereum, Method::POST, "/", &[]);
         let response = ProxyResponse::new(429, HeaderMap::new(), Bytes::new());
 
-        assert!(service.matches_response_error_signal(&request, &response, &service.retry_config.errors));
+        assert!(service.matches_response_error_signal(&response, &service.retry_config.errors));
     }
 
     #[test]
@@ -578,30 +566,30 @@ mod tests {
             ..NodeService::mock(ChainConfig::mock(Chain::Ethereum))
         };
 
-        let request = ProxyRequest::mock_jsonrpc(Chain::Ethereum, "eth_blockNumber");
         let response = ProxyResponse::new(200, HeaderMap::new(), Bytes::from_static(br#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Exceeded the quota usage"},"id":1}"#));
 
-        assert!(service.matches_response_error_signal(&request, &response, &service.retry_config.errors));
+        assert!(service.matches_response_error_signal(&response, &service.retry_config.errors));
     }
 
     #[test]
-    fn test_matches_retry_http_error_message() {
+    fn test_matches_retry_error_message_across_statuses() {
         let service = NodeService {
             retry_config: RetryConfig::mock_with_errors(vec![], vec!["502 Bad Gateway"]),
             ..NodeService::mock(ChainConfig::mock(Chain::Zcash))
         };
-        let request = ProxyRequest::mock(Chain::Zcash, Method::POST, "/api/v2/sendtx/", b"0100beef");
         let gateway_error = br#"{"error":"502 Bad Gateway invalid character '<' looking for beginning of value"}"#;
 
-        for (body, retry) in [
-            (gateway_error.as_slice(), true),
-            (br#"{"error":"-26: txn-mempool-conflict"}"#.as_slice(), false),
-            (br#"{"error":"transaction already in block chain"}"#.as_slice(), false),
-            (br#"{"error":"-26: min relay fee not met"}"#.as_slice(), false),
-            (br#"{"error":"invalid transaction"}"#.as_slice(), false),
+        for (status, body, retry) in [
+            (200, gateway_error.as_slice(), true),
+            (400, gateway_error.as_slice(), true),
+            (500, gateway_error.as_slice(), true),
+            (400, br#"{"error":"-26: txn-mempool-conflict"}"#.as_slice(), false),
+            (400, br#"{"error":"transaction already in block chain"}"#.as_slice(), false),
+            (400, br#"{"error":"-26: min relay fee not met"}"#.as_slice(), false),
+            (400, br#"{"error":"invalid transaction"}"#.as_slice(), false),
         ] {
-            let response = ProxyResponse::new(400, HeaderMap::new(), Bytes::copy_from_slice(body));
-            assert_eq!(service.matches_response_error_signal(&request, &response, &service.retry_config.errors), retry);
+            let response = ProxyResponse::new(status, HeaderMap::new(), Bytes::copy_from_slice(body));
+            assert_eq!(service.matches_response_error_signal(&response, &service.retry_config.errors), retry);
         }
     }
 
