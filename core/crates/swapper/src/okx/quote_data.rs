@@ -44,6 +44,9 @@ pub(super) fn build_solana_quote_data(transaction_data: &TransactionData, owner:
         .into_vec()
         .map_err(|error| SwapperError::TransactionError(format!("invalid swap transaction data: {error}")))?;
     let mut transaction = VersionedTransaction::deserialize_with_version(&bytes).map_err(SwapperError::transaction_error)?;
+    if transaction.num_required_signatures() != 1 {
+        return Err(SwapperError::transaction_error("OKX transaction requires more than one signer"));
+    }
     transaction.clear_signature(&Pubkey::from_base58(owner).map_err(SwapperError::transaction_error)?);
     let data = encode_base64(&transaction.serialize().map_err(SwapperError::transaction_error)?);
     let gas_limit = transaction.get_compute_unit_limit().map(|limit| limit.to_string());
@@ -75,6 +78,32 @@ fn get_spender(signature_data: Option<&[String]>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_solana_quote_data_requires_the_wallet_as_the_only_signer() {
+        let response: serde_json::Value = serde_json::from_str(include_str!("testdata/swap_sol_to_usdc.json")).unwrap();
+        let encoded = response["data"][0]["tx"]["data"].as_str().unwrap();
+        let mut transaction = VersionedTransaction::deserialize_with_version(&bs58::decode(encoded).into_vec().unwrap()).unwrap();
+        let owner = transaction.account_keys()[0].to_base58();
+        let single_signer = TransactionData {
+            data: encoded.to_string(),
+            to: String::new(),
+            value: String::new(),
+            gas: String::new(),
+            signature_data: None,
+        };
+        assert!(build_solana_quote_data(&single_signer, &owner).is_ok());
+
+        transaction.message_mut().header.num_required_signatures = 2;
+        let two_signers = TransactionData {
+            data: bs58::encode(transaction.serialize().unwrap()).into_string(),
+            ..single_signer
+        };
+        assert!(
+            matches!(build_solana_quote_data(&two_signers, &owner), Err(SwapperError::TransactionError(_))),
+            "a second signer slot could carry a stranger's pre-signed instruction"
+        );
+    }
 
     #[test]
     fn test_buffered_gas_limit() {
