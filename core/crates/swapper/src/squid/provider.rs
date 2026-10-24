@@ -224,6 +224,7 @@ mod swap_integration_tests {
         let quote_data = squid.get_quote_data(&quote, FetchQuoteData::None).await?;
         println!("OSMO->ATOM data: to={}, value={}, gasLimit={:?}", quote_data.to, quote_data.value, quote_data.gas_limit);
         assert!(!quote_data.data.is_empty());
+        (&squid as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
 
         Ok(())
     }
@@ -249,6 +250,7 @@ mod swap_integration_tests {
         let quote_data = squid.get_quote_data(&quote, FetchQuoteData::None).await?;
         println!("ATOM->OSMO data: to={}, value={}, gasLimit={:?}", quote_data.to, quote_data.value, quote_data.gas_limit);
         assert!(!quote_data.data.is_empty());
+        (&squid as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
 
         Ok(())
     }
@@ -274,6 +276,7 @@ mod swap_integration_tests {
 
         let quote_data = squid.get_quote_data(&quote, FetchQuoteData::None).await?;
         assert!(!quote_data.data.is_empty());
+        (&squid as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
 
         Ok(())
     }
