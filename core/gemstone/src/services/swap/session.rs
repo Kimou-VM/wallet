@@ -125,6 +125,10 @@ impl GemSwapQuoteAnswers {
         self.providers.iter().filter(|provider| self.answers.iter().all(|answer| answer.provider() != **provider)).copied().collect()
     }
 
+    fn is_pending(&self, provider: Option<SwapperProvider>) -> bool {
+        provider.is_some_and(|provider| self.pending().contains(&provider))
+    }
+
     fn first_quote_wait(&self) -> u64 {
         get_swap_config().quote_round.timing(self.request.pay_asset_id.chain, self.request.receive_asset_id.chain).first_quote_wait_ms
     }
@@ -734,7 +738,7 @@ impl GemSwapSession {
             answers: Some(answers.clone()),
             ..self.clone()
         };
-        if session.is_quote_loading() && !answers.shows_first_quote() && !answers.is_complete() {
+        if session.is_quote_loading() && !answers.is_complete() && (!answers.shows_first_quote() || answers.is_pending(self.selected_provider)) {
             return session;
         }
         session.on_quote_results(answers.results())
@@ -1385,6 +1389,29 @@ mod tests {
         let after_swap = started.on_provider_answer(GemSwapRequest::mock(), quote_answer(SwapperProvider::NearIntents, "11"));
         assert_eq!(after_swap.quote(), started.quote(), "once Swap is tapped no later answer changes the trade");
         assert_eq!(view(&after_swap, 1000).quote_progress, None);
+    }
+
+    #[test]
+    fn test_a_picked_provider_still_quoting_keeps_the_round_loading() {
+        let request = GemSwapRequest {
+            value: BigUint::from(200u32),
+            ..GemSwapRequest::mock()
+        };
+        let requoting = two_of_three()
+            .on_provider_selected(SwapperProvider::Mayan)
+            .on_request_changed(Some(request.clone()))
+            .on_quotes_requested(request.clone(), vec![SwapperProvider::Relay, SwapperProvider::Mayan, SwapperProvider::NearIntents]);
+        let others = [quote_answer(SwapperProvider::Relay, "10"), quote_answer(SwapperProvider::NearIntents, "11")]
+            .into_iter()
+            .fold(requoting, |session, answer| session.on_provider_answer(request.clone(), answer));
+        assert_eq!(shown_provider(&others), None, "no other provider's quote takes the place of the one the user picked");
+        assert_eq!(shown_provider(&others.on_first_quote_wait_ended(request.clone())), None);
+
+        let mayan = others.on_provider_answer(request.clone(), quote_answer(SwapperProvider::Mayan, "9"));
+        assert_eq!(shown_provider(&mayan), Some(SwapperProvider::Mayan));
+
+        let failed = others.on_provider_answer(request, failed_answer(SwapperProvider::Mayan, SwapperError::NoQuoteAvailable));
+        assert_eq!(shown_provider(&failed), Some(SwapperProvider::NearIntents), "a picked provider with no quote gives way to the best one");
     }
 
     #[test]
