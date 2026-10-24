@@ -96,7 +96,7 @@ impl RelayQuoteResponse {
     }
 
     pub fn targets(&self) -> impl Iterator<Item = String> + '_ {
-        self.steps.iter().filter(|step| step.id != STEP_APPROVE).filter_map(Step::to_address)
+        self.steps.iter().filter(|step| step.id != STEP_APPROVE).flat_map(Step::to_addresses)
     }
 }
 
@@ -114,8 +114,8 @@ impl Step {
         self.items.as_ref()?.first()?.data.as_ref()
     }
 
-    pub fn to_address(&self) -> Option<String> {
-        self.step_data()?.to_address()
+    pub fn to_addresses(&self) -> Vec<String> {
+        self.step_data().map(StepData::to_addresses).unwrap_or_default()
     }
 }
 
@@ -141,12 +141,12 @@ pub struct DepositStepData {
 }
 
 impl StepData {
-    pub fn to_address(&self) -> Option<String> {
+    pub fn to_addresses(&self) -> Vec<String> {
         match self {
-            Self::Evm(evm) => Some(evm.to.clone()),
-            Self::Tron(tron) => Some(tron.trigger_smart_contract()?.contract_address.clone()),
-            Self::Solana(_) | Self::Deposit(_) => None,
-            Self::Ton(ton) => Some(ton.messages.first()?.to.clone()),
+            Self::Evm(evm) => vec![evm.to.clone()],
+            Self::Tron(tron) => tron.trigger_smart_contract().map(|transaction| transaction.contract_address.clone()).into_iter().collect(),
+            Self::Solana(_) | Self::Deposit(_) => Vec::new(),
+            Self::Ton(ton) => ton.messages.iter().map(|message| message.to.clone()).collect(),
         }
     }
 }

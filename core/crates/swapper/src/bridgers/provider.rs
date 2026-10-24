@@ -139,6 +139,9 @@ impl Swapper for Bridgers {
     }
 
     fn contracts(&self, from_asset: &AssetId) -> Vec<&'static str> {
+        if from_asset.chain == Chain::Ton && from_asset.token_id.is_some() {
+            return Vec::new();
+        }
         Network::from_chain(from_asset.chain).and_then(|network| network.router()).into_iter().collect()
     }
 
@@ -197,6 +200,7 @@ impl Swapper for Bridgers {
 mod tests {
     use super::*;
     use crate::alien::mock::ProviderMock;
+    use primitives::asset_constants::TON_USDT_ASSET_ID;
 
     #[test]
     fn test_contracts() {
@@ -204,6 +208,7 @@ mod tests {
 
         assert_eq!(provider.contracts(&AssetId::from_chain(Chain::SmartChain)), vec!["0xc1d13492285eb664951E201BF7C80c7c6318a1b5"]);
         assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Ton)), vec!["EQCqTuPS-cMN9SSRhaFrwJOGL7dKkFF8C0a05g2WzI9uRJ19"]);
+        assert!(provider.contracts(&TON_USDT_ASSET_ID).is_empty(), "a jetton swap pays the user's own jetton wallet, which is not a shipped contract");
         assert!(provider.contracts(&AssetId::from_chain(Chain::Tron)).is_empty(), "Bridgers has no Tron router");
     }
 }

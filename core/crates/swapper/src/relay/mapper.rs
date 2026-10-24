@@ -150,6 +150,21 @@ mod tests {
 
         let foreign: RelayQuoteResponse = serde_json::from_str(&celo.replace("0xccc88a9d1b4ed6b0eaba998850414b24f1c315be", "0x0000000000000000000000000000000000000001")).unwrap();
         assert_eq!(validate_quote_response(RelayChain::Evm(EVMChain::Celo), &foreign, &BigUint::ZERO).unwrap_err(), SwapperError::InvalidRoute);
+
+        let mut ton: serde_json::Value = serde_json::from_str(include_str!("testdata/quote_ton_to_base_usdc.json")).unwrap();
+        let shipped_ton: RelayQuoteResponse = serde_json::from_value(ton.clone()).unwrap();
+        assert!(validate_quote_response(RelayChain::Ton, &shipped_ton, &BigUint::ZERO).is_ok());
+        let step = ton["steps"].as_array_mut().unwrap().iter_mut().find(|step| step["items"][0]["data"]["messages"].is_array()).unwrap();
+        let messages = step["items"][0]["data"]["messages"].as_array_mut().unwrap();
+        let mut drain = messages[0].clone();
+        drain["to"] = serde_json::Value::String("EQBvW8Z5huBkMJYdnfAEM5JqTNkuWX3diqYENkWsIL0XggGG".to_string());
+        messages.push(drain);
+        let drained: RelayQuoteResponse = serde_json::from_value(ton).unwrap();
+        assert_eq!(
+            validate_quote_response(RelayChain::Ton, &drained, &BigUint::ZERO).unwrap_err(),
+            SwapperError::InvalidRoute,
+            "a second message paying elsewhere is refused"
+        );
     }
 
     #[test]

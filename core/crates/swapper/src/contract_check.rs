@@ -1,8 +1,13 @@
+use alloy_sol_types::SolCall;
 use gem_cosmos::constants::{MESSAGE_EXECUTE_CONTRACT, MESSAGE_IBC_TRANSFER, MESSAGE_SEND_BETA};
+use gem_evm::contracts::IERC20;
 use gem_solana::{Pubkey, decode_transaction};
+use gem_ton::models::TonConnectMessage;
+use gem_tron::address::TronAddress;
 use primitives::{
-    Chain, ChainType,
+    AssetId, Chain, ChainType,
     contract_constants::{SOLANA_ASSOCIATED_TOKEN_ACCOUNT_PROGRAM_ID, SOLANA_COMPUTE_BUDGET_PROGRAM_ID, SOLANA_MEMO_PROGRAM_ID, SOLANA_SYSTEM_PROGRAM_ID, SOLANA_TOKEN_2022_PROGRAM_ID, SOLANA_TOKEN_PROGRAM_ID},
+    decode_hex,
     swap::SwapQuoteDataType,
 };
 use serde::Deserialize;
@@ -18,20 +23,22 @@ const SOLANA_PROGRAMS: &[&str] = &[
     SOLANA_MEMO_PROGRAM_ID,
 ];
 
-pub(crate) fn verify(chain: Chain, contracts: &[&str], data: &SwapperQuoteData) -> Result<(), SwapperError> {
+pub(crate) fn verify(from_asset: &AssetId, contracts: &[&str], data: &SwapperQuoteData) -> Result<(), SwapperError> {
     if contracts.is_empty() {
         return Ok(());
     }
-    match chain.chain_type() {
+    match from_asset.chain.chain_type() {
         ChainType::Solana => verify_solana_programs(&data.data, contracts),
-        ChainType::Cosmos => verify_cosmos_messages(chain, &data.data, contracts),
-        _ => verify_targets(chain, contracts, data),
+        ChainType::Cosmos => verify_cosmos_messages(from_asset.chain, &data.data, contracts),
+        ChainType::Ton => verify_ton_messages(&data.data, contracts),
+        _ => verify_targets(from_asset, contracts, data),
     }
 }
 
-fn verify_targets(chain: Chain, contracts: &[&str], data: &SwapperQuoteData) -> Result<(), SwapperError> {
+fn verify_targets(from_asset: &AssetId, contracts: &[&str], data: &SwapperQuoteData) -> Result<(), SwapperError> {
+    let chain = from_asset.chain;
     let is_contract = |address: &str| Deployment::contains(chain, contracts, address);
-    if data.data_type == SwapQuoteDataType::Contract && !is_contract(&data.to) {
+    if data.data_type == SwapQuoteDataType::Contract && !is_contract(&data.to) && !token_transfer_recipient(from_asset, data).is_some_and(|recipient| is_contract(&recipient)) {
         return Err(SwapperError::InvalidRoute);
     }
     if let Some(approval) = &data.approval
@@ -45,6 +52,24 @@ fn verify_targets(chain: Chain, contracts: &[&str], data: &SwapperQuoteData) -> 
         return Err(SwapperError::InvalidRoute);
     }
     Ok(())
+}
+
+fn token_transfer_recipient(from_asset: &AssetId, data: &SwapperQuoteData) -> Option<String> {
+    from_asset.token_id.as_deref().filter(|token| Deployment::contains(from_asset.chain, &[token], &data.to))?;
+    let transfer = IERC20::transferCall::abi_decode(&decode_hex(&data.data).ok()?).ok()?;
+    Some(match from_asset.chain.chain_type() {
+        ChainType::Tron => TronAddress::from(transfer.to).to_string(),
+        _ => format!("{:#x}", transfer.to),
+    })
+}
+
+pub(crate) fn verify_ton_messages(messages: &str, contracts: &[&str]) -> Result<(), SwapperError> {
+    let messages: Vec<TonConnectMessage> = serde_json::from_str(messages).map_err(SwapperError::transaction_error)?;
+    if !messages.is_empty() && messages.iter().all(|message| Deployment::contains(Chain::Ton, contracts, message.address())) {
+        Ok(())
+    } else {
+        Err(SwapperError::InvalidRoute)
+    }
 }
 
 pub(crate) fn verify_solana_programs(transaction: &str, contracts: &[&str]) -> Result<(), SwapperError> {
@@ -95,6 +120,8 @@ mod tests {
     use super::*;
     use crate::squid::SQUID_COSMOS_MULTICALL;
     use gem_cosmos::models::message::send_msg_json;
+    use num_bigint::BigUint;
+    use primitives::asset_constants::TRON_USDT_TOKEN_ID;
 
     fn squid_message(fixture: &str) -> String {
         let route: serde_json::Value = serde_json::from_str(fixture).unwrap();
@@ -120,7 +147,40 @@ mod tests {
         assert_eq!(verify_cosmos_messages(Chain::Celestia, &format!("[{foreign_send},{transfer}]"), &multicall), Err(SwapperError::InvalidRoute));
         let plain_send = execute.replace(MESSAGE_EXECUTE_CONTRACT, MESSAGE_SEND_BETA);
         assert_eq!(verify_cosmos_messages(Chain::Osmosis, &format!("[{plain_send}]"), &multicall), Err(SwapperError::InvalidRoute));
-        assert!(verify(Chain::Osmosis, &[], &SwapperQuoteData::mock()).is_ok(), "a provider that ships no contracts is not bound");
+        assert!(verify(&Chain::Osmosis.as_asset_id(), &[], &SwapperQuoteData::mock()).is_ok(), "a provider that ships no contracts is not bound");
+    }
+
+    #[test]
+    fn test_verify_token_transfer_recipient() {
+        let vault = "TEcDijvKSXcfWT7S6rd44H5vNgufm7Y4XC";
+        let usdt = AssetId::from_token(Chain::Tron, TRON_USDT_TOKEN_ID);
+        let transfer = |recipient: &str| {
+            let to = TronAddress::from_hex_or_base58(recipient).unwrap();
+            let call = IERC20::transferCall {
+                to: alloy_primitives::Address::from(to),
+                value: alloy_primitives::U256::from(1_000_000u64),
+            };
+            SwapperQuoteData::new_contract(TRON_USDT_TOKEN_ID.to_string(), BigUint::ZERO, hex::encode(call.abi_encode()), None, None)
+        };
+
+        assert!(verify(&usdt, &[vault], &transfer(vault)).is_ok(), "a token transfer into the shipped vault is the deposit");
+        assert_eq!(verify(&usdt, &[vault], &transfer("TDMakP1fbWc7XXoSWZpujpjRAuePPEn4oi")), Err(SwapperError::InvalidRoute));
+        assert_eq!(verify(&Chain::Tron.as_asset_id(), &[vault], &transfer(vault)), Err(SwapperError::InvalidRoute), "a coin swap may not call a token contract");
+    }
+
+    #[test]
+    fn test_verify_ton_messages() {
+        let depository = "EQCrdGsDTqA2t6xRR4N6V4J705F7w_VQbUdHnofsh-8lVIPs";
+        let messages = |addresses: &[&str]| serde_json::to_string(&addresses.iter().map(|address| TonConnectMessage::new(address.to_string(), &BigUint::from(1u64), None)).collect::<Vec<_>>()).unwrap();
+
+        assert!(verify_ton_messages(&messages(&[depository]), &[depository]).is_ok());
+        assert!(verify_ton_messages(&messages(&[depository, depository]), &[depository]).is_ok());
+        assert_eq!(
+            verify_ton_messages(&messages(&[depository, "EQBvW8Z5huBkMJYdnfAEM5JqTNkuWX3diqYENkWsIL0XggGG"]), &[depository]),
+            Err(SwapperError::InvalidRoute),
+            "every message must go to a shipped contract"
+        );
+        assert_eq!(verify_ton_messages("[]", &[depository]), Err(SwapperError::InvalidRoute));
     }
 
     #[test]

@@ -41,6 +41,10 @@ impl TonConnectMessage {
         }
     }
 
+    pub fn address(&self) -> &str {
+        &self.address
+    }
+
     pub fn swap_quote_data(messages: &[Self]) -> Result<SwapQuoteData, String> {
         let first = messages.first().ok_or("TON swap needs at least one message")?;
         let value = Self::total_amount(messages)?;
