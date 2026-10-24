@@ -96,7 +96,7 @@ impl GemSwapper {
             Some(Box::new(chainflip::ChainflipProvider::new(rpc_provider.clone()))),
             cetus_clmm::CetusClmm::new(rpc_provider.clone()).map(Self::boxed),
             Some(Box::new(relay::Relay::new(rpc_provider.clone()))),
-            Some(Box::new(squid::Squid::new(rpc_provider.clone()))),
+            Some(Box::new(squid::Squid::default())),
             swaps_xyz::SwapsXyz::new(rpc_provider.clone()).map(Self::boxed),
             Some(uniswap::default::boxed_aerodrome(rpc_provider.clone())),
             Some(Box::new(bridgers::Bridgers::new(rpc_provider.clone()))),
@@ -429,6 +429,9 @@ mod tests {
         );
     }
 }
+
+#[cfg(all(test, feature = "swap_integration_tests"))]
+mod contract_coverage;
 
 #[cfg(all(test, feature = "swap_integration_tests"))]
 mod swap_integration_tests {

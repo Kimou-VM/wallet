@@ -12,6 +12,17 @@ impl Contracts {
     }
 }
 
+impl FromIterator<Contracts> for Contracts {
+    fn from_iter<I: IntoIterator<Item = Contracts>>(contracts: I) -> Self {
+        let mut merged = Contracts::default();
+        for contracts in contracts {
+            merged.targets.extend(contracts.targets.into_iter().filter(|target| !merged.targets.contains(target)).collect::<Vec<_>>());
+            merged.spenders.extend(contracts.spenders.into_iter().filter(|spender| !merged.spenders.contains(spender)).collect::<Vec<_>>());
+        }
+        merged
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Deployment {
     pub chain: Chain,
