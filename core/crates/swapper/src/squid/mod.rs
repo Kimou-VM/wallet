@@ -1,4 +1,7 @@
+mod client;
+mod model;
 mod provider;
+mod target;
 
 use primitives::Chain;
 

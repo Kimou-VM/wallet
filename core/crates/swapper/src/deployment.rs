@@ -16,10 +16,18 @@ impl FromIterator<Contracts> for Contracts {
     fn from_iter<I: IntoIterator<Item = Contracts>>(contracts: I) -> Self {
         let mut merged = Contracts::default();
         for contracts in contracts {
-            merged.targets.extend(contracts.targets.into_iter().filter(|target| !merged.targets.contains(target)).collect::<Vec<_>>());
-            merged.spenders.extend(contracts.spenders.into_iter().filter(|spender| !merged.spenders.contains(spender)).collect::<Vec<_>>());
+            push_unique(&mut merged.targets, contracts.targets);
+            push_unique(&mut merged.spenders, contracts.spenders);
         }
         merged
+    }
+}
+
+fn push_unique(addresses: &mut Vec<&'static str>, added: Vec<&'static str>) {
+    for address in added {
+        if !addresses.contains(&address) {
+            addresses.push(address);
+        }
     }
 }
 
@@ -40,20 +48,14 @@ impl Deployment {
     }
 
     pub fn contracts(deployments: &[Self], chain: Chain) -> Contracts {
-        Contracts {
-            targets: Self::addresses(deployments, chain, |deployment| deployment.contract),
-            spenders: Self::addresses(deployments, chain, |deployment| deployment.spender),
-        }
-    }
-
-    fn addresses(deployments: &[Self], chain: Chain, address: fn(&Self) -> &'static str) -> Vec<&'static str> {
-        let mut addresses: Vec<&'static str> = Vec::new();
-        for address in deployments.iter().filter(|deployment| deployment.chain == chain).map(address) {
-            if !addresses.contains(&address) {
-                addresses.push(address);
-            }
-        }
-        addresses
+        deployments
+            .iter()
+            .filter(|deployment| deployment.chain == chain)
+            .map(|deployment| Contracts {
+                targets: vec![deployment.contract],
+                spenders: vec![deployment.spender],
+            })
+            .collect()
     }
 
     pub fn contains(chain: Chain, contracts: &[&str], address: &str) -> bool {

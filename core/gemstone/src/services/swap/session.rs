@@ -496,6 +496,7 @@ impl GemSwapSession {
         let request = self.quotes.as_ref()?.request.clone();
         Some(GemSwapSession {
             transfer_phase: GemSwapTransferPhase::Loading { request, provider: quote.data.provider.id },
+            quote_phase: GemSwapQuotePhase::Ready,
             answers: None,
             ..self.clone()
         })
@@ -992,10 +993,12 @@ mod tests {
             ready.start_transfer(SwapperQuote::mock_with_provider(SwapperProvider::Jupiter, "99")).is_none(),
             "a quote that is no longer the one shown is not traded"
         );
-        assert!(
-            ready.on_refresh_requested(GemSwapRequest::mock()).start_transfer(shown.clone()).is_some(),
-            "the quote the user saw still trades while a refresh loads"
-        );
+        let refreshing = ready
+            .on_refresh_requested(GemSwapRequest::mock())
+            .start_transfer(shown.clone())
+            .expect("the quote the user saw still trades while a refresh loads");
+        let failed = refreshing.on_transfer_failed(refreshing.transfer_phase.clone(), SwapperError::TransactionError("boom".into()));
+        assert!(!view(&failed, 1000).is_quote_loading, "the abandoned refresh does not leave the screen spinning after the transfer");
         let replaced = ready.on_quote_results(GemSwapQuotesResult::mock(vec![SwapperQuote::mock_with_provider(SwapperProvider::Okx, "11")]));
         assert!(replaced.start_transfer(shown).is_none(), "once a new quote takes its place, the old one no longer trades");
     }

@@ -1,7 +1,7 @@
 use crate::{Contracts, Deployment, SwapperError, SwapperQuoteData};
 use alloy_sol_types::SolCall;
 use gem_evm::contracts::IERC20;
-use gem_solana::{Pubkey, decode_transaction};
+use gem_solana::{Pubkey, decode_transaction, instructions};
 use gem_ton::models::TonConnectMessage;
 use gem_tron::address::TronAddress;
 use primitives::{
@@ -10,13 +10,6 @@ use primitives::{
     decode_hex,
     swap::SwapQuoteDataType,
 };
-
-const TOKEN_APPROVE: u8 = 4;
-const TOKEN_SET_AUTHORITY: u8 = 6;
-const TOKEN_APPROVE_CHECKED: u8 = 13;
-const SYSTEM_ASSIGN: u32 = 1;
-const SYSTEM_AUTHORIZE_NONCE_ACCOUNT: u32 = 7;
-const SYSTEM_ASSIGN_WITH_SEED: u32 = 10;
 
 const SOLANA_PROGRAMS: &[&str] = &[
     SOLANA_SYSTEM_PROGRAM_ID,
@@ -82,28 +75,21 @@ pub(crate) fn verify_solana_programs(transaction: &str, contracts: &[&str]) -> R
     for instruction in transaction.instructions() {
         let program = keys.get(instruction.program_id_index as usize).map(Pubkey::to_base58).ok_or(SwapperError::InvalidRoute)?;
         let is_standard = SOLANA_PROGRAMS.contains(&program.as_str());
-        if (!is_standard && !Deployment::contains(Chain::Solana, contracts, &program)) || (is_standard && grants_authority(&program, &instruction.data)) {
+        if (!is_standard && !Deployment::contains(Chain::Solana, contracts, &program)) || (is_standard && instructions::grants_authority(&program, &instruction.data)) {
             return Err(SwapperError::InvalidRoute);
         }
     }
     Ok(())
 }
 
-fn grants_authority(program: &str, data: &[u8]) -> bool {
-    match program {
-        SOLANA_TOKEN_PROGRAM_ID | SOLANA_TOKEN_2022_PROGRAM_ID => matches!(data.first(), Some(&(TOKEN_APPROVE | TOKEN_SET_AUTHORITY | TOKEN_APPROVE_CHECKED))),
-        SOLANA_SYSTEM_PROGRAM_ID => data
-            .get(..4)
-            .is_some_and(|tag| [SYSTEM_ASSIGN, SYSTEM_AUTHORIZE_NONCE_ACCOUNT, SYSTEM_ASSIGN_WITH_SEED].contains(&u32::from_le_bytes([tag[0], tag[1], tag[2], tag[3]]))),
-        _ => false,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::solana_dex::SolanaTransaction;
-    use gem_solana::{AccountMeta, Instruction, SolanaAddress};
+    use gem_solana::{
+        AccountMeta, Instruction, SolanaAddress,
+        instructions::{program_ids::token_program, token},
+    };
     use num_bigint::BigUint;
     use primitives::asset_constants::TRON_USDT_TOKEN_ID;
 
@@ -159,24 +145,21 @@ mod tests {
     fn test_standard_programs_cannot_hand_over_an_account() {
         let user = "7g2rVN8fAAQdPh1mkajpvELqYa3gWvFXJsBLnKfEQfqy";
         let owner: Pubkey = SolanaAddress::parse(user).unwrap().into();
-        let token_account = Pubkey::new([2; 32]);
-        let token_instruction = |data: Vec<u8>| Instruction {
-            program_id: SolanaAddress::parse(SOLANA_TOKEN_PROGRAM_ID).unwrap().into(),
-            accounts: vec![AccountMeta::new(token_account, false, true), AccountMeta::new(owner, true, false)],
-            data,
-        };
+        let (token_account, mint, destination) = (Pubkey::new([2; 32]), Pubkey::new([3; 32]), Pubkey::new([4; 32]));
         let transaction = |instruction: Instruction| SolanaTransaction::new(vec![instruction], vec![]).encode(user, &[]).unwrap().data;
+        let set_authority = Instruction {
+            program_id: token_program(),
+            accounts: vec![AccountMeta::new(token_account, false, true), AccountMeta::new(owner, true, false)],
+            data: [vec![token::SET_AUTHORITY_DISCRIMINANT, 2, 1], Pubkey::new([9; 32]).as_bytes().to_vec()].concat(),
+        };
 
-        let set_authority = transaction(token_instruction([vec![TOKEN_SET_AUTHORITY, 2, 1], Pubkey::new([9; 32]).as_bytes().to_vec()].concat()));
-        assert_eq!(verify_solana_programs(&set_authority, &[]), Err(SwapperError::InvalidRoute), "handing the user's token account to another key is refused");
-        let transfer_checked = transaction(token_instruction([vec![12], 1_000u64.to_le_bytes().to_vec(), vec![6]].concat()));
-        assert!(verify_solana_programs(&transfer_checked, &[]).is_ok(), "moving tokens is a swap");
-
-        assert!(grants_authority(SOLANA_TOKEN_2022_PROGRAM_ID, &[TOKEN_APPROVE, 0]));
-        assert!(grants_authority(SOLANA_TOKEN_PROGRAM_ID, &[TOKEN_APPROVE_CHECKED, 0]));
-        assert!(grants_authority(SOLANA_SYSTEM_PROGRAM_ID, &SYSTEM_ASSIGN.to_le_bytes()));
-        assert!(!grants_authority(SOLANA_SYSTEM_PROGRAM_ID, &2u32.to_le_bytes()), "a system transfer");
-        assert!(!grants_authority(SOLANA_COMPUTE_BUDGET_PROGRAM_ID, &[TOKEN_APPROVE]));
+        assert_eq!(
+            verify_solana_programs(&transaction(set_authority), &[]),
+            Err(SwapperError::InvalidRoute),
+            "handing the user's token account to another key is refused"
+        );
+        let transfer_checked = token::transfer_checked_with_program_id(&token_account, &mint, &destination, &owner, 1_000, 6, &token_program());
+        assert!(verify_solana_programs(&transaction(transfer_checked), &[]).is_ok(), "moving tokens is a swap");
     }
 
     #[test]
