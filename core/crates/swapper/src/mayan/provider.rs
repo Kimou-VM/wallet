@@ -22,7 +22,11 @@ use crate::{
 use async_trait::async_trait;
 use gem_client::Client;
 use gem_evm::rpc::client::FUNCTION_ERC20_DECIMALS;
-use primitives::{AssetId, Chain, ChainType, HOUR, contract_constants::EVM_ZERO_ADDRESS, decode_hex};
+use primitives::{
+    AssetId, Chain, ChainType, HOUR,
+    contract_constants::{EVM_ZERO_ADDRESS, SOLANA_JUPITER_PROGRAM_ID},
+    decode_hex,
+};
 use std::{collections::BTreeSet, fmt::Debug, sync::Arc};
 
 #[derive(Debug)]
@@ -124,6 +128,7 @@ where
                 MAYAN_FAST_MCTP_PROGRAM_ID,
                 MAYAN_FEE_MANAGER_PROGRAM_ID,
                 MAYAN_PAYLOAD_WRITER_PROGRAM_ID,
+                SOLANA_JUPITER_PROGRAM_ID,
             ],
             _ => Vec::new(),
         }
@@ -262,6 +267,10 @@ mod tests {
         assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Ethereum)), vec![MAYAN_FORWARDER]);
         assert_eq!(provider.contracts(&AssetId::from_chain(Chain::Base)), vec![MAYAN_FORWARDER]);
         assert!(provider.contracts(&AssetId::from_chain(Chain::Solana)).contains(&MAYAN_CPI_PROXY_PROGRAM_ID));
+        assert!(
+            provider.contracts(&AssetId::from_chain(Chain::Solana)).contains(&SOLANA_JUPITER_PROGRAM_ID),
+            "a route that swaps on Solana first calls Jupiter outside Mayan's proxy"
+        );
         assert!(provider.contracts(&AssetId::from_chain(Chain::Sui)).is_empty(), "a Sui transaction carries its packages inside");
     }
 
@@ -465,6 +474,31 @@ mod swap_integration_tests {
         assert_eq!(route.to_chain, wormhole_chain::WormholeChain::Base.name());
         assert!(quote_data.to.is_empty());
         assert_eq!(quote_data.value, BigUint::from(0u64));
+        assert!(!quote_data.data.is_empty());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_mayan_provider_get_swift_solana_swap_first_quote_and_data() -> Result<(), SwapperError> {
+        let rpc_provider = Arc::new(NativeProvider::default().set_debug(false));
+        let provider = Mayan::new(rpc_provider);
+        let request = QuoteRequest {
+            from_asset: SwapperQuoteAsset::from(AssetId::from_chain(Chain::Solana)),
+            to_asset: SwapperQuoteAsset::from(BASE_USDC_ASSET_ID.clone()),
+            wallet_address: "7g2rVN8fAAQdPh1mkajpvELqYa3gWvFXJsBLnKfEQfqy".to_string(),
+            destination_address: "0x514BCb1F9AAbb904e6106Bd1052B66d2706dBbb7".to_string(),
+            value: BigUint::from(100_000_000u64),
+            options: Options::new_with_slippage(200.into()),
+        };
+
+        let quote = timed("mayan swift solana swap-first quote", provider.get_quote(&request)).await?;
+        let quote_data = timed("mayan swift solana swap-first quote data", provider.get_quote_data(&quote, FetchQuoteData::None)).await?;
+        (&provider as &dyn Swapper).verify_contracts(&quote, &quote_data)?;
+
+        let MayanQuote::Swift(route) = quote.route_data()? else {
+            return Err(SwapperError::InvalidRoute);
+        };
+        assert_ne!(route.swift_input_contract.as_deref(), Some(route.from_token.contract.as_str()), "the route swaps SOL on Solana before the bridge");
         assert!(!quote_data.data.is_empty());
         Ok(())
     }

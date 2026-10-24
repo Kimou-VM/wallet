@@ -437,7 +437,7 @@ A provider's API may only move funds into contracts the app ships for it. Before
 | Chainflip | EVM, Tron | The vault, including a token transfer into it | At Confirm, plus its own amount checks |
 | Chainflip | Solana | The vault program; standard programs pass | At Confirm, program level only |
 | Mayan | EVM | The forwarder | At Confirm |
-| Mayan | Solana | Its programs; calls through its proxy are not opened | At Confirm, program level only |
+| Mayan | Solana | Its programs, and Jupiter's for a route that swaps on Solana first; calls through its proxy are not opened | At Confirm, program level only |
 | Mayan | Sui | Packages inside the transaction | Not bound |
 | Bridgers | EVM, TON coin | The router | At Confirm, plus its own check that the API named the same router |
 | Bridgers | TON tokens, XRP | The user's own jetton wallet, or a transfer to the router | Not bound |
