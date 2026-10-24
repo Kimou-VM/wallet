@@ -264,12 +264,16 @@ impl GemPerpetualService {
 
 impl GemPerpetualService {
     pub async fn sync_positions(&self, wallet_id: WalletId, chain: Chain, address: String) -> Result<PerpetualAccountMode, GemServiceError> {
-        let PerpetualAccountPositions { mode, summary } = self.gateway.get_positions(chain, address).await?;
+        let PerpetualAccountPositions { mode, summary, is_complete } = self.gateway.get_positions(chain, address).await?;
         self.wallet_preferences.set_perpetual_account_mode(wallet_id.clone(), mode)?;
-        self.update_balance(wallet_id.clone(), summary.balance).await?;
+        if is_complete || rules::spot_is_perpetual_collateral(mode) {
+            self.update_balance(wallet_id.clone(), summary.balance).await?;
+        }
         let positions = self.with_stored_markets(summary.positions).await?;
-        let existing_ids = self.store.get_position_ids(wallet_id.clone(), provider(chain)?).await?;
-        let delete_ids = stale(existing_ids, positions.iter().map(|position| position.id.clone()));
+        let delete_ids = match is_complete {
+            true => stale(self.store.get_position_ids(wallet_id.clone(), provider(chain)?).await?, positions.iter().map(|position| position.id.clone())),
+            false => Vec::new(),
+        };
         self.store.update_positions(wallet_id, positions, delete_ids).await?;
         Ok(mode)
     }
@@ -348,7 +352,7 @@ mod tests {
     use futures::executor::block_on;
     use primitives::Account;
 
-    use super::testkit::PerpetualTestkit;
+    use super::testkit::{EMPTY_CLEARINGHOUSE_STATE, PerpetualTestkit};
     use super::*;
     use crate::services::balance::GemAssetBalance;
     use crate::services::transfer::{GemRecentActivity, GemRecentActivityStore};
@@ -520,6 +524,27 @@ mod tests {
 
             assert!(update.is_err());
             assert_eq!(testkit.balances.balances.lock().unwrap()[&testkit.wallet_id][0].available.to_string(), "14400000000");
+        })
+    }
+
+    #[test]
+    fn test_a_refresh_missing_a_dex_keeps_that_dexs_positions_and_the_balance() {
+        block_on(async {
+            let testkit = PerpetualTestkit::with_provider(TestAlienProvider::with_json_by_request_type(&[
+                ("userAbstraction", r#""default""#),
+                ("clearinghouseState", EMPTY_CLEARINGHOUSE_STATE),
+                ("clearinghouseState:xyz", "{}"),
+            ]));
+            let xyz = PerpetualPosition {
+                id: "xyz:NVDA".to_string(),
+                ..PerpetualPosition::mock()
+            };
+            *testkit.store.positions.lock().unwrap() = vec![xyz.clone()];
+
+            testkit.service.sync_positions(testkit.wallet_id.clone(), Chain::HyperCore, "0x123".to_string()).await.unwrap();
+
+            assert_eq!(*testkit.store.positions.lock().unwrap(), vec![xyz], "a dex that did not answer keeps its stored positions");
+            assert!(testkit.balances.balances.lock().unwrap().get(&testkit.wallet_id).is_none(), "a balance missing a dex is not shown");
         })
     }
 
