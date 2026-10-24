@@ -132,14 +132,14 @@ mod tests {
 
     #[test]
     fn test_group_binds_every_member_on_the_chain() {
-        let clmm = MockSwapper::new(SwapperProvider::RaydiumClmm, |request| quote(request, 100)).with_contracts(vec!["clmm", "shared"]);
-        let amm = MockSwapper::new(SwapperProvider::RaydiumClmm, |request| quote(request, 100)).with_contracts(vec!["amm", "shared"]);
+        let clmm = MockSwapper::new(SwapperProvider::RaydiumClmm, |request| quote(request, 100)).with_contracts(vec!["clmm"]);
+        let amm = MockSwapper::new(SwapperProvider::RaydiumClmm, |request| quote(request, 100)).with_contracts(vec!["amm"]);
         let solana = MockSwapper::new(SwapperProvider::RaydiumClmm, |request| quote(request, 100))
             .with_supported_assets(vec![SwapperChainAsset::All(Chain::Solana)])
             .with_contracts(vec!["other_chain"]);
         let group = group(vec![("clmm", clmm), ("amm", amm), ("solana", solana)]);
 
-        assert_eq!(group.contracts(&Chain::Ethereum.as_asset_id()), Contracts::new(vec!["clmm", "shared", "amm"]));
+        assert_eq!(group.contracts(&Chain::Ethereum.as_asset_id()), Contracts::new(vec!["clmm", "amm"]));
     }
 
     #[tokio::test]

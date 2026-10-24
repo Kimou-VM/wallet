@@ -14,20 +14,11 @@ impl Contracts {
 
 impl FromIterator<Contracts> for Contracts {
     fn from_iter<I: IntoIterator<Item = Contracts>>(contracts: I) -> Self {
-        let mut merged = Contracts::default();
-        for contracts in contracts {
-            push_unique(&mut merged.targets, contracts.targets);
-            push_unique(&mut merged.spenders, contracts.spenders);
-        }
-        merged
-    }
-}
-
-fn push_unique(addresses: &mut Vec<&'static str>, added: Vec<&'static str>) {
-    for address in added {
-        if !addresses.contains(&address) {
-            addresses.push(address);
-        }
+        contracts.into_iter().fold(Contracts::default(), |mut merged, contracts| {
+            merged.targets.extend(contracts.targets);
+            merged.spenders.extend(contracts.spenders);
+            merged
+        })
     }
 }
 
@@ -72,17 +63,13 @@ mod tests {
 
     #[test]
     fn test_contracts() {
-        let deployments = [
-            Deployment::with_spender(Chain::Ethereum, "0xrouter", "0xspender"),
-            Deployment::new(Chain::Ethereum, "0xrouter"),
-            Deployment::new(Chain::Base, "0xvault"),
-        ];
+        let deployments = [Deployment::with_spender(Chain::Ethereum, "0xrouter", "0xspender"), Deployment::new(Chain::Base, "0xvault")];
 
         assert_eq!(
             Deployment::contracts(&deployments, Chain::Ethereum),
             Contracts {
                 targets: vec!["0xrouter"],
-                spenders: vec!["0xspender", "0xrouter"],
+                spenders: vec!["0xspender"],
             }
         );
         assert_eq!(Deployment::contracts(&deployments, Chain::Base), Contracts::new(vec!["0xvault"]));

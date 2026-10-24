@@ -204,8 +204,6 @@ pub static APTOS_USDC_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::fr
 pub const ARBITRUM_WBTC_TOKEN_ID: &str = "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f";
 pub static ARBITRUM_WBTC_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::from_token(Chain::Arbitrum, ARBITRUM_WBTC_TOKEN_ID));
 
-pub const BLAST_WBTC_TOKEN_ID: &str = "0xF7bc58b8D8f97ADC129cfC4c9f45Ce3C0E1D2692";
-
 pub const ETHEREUM_WBTC_TOKEN_ID: &str = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 pub static ETHEREUM_WBTC_ASSET_ID: LazyLock<AssetId> = LazyLock::new(|| AssetId::from_token(Chain::Ethereum, ETHEREUM_WBTC_TOKEN_ID));
 
