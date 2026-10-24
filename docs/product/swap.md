@@ -435,7 +435,7 @@ A provider's API may only move funds into contracts the app ships for it. Before
 | OKX | Solana | Its program; standard programs pass | At Confirm, program level only |
 | Relay | EVM | Its deposit contract, approval proxies and routers as the contract called; only the deposit contract and approval proxies as spenders, per network (`test_verify_contracts_approves_only_contracts_that_take_the_deposit`) | In the quote list and at Confirm |
 | Relay | Tron, TON | Its depository, every message | In the quote list and at Confirm |
-| Relay | Solana | Its depository program; standard programs pass | At Confirm, program level only |
+| Relay | Solana | Its depository and forwarder programs, and Jupiter's, which its token routes swap through; standard programs pass | At Confirm, program level only |
 | Relay, Chainflip, Near Intents, swaps.xyz | Bitcoin and other deposit-address swaps | A deposit address made per swap | Not bound |
 | Chainflip | EVM, Tron | The vault, including a token transfer into it | At Confirm, plus its own amount checks |
 | Chainflip | Solana | The vault program; standard programs pass | At Confirm, program level only |
