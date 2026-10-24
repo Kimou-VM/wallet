@@ -343,6 +343,7 @@ pub struct GemSwapViewState {
     pub providers: Vec<GemProviderRow>,
     pub pending_providers: Vec<GemProviderLoadingRow>,
     pub details: Option<GemSwapDetails>,
+    pub shows_details: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
@@ -488,12 +489,11 @@ impl GemSwapSession {
         }
     }
 
-    pub fn start_transfer(&self) -> Option<GemSwapSession> {
-        if matches!(self.transfer_phase, GemSwapTransferPhase::Loading { .. }) {
+    pub fn start_transfer(&self, quote: SwapperQuote) -> Option<GemSwapSession> {
+        if self.is_transfer_loading() || self.current_quote() != Some(&quote) {
             return None;
         }
         let request = self.quotes.as_ref()?.request.clone();
-        let quote = self.quote()?;
         Some(GemSwapSession {
             transfer_phase: GemSwapTransferPhase::Loading { request, provider: quote.data.provider.id },
             answers: None,
@@ -543,6 +543,7 @@ impl GemSwapSession {
                 quotes_state: self.quotes_state(pay.as_ref().map(|pay| &pay.asset)),
                 quote_progress: Some(answers.progress()),
                 details: None,
+                shows_details: true,
                 ..GemSwapSession {
                     quote_phase: GemSwapQuotePhase::Loading { request: answers.request.clone() },
                     ..self.clone()
@@ -566,6 +567,13 @@ impl GemSwapSession {
         let quote = self.pair_quote(pay.as_ref(), receive.as_ref());
         let is_receive_loading = self.is_quote_loading() && !is_transfer_loading;
         let receive_quote = quote.filter(|_| !is_receive_loading);
+        let quote_progress = receive_quote.and(self.open_answers()).map(GemSwapQuoteAnswers::progress);
+        let details = pay
+            .as_ref()
+            .zip(receive.as_ref())
+            .zip(quote)
+            .map(|((pay, receive), quote)| quote_details(rules::swap_quote(quote), pay.asset.clone(), receive.asset.clone(), price_value(pay), price_value(receive), &currency));
+        let shows_details = quote_progress.is_some() || (details.is_some() && !self.is_quote_loading());
         GemSwapViewState {
             quotes_state: self.quotes_state(pay.as_ref().map(|pay| &pay.asset)),
             action: self.action(),
@@ -608,7 +616,7 @@ impl GemSwapSession {
             },
             is_receive_loading,
             receive_amount: receive_quote.map(receive_amount),
-            quote_progress: receive_quote.and(self.open_answers()).map(GemSwapQuoteAnswers::progress),
+            quote_progress,
             first_quote_wait: self.first_quote_wait(),
             providers: receive
                 .as_ref()
@@ -616,10 +624,8 @@ impl GemSwapSession {
                 .map(|receive| self.provider_rows(&receive.asset, price_value(receive), &currency))
                 .unwrap_or_default(),
             pending_providers: quote.map(|_| self.pending_provider_rows()).unwrap_or_default(),
-            details: pay
-                .zip(receive)
-                .zip(quote)
-                .map(|((pay, receive), quote)| quote_details(rules::swap_quote(quote), pay.asset.clone(), receive.asset.clone(), price_value(&pay), price_value(&receive), &currency)),
+            details,
+            shows_details,
             quote: quote.cloned(),
         }
     }
@@ -978,11 +984,40 @@ mod tests {
     }
 
     #[test]
+    fn test_a_transfer_starts_only_for_the_quote_on_screen() {
+        let ready = GemSwapSession::mock_ready();
+        let shown = ready.quote().unwrap();
+
+        assert!(
+            ready.start_transfer(SwapperQuote::mock_with_provider(SwapperProvider::Jupiter, "99")).is_none(),
+            "a quote that is no longer the one shown is not traded"
+        );
+        assert!(
+            ready.on_refresh_requested(GemSwapRequest::mock()).start_transfer(shown.clone()).is_some(),
+            "the quote the user saw still trades while a refresh loads"
+        );
+        let replaced = ready.on_quote_results(GemSwapQuotesResult::mock(vec![SwapperQuote::mock_with_provider(SwapperProvider::Okx, "11")]));
+        assert!(replaced.start_transfer(shown).is_none(), "once a new quote takes its place, the old one no longer trades");
+    }
+
+    #[test]
+    fn test_the_details_row_hides_while_the_receive_side_loads() {
+        let ready = GemSwapSession::mock_ready();
+        assert!(view(&ready, 1000).shows_details);
+
+        let refreshing = view(&ready.on_refresh_requested(GemSwapRequest::mock()), 1000);
+        assert!(!refreshing.shows_details, "the last round's rate does not show next to the spinner");
+        assert!(refreshing.details.is_some(), "an open Details sheet keeps its details through a refresh");
+
+        assert!(view(&start(&ready).unwrap(), 1000).shows_details, "a transfer in flight keeps its details");
+    }
+
+    #[test]
     fn test_a_loading_transfer_keeps_its_quote_and_ignores_new_results() {
-        let started = GemSwapSession::mock_ready().start_transfer().unwrap();
+        let started = start(&GemSwapSession::mock_ready()).unwrap();
         assert!(started.is_transfer_loading());
         assert_eq!(started.action(), GemSwapSessionAction::TransferLoading);
-        assert!(started.start_transfer().is_none());
+        assert!(start(&started).is_none());
         assert!(!started.accepts_quotes());
 
         let refreshed = started.on_quote_results(GemSwapQuotesResult::mock(vec![SwapperQuote::mock_with_provider(SwapperProvider::Okx, "99")]));
@@ -990,7 +1025,7 @@ mod tests {
         assert!(refreshed.is_transfer_loading());
         assert_eq!(refreshed.on_fetch_started(GemSwapRequest::mock()), refreshed);
 
-        assert!(GemSwapSession::default().start_transfer().is_none());
+        assert!(start(&GemSwapSession::default()).is_none());
     }
 
     #[test]
@@ -1023,14 +1058,14 @@ mod tests {
             )
         );
 
-        let transfer = view(&GemSwapSession::mock_ready().start_transfer().unwrap(), 1000);
+        let transfer = view(&start(&GemSwapSession::mock_ready()).unwrap(), 1000);
         assert!(!transfer.pay.interaction.is_amount_editable && !transfer.pay.interaction.is_asset_selectable && !transfer.receive.interaction.is_asset_selectable);
         assert!(!transfer.is_receive_loading, "a transfer in flight is not a quote loading");
     }
 
     #[test]
     fn test_transfer_outcomes_apply_only_to_the_transfer_that_started() {
-        let started = GemSwapSession::mock_ready().start_transfer().unwrap();
+        let started = start(&GemSwapSession::mock_ready()).unwrap();
         let transfer = started.transfer_phase.clone();
 
         let failed = started.on_transfer_failed(transfer.clone(), SwapperError::TransactionError("boom".into()));
@@ -1058,7 +1093,7 @@ mod tests {
 
     #[test]
     fn test_quote_changes_clear_a_failed_transfer() {
-        let started = GemSwapSession::mock_ready().start_transfer().unwrap();
+        let started = start(&GemSwapSession::mock_ready()).unwrap();
         let failed = started.on_transfer_failed(started.transfer_phase.clone(), SwapperError::NoQuoteAvailable);
 
         assert_eq!(failed.on_provider_selected(SwapperProvider::Jupiter).transfer_phase, GemSwapTransferPhase::Idle);
@@ -1080,7 +1115,7 @@ mod tests {
         assert_eq!(session.button_action(GemBigInt::from(50)), GemSwapButtonAction::InsufficientBalance);
         assert_eq!(session.button_state(GemSwapButtonAction::InsufficientBalance), GemButtonState::Disabled);
 
-        let started = session.start_transfer().unwrap();
+        let started = start(&session).unwrap();
         assert_eq!(started.button_state(GemSwapButtonAction::Swap), GemButtonState::Loading);
         let failed = started.on_transfer_failed(started.transfer_phase.clone(), SwapperError::TransactionError("boom".into()));
         assert_eq!(failed.button_action(GemBigInt::from(200)), GemSwapButtonAction::Swap, "a failed transfer keeps the Swap button, so pressing it swaps again");
@@ -1212,6 +1247,10 @@ mod tests {
         let stale = session.view_state(Some(mock_asset_data(Chain::Ethereum, 1000)), Some(mock_asset_data(Chain::Bitcoin, 0)), Currency::USD);
         assert_eq!((stale.quote, stale.receive_amount, stale.details, stale.receive.fiat), (None, None, None, None));
         assert!(stale.providers.is_empty(), "a quote for another pair is not shown while the new one loads");
+    }
+
+    fn start(session: &GemSwapSession) -> Option<GemSwapSession> {
+        session.start_transfer(session.quote()?)
     }
 
     fn quote_answer(provider: SwapperProvider, to_value: &str) -> GemSwapProviderAnswer {
@@ -1385,7 +1424,7 @@ mod tests {
         let late = picked.on_provider_answer(GemSwapRequest::mock(), quote_answer(SwapperProvider::NearIntents, "11"));
         assert_eq!(shown_provider(&late), Some(SwapperProvider::Mayan), "a picked provider stays picked when a better quote arrives");
 
-        let started = two_of_three().start_transfer().unwrap();
+        let started = start(&two_of_three()).unwrap();
         let after_swap = started.on_provider_answer(GemSwapRequest::mock(), quote_answer(SwapperProvider::NearIntents, "11"));
         assert_eq!(after_swap.quote(), started.quote(), "once Swap is tapped no later answer changes the trade");
         assert_eq!(view(&after_swap, 1000).quote_progress, None);

@@ -22,6 +22,7 @@ import struct Gemstone.GemSwapSideState
 import struct Gemstone.GemSwapViewState
 import func Gemstone.swapErrorDisplay
 import enum Gemstone.SwapperError
+import struct Gemstone.SwapperQuote
 import enum Gemstone.SwapProvider
 import GemstonePrimitives
 import InfoSheet
@@ -132,7 +133,7 @@ public final class SwapSceneViewModel {
     }
 
     var showsSwapDetails: Bool {
-        quoteProgress != nil || (swapDetails != nil && !viewState.isQuoteLoading)
+        viewState.showsDetails
     }
 
     var firstQuoteWait: GemSwapFirstQuoteWait? {
@@ -271,8 +272,7 @@ extension SwapSceneViewModel {
     }
 
     func onSelectSwapConfirmation(_ confirmation: SwapPriceImpactConfirmation) async {
-        guard viewState.quote == confirmation.quote, !viewState.isQuoteLoading else { return }
-        await swap()
+        await swap(quote: confirmation.quote)
     }
 
     func onAssetIdsChange(assetIds: Set<AssetId>) async {
@@ -375,12 +375,12 @@ extension SwapSceneViewModel {
         loadTrigger = SwapLoadTrigger(input: input, isImmediate: isImmediate)
     }
 
-    private func swap() async {
+    private func swap(quote: SwapperQuote) async {
         guard service.isAvailable() else {
             isPresentingInfoSheet = .info(InfoSheetModel(sheet: GemInfoTopic.regionUnavailable.infoSheet))
             return
         }
-        guard let started = session.startTransfer(), let quote = started.quote() else { return }
+        guard let started = session.startTransfer(quote: quote) else { return }
         let transfer = started.transferPhase
         session = started
         do {
@@ -432,7 +432,8 @@ extension SwapSceneViewModel {
         case .insufficientBalance: break
         case .useMinimumAmount: setMinimumAmount()
         case .swap:
-            if let warning = viewState.details?.priceImpactWarning, let quote = viewState.quote {
+            guard let quote = viewState.quote else { return }
+            if let warning = viewState.details?.priceImpactWarning {
                 guard service.isAvailable() else {
                     isPresentingInfoSheet = .info(InfoSheetModel(sheet: GemInfoTopic.regionUnavailable.infoSheet))
                     return
@@ -440,7 +441,7 @@ extension SwapSceneViewModel {
                 isPresentingPriceImpactConfirmation = SwapPriceImpactConfirmation(warning: warning, quote: quote)
                 return
             }
-            await swap()
+            await swap(quote: quote)
         }
     }
 }

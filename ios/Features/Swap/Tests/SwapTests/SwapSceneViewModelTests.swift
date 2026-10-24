@@ -60,7 +60,8 @@ struct SwapSceneViewModelTests {
         let previousToValue = model.toValue
         let previousQuote = model.viewState.quote
 
-        model.session = try #require(model.session.startTransfer())
+        let quote = try #require(model.session.quote())
+        model.session = try #require(model.session.startTransfer(quote: quote))
         await model.load()
 
         #expect(model.viewState.isQuoteLoading == false)
@@ -146,7 +147,8 @@ struct SwapSceneViewModelTests {
         await model.load()
         let oldAsset = model.toAsset
 
-        let transfer = try #require(model.session.startTransfer())
+        let quote = try #require(model.session.quote())
+        let transfer = try #require(model.session.startTransfer(quote: quote))
         model.session = transfer.onTransferFailed(transfer: transfer.transferPhase, error: .TransactionError("nonce"))
         model.loadTrigger = nil
         model.toAssetQuery.value = .mock(asset: .mock(id: .mock(chain: .smartChain), name: "BNB", symbol: "BNB", decimals: 18))
@@ -251,6 +253,7 @@ struct SwapSceneViewModelTests {
         #expect(model.viewState.isQuoteLoading)
         #expect(model.viewState.quote != nil)
         #expect(model.swapDetails != nil)
+        #expect(model.showsSwapDetails == false)
     }
 
     @Test
