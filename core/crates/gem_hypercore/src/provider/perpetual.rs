@@ -13,7 +13,7 @@ use primitives::{
 
 use crate::{
     models::{perp_dex::PerpDex, position::AssetPositions},
-    provider::perpetual_mapper::{map_candlesticks, map_perpetual_addresses, map_perpetual_balance, map_perpetual_balance_from_spot, map_perpetual_portfolio, map_perpetuals_data, map_positions},
+    provider::perpetual_mapper::{map_candlesticks, map_perpetual_addresses, map_perpetual_balance_from_spot, map_perpetual_dexes_balance, map_perpetual_portfolio, map_perpetuals_data, map_positions},
     rpc::client::HyperCoreClient,
 };
 
@@ -59,15 +59,16 @@ impl<C: Client> ChainPerpetual for HyperCoreClient<C> {
     async fn get_positions(&self, address: String) -> Result<PerpetualAccountPositions, Box<dyn Error + Sync + Send>> {
         let (mode, states) = try_join!(self.get_user_abstraction(&address), self.get_clearinghouse_states(&address))?;
         let mode = PerpetualAccountMode::from(mode);
+        let dexes_balance = map_perpetual_dexes_balance(&states);
         let (summaries, spot_collateral) = try_join!(self.get_position_summaries(&address, states), self.get_spot_collateral(&address, mode))?;
-
-        let (positions, balances): (Vec<_>, Vec<_>) = summaries.into_iter().map(|summary| (summary.positions, summary.balance)).unzip();
-        let balance = spot_collateral.unwrap_or_else(|| balances.into_iter().sum());
-        let positions = positions.into_iter().flatten().collect();
+        let positions = summaries.into_iter().flat_map(|summary| summary.positions).collect();
 
         Ok(PerpetualAccountPositions {
             mode,
-            summary: PerpetualPositionsSummary { positions, balance },
+            summary: PerpetualPositionsSummary {
+                positions,
+                balance: spot_collateral.unwrap_or(dexes_balance),
+            },
         })
     }
 
@@ -106,8 +107,8 @@ impl<C: Client> ChainPerpetual for HyperCoreClient<C> {
 
     async fn get_perpetual_portfolio(&self, address: String, mode: PerpetualAccountMode) -> Result<PerpetualPortfolio, Box<dyn Error + Sync + Send>> {
         let (response, states, spot_collateral) = try_join!(self.get_perpetual_portfolio(&address), self.get_clearinghouse_states(&address), self.get_spot_collateral(&address, mode))?;
+        let balance = spot_collateral.unwrap_or_else(|| map_perpetual_dexes_balance(&states));
         let positions: Vec<AssetPositions> = states.into_iter().map(|(_, positions)| positions).collect();
-        let balance = spot_collateral.unwrap_or_else(|| positions.iter().map(map_perpetual_balance).sum());
         Ok(map_perpetual_portfolio(response, mode, &positions, &balance))
     }
 

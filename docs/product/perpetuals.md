@@ -66,6 +66,7 @@ Markets come from two sets on Hyperliquid:
 | The user taps Close on a position | straight to confirmation, with the expected PnL | |
 | A position has paid funding | Funding Payments shows it as a negative cost, for a long and a short alike | a short must see when funding costs money, the same as on Hyperliquid |
 | The user withdraws | the amount is what arrives on Arbitrum, the Network Fee shows Hyperliquid's `1 USDC`, and Max leaves the fee out | Hyperliquid takes the fee out of every withdrawal, so the screen shows what actually arrives |
+| A standard account also holds margin on an xyz market | Withdraw Max is what the main Hyperliquid dex can pay out; margin on xyz is not counted (`test_map_perpetual_dexes_balance`) | Hyperliquid pays a withdrawal from its main dex only |
 | The wallet's currency is not dollars | every perpetual value is still in dollars | the collateral is USDC |
 | The user taps Deposit on a standard Hyperliquid account | a choice between the Arbitrum USDC and the HyperCore spot USDC when both hold USDC, otherwise straight to the amount of the one that does, even when it is not in the wallet list | spot and perpetual balances are separate there, spot USDC often arrives from outside the wallet, and a choice of one is no choice |
 | The user taps Deposit on a unified Hyperliquid account | straight to the Arbitrum USDC amount | the spot USDC already is the perpetual balance |
