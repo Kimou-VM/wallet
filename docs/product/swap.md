@@ -397,7 +397,7 @@ A deposit no relayer fills is refunded once its fill deadline passes. The deadli
 | The selected quote's `get_quote_data` call fails | an error alert; the quote, Details and the Swap button stay, so tapping Swap prepares it again, with no inline error row and no Try Again | quote fetching succeeded; only the later transaction-data preparation failed, and Try Again belongs to a failed quote |
 | The amount, an asset or the slippage changes | You Receive clears | |
 | An answer arrives for an amount or pair the user has already changed | it is thrown away | |
-| The price impact is a loss of more than `1%` | Details shows the Price Impact after the rate, on one line; iOS shrinks a long rate to fit, down to `12` pt, and Android cuts it in the middle | the row keeps its height |
+| The price impact is a loss of more than `1%` | Details shows the Price Impact after the rate, on one line, and a long rate shrinks to fit, down to `12` on both apps | the row keeps its height |
 | The user picks another provider | the choice survives refreshes | |
 | A chosen Slippage is `3%` or more | a warning | |
 | Slippage is Auto, including Solana's `3%` | no warning | |

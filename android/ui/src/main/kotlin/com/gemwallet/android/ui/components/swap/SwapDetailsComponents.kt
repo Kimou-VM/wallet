@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -14,7 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
 import com.gemwallet.android.domains.swap.AssetRateFormatter
 import com.gemwallet.android.domains.swap.AssetRatePair
 import com.gemwallet.android.model.text
@@ -28,7 +34,6 @@ import com.gemwallet.android.ui.components.list_item.SubheaderItem
 import com.gemwallet.android.ui.components.list_item.WarningItem
 import com.gemwallet.android.ui.components.list_item.property.AssetRatePropertyItem
 import com.gemwallet.android.ui.components.list_item.property.DataBadgeChevron
-import com.gemwallet.android.ui.components.list_item.property.PropertyDataText
 import com.gemwallet.android.ui.components.list_item.property.PropertyItem
 import com.gemwallet.android.ui.components.list_item.property.PropertyTitleText
 import com.gemwallet.android.ui.components.progress.CircularProgressIndicator20
@@ -49,33 +54,37 @@ import uniffi.gemstone.SwapProvider
 
 @Composable
 fun SwapDetailsSummaryItem(details: GemSwapDetails, onClick: () -> Unit, listPosition: ListPosition = ListPosition.Single) {
-    val priceImpact = details.summary.priceImpactRow?.takeIf { it.showsInSummary }?.value
-
     PropertyItem(
         modifier = Modifier.clickable(onClick = onClick),
         title = { PropertyTitleText(R.string.common_details) },
         data = {
-            PropertyDataText(
-                text = details.rate?.forward.orEmpty(),
-                badge = {
-                    DataBadgeChevron(
-                        content = priceImpact?.let {
-                            {
-                                Text(
-                                    text = "(${it.text()})",
-                                    color = it.tone.color(),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Clip,
-                                    softWrap = false,
-                                )
-                            }
-                        },
-                    )
-                },
+            Text(
+                text = details.summaryText(),
+                modifier = Modifier.weight(1f, false),
+                color = MaterialTheme.colorScheme.secondary,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                style = MaterialTheme.typography.bodyLarge,
+                autoSize = TextAutoSize.StepBased(
+                    minFontSize = MaterialTheme.typography.bodySmall.fontSize,
+                    maxFontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                    stepSize = 1.sp,
+                ),
             )
+            DataBadgeChevron()
         },
         listPosition = listPosition,
     )
+}
+
+@Composable
+private fun GemSwapDetails.summaryText(): AnnotatedString = buildAnnotatedString {
+    append(rate?.forward.orEmpty())
+    summary.priceImpactRow?.takeIf { it.showsInSummary }?.value?.let { priceImpact ->
+        append(" (")
+        withStyle(SpanStyle(color = priceImpact.tone.color())) { append(priceImpact.text()) }
+        append(")")
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
