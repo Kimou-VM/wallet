@@ -40,6 +40,8 @@ fun SwapProvider.iconResource(): Int = when (this) {
 
     SwapProvider.AERODROME -> R.drawable.swap_provider_aerodrome
 
+    SwapProvider.AERO -> R.drawable.swap_provider_aero
+
     SwapProvider.HYPERLIQUID -> R.drawable.chain_hyperliquid
 
     SwapProvider.NEAR_INTENTS -> R.drawable.swap_provider_near_intents
