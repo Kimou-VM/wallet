@@ -140,7 +140,7 @@ extension NavigationRouter {
     private func open(target: GemNavigationTarget) async throws {
         switch target {
         case let .asset(destination, walletId):
-            try openTarget(path: [Self.assetScene(destination)], walletId: walletId)
+            try openTarget(path: Self.assetPath(destination), walletId: walletId)
         case let .receive(asset):
             try await presentAssetInput(type: .receive(.asset), for: asset.toPrimitives())
         case let .fiat(asset, amount, quoteType):
@@ -162,7 +162,7 @@ extension NavigationRouter {
         case let .address(chain, address):
             presenter.isPresentingAddressDetails.wrappedValue = ChainAddress(chain: Chain(core: chain), address: address)
         case let .transaction(destination, walletId, transactionId):
-            try openTarget(path: transactionPath(destination: destination, transactionId: transactionId), walletId: walletId)
+            try openTarget(path: Self.assetPath(destination) + [Scenes.Transaction(id: transactionId)], walletId: walletId)
         case .none:
             break
         }
@@ -189,6 +189,13 @@ extension NavigationRouter {
         switch destination {
         case let .asset(asset): Scenes.Asset(asset: asset.toPrimitives())
         case let .perpetual(asset): Scenes.Perpetual(asset.toPrimitives())
+        }
+    }
+
+    private static func assetPath(_ destination: GemAssetDestination) -> [any Hashable & Codable] {
+        switch destination {
+        case .asset: [assetScene(destination)]
+        case .perpetual: [Scenes.Perpetuals(), assetScene(destination)]
         }
     }
 
@@ -304,13 +311,6 @@ extension NavigationRouter {
         }
         try walletSessionService.setCurrentWalletId(walletId: walletId)
         navigationState.pendingWalletPath = path
-    }
-
-    private func transactionPath(destination: GemAssetDestination, transactionId: TransactionId) -> [any Hashable & Codable] {
-        switch destination {
-        case let .asset(asset): [Scenes.Asset(asset: asset.toPrimitives()), Scenes.Transaction(id: transactionId)]
-        case let .perpetual(asset): [Scenes.Perpetuals(), Scenes.Perpetual(asset.toPrimitives()), Scenes.Transaction(id: transactionId)]
-        }
     }
 
     private func presentAssetInput(type: SelectedAssetType, for asset: Asset) async throws {
