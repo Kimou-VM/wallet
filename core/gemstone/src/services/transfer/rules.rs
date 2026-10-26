@@ -31,7 +31,7 @@ pub(crate) trait TransferInput {
     fn recent_activity(&self) -> Option<GemRecentActivity>;
     fn approval(&self, transaction_type: TransactionType) -> Result<Option<ApprovalData>, String>;
     fn metadata(&self) -> Result<Option<serde_json::Value>, serde_json::Error>;
-    fn is_tracked(&self, transaction_type: &TransactionType, hash: &str, index: u32, count: u32) -> bool;
+    fn is_tracked(&self, transaction_type: &TransactionType, hash: &str, index: usize, count: usize) -> bool;
 }
 
 #[uniffi::export]
@@ -283,7 +283,7 @@ impl TransferInput for TransactionInputType {
         Ok(value)
     }
 
-    fn is_tracked(&self, transaction_type: &TransactionType, hash: &str, index: u32, count: u32) -> bool {
+    fn is_tracked(&self, transaction_type: &TransactionType, hash: &str, index: usize, count: usize) -> bool {
         if *transaction_type == TransactionType::PerpetualModifyPosition {
             return false;
         }

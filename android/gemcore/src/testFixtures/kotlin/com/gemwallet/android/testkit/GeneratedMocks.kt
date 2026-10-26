@@ -1188,8 +1188,8 @@ fun mockGemChart(
 )
 
 fun mockGemChartBounds(
-    lowerIndex: UInt = 0u,
-    upperIndex: UInt = 0u,
+    lowerIndex: Int = 0,
+    upperIndex: Int = 0,
     yMin: Double = 0.0,
     yMax: Double = 0.0,
     low: uniffi.gemstone.GemFormattedNumber = mockGemFormattedNumber(),
@@ -1794,6 +1794,7 @@ fun mockGemSwapSession(
     refreshPausedUntilRestart: Boolean = false,
     input: uniffi.gemstone.GemSwapQuoteInput? = null,
     payValue: java.math.BigInteger? = null,
+    answers: uniffi.gemstone.GemSwapQuoteAnswers? = null,
 ) = uniffi.gemstone.GemSwapSession(
     quotes = quotes,
     selectedProvider = selectedProvider,
@@ -1803,6 +1804,7 @@ fun mockGemSwapSession(
     refreshPausedUntilRestart = refreshPausedUntilRestart,
     input = input,
     payValue = payValue,
+    answers = answers,
 )
 
 fun mockGemTransactionAmount(

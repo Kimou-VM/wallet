@@ -279,7 +279,7 @@ pub fn chart_layout(candles: &[ChartCandleStick], current: &ChartCandleStick, po
     let price_low = if lowest > 0.0 { (lowest - padding).max(lowest * CHART_RANGE_FLOOR_FRACTION) } else { lowest - padding };
     let price_high = highest + padding;
     let overlap_threshold = (price_high - price_low) * CHART_LABEL_OVERLAP_FRACTION;
-    let mut previous: Option<(f64, u32)> = None;
+    let mut previous: Option<(f64, usize)> = None;
     let lines = lines
         .into_iter()
         .map(|(kind, price)| {
@@ -655,7 +655,7 @@ fn merge_candle(candles: &[ChartCandleStick], candle: ChartCandleStick) -> Vec<C
     }
 }
 
-pub const MARKETS_LIMIT: u32 = 100;
+pub const MARKETS_LIMIT: usize = 100;
 
 pub fn market_query(search: String) -> GemPerpetualMarketQuery {
     GemPerpetualMarketQuery {
@@ -1319,7 +1319,7 @@ mod tests {
 
         let candles = [ChartCandleStick::mock_range(100.0, 200.0)];
         let layout = chart_layout(&candles, &candles[0], Some(&open), 2);
-        let levels: Vec<(GemPerpetualChartLineKind, u32)> = layout.lines.iter().map(|line| (line.kind, line.overlap_level)).collect();
+        let levels: Vec<(GemPerpetualChartLineKind, usize)> = layout.lines.iter().map(|line| (line.kind, line.overlap_level)).collect();
 
         assert_eq!(levels, vec![(GemPerpetualChartLineKind::Liquidation, 0), (GemPerpetualChartLineKind::Entry, 1), (GemPerpetualChartLineKind::TakeProfit, 0)]);
     }

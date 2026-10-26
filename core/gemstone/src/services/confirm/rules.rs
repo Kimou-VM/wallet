@@ -463,8 +463,8 @@ impl SendInput {
                         network_fee: self.network_fee.clone(),
                         metadata: self.confirm.metadata.clone(),
                         simulation: self.simulation.clone(),
-                        transaction_index: index as u32,
-                        transaction_count: transactions.len() as u32,
+                        transaction_index: index,
+                        transaction_count: transactions.len(),
                     }
                     .pending_transaction()
                     .map_err(|msg| GemConfirmError::Record { msg }),

@@ -98,7 +98,7 @@ fn candle_markers(candles: &[ChartCandleStick], window: RangeInclusive<DateTime<
                 date: candle.date,
                 price: candle.high,
                 direction,
-                level: level as u32,
+                level,
             })
         })
         .collect()
