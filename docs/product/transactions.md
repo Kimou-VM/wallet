@@ -40,6 +40,7 @@ flowchart LR
 | The address is a contract, token or validator | no balances | they are not fetched for anything but a plain address |
 | The wallet has no transactions | "Your activity will appear here. Make your first transaction" | |
 | A refresh fails | the transactions already stored stay; with none, the error takes the list's place | a failed refresh never blanks the list |
+| The user scrolls Activity or an asset's transactions | the newest 50 show at once and the next 50 join the end before the user reaches it, up to 1,000, with no spinner | only stored transactions are listed; scrolling never asks Gem's server |
 
 The fee follows the shared [Network Fee](../PRODUCT.md#network-fee) section.
 

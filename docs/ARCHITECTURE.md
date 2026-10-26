@@ -1078,6 +1078,14 @@ Atomicity of one batch does not order overlapping operations. The [balance publi
 
 Observed queries stay native. Their product contract specifies wallet scope, inclusion, ordering, limits and missing rows; paired adapter/query fixtures verify those semantics. Do not solve query parity by copying an unbounded wallet across FFI and sorting it on every emission. `BalanceStoreTests` and `BalancesDaoTest` are those contract tests, through the real GRDB/Room adapters (MIG6).
 
+### A long list observes a growing window
+
+A list that can hold hundreds of rows observes its first page and grows as the user scrolls. [`GemListWindow`](../core/gemstone/src/models/list.rs) holds the limit and its maximum, and `on_end_reached(row_count)` adds `LIST_PAGE_SIZE` when the rows shown fill the limit, up to the maximum. When they do not, it returns the window unchanged: every stored row is already shown.
+
+The app keeps observing one query with that limit, so a new transaction, a status change or a filter change arrives exactly as before, and stable row ids keep the scroll position while rows join the end. The trigger is a row within `LIST_PREFETCH_ROWS` of the end: iOS calls `TransactionsList(onEndReached:)` from that row's `onAppear`, Android `LoadOnListEnd(listState)`. iOS grows the query with `ObservableQuery.setLimit`, which reads the larger window off the main thread and keeps the rows shown until it arrives; every other request change still reads synchronously, so a screen that sets a request and reads the value at once keeps working.
+
+Activity and the asset screen use it, with `GemListWindow.transactions` on both apps. The perpetual screen does not yet: its chart draws trade markers from the same rows, so it needs its own read first. Rows come from the database only. A later page from Gem's server would be written into the store and read by the same window, never shown from the response.
+
 ### Publish each source of a refresh as it answers
 
 A refresh that asks several sources at once — [`GemBalanceService.update`](../core/gemstone/src/services/balance/mod.rs) asks every chain of a wallet concurrently, and on each chain the coin, staking, token and earn balances separately — writes each chain as soon as that chain has answered, so the fastest network shows first ([product/wallet.md](product/wallet.md)). The contract each app's observers rely on:

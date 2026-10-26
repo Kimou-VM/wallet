@@ -114,3 +114,9 @@ extension TransactionsQuery {
 }
 
 extension TransactionsQuery: Equatable {}
+
+extension TransactionsQuery: LimitedQuery {
+    public func with(limit: Int) -> TransactionsQuery {
+        TransactionsQuery(walletId: walletId, type: type, filter: filter, limit: limit)
+    }
+}
