@@ -56,8 +56,14 @@ public final class ObservableQuery<Query: DatabaseQueryable>: Sendable, Bindable
     }
 }
 
+public extension ObservableQuery {
+    func setRequestInBackground(_ request: Query) {
+        observe(request, scheduling: .async(onQueue: .main))
+    }
+}
+
 public extension ObservableQuery where Query: LimitedQuery {
     func setLimit(_ limit: Int) {
-        observe(observedRequest.with(limit: limit), scheduling: .async(onQueue: .main))
+        setRequestInBackground(observedRequest.with(limit: limit))
     }
 }

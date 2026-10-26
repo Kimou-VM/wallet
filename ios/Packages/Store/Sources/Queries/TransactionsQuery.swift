@@ -109,6 +109,9 @@ extension TransactionsQuery {
         if let rank = filter.assetRankGreaterThan {
             request = request.joining(required: TransactionRecord.asset.filter(AssetRecord.Columns.rank > Int(rank)))
         }
+        if let createdFrom = filter.createdFrom {
+            request = request.filter(TransactionRecord.Columns.date >= createdFrom)
+        }
         return request
     }
 }

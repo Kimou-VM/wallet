@@ -51,4 +51,18 @@ struct TransactionsQueryTests {
         }
         #expect(query.value.map(\.transaction.id) == [newer, older])
     }
+
+    @Test @MainActor
+    func aCreatedFromDateKeepsTransactionsFromThatTimeOn() throws {
+        let db = DB.mock(wallets: [.mock(accounts: [.mock(chain: .ethereum)])], assets: [.mock(asset: .mock(id: .mock(chain: .ethereum), name: "Ethereum", symbol: "ETH", decimals: 18))])
+        let older = TransactionId(chain: .ethereum, hash: "older")
+        let newer = TransactionId(chain: .ethereum, hash: "newer")
+        try TransactionStore(db: db).addTransactions(walletId: .mock(), transactions: [
+            .mock(.mock(id: older, assetId: Chain.ethereum.assetId, feeAssetId: Chain.ethereum.assetId, createdAt: Date(timeIntervalSince1970: 1))),
+            .mock(.mock(id: newer, assetId: Chain.ethereum.assetId, feeAssetId: Chain.ethereum.assetId, createdAt: Date(timeIntervalSince1970: 2))),
+        ])
+        let query = TransactionsQuery(walletId: .mock(), type: .all, filter: .mock(createdFrom: Date(timeIntervalSince1970: 2)))
+
+        #expect(try db.dbQueue.read { try query.fetch($0) }.map(\.transaction.id) == [newer])
+    }
 }

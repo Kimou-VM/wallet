@@ -33,6 +33,12 @@ pub fn pending_activity_filters() -> TransactionsFilter {
     rules::pending_activity_filters()
 }
 
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct GemTransactionsRequest {
+    pub filter: TransactionsFilter,
+    pub limit: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, uniffi::Enum)]
 pub enum GemChainsFilterSummary {
     All,

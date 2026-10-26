@@ -863,12 +863,14 @@ fun mockTransactionsFilter(
     transactionTypes: List<TransactionType> = emptyList(),
     states: List<TransactionState> = emptyList(),
     assetRankGreaterThan: Int? = null,
+    createdFrom: SerializedDate? = null,
 ) = TransactionsFilter(
     assetId = assetId,
     chains = chains,
     transactionTypes = transactionTypes,
     states = states,
     assetRankGreaterThan = assetRankGreaterThan,
+    createdFrom = createdFrom,
 )
 
 fun mockWcPairingProposal(
