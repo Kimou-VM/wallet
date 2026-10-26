@@ -1663,7 +1663,7 @@ fun mockGemPerpetualTransferData(
     marginType = marginType,
 )
 
-fun mockGemPrecision(): uniffi.gemstone.GemPrecision = uniffi.gemstone.GemPrecision.Fraction(min = 0u, max = 0u)
+fun mockGemPrecision(): uniffi.gemstone.GemPrecision = uniffi.gemstone.GemPrecision.Fraction(min = 0, max = 0)
 
 fun mockGemProviderKind(): uniffi.gemstone.GemProviderKind = uniffi.gemstone.GemProviderKind.Swap(provider = uniffi.gemstone.SwapProvider.UNISWAP_V3)
 

@@ -281,7 +281,7 @@ pub struct GemCandleChart {
     pub header: GemChartHeader,
     pub date_style: GemChartDateStyle,
     pub base: f64,
-    pub price_decimals: u32,
+    pub price_decimals: usize,
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
     pub body_width: f64,

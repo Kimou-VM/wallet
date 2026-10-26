@@ -64,7 +64,7 @@ fun ColumnScope.AmountField(
     onInputTypeClick: (() -> Unit)? = null,
     readOnly: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Decimal,
-    maximumFractionDigits: UInt? = null,
+    maximumFractionDigits: Int? = null,
     error: String,
     errorInfo: (() -> Unit)? = null,
     textStyle: TextStyle = MaterialTheme.typography.displaySmall,

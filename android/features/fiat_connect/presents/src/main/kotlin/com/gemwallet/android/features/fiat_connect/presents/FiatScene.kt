@@ -122,7 +122,7 @@ fun FiatScene(
             error = viewState.amountError?.string(LocalContext.current).orEmpty(),
             onValueChange = onAmount,
             keyboardType = viewState.amountField.keyboard.keyboardType(),
-            maximumFractionDigits = 0u,
+            maximumFractionDigits = 0,
             textStyle = MaterialTheme.typography.displayMedium,
             onNext = { },
         )

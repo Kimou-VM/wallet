@@ -992,7 +992,7 @@ private val viewState = combine(session, isUrlLoading, assetPriceUsd) { session,
   iOS: `uniffi.toml` maps each id to its `Primitives` type and `typed_identifiers` in `remote_types.yml` passes it through the generated mappers and mocks, so Swift never parses an id Core produced.
   Android: receives the identifier string; its id types live in `:gemcore`, which depends on the `:gemstone` bindings module, so the bindings cannot name them.
   Expected: intentional until the Android id types sit below `:gemstone`.
-- A count, a limit or an index is `usize`, which reaches both apps as `Int` through the `GemInt` custom type (`core/gemstone/src/models/custom_types.rs`, `uniffi.toml`), never `u32`. A `u32` arrives as `UInt32` in Swift and `UInt` in Kotlin, and every call site then converts to and from the `Int` its lists, queries and constants use. Decimals, basis points, durations and the formatter's digit counts are still `u32`.
+- A count, a limit or an index is `usize`, which reaches both apps as `Int` through the `GemInt` custom type (`core/gemstone/src/models/custom_types.rs`, `uniffi.toml`), never `u32`. A `u32` arrives as `UInt32` in Swift and `UInt` in Kotlin, and every call site then converts to and from the `Int` its lists, queries and constants use. Digit counts are counts too: `GemPrecision`, display places and input digit limits are `usize`. Decimals, basis points and durations stay `u32`, and where a place count is derived from decimals it converts once, on that line.
 - `amount` is for `f64`. `value` is for big integers. Do not mix them.
 - Full domain words, per the shared [naming rule](../skills/engineering-principles.md#clean-code-principles).
 
