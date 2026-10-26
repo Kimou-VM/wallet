@@ -2,6 +2,7 @@
 
 import Components
 import Foundation
+import enum Gemstone.GemAssetDestination
 import enum Gemstone.GemCodeOutcome
 import protocol Gemstone.GemDeeplinkServiceProtocol
 import enum Gemstone.GemErrorText
@@ -138,8 +139,8 @@ final class NavigationRouter: Sendable {
 extension NavigationRouter {
     private func open(target: GemNavigationTarget) async throws {
         switch target {
-        case let .asset(asset, walletId, isPerpetual):
-            try openTarget(path: [Self.assetScene(asset.toPrimitives(), isPerpetual: isPerpetual)], walletId: walletId)
+        case let .asset(destination, walletId):
+            try openTarget(path: [Self.assetScene(destination)], walletId: walletId)
         case let .receive(asset):
             try await presentAssetInput(type: .receive(.asset), for: asset.toPrimitives())
         case let .fiat(asset, amount, quoteType):
@@ -160,8 +161,8 @@ extension NavigationRouter {
             presenter.isPresentingSupport.wrappedValue = true
         case let .address(chain, address):
             presenter.isPresentingAddressDetails.wrappedValue = ChainAddress(chain: Chain(core: chain), address: address)
-        case let .transaction(asset, walletId, transactionId, isPerpetual):
-            try openTarget(path: transactionPath(asset: asset.toPrimitives(), isPerpetual: isPerpetual, transactionId: transactionId), walletId: walletId)
+        case let .transaction(destination, walletId, transactionId):
+            try openTarget(path: transactionPath(destination: destination, transactionId: transactionId), walletId: walletId)
         case .none:
             break
         }
@@ -180,12 +181,15 @@ extension NavigationRouter {
     }
 
     private func appendAsset(target: GemNavigationTarget) {
-        guard case let .asset(asset, _, isPerpetual) = target else { return }
-        navigationState.appendWallet(Self.assetScene(asset.toPrimitives(), isPerpetual: isPerpetual))
+        guard case let .asset(destination, _) = target else { return }
+        navigationState.appendWallet(Self.assetScene(destination))
     }
 
-    private static func assetScene(_ asset: Asset, isPerpetual: Bool) -> any Hashable & Codable {
-        isPerpetual ? Scenes.Perpetual(asset) : Scenes.Asset(asset: asset)
+    private static func assetScene(_ destination: GemAssetDestination) -> any Hashable & Codable {
+        switch destination {
+        case let .asset(asset): Scenes.Asset(asset: asset.toPrimitives())
+        case let .perpetual(asset): Scenes.Perpetual(asset.toPrimitives())
+        }
     }
 
     private func openTarget(path: [any Hashable & Codable], walletId: WalletId?) throws {
@@ -302,10 +306,10 @@ extension NavigationRouter {
         navigationState.pendingWalletPath = path
     }
 
-    private func transactionPath(asset: Asset, isPerpetual: Bool, transactionId: TransactionId) -> [any Hashable & Codable] {
-        switch isPerpetual {
-        case true: [Scenes.Perpetuals(), Scenes.Perpetual(asset), Scenes.Transaction(id: transactionId)]
-        case false: [Scenes.Asset(asset: asset), Scenes.Transaction(id: transactionId)]
+    private func transactionPath(destination: GemAssetDestination, transactionId: TransactionId) -> [any Hashable & Codable] {
+        switch destination {
+        case let .asset(asset): [Scenes.Asset(asset: asset.toPrimitives()), Scenes.Transaction(id: transactionId)]
+        case let .perpetual(asset): [Scenes.Perpetuals(), Scenes.Perpetual(asset.toPrimitives()), Scenes.Transaction(id: transactionId)]
         }
     }
 

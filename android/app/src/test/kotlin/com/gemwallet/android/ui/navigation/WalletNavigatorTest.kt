@@ -75,6 +75,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import uniffi.gemstone.GemAssetDestination
 import uniffi.gemstone.GemDeeplinkService
 import uniffi.gemstone.GemNavigationServiceInterface
 import uniffi.gemstone.GemNavigationTab
@@ -156,7 +157,7 @@ class WalletNavigatorTest {
             }
             coEvery { openAsset(opened.toIdentifier()) } answers {
                 callingThreads += Thread.currentThread().name
-                GemNavigationTarget.Asset(mockAsset(id = mockAssetId(chain = Chain.Tron)).toGem(), walletId = null, isPerpetual = false)
+                GemNavigationTarget.Asset(GemAssetDestination.Asset(mockAsset(id = mockAssetId(chain = Chain.Tron)).toGem()), walletId = null)
             }
         }
         val navigator = navigatorWith(WalletRootRoute, navigationService = navigationService, scope = this)
@@ -197,7 +198,7 @@ class WalletNavigatorTest {
         val navigationService = mockk<GemNavigationServiceInterface> {
             coEvery { openAsset(assetId.toIdentifier()) } returnsMany listOf(
                 GemNavigationTarget.None,
-                GemNavigationTarget.Asset(mockAsset(id = assetId).toGem(), walletId = null, isPerpetual = true),
+                GemNavigationTarget.Asset(GemAssetDestination.Perpetual(mockAsset(id = assetId).toGem()), walletId = null),
             )
         }
         val navigator = navigatorWith(WalletRootRoute, navigationService = navigationService, scope = this)

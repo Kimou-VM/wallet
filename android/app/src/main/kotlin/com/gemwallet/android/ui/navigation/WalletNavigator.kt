@@ -114,6 +114,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import uniffi.gemstone.GemAssetDestination
 import uniffi.gemstone.GemDeeplinkServiceInterface
 import uniffi.gemstone.GemNavigationServiceInterface
 import uniffi.gemstone.GemNavigationTab
@@ -308,7 +309,10 @@ class WalletNavigator(
 
     fun openRecent(asset: Asset) {
         val target = navigationService.assetTarget(asset.toGem()) as? GemNavigationTarget.Asset ?: return
-        if (target.isPerpetual) openPerpetual(asset.id) else openAsset(asset.id)
+        when (target.destination) {
+            is GemAssetDestination.Asset -> openAsset(asset.id)
+            is GemAssetDestination.Perpetual -> openPerpetual(asset.id)
+        }
     }
     fun openEarn(assetId: AssetId) = push(EarnRoute(assetId))
 

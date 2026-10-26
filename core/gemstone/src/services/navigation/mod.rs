@@ -16,16 +16,43 @@ use crate::services::push_notification::GemPushNotification;
 use crate::services::wallet_session::GemWalletSessionService;
 
 #[derive(Debug, Clone, PartialEq, uniffi::Enum)]
+pub enum GemAssetDestination {
+    Asset { asset: Asset },
+    Perpetual { asset: Asset },
+}
+
+impl From<Asset> for GemAssetDestination {
+    fn from(asset: Asset) -> Self {
+        match asset.asset_type {
+            AssetType::PERPETUAL => Self::Perpetual { asset },
+            AssetType::NATIVE
+            | AssetType::ERC20
+            | AssetType::BEP20
+            | AssetType::SPL
+            | AssetType::SPL2022
+            | AssetType::TRC20
+            | AssetType::TIP20
+            | AssetType::TOKEN
+            | AssetType::IBC
+            | AssetType::JETTON
+            | AssetType::SYNTH
+            | AssetType::ASA
+            | AssetType::SPOT => Self::Asset { asset },
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Enum)]
 #[allow(clippy::large_enum_variant)]
 pub enum GemNavigationTarget {
-    Asset { asset: Asset, wallet_id: Option<WalletId>, is_perpetual: bool },
+    Asset { destination: GemAssetDestination, wallet_id: Option<WalletId> },
     Receive { asset: Asset },
     Fiat { asset: Asset, amount: Option<i32>, quote_type: FiatQuoteType },
     Swap { from: Asset, to: Option<Asset> },
     Perpetuals,
     Rewards { code: Option<String> },
     Support,
-    Transaction { asset: Asset, wallet_id: WalletId, transaction_id: TransactionId, is_perpetual: bool },
+    Transaction { destination: GemAssetDestination, wallet_id: WalletId, transaction_id: TransactionId },
     Address { chain: Chain, address: String },
     None,
 }
@@ -170,12 +197,7 @@ impl GemNavigationService {
 
     async fn open_transaction(&self, wallet_id: WalletId, asset_id: AssetId, transaction_id: TransactionId) -> Result<GemNavigationTarget, GemServiceError> {
         Ok(match self.open_wallet_asset(wallet_id.clone(), asset_id).await? {
-            GemNavigationTarget::Asset { asset, is_perpetual, .. } => GemNavigationTarget::Transaction {
-                asset,
-                wallet_id,
-                transaction_id,
-                is_perpetual,
-            },
+            GemNavigationTarget::Asset { destination, .. } => GemNavigationTarget::Transaction { destination, wallet_id, transaction_id },
             _ => GemNavigationTarget::None,
         })
     }
@@ -226,8 +248,7 @@ impl GemNavigationService {
 
 fn target(asset: Asset, wallet_id: Option<WalletId>) -> GemNavigationTarget {
     GemNavigationTarget::Asset {
-        is_perpetual: asset.asset_type == AssetType::PERPETUAL,
-        asset,
+        destination: GemAssetDestination::from(asset),
         wallet_id,
     }
 }
@@ -274,10 +295,9 @@ mod tests {
             assert_eq!(
                 target,
                 GemNavigationTarget::Transaction {
-                    asset,
+                    destination: GemAssetDestination::Asset { asset },
                     wallet_id: wallet.id,
                     transaction_id,
-                    is_perpetual: false
                 }
             );
             assert!(!testkit.provider.requested_paths().iter().any(|path| path.contains("/v3/devices/transactions/")));
@@ -298,12 +318,17 @@ mod tests {
         assert_eq!(
             service.asset_target(coin.clone()),
             GemNavigationTarget::Asset {
-                asset: coin,
+                destination: GemAssetDestination::Asset { asset: coin },
                 wallet_id: None,
-                is_perpetual: false
             }
         );
-        assert!(matches!(service.asset_target(perpetual), GemNavigationTarget::Asset { is_perpetual: true, .. }));
+        assert_eq!(
+            service.asset_target(perpetual.clone()),
+            GemNavigationTarget::Asset {
+                destination: GemAssetDestination::Perpetual { asset: perpetual },
+                wallet_id: None,
+            }
+        );
     }
 
     #[test]
@@ -453,9 +478,8 @@ mod tests {
             assert_eq!(
                 open().await.unwrap(),
                 GemNavigationTarget::Asset {
-                    asset: perpetual,
+                    destination: GemAssetDestination::Perpetual { asset: perpetual },
                     wallet_id: None,
-                    is_perpetual: true
                 }
             );
         });
@@ -487,10 +511,9 @@ mod tests {
             assert_eq!(
                 open().await.unwrap(),
                 GemNavigationTarget::Transaction {
-                    asset: perpetual,
+                    destination: GemAssetDestination::Perpetual { asset: perpetual },
                     wallet_id: wallet.id,
                     transaction_id,
-                    is_perpetual: true
                 }
             );
         });
