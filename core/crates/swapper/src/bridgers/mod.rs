@@ -9,4 +9,5 @@ mod ton;
 mod transaction;
 mod xrp;
 
+pub use asset::routers;
 pub use provider::Bridgers;

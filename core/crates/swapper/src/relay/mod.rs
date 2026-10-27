@@ -11,4 +11,6 @@ mod target;
 mod testkit;
 mod ton;
 
+pub use asset::SUPPORTED_CHAINS;
+pub use contracts::contracts;
 pub use provider::Relay;
