@@ -11,7 +11,7 @@ use primitives::contract_constants::{UNISWAP_PERMIT2_CONTRACT, ZKSYNC_UNISWAP_PE
 use primitives::{AddressType, Chain, ScanAddress, SwapProvider};
 use std::collections::HashMap;
 use std::error::Error;
-use swapper::{chainflip, mayan, near_intents, squid, thorchain::THORChainNetwork};
+use swapper::{chainflip, mayan, near_intents, okx, squid, thorchain::THORChainNetwork};
 
 use super::repository::Repository;
 
@@ -84,8 +84,13 @@ fn provider_contracts() -> Vec<ScanAddress> {
         address_type: Some(AddressType::Address),
         ..ScanAddress::contract(chain, treasury, SwapProvider::NearIntents.name())
     });
+    let okx = okx::DEPLOYMENTS.iter().flat_map(|deployment| {
+        [(deployment.contract, "OKX DEX Router"), (deployment.spender, "OKX DEX Approval")]
+            .into_iter()
+            .map(move |(address, name)| ScanAddress::contract(deployment.chain, address, if deployment.chain == Chain::Solana { SwapProvider::Okx.name() } else { name }))
+    });
 
-    routers.chain(contracts).chain(treasuries).collect()
+    routers.chain(contracts).chain(treasuries).chain(okx).collect()
 }
 
 fn permit2_name(provider: SwapProvider, address: &str) -> String {
@@ -98,6 +103,19 @@ fn permit2_name(provider: SwapProvider, address: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_okx_approval_is_identified_on_its_deployed_chains() {
+        let contracts = known_contracts();
+        let address = "0x40aA958dd87FC8305b97f2BA922CDdCa374bcD7f";
+
+        for chain in [Chain::Ethereum, Chain::AvalancheC] {
+            assert_eq!(
+                contracts.iter().find(|contract| contract.chain == chain && contract.address == address),
+                Some(&ScanAddress::contract(chain, address, "OKX DEX Approval"))
+            );
+        }
+    }
 
     #[test]
     fn test_a_contract_listed_more_than_once_keeps_one_name() {
