@@ -21,6 +21,7 @@ flowchart LR
 | When | Expected | Why |
 |---|---|---|
 | A typed name is registered for the network | it resolves while typing to that address | |
+| A mixed-case EVM address has an invalid checksum | "Invalid address"; the address stays as entered and cannot continue, including in contacts, watch-only imports, scanned codes and payment links | a typo must never be silently re-checksummed into another account; single-case addresses remain accepted |
 | The recipient is one of the user's own wallets or a contact | Confirm shows its name alone; a tap shows the address | the user gave that name |
 | The recipient has any other name, such as `vitalik.eth` | the name with the short address beside it | a name the user did not give could imitate another address |
 | The recipient is flagged | a "Suspicious address" warning with one line on why, under the amount; Confirm stays disabled | |
