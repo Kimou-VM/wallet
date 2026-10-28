@@ -28,7 +28,7 @@ impl<C: Client> ChainTransactionLoad for BitcoinClient<C> {
         match self.chain {
             BitcoinChain::Bitcoin | BitcoinChain::Litecoin | BitcoinChain::BitcoinCash | BitcoinChain::Doge | BitcoinChain::Dash => {
                 let utxos = self.get_utxos(&address).await?;
-                Ok(map_transaction_preload(utxos, input))
+                Ok(map_transaction_preload(self.chain, utxos, input)?)
             }
             BitcoinChain::Zcash => {
                 let utxos = self.get_utxos(&address).await?;
@@ -88,11 +88,13 @@ fn map_fee_rates(slow: BigInt, normal: BigInt, fast: BigInt, chain: BitcoinChain
 mod tests {
     use super::*;
     use gem_client::testkit::MockClient;
-    use primitives::TransactionLoadMetadata;
 
     use crate::{
         rpc::client::BitcoinClient,
-        testkit::signer_mock::{mock_transfer_input, mock_utxo_with},
+        testkit::{
+            address_mock::{mock_destination_address, mock_sender_address},
+            signer_mock::{mock_transfer_input, mock_transfer_input_with_utxos, mock_utxo_with},
+        },
     };
 
     #[test]
@@ -128,10 +130,15 @@ mod tests {
     #[tokio::test]
     async fn test_get_transaction_load_estimates_with_signer_planner() {
         let client = BitcoinClient::new(MockClient::new(), BitcoinChain::BitcoinCash);
-        let mut input = mock_transfer_input(BitcoinChain::BitcoinCash).input;
-        input.metadata = TransactionLoadMetadata::Bitcoin {
-            utxos: vec![mock_utxo_with("0000000000000000000000000000000000000000000000000000000000000001", 0, "50000", &input.sender_address)],
-        };
+        let sender_address = mock_sender_address(BitcoinChain::BitcoinCash);
+        let input = mock_transfer_input_with_utxos(
+            BitcoinChain::BitcoinCash,
+            &sender_address,
+            &mock_destination_address(BitcoinChain::BitcoinCash),
+            "10000",
+            vec![mock_utxo_with("0000000000000000000000000000000000000000000000000000000000000001", 0, "50000", &sender_address)],
+        )
+        .input;
 
         let load = client.get_transaction_load(input).await.unwrap();
 

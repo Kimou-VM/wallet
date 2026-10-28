@@ -3,9 +3,10 @@ use bitcoin::{
     blockdata::{opcodes::all::OP_RETURN, script::Builder},
     script::PushBytesBuf,
 };
-use primitives::{BitcoinChain, SignerError};
+use primitives::{BitcoinChain, OutputMinimum, SignerError};
 
 use super::PlanOutput;
+use crate::signer::address::script_for_address;
 
 const MAX_OP_RETURN_BYTES: usize = 80;
 
@@ -36,4 +37,11 @@ pub(super) fn dust_threshold(chain: BitcoinChain, script_pubkey: &ScriptBuf) -> 
         BitcoinChain::Doge => threshold.saturating_mul(chain.minimum_byte_fee() as u64),
         BitcoinChain::Bitcoin | BitcoinChain::BitcoinCash | BitcoinChain::Litecoin | BitcoinChain::Dash | BitcoinChain::Zcash => threshold,
     }
+}
+
+pub(crate) fn output_minimum(chain: BitcoinChain, sender_address: &str, destination_address: &str) -> Result<OutputMinimum, SignerError> {
+    Ok(OutputMinimum {
+        payment: dust_threshold(chain, &script_for_address(chain, destination_address)?.script_pubkey),
+        change: dust_threshold(chain, &script_for_address(chain, sender_address)?.script_pubkey),
+    })
 }
