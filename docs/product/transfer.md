@@ -29,6 +29,8 @@ flowchart LR
 | A refresh or a fee change finds the same problem | the explanation stays as the user left it | it opens once per problem |
 | Retry, or a different problem | the explanation opens again | |
 | Any other load error | it stays in the error row | |
+| Bitcoin-family or Cardano coins can't cover the amount and the fee | Insufficient Balance, as on every other network (`test_unaffordable_send_is_insufficient_balance`, `test_plan_transfer`) | the fee load prices the send and the amount check decides, so it is never a network error |
+| A Bitcoin-family amount, or what Max would send, is under the dust limit | the dust explanation, while Confirm loads (`test_gateway_errors_keep_their_kind`) | the network rejects such an output |
 | The simulation cannot answer | sending is not blocked | |
 | The simulation finds a risk | the risk shows before the user confirms | |
 | The simulation predicts balance changes | every digit of each amount, never rounded | what the user approves is exactly what moves |
