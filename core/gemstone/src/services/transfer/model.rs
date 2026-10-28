@@ -63,6 +63,8 @@ pub struct GemTransferData {
     pub value: GemBigInt,
     #[uniffi(default = false)]
     pub use_max_amount: bool,
+    #[uniffi(default = false)]
+    pub is_exact_amount: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

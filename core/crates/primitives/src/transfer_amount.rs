@@ -82,6 +82,7 @@ pub struct TransferAmountInput {
     pub fee_asset_balance: BigInt,
     pub fee: BigInt,
     pub is_max_amount: bool,
+    pub is_exact_amount: bool,
     pub destination_account_exists: Option<bool>,
     pub output_minimum: Option<OutputMinimum>,
 }
@@ -135,7 +136,7 @@ impl TransferAmountInput {
             None => account_minimum.clone(),
         };
         let leftover = &self.available_value - &self.value - &self.fee;
-        let sends_everything = !self.is_max_amount && should_deduct_fee && self.input_type.sends_remainder_along() && leftover >= BigInt::ZERO && minimum_balance.as_ref().is_some_and(|minimum| leftover < *minimum);
+        let sends_everything = !self.is_max_amount && !self.is_exact_amount && should_deduct_fee && self.input_type.sends_remainder_along() && leftover >= BigInt::ZERO && minimum_balance.as_ref().is_some_and(|minimum| leftover < *minimum);
         let is_max_amount = self.is_max_amount || sends_everything;
         let requested = if sends_everything { &self.available_value } else { &self.value };
 
@@ -438,6 +439,28 @@ mod tests {
         );
         let leaves_half_rent = 1_000_000_000 + FEE + 500_000;
         assert_sends_everything(TransferAmountInput::mock(transfer.clone(), 1_000_000_000, leaves_half_rent, leaves_half_rent), "leaving 0.0005 SOL is under the rent minimum");
+        let exact = |value: u64, available: u64| TransferAmountInput {
+            is_exact_amount: true,
+            ..TransferAmountInput::mock(transfer.clone(), value, available, available)
+        };
+        assert_eq!(
+            exact(1_000_000_000, leaves_half_rent).calculate().unwrap_err(),
+            TransferAmountError::MinimumAccountBalanceTooLow {
+                asset_id: Asset::mock_sol().id,
+                required: BigInt::from(SOLANA_MINIMUM_ACCOUNT_BALANCE),
+                available: BigInt::from(500_000),
+            },
+            "a payment request's amount stays exact, so leaving under the rent minimum is refused"
+        );
+        assert_eq!(
+            exact(999_000, 1_000_000).calculate().unwrap_err(),
+            TransferAmountError::MinimumAccountBalanceTooLow {
+                asset_id: Asset::mock_sol().id,
+                required: BigInt::from(SOLANA_MINIMUM_ACCOUNT_BALANCE),
+                available: BigInt::from(-4_000),
+            },
+            "a payment request's amount whose fee doesn't fit is refused"
+        );
         assert_eq!(
             TransferAmountInput::mock(
                 TransactionInputType::Swap {

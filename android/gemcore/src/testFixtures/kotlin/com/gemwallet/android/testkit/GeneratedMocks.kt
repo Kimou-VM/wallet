@@ -1916,11 +1916,13 @@ fun mockGemTransferData(
     recipient: uniffi.gemstone.GemRecipient = mockGemRecipient(),
     value: java.math.BigInteger = java.math.BigInteger.ZERO,
     useMaxAmount: Boolean = false,
+    isExactAmount: Boolean = false,
 ) = uniffi.gemstone.GemTransferData(
     inputType = inputType,
     recipient = recipient,
     value = value,
     useMaxAmount = useMaxAmount,
+    isExactAmount = isExactAmount,
 )
 
 fun mockGemValidatorRow(

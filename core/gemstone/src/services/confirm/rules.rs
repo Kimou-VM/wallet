@@ -221,6 +221,7 @@ impl GemConfirmData {
             fee_asset_balance: transfer.fee_available_value(&metadata.fee_asset_balance),
             fee: self.fee.fee.clone(),
             is_max_amount: transfer.use_max_amount,
+            is_exact_amount: transfer.is_exact_amount,
             destination_account_exists: self.metadata.get_is_destination_address_exist().ok(),
             output_minimum: self.metadata.get_output_minimum(),
         };
@@ -1695,6 +1696,10 @@ mod tests {
         assert_eq!(reloaded(&data, &leaves_half_rent), Some((BigInt::from(1_000_505_000), true)), "a send under the rent minimum loads again as a Max send");
         assert_eq!(reloaded(&data, &GemConfirmMetadata::mock(&asset.id, 2_000_000_000)), None);
 
+        data.input.transfer.is_exact_amount = true;
+        assert_eq!(reloaded(&data, &leaves_half_rent), None, "a payment request's amount is paid exactly, never as a send of everything");
+
+        data.input.transfer.is_exact_amount = false;
         data.input.transfer.use_max_amount = true;
         assert_eq!(reloaded(&data, &leaves_half_rent), None, "a Max send is already loaded with the send-everything fee");
     }

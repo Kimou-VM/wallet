@@ -97,6 +97,7 @@ impl GemPerpetual {
             recipient: self.recipient(),
             value,
             use_max_amount,
+            is_exact_amount: false,
         }
     }
 
