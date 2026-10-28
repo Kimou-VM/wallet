@@ -226,7 +226,6 @@ mod tests {
         let cases = [
             (BitcoinChain::Bitcoin, mock_signer_input("29446", false), 30_000),
             (BitcoinChain::Bitcoin, mock_signer_input("29300", false), 30_000),
-            (BitcoinChain::Bitcoin, mock_signer_input("29900", false), 30_000),
             (BitcoinChain::Doge, doge, 2_000_000),
         ];
         for (chain, input, balance) in cases {
@@ -244,7 +243,18 @@ mod tests {
             let signed = UtxoPlanner::plan(SpendRequest::transfer(chain, &send_everything).unwrap()).unwrap();
             assert_eq!((shown.value, shown.network_fee), (BigInt::from(signed.outputs[0].value.to_sat()), BigInt::from(signed.fee)), "{chain:?} {value}");
             assert_eq!(signed.outputs.iter().map(|output| output.value.to_sat()).sum::<u64>() + signed.fee, balance, "{chain:?} {value}: no change is left");
+            assert!(BigInt::from(signed.outputs[0].value.to_sat()) >= BigInt::from(value.clone()), "{chain:?} {value}: never less than the amount entered");
         }
+
+        assert_eq!(
+            shown_amount(BitcoinChain::Bitcoin, &mock_signer_input("29900", false), 30_000),
+            Err(TransferAmountError::InsufficientBalance {
+                asset_id: AssetId::from_chain(Chain::Bitcoin),
+                required: BigInt::from(30_354),
+                available: BigInt::from(30_000),
+            }),
+            "the fee doesn't fit next to the amount, so it is refused rather than sending less"
+        );
     }
 
     fn swap_input(value: &str) -> SignerInput {
