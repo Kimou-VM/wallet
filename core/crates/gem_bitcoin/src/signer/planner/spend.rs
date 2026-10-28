@@ -25,6 +25,7 @@ struct Spend {
     change_script: ScriptBuf,
     memo_output: Option<PlanOutput>,
     inputs: Vec<PlanInput>,
+    dust_change_to_fee: bool,
 }
 
 impl UtxoPlanner {
@@ -64,13 +65,17 @@ impl Spend {
             change_script,
             memo_output,
             inputs,
+            dust_change_to_fee: request.dust_change_to_fee,
         })
     }
 
     fn plan(&self) -> Option<SpendPlan> {
+        let selections = || (1..=self.inputs.len()).map(|count| &self.inputs[..count]);
         match self.target {
             SpendTarget::Max => self.plan_with(&self.inputs),
-            SpendTarget::Exact(_) => (1..=self.inputs.len()).find_map(|count| self.plan_with(&self.inputs[..count])),
+            SpendTarget::Exact(value) => selections()
+                .find_map(|inputs| self.plan_with(inputs))
+                .or_else(|| selections().filter(|_| self.dust_change_to_fee).find_map(|inputs| self.plan_with_change_to_fee(value, inputs))),
         }
     }
 
@@ -83,6 +88,13 @@ impl Spend {
             SpendTarget::Exact(value) => (outputs.last_mut()?, spendable.checked_sub(value).filter(|change| *change >= dust_threshold(self.chain, &self.change_script))?),
         };
         output.value = Amount::from_sat(value);
+        Some(SpendPlan { inputs: inputs.to_vec(), outputs, fee })
+    }
+
+    fn plan_with_change_to_fee(&self, value: u64, inputs: &[PlanInput]) -> Option<SpendPlan> {
+        let outputs = spend_outputs(value, self.payment_script.clone(), self.memo_output.clone());
+        let minimum_fee = estimate_fee(self.chain, inputs, &outputs, self.fee_rate);
+        let fee = inputs.iter().map(|input| input.value.to_sat()).sum::<u64>().checked_sub(value).filter(|fee| *fee >= minimum_fee)?;
         Some(SpendPlan { inputs: inputs.to_vec(), outputs, fee })
     }
 
@@ -103,11 +115,11 @@ mod tests {
     use super::*;
     use crate::testkit::{
         address_mock::{TEST_BITCOIN_P2WPKH_ADDRESS, mock_destination_address, mock_sender_address},
-        planner_mock::{mock_signer_input, mock_signer_input_with, mock_spend_utxos, sum_inputs},
-        signer_mock::{TEST_UTXO_TXID, mock_transfer_input_with_utxos, mock_utxo_with},
+        planner_mock::{TEST_SPEND_RECIPIENT, mock_signer_input, mock_signer_input_with, mock_spend_utxos, sum_inputs},
+        signer_mock::{TEST_UTXO_TXID, mock_transfer_input_with_utxos, mock_transfer_swap_input, mock_utxo_with},
     };
     use num_bigint::BigInt;
-    use primitives::{AssetId, Chain, GasPriceType, SignerInput, TransactionFee, TransferAmount, TransferAmountError, TransferAmountInput};
+    use primitives::{AssetId, Chain, GasPriceType, SignerInput, TransactionFee, TransactionInputType, TransactionLoadMetadata, TransferAmount, TransferAmountError, TransferAmountInput};
 
     fn plan_with_fee_rate(value: &str, fee_rate: u64) -> SpendPlan {
         let mut input = mock_signer_input(value, false);
@@ -233,6 +245,47 @@ mod tests {
             assert_eq!((shown.value, shown.network_fee), (BigInt::from(signed.outputs[0].value.to_sat()), BigInt::from(signed.fee)), "{chain:?} {value}");
             assert_eq!(signed.outputs.iter().map(|output| output.value.to_sat()).sum::<u64>() + signed.fee, balance, "{chain:?} {value}: no change is left");
         }
+    }
+
+    fn swap_input(value: &str) -> SignerInput {
+        let mut input = mock_signer_input(value, false);
+        input.input.input_type = mock_transfer_swap_input(BitcoinChain::Bitcoin, "memo").input.input_type;
+        if let TransactionInputType::Swap { swap_data, .. } = &mut input.input.input_type {
+            swap_data.data.to = TEST_SPEND_RECIPIENT.to_string();
+            swap_data.data.value = value.parse().unwrap();
+        }
+        if let TransactionLoadMetadata::Bitcoin { output_minimum, .. } = &mut input.input.metadata {
+            output_minimum.change = 0;
+        }
+        input
+    }
+
+    #[test]
+    fn test_swap_dust_change_goes_to_the_fee() {
+        let input = swap_input("29300");
+        let signed = UtxoPlanner::plan(SpendRequest::swap(BitcoinChain::Bitcoin, &input).unwrap()).unwrap();
+        assert_eq!(signed.outputs.len(), 2, "no change output");
+        assert_eq!(signed.outputs[0].value.to_sat(), 29_300);
+        assert_eq!(signed.fee, 700, "the 246 sats of dust change go to the fee");
+
+        let shown = TransferAmountInput {
+            fee: BigInt::from(UtxoPlanner::fee(SpendRequest::swap(BitcoinChain::Bitcoin, &input).unwrap()).unwrap()),
+            output_minimum: input.metadata.get_output_minimum(),
+            ..TransferAmountInput::mock(input.input_type.clone(), 29_300, 30_000, 30_000)
+        }
+        .calculate()
+        .unwrap();
+        assert_eq!(
+            shown,
+            TransferAmount {
+                value: BigInt::from(29_300),
+                network_fee: BigInt::from(signed.fee),
+                is_max_amount: false,
+            }
+        );
+
+        let send = SpendRequest::transfer(BitcoinChain::Bitcoin, &mock_signer_input("29300", false)).unwrap();
+        assert_eq!(UtxoPlanner::plan(send).unwrap_err(), SignerError::InsufficientFunds, "a send leaving dust becomes a send of everything instead");
     }
 
     #[test]

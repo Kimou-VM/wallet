@@ -11,6 +11,7 @@ pub(crate) struct SpendRequest {
     pub(crate) fee_rate: u64,
     pub(crate) memo: Option<Vec<u8>>,
     pub(crate) utxos: Vec<UTXO>,
+    pub(crate) dust_change_to_fee: bool,
 }
 
 impl SpendRequest {
@@ -26,6 +27,7 @@ impl SpendRequest {
             fee_rate: spend_fee_rate(chain, input)?,
             memo: input.get_memo().map(|memo| memo.as_bytes().to_vec()),
             utxos: input.metadata.get_utxos()?,
+            dust_change_to_fee: false,
         })
     }
 
@@ -46,6 +48,7 @@ impl SpendRequest {
             fee_rate: spend_fee_rate(chain, input)?,
             memo,
             utxos: input.metadata.get_utxos()?,
+            dust_change_to_fee: true,
         })
     }
 }
