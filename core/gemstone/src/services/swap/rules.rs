@@ -141,7 +141,6 @@ pub fn swap_transfer(wallet: &Wallet, quote: &Quote, data: SwapQuoteData, (from_
         },
         value: quote.request.value.clone().into(),
         use_max_amount: quote.request.options.use_max_amount,
-        is_exact_amount: false,
     })
 }
 

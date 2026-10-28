@@ -390,7 +390,6 @@ pub fn transfer_data(metadata: ApplicationMetadata, transaction: WalletConnectTr
         },
         value,
         use_max_amount: false,
-        is_exact_amount: false,
     })
 }
 

@@ -164,11 +164,7 @@ impl GemConfirmService {
             metadata: load.metadata,
             simulation,
         };
-        let fee_load = confirm_data.fee_load(confirm_metadata?, fee_asset?, currency.clone());
-        match fee_load.send_everything_input() {
-            Some(input) => Box::pin(self.load(wallet_id, &input, options, currency)).await,
-            None => Ok(fee_load),
-        }
+        Ok(confirm_data.fee_load(confirm_metadata?, fee_asset?, currency))
     }
 
     pub fn simulation(&self, input_type: TransactionInputType, simulation: Option<SimulationResult>, assets: Vec<Asset>, address_url: impl Fn(Chain, String) -> BlockExplorerLink) -> GemConfirmSimulation {

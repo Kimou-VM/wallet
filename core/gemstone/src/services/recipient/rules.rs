@@ -82,7 +82,6 @@ pub fn next_step(recipient_type: GemRecipientType, payment: GemPaymentRecipient)
                 recipient: payment.recipient,
                 value: GemBigInt::from(0),
                 use_max_amount: false,
-                is_exact_amount: false,
             },
         },
     }

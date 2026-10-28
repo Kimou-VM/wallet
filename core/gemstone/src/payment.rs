@@ -197,7 +197,6 @@ fn quote_transfer_data(invoice: GemPaymentInvoice, asset: Asset, verification: P
         recipient: GemRecipient::address(String::new()),
         value: BigInt::from(value),
         use_max_amount: false,
-        is_exact_amount: false,
     })
 }
 
@@ -233,7 +232,6 @@ fn transaction_transfer_data(transaction: PaymentTransaction, asset: Asset) -> G
         recipient,
         value: transfer.map(|transfer| transfer.value).unwrap_or_default(),
         use_max_amount: false,
-        is_exact_amount: false,
     }
 }
 
@@ -405,7 +403,6 @@ fn request_transfer(request: &GemPaymentRequest, asset: &Asset) -> Option<GemTra
         recipient: payment_recipient(request, Some(chain)),
         value: BigInt::from(value),
         use_max_amount: false,
-        is_exact_amount: true,
     })
 }
 
@@ -703,7 +700,6 @@ mod tests {
 
         let transfer = confirmed(payment_step(&request(BITCOIN_ADDRESS, exact("0.0001"), None), &bitcoin));
         assert_eq!(transfer.value, 10_000.into());
-        assert!(transfer.is_exact_amount, "a requested amount is paid exactly");
         assert_eq!(transfer.recipient.address, BITCOIN_ADDRESS);
         assert_eq!(transfer.input_type.get_asset(), &bitcoin);
 

@@ -437,7 +437,6 @@ pub fn stake_transfer_data(asset: Asset, stake_type: StakeType, value: BigInt, u
         recipient,
         value,
         use_max_amount,
-        is_exact_amount: false,
     }
 }
 
@@ -450,7 +449,6 @@ pub fn activate_asset_transfer_data(asset: Asset) -> GemTransferData {
         recipient: GemRecipient::address(String::new()),
         value: BigInt::from(0),
         use_max_amount: false,
-        is_exact_amount: false,
     }
 }
 
@@ -464,7 +462,6 @@ pub fn earn_transfer_data(asset: Asset, earn_type: EarnType, data: ContractCallD
         input_type: TransactionInputType::Earn { asset, earn_type, data },
         value,
         use_max_amount,
-        is_exact_amount: false,
     }
 }
 

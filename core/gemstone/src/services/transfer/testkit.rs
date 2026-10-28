@@ -22,7 +22,6 @@ impl GemTransferData {
             },
             value: BigInt::from(10),
             use_max_amount: false,
-            is_exact_amount: false,
         }
     }
 }

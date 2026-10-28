@@ -1282,14 +1282,12 @@ public extension Gemstone.GemTransferData {
         recipient: Gemstone.GemRecipient = .mock(),
         value: BigInt = 0,
         useMaxAmount: Bool = false,
-        isExactAmount: Bool = false,
     ) -> Gemstone.GemTransferData {
         Gemstone.GemTransferData(
             inputType: inputType,
             recipient: recipient,
             value: value,
             useMaxAmount: useMaxAmount,
-            isExactAmount: isExactAmount,
         )
     }
 }
