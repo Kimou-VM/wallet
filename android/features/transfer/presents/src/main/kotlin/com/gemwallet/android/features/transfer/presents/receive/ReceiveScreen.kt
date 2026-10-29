@@ -143,7 +143,7 @@ private fun ReceiveScene(closeIcon: Boolean, assetInfo: AssetData, header: GemAs
         closeIcon = closeIcon,
         actions = {
             IconButton(onShare) {
-                Icon(AppIcons.Share, "")
+                Icon(AppIcons.Share, shareTitle)
             }
         },
         mainAction = {
@@ -210,7 +210,7 @@ private fun ReceiveScene(closeIcon: Boolean, assetInfo: AssetData, header: GemAs
                         Image(
                             modifier = Modifier.fillMaxSize(),
                             painter = painter,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.common_copy),
                             contentScale = ContentScale.FillWidth,
                         )
                     }
