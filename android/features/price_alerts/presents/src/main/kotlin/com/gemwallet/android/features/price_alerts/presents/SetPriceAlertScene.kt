@@ -66,7 +66,7 @@ private val tabs = listOf(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SetPriceAlertScene(
+internal fun SetPriceAlertScene(
     value: TextFieldState = rememberTextFieldState(),
     type: PriceAlertNotificationType,
     direction: PriceAlertDirection,
@@ -77,10 +77,7 @@ fun SetPriceAlertScene(
     assetRow: GemAssetItemRow? = null,
     buttonState: ButtonState,
     snackbar: SnackbarHostState? = null,
-    onType: (PriceAlertNotificationType) -> Unit,
-    onDirection: (PriceAlertDirection) -> Unit,
-    onConfirm: () -> Unit,
-    onCancel: () -> Unit,
+    onAction: (SetPriceAlertAction) -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focusRequester = remember { FocusRequester() }
@@ -96,7 +93,7 @@ fun SetPriceAlertScene(
                 tabs = tabs,
                 selected = type,
                 onSelect = {
-                    onType(it)
+                    onAction(SetPriceAlertAction.SelectType(it))
                     value.clearText()
                 },
             ) { item ->
@@ -129,11 +126,11 @@ fun SetPriceAlertScene(
                 MainActionButton(
                     title = stringResource(R.string.transfer_confirm),
                     state = buttonState,
-                    onClick = onConfirm,
+                    onClick = { onAction(SetPriceAlertAction.Confirm) },
                 )
             }
         },
-        onClose = onCancel,
+        onClose = { onAction(SetPriceAlertAction.Cancel) },
     ) {
         Spacer(modifier = Modifier.size(paddingLarge * 2))
         LazyColumn(
@@ -161,7 +158,7 @@ fun SetPriceAlertScene(
                                         PriceAlertDirection.Up -> PriceAlertDirection.Down
                                         PriceAlertDirection.Down -> PriceAlertDirection.Up
                                     }
-                                    onDirection(direction)
+                                    onAction(SetPriceAlertAction.SelectDirection(direction))
                                 },
                                 imageVector = when (directionButton) {
                                     uniffi.gemstone.PriceAlertDirection.UP -> AppIcons.ArrowCircleUp
@@ -243,10 +240,7 @@ fun SetPriceAlertScenePricePreview() {
             prompt = R.string.price_alerts_set_alert_price_over,
             suggestions = listOf("$850" to "850", "$950" to "950"),
             buttonState = ButtonState.Enabled,
-            onType = {},
-            onDirection = {},
-            onConfirm = {},
-            onCancel = {},
+            onAction = {},
         )
     }
 }
@@ -264,10 +258,7 @@ fun SetPriceAlertScenePercentagePreview() {
             prompt = R.string.price_alerts_set_alert_price_over,
             suggestions = listOf("3%" to "3", "6%" to "6", "9%" to "9"),
             buttonState = ButtonState.Enabled,
-            onType = {},
-            onDirection = {},
-            onConfirm = {},
-            onCancel = {},
+            onAction = {},
         )
     }
 }

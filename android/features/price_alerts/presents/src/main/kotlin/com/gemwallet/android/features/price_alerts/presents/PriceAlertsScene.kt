@@ -60,7 +60,7 @@ internal fun PriceAlertsScene(
     error: String?,
     onErrorShown: () -> Unit,
     header: LazyListScope.() -> Unit,
-    onChart: ((AssetId) -> Unit)?,
+    showsChart: Boolean,
     onAction: (PriceAlertsAction) -> Unit,
 ) {
     val revealable = remember { mutableStateOf<String?>(null) }
@@ -86,6 +86,11 @@ internal fun PriceAlertsScene(
             onRefresh = { onAction(PriceAlertsAction.Refresh) },
         ) {
             val onExclude: (String) -> Unit = { onAction(PriceAlertsAction.Exclude(it)) }
+            val onChart: ((AssetId) -> Unit)? = if (showsChart) {
+                { onAction(PriceAlertsAction.OpenChart(it)) }
+            } else {
+                null
+            }
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 (phase as? GemListPhase.Error)?.let { item { GemListRowView(row = GemListRow.Error(it.error), listPosition = ListPosition.Single) } }
                 header()
