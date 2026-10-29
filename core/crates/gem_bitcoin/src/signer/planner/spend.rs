@@ -18,6 +18,7 @@ enum SpendTarget {
 }
 
 impl UtxoPlanner {
+    #[cfg(any(test, feature = "rpc"))]
     pub(crate) fn fee(request: SpendRequest) -> Result<u64, SignerError> {
         match Self::plan(request.clone()) {
             Err(SignerError::InsufficientFunds) => Self::fee_spending_all_inputs(request),
@@ -25,6 +26,7 @@ impl UtxoPlanner {
         }
     }
 
+    #[cfg(any(test, feature = "rpc"))]
     fn fee_spending_all_inputs(request: SpendRequest) -> Result<u64, SignerError> {
         let payment_script = script_for_address(request.chain, &request.destination_address)?.script_pubkey;
         let memo_output = request.memo.as_deref().map(op_return_output).transpose()?;
