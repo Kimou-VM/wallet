@@ -37,7 +37,7 @@ import com.gemwallet.android.ui.theme.extraLargeIconSize
 import com.gemwallet.android.ui.theme.paddingDefault
 
 @Composable
-fun ContactEditorScene(state: ContactEditorUIState, snackbar: SnackbarHostState? = null, onNameChange: (String) -> Unit, onDescriptionChange: (String) -> Unit, onAction: (ContactEditorAction) -> Unit) {
+fun ContactEditorScene(state: ContactEditorUIState, snackbar: SnackbarHostState? = null, onAction: (ContactEditorAction) -> Unit) {
     val revealed = remember { mutableStateOf<String?>(null) }
 
     Scene(
@@ -73,7 +73,7 @@ fun ContactEditorScene(state: ContactEditorUIState, snackbar: SnackbarHostState?
             item {
                 GemTextField(
                     value = state.name,
-                    onValueChange = onNameChange,
+                    onValueChange = { onAction(ContactEditorAction.SetName(it)) },
                     label = stringResource(R.string.wallet_name),
                     modifier = Modifier.testTag("nameInputField"),
                     listPosition = ListPosition.First,
@@ -82,7 +82,7 @@ fun ContactEditorScene(state: ContactEditorUIState, snackbar: SnackbarHostState?
             item {
                 GemTextField(
                     value = state.description,
-                    onValueChange = onDescriptionChange,
+                    onValueChange = { onAction(ContactEditorAction.SetDescription(it)) },
                     label = stringResource(R.string.common_description),
                     listPosition = ListPosition.Last,
                 )
