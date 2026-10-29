@@ -24,6 +24,19 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_resolve_ens_network_address() {
+        let provider = EnsProvider::new(ReqwestClient::new(get_nodes_for_chain(Chain::Ethereum)[0].url.clone(), reqwest_client()));
+        for (name, chain, expected) in [
+            ("gemcoder.eth", Chain::Ethereum, Some("0xBA4D1d35bCe0e8F28E5a3403e7a0b996c5d50AC4")),
+            ("gemcoder.eth", Chain::Polygon, Some("0xD8EB1Fd839BD04f1A1e04b173101f7AD59Dd88EA")),
+            ("gemcoder.eth", Chain::Base, None),
+            ("gregskril.eth", Chain::Base, Some("0x179A862703a4adfb29896552DF9e307980D19285")),
+        ] {
+            assert_eq!(provider.resolve(&NameQuery::new(name), chain).await.unwrap().as_deref(), expected, "{name} {chain}");
+        }
+    }
+
+    #[tokio::test]
     async fn test_resolve_ens_unresolved_names() {
         let provider = EnsProvider::new(ReqwestClient::new(get_nodes_for_chain(Chain::Ethereum)[0].url.clone(), reqwest_client()));
         for name in ["nevernevernotregistered12345.eth", "gregskril.uni.eth"] {
@@ -79,8 +92,8 @@ mod tests {
     #[tokio::test]
     async fn test_resolve_suins() {
         let provider = SuinsProvider::new(get_nodes_for_chain(Chain::Sui)[0].url.clone());
-        let address = provider.resolve(&NameQuery::new("alpha.sui"), Chain::Sui).await.unwrap().unwrap();
-        assert_eq!(address, "0x54e5c2a6f1276ac2ff623ac54e53e5a61a576906b3ec42fac8fe8bf5615d0957");
+        let address = provider.resolve(&NameQuery::new("aftermath.sui"), Chain::Sui).await.unwrap().unwrap();
+        assert_eq!(address, "0x4b02b9b45f2a9597363fbaacb2fd6e7fb8ed9329bb6f716631b5717048908ace");
     }
 
     #[tokio::test]
