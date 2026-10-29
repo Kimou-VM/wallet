@@ -101,30 +101,31 @@ fun ImportWalletScreen(importType: ImportType, onImported: () -> Unit, onCancel:
 
     ImportWalletScene(
         inputState = viewModel.inputState,
-        importType = uiState.importType,
         tabs = uiState.tabs,
         input = uiState.input,
         title = uiState.title,
         showsTabs = uiState.showsTabs,
+        showsScan = uiState.showsScan,
         nameResolveIndicator = nameResolveIndicator,
         dataError = uiState.dataError,
         buttonState = buttonState(loading = uiState.loading),
-        onImport = {
-            when (uiState.importType.kind) {
+        suggestions = suggestions,
+    ) { action ->
+        when (action) {
+            ImportWalletAction.Import -> when (uiState.importType.kind) {
                 GemWalletImportKind.ADDRESS -> viewModel.import()
                 GemWalletImportKind.PHRASE, GemWalletImportKind.PRIVATE_KEY -> context.requestAuth(AuthRequest.Default) { viewModel.import() }
             }
-        },
-        onScan = if (uiState.showsScan) {
-            { isScanning = true }
-        } else {
-            null
-        },
-        onTypeChange = viewModel::importKind,
-        suggestions = suggestions,
-        onSelectSuggestion = viewModel::selectSuggestion,
-        onCancel = onCancel,
-    )
+
+            ImportWalletAction.Scan -> isScanning = true
+
+            is ImportWalletAction.SelectType -> viewModel.importKind(action.type)
+
+            is ImportWalletAction.SelectSuggestion -> viewModel.selectSuggestion(action.word)
+
+            ImportWalletAction.Cancel -> onCancel()
+        }
+    }
     if (uiState.loading) {
         Dialog(
             onDismissRequest = {},
@@ -166,29 +167,25 @@ fun ImportWalletScreen(importType: ImportType, onImported: () -> Unit, onCancel:
 @Composable
 private fun ImportWalletScene(
     inputState: TextFieldState,
-    importType: ImportType,
     tabs: List<ImportTabUIModel>,
     input: ImportInputUIModel,
     title: String,
     showsTabs: Boolean,
+    showsScan: Boolean,
     nameResolveIndicator: GemNameIndicator?,
     dataError: String?,
     buttonState: ButtonState,
-    onImport: () -> Unit,
-    onScan: (() -> Unit)?,
-    onTypeChange: (ImportType) -> Unit,
     suggestions: List<String>,
-    onSelectSuggestion: (String) -> Unit,
-    onCancel: () -> Unit,
+    onAction: (ImportWalletAction) -> Unit,
 ) {
     Scene(
         title = title,
-        onClose = onCancel,
+        onClose = { onAction(ImportWalletAction.Cancel) },
         mainAction = {
             MainActionButton(
                 title = stringResource(id = R.string.wallet_import_action),
                 state = buttonState,
-                onClick = onImport,
+                onClick = { onAction(ImportWalletAction.Import) },
             )
         },
     ) {
@@ -204,8 +201,19 @@ private fun ImportWalletScene(
                         .padding(bottom = space0),
                     verticalArrangement = Arrangement.spacedBy(paddingHalfSmall),
                 ) {
-                    TypeSelection(tabs, showsTabs, onTypeChange)
-                    DataInput(input, inputState, nameResolveIndicator, suggestions, onSelectSuggestion, onScan)
+                    TypeSelection(tabs, showsTabs) { onAction(ImportWalletAction.SelectType(it)) }
+                    DataInput(
+                        input = input,
+                        inputState = inputState,
+                        nameResolveIndicator = nameResolveIndicator,
+                        suggestions = suggestions,
+                        onSelectSuggestion = { onAction(ImportWalletAction.SelectSuggestion(it)) },
+                        onScan = if (showsScan) {
+                            { onAction(ImportWalletAction.Scan) }
+                        } else {
+                            null
+                        },
+                    )
                     ErrorMessage(dataError)
                 }
             }
@@ -293,7 +301,6 @@ fun PreviewImportAddress() {
         Box(modifier = Modifier.fillMaxSize()) {
             ImportWalletScene(
                 inputState = rememberTextFieldState(),
-                importType = ImportType(GemWalletImportKind.ADDRESS, Chain.Bitcoin),
                 tabs = listOf(
                     ImportTabUIModel(ImportType(GemWalletImportKind.PHRASE, Chain.Bitcoin), R.string.common_phrase, isSelected = false),
                     ImportTabUIModel(ImportType(GemWalletImportKind.ADDRESS, Chain.Bitcoin), R.string.common_address, isSelected = true),
@@ -306,15 +313,12 @@ fun PreviewImportAddress() {
                 ),
                 title = "Ethereum",
                 showsTabs = true,
+                showsScan = true,
                 nameResolveIndicator = null,
                 dataError = null,
                 buttonState = ButtonState.Enabled,
-                onImport = {},
-                onScan = {},
-                onTypeChange = {},
                 suggestions = emptyList(),
-                onSelectSuggestion = {},
-                onCancel = {},
+                onAction = {},
             )
         }
     }
