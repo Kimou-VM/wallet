@@ -264,7 +264,6 @@ mod tests {
         let no_endpoint: Box<dyn std::error::Error + Send + Sync> = Box::new(JsonRpcError {
             code: ERROR_CLIENT_ERROR,
             message: "no endpoint is available".to_string(),
-            cause: None,
         });
         let rate_limited: Box<dyn std::error::Error + Send + Sync> = Box::new(ClientError::Http {
             status: 429,
@@ -273,7 +272,6 @@ mod tests {
         let reverted: Box<dyn std::error::Error + Send + Sync> = Box::new(JsonRpcError {
             code: -32000,
             message: "execution reverted".to_string(),
-            cause: None,
         });
 
         let unavailable = ApiError::from(no_endpoint);
