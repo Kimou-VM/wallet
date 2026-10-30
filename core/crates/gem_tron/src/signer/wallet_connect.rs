@@ -32,9 +32,10 @@ impl WalletConnectPayload {
 }
 
 impl WalletConnectTransaction {
-    fn into_signed_json(mut self, transaction_id: String, signature_hex: String) -> Result<String, SignerError> {
-        self.signature = Some(vec![signature_hex]);
-        self.transaction_id = Some(transaction_id);
-        serde_json::to_string(&self).map_err(Into::into)
+    fn into_signed_json(self, transaction_id: String, signature_hex: String) -> Result<String, SignerError> {
+        let mut transaction = self.with_raw_data_hex()?;
+        transaction.signature = Some(vec![signature_hex]);
+        transaction.transaction_id = Some(transaction_id);
+        serde_json::to_string(&transaction).map_err(Into::into)
     }
 }
