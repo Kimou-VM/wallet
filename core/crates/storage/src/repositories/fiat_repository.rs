@@ -74,8 +74,7 @@ pub trait FiatRepository {
     fn get_fiat_rate(&mut self, currency: &Currency) -> Result<FiatRate, DatabaseError>;
     fn get_fiat_providers(&mut self) -> Result<Vec<FiatProvider>, DatabaseError>;
     fn update_fiat_provider_payment_methods(&mut self, provider_id: FiatProviderName, values: serde_json::Value) -> Result<usize, DatabaseError>;
-    fn update_fiat_transaction(&mut self, provider: FiatProviderName, update: FiatTransactionUpdate) -> Result<FiatTransactionRecord, DatabaseError>;
-    fn get_fiat_transaction(&mut self, provider: FiatProviderName, transaction_id: &str) -> Result<Option<FiatTransactionRecord>, DatabaseError>;
+    fn update_fiat_transaction(&mut self, provider: FiatProviderName, update: FiatTransactionUpdate) -> Result<(FiatTransactionRecord, FiatTransactionRecord), DatabaseError>;
     fn add_fiat_transaction(&mut self, transaction: FiatTransaction, device_id: i32, wallet_id: i32, address_id: i32) -> Result<usize, DatabaseError>;
 }
 
@@ -213,17 +212,24 @@ fn get_fiat_transaction_for_quote(client: &mut DatabaseClient, provider: &FiatPr
         .filter(quote_id.eq(target_quote_id))
         .order((created_at.desc(), id.desc()))
         .select(FiatTransactionRow::as_select())
+        .for_update()
         .first(&mut client.connection)
         .optional()
 }
 
-fn update_fiat_transaction_by_id(client: &mut DatabaseClient, existing: &FiatTransactionRow, update: &FiatTransactionUpdate, provider_transaction_id_value: Option<String>) -> Result<FiatTransactionRow, diesel::result::Error> {
+fn update_fiat_transaction_by_id(
+    client: &mut DatabaseClient,
+    existing: FiatTransactionRow,
+    update: &FiatTransactionUpdate,
+    provider_transaction_id_value: Option<String>,
+) -> Result<(FiatTransactionRow, FiatTransactionRow), diesel::result::Error> {
     use crate::schema::fiat_transactions::dsl::*;
 
-    diesel::update(fiat_transactions.find(existing.id))
-        .set(UpdateFiatTransactionRow::new(existing, update, provider_transaction_id_value))
+    let updated = diesel::update(fiat_transactions.find(existing.id))
+        .set(UpdateFiatTransactionRow::new(&existing, update, provider_transaction_id_value))
         .returning(FiatTransactionRow::as_returning())
-        .get_result(&mut client.connection)
+        .get_result(&mut client.connection)?;
+    Ok((existing, updated))
 }
 
 impl FiatRepository for DatabaseClient {
@@ -359,22 +365,9 @@ impl FiatRepository for DatabaseClient {
             .execute(&mut self.connection)?)
     }
 
-    fn update_fiat_transaction(&mut self, provider: FiatProviderName, update: FiatTransactionUpdate) -> Result<FiatTransactionRecord, DatabaseError> {
-        Ok(FiatTransactionRecord::from_row(update_fiat_transaction(self, provider, update)?))
-    }
-
-    fn get_fiat_transaction(&mut self, provider: FiatProviderName, transaction_id: &str) -> Result<Option<FiatTransactionRecord>, DatabaseError> {
-        use crate::schema::fiat_transactions::dsl::*;
-
-        let provider = FiatProviderNameRow::from(provider);
-        let row = fiat_transactions
-            .filter(provider_id.eq(&provider))
-            .filter(provider_transaction_id.eq(transaction_id).or(quote_id.eq(transaction_id)))
-            .order((updated_at.desc(), id.desc()))
-            .select(FiatTransactionRow::as_select())
-            .first(&mut self.connection)
-            .optional()?;
-        Ok(row.map(FiatTransactionRecord::from_row))
+    fn update_fiat_transaction(&mut self, provider: FiatProviderName, update: FiatTransactionUpdate) -> Result<(FiatTransactionRecord, FiatTransactionRecord), DatabaseError> {
+        let (previous, updated) = update_fiat_transaction(self, provider, update)?;
+        Ok((FiatTransactionRecord::from_row(previous), FiatTransactionRecord::from_row(updated)))
     }
 
     fn add_fiat_transaction(&mut self, transaction: FiatTransaction, device_id_value: i32, wallet_id_value: i32, address_id_value: i32) -> Result<usize, DatabaseError> {
@@ -385,34 +378,35 @@ impl FiatRepository for DatabaseClient {
     }
 }
 
-fn update_fiat_transaction(client: &mut DatabaseClient, provider: FiatProviderName, update: FiatTransactionUpdate) -> Result<FiatTransactionRow, DatabaseError> {
+fn update_fiat_transaction(client: &mut DatabaseClient, provider: FiatProviderName, update: FiatTransactionUpdate) -> Result<(FiatTransactionRow, FiatTransactionRow), DatabaseError> {
+    let provider = FiatProviderNameRow::from(provider);
+    client.transaction(|client| Ok(update_locked_fiat_transaction(client, &provider, &update)?))
+}
+
+fn update_locked_fiat_transaction(client: &mut DatabaseClient, provider: &FiatProviderNameRow, update: &FiatTransactionUpdate) -> Result<(FiatTransactionRow, FiatTransactionRow), diesel::result::Error> {
     use crate::schema::fiat_transactions::dsl::*;
 
-    let provider = FiatProviderNameRow::from(provider);
+    let linked_id = update.provider_transaction_id.as_deref();
 
-    client.transaction(|client| {
-        if let Some(existing) = get_fiat_transaction_by_provider_transaction_id(client, &provider, &update.transaction_id)? {
-            return Ok(update_fiat_transaction_by_id(client, &existing, &update, None)?);
+    if let Some(existing) = get_fiat_transaction_by_provider_transaction_id(client, provider, &update.transaction_id)? {
+        return update_fiat_transaction_by_id(client, existing, update, None);
+    }
+    if let Some(linked_id) = linked_id {
+        if let Some(existing) = get_fiat_transaction_by_provider_transaction_id(client, provider, linked_id)? {
+            return update_fiat_transaction_by_id(client, existing, update, None);
         }
+        if let Some(existing) = get_unlinked_fiat_transaction_for_quote(client, provider, &update.transaction_id)? {
+            return update_fiat_transaction_by_id(client, existing, update, Some(linked_id.to_string()));
+        }
+    }
 
-        Ok(match update.provider_transaction_id.as_deref() {
-            Some(provider_transaction_id_value) => {
-                if let Some(existing) = get_fiat_transaction_by_provider_transaction_id(client, &provider, provider_transaction_id_value)? {
-                    return Ok(update_fiat_transaction_by_id(client, &existing, &update, None)?);
-                }
-                if let Some(existing) = get_unlinked_fiat_transaction_for_quote(client, &provider, &update.transaction_id)? {
-                    return Ok(update_fiat_transaction_by_id(client, &existing, &update, Some(provider_transaction_id_value.to_string()))?);
-                }
-                let existing = get_fiat_transaction_for_quote(client, &provider, &update.transaction_id)?.ok_or(diesel::result::Error::NotFound)?;
-                let new_row = NewFiatTransactionRow::from_existing(&existing, &update, provider_transaction_id_value.to_string());
-                diesel::insert_into(fiat_transactions).values(&new_row).returning(FiatTransactionRow::as_returning()).get_result(&mut client.connection)
-            }
-            None => {
-                let existing = get_fiat_transaction_for_quote(client, &provider, &update.transaction_id)?.ok_or(diesel::result::Error::NotFound)?;
-                update_fiat_transaction_by_id(client, &existing, &update, None)
-            }
-        }?)
-    })
+    let existing = get_fiat_transaction_for_quote(client, provider, &update.transaction_id)?.ok_or(diesel::result::Error::NotFound)?;
+    let Some(linked_id) = linked_id else {
+        return update_fiat_transaction_by_id(client, existing, update, None);
+    };
+    let new_row = NewFiatTransactionRow::from_existing(&existing, update, linked_id.to_string());
+    let inserted = diesel::insert_into(fiat_transactions).values(&new_row).returning(FiatTransactionRow::as_returning()).get_result(&mut client.connection)?;
+    Ok((existing, inserted))
 }
 
 #[cfg(all(test, feature = "database_integration_tests"))]
@@ -500,7 +494,7 @@ mod database_integration_tests {
         }
     }
 
-    async fn apply_updates(provider_transaction_id: Option<String>, updates: Vec<FiatTransactionUpdate>) -> FiatTransaction {
+    async fn apply_updates(provider_transaction_id: Option<String>, updates: Vec<FiatTransactionUpdate>) -> (FiatTransaction, Vec<FiatTransactionStatus>) {
         Database::mock()
             .run(move |client| -> Result<_, DatabaseError> {
                 client.add_chains(vec![Chain::Ethereum])?;
@@ -524,10 +518,11 @@ mod database_integration_tests {
                     ..FiatTransaction::mock()
                 };
                 client.add_fiat_transaction(transaction, device_id, wallet.id, address_id)?;
+                let mut previous = Vec::new();
                 for update in updates {
-                    client.update_fiat_transaction(PROVIDER, update)?;
+                    previous.push(client.update_fiat_transaction(PROVIDER, update)?.0.status);
                 }
-                Ok(client.get_fiat_transactions_by_device_id(device_id)?.remove(0))
+                Ok((client.get_fiat_transactions_by_device_id(device_id)?.remove(0), previous))
             })
             .await
             .unwrap()
@@ -538,7 +533,7 @@ mod database_integration_tests {
         use FiatTransactionStatus::*;
 
         for (first, late, expected) in [(Complete, Pending, Complete), (Complete, Unknown, Complete), (Pending, Complete, Complete), (Failed, Pending, Failed)] {
-            let transaction = apply_updates(Some("tx_123".to_string()), vec![status_update(first.clone()), status_update(late.clone())]).await;
+            let (transaction, _) = apply_updates(Some("tx_123".to_string()), vec![status_update(first), status_update(late)]).await;
 
             assert_eq!(transaction.status, expected, "{first:?} then {late:?}");
         }
@@ -553,7 +548,14 @@ mod database_integration_tests {
             ..status_update(FiatTransactionStatus::Complete)
         };
 
-        let transaction = apply_updates(Some("tx_123".to_string()), vec![complete, status_update(FiatTransactionStatus::Pending)]).await;
+        let late = FiatTransactionUpdate {
+            transaction_hash: Some("0xlate".to_string()),
+            fiat_amount: Some(90.0),
+            fiat_currency: Some("USD".to_string()),
+            ..status_update(FiatTransactionStatus::Pending)
+        };
+
+        let (transaction, _) = apply_updates(Some("tx_123".to_string()), vec![complete, late]).await;
 
         assert_eq!(transaction.status, FiatTransactionStatus::Complete);
         assert_eq!(transaction.transaction_hash.as_deref(), Some("0xhash"));
@@ -573,9 +575,52 @@ mod database_integration_tests {
             ..status_update(FiatTransactionStatus::Pending)
         };
 
-        let transaction = apply_updates(None, vec![link, late]).await;
+        let (transaction, _) = apply_updates(None, vec![link, late]).await;
 
         assert_eq!(transaction.provider_transaction_id.as_deref(), Some("tx_456"));
         assert_eq!(transaction.status, FiatTransactionStatus::Complete);
+    }
+
+    #[tokio::test]
+    async fn test_update_fiat_transaction_returns_the_status_it_replaced() {
+        use FiatTransactionStatus::*;
+
+        let (_, previous) = apply_updates(Some("tx_123".to_string()), vec![status_update(Complete), status_update(Complete)]).await;
+
+        assert_eq!(previous, vec![Pending, Complete]);
+    }
+
+    #[tokio::test]
+    async fn test_update_fiat_transaction_by_quote_keeps_completed_status() {
+        use FiatTransactionStatus::*;
+
+        let by_quote = |status| FiatTransactionUpdate {
+            transaction_id: "quote_123".to_string(),
+            ..status_update(status)
+        };
+
+        let (transaction, previous) = apply_updates(None, vec![by_quote(Complete), by_quote(Pending)]).await;
+
+        assert_eq!(transaction.status, Complete);
+        assert_eq!(previous, vec![Pending, Complete]);
+    }
+
+    #[tokio::test]
+    async fn test_update_fiat_transaction_adds_a_row_for_a_second_provider_id() {
+        use FiatTransactionStatus::*;
+
+        let second = FiatTransactionUpdate {
+            transaction_id: "quote_123".to_string(),
+            provider_transaction_id: Some("tx_456".to_string()),
+            ..status_update(Complete)
+        };
+        let late = FiatTransactionUpdate {
+            transaction_id: "tx_456".to_string(),
+            ..status_update(Pending)
+        };
+
+        let (_, previous) = apply_updates(Some("tx_123".to_string()), vec![second, late]).await;
+
+        assert_eq!(previous, vec![Pending, Complete], "the second update finds the added row, already complete");
     }
 }

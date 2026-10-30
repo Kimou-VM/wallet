@@ -98,7 +98,7 @@ pub struct FiatTransactionAssetData {
     pub details_url: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, EnumString, Model)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AsRefStr, EnumString, Model)]
 #[model(swift = "Equatable, Sendable, Hashable")]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
