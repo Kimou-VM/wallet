@@ -16,7 +16,7 @@ pub(crate) struct WalletConnectTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
     raw_data: Option<Value>,
     #[serde(default, with = "hex_bytes::option")]
-    raw_data_hex: Option<Vec<u8>>,
+    pub(crate) raw_data_hex: Option<Vec<u8>>,
     #[serde(rename = "txID", skip_serializing_if = "Option::is_none")]
     pub(crate) transaction_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -45,17 +45,6 @@ impl WalletConnectTransaction {
         }
 
         Ok((transaction_hash, decoded))
-    }
-
-    pub(crate) fn with_raw_data_hex(self) -> Result<Self, SignerError> {
-        if self.raw_data_hex.is_some() {
-            return Ok(self);
-        }
-        let (_, decoded) = self.validate()?;
-        Ok(Self {
-            raw_data_hex: Some(decoded.encode()?),
-            ..self
-        })
     }
 }
 
