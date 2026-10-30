@@ -225,8 +225,12 @@ fn update_fiat_transaction_by_id(
 ) -> Result<(FiatTransactionRow, FiatTransactionRow), diesel::result::Error> {
     use crate::schema::fiat_transactions::dsl::*;
 
+    if !existing.status.0.accepts(update.status) {
+        return Ok((existing.clone(), existing));
+    }
+
     let updated = diesel::update(fiat_transactions.find(existing.id))
-        .set(UpdateFiatTransactionRow::new(&existing, update, provider_transaction_id_value))
+        .set(UpdateFiatTransactionRow::from_primitive(update, provider_transaction_id_value))
         .returning(FiatTransactionRow::as_returning())
         .get_result(&mut client.connection)?;
     Ok((existing, updated))

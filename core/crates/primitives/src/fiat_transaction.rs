@@ -117,13 +117,12 @@ impl FiatTransactionStatus {
         }
     }
 
-    pub fn merged_with(self, updated: Self) -> Self {
-        let replaces = match self {
+    pub fn accepts(&self, updated: Self) -> bool {
+        match self {
             Self::Unknown => true,
             Self::Pending => updated != Self::Unknown,
             Self::Complete | Self::Failed => updated.is_completed(),
-        };
-        if replaces { updated } else { self }
+        }
     }
 }
 
@@ -193,16 +192,16 @@ mod tests {
     }
 
     #[test]
-    fn test_status_merged_with() {
+    fn test_status_accepts() {
         use FiatTransactionStatus::*;
 
-        assert_eq!(Complete.merged_with(Pending), Complete);
-        assert_eq!(Complete.merged_with(Unknown), Complete);
-        assert_eq!(Complete.merged_with(Failed), Failed);
-        assert_eq!(Failed.merged_with(Pending), Failed);
-        assert_eq!(Failed.merged_with(Complete), Complete);
-        assert_eq!(Pending.merged_with(Complete), Complete);
-        assert_eq!(Pending.merged_with(Unknown), Pending);
-        assert_eq!(Unknown.merged_with(Pending), Pending);
+        assert!(!Complete.accepts(Pending));
+        assert!(!Complete.accepts(Unknown));
+        assert!(Complete.accepts(Failed));
+        assert!(!Failed.accepts(Pending));
+        assert!(Failed.accepts(Complete));
+        assert!(Pending.accepts(Complete));
+        assert!(!Pending.accepts(Unknown));
+        assert!(Unknown.accepts(Pending));
     }
 }

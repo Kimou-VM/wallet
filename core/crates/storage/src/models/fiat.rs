@@ -320,15 +320,13 @@ pub(crate) struct UpdateFiatTransactionRow {
 }
 
 impl UpdateFiatTransactionRow {
-    pub fn new(existing: &FiatTransactionRow, transaction: &FiatTransactionUpdate, provider_transaction_id: Option<String>) -> Self {
-        let status = existing.status.0.merged_with(transaction.status);
-        let is_late = status != transaction.status;
+    pub fn from_primitive(transaction: &FiatTransactionUpdate, provider_transaction_id: Option<String>) -> Self {
         Self {
             provider_transaction_id,
-            status: status.into(),
-            fiat_amount: transaction.fiat_amount.filter(|_| !is_late),
-            fiat_currency: transaction.fiat_currency.clone().filter(|_| !is_late),
-            transaction_hash: transaction.transaction_hash.clone().filter(|_| !is_late || existing.transaction_hash.is_none()),
+            status: transaction.status.into(),
+            fiat_amount: transaction.fiat_amount,
+            fiat_currency: transaction.fiat_currency.clone(),
+            transaction_hash: transaction.transaction_hash.clone(),
         }
     }
 }
@@ -370,34 +368,9 @@ mod tests {
             fiat_currency: Some("EUR".to_string()),
         };
 
-        let row = UpdateFiatTransactionRow::new(&FiatTransactionRow::mock(), &update, None);
+        let row = UpdateFiatTransactionRow::from_primitive(&update, None);
 
         assert_eq!(row.fiat_currency, Some("EUR".to_string()));
         assert_eq!(row.fiat_amount, Some(100.0));
-    }
-
-    #[test]
-    fn update_row_keeps_what_a_finished_purchase_settled_on_a_late_event() {
-        let late = FiatTransactionUpdate {
-            transaction_id: "quote_123".to_string(),
-            provider_transaction_id: None,
-            status: FiatTransactionStatus::Pending,
-            transaction_hash: Some("0xlate".to_string()),
-            fiat_amount: Some(90.0),
-            fiat_currency: Some("USD".to_string()),
-        };
-        let finished = FiatTransactionRow {
-            status: FiatTransactionStatus::Complete.into(),
-            ..FiatTransactionRow::mock()
-        };
-
-        let row = UpdateFiatTransactionRow::new(&finished, &late, Some("tx_456".to_string()));
-
-        assert_eq!(row.status.0, FiatTransactionStatus::Complete);
-        assert_eq!((row.fiat_amount, row.fiat_currency, row.transaction_hash), (None, None, None));
-        assert_eq!(row.provider_transaction_id.as_deref(), Some("tx_456"), "a late event still links the provider's id");
-
-        let without_hash = FiatTransactionRow { transaction_hash: None, ..finished };
-        assert_eq!(UpdateFiatTransactionRow::new(&without_hash, &late, None).transaction_hash.as_deref(), Some("0xlate"), "a late event still fills a missing hash");
     }
 }
