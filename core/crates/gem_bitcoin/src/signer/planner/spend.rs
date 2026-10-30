@@ -1,6 +1,8 @@
 use bitcoin::ScriptBuf;
 use primitives::{BitcoinChain, SignerError};
 
+#[cfg(any(test, feature = "rpc"))]
+use super::inputs::unfunded_sender_input;
 use super::{
     PlanInput, PlanOutput, SpendPlan, SpendRequest,
     fee::estimate_fee,
@@ -34,14 +36,15 @@ impl UtxoPlanner {
         if !request.is_max {
             outputs.push(PlanOutput::new(0, script_for_address(request.chain, &request.sender_address)?.script_pubkey));
         }
-        let inputs = spendable_inputs(request.chain, &request.sender_address, request.utxos)?;
+        let inputs = if request.utxos.is_empty() {
+            vec![unfunded_sender_input(request.chain, &request.sender_address)?]
+        } else {
+            spendable_inputs(request.chain, &request.sender_address, request.utxos)?
+        };
         Ok(estimate_fee(request.chain, &inputs, &outputs, request.fee_rate))
     }
 
     pub(crate) fn plan(request: SpendRequest) -> Result<SpendPlan, SignerError> {
-        if request.utxos.is_empty() {
-            return SignerError::invalid_input_err("missing input UTXOs");
-        }
         if !request.is_max && request.amount == 0 {
             return SignerError::invalid_input_err("invalid transaction amount");
         }
@@ -153,7 +156,7 @@ mod tests {
     use crate::testkit::{
         address_mock::{TEST_BITCOIN_P2WPKH_ADDRESS, mock_destination_address, mock_sender_address},
         planner_mock::{mock_signer_input, mock_signer_input_with, mock_spend_utxos, sum_inputs},
-        signer_mock::{TEST_UTXO_TXID, mock_transfer_input_with_utxos, mock_utxo_with},
+        signer_mock::{TEST_UTXO_TXID, mock_funded_transfer_input, mock_transfer_input_with_utxos, mock_utxo_with},
     };
     use num_bigint::BigInt;
     use primitives::{AssetId, Chain, GasPriceType, TransactionFee};
@@ -217,6 +220,22 @@ mod tests {
         assert_eq!(plan.outputs.len(), 2);
         assert!(plan.outputs[1].script_pubkey.is_op_return());
         assert_eq!(sum_inputs(&plan.inputs).unwrap(), plan.outputs.iter().map(|output| output.value.to_sat()).sum::<u64>() + plan.fee);
+    }
+
+    #[test]
+    fn test_fee_without_utxos_prices_a_single_input_send() {
+        for chain in [BitcoinChain::Bitcoin, BitcoinChain::Doge, BitcoinChain::Zcash] {
+            let funded = SpendRequest::transfer(chain, &mock_funded_transfer_input(chain)).unwrap();
+            for request in [funded.clone(), SpendRequest { is_max: true, ..funded }] {
+                let without_utxos = SpendRequest { utxos: vec![], ..request.clone() };
+
+                assert_eq!(UtxoPlanner::plan(without_utxos.clone()).unwrap_err(), SignerError::InsufficientFunds);
+                assert_eq!(UtxoPlanner::fee(without_utxos).unwrap(), UtxoPlanner::plan(request).unwrap().fee);
+            }
+        }
+
+        let dust = SpendRequest::transfer(BitcoinChain::Bitcoin, &mock_signer_input_with("545", false, None, vec![])).unwrap();
+        assert_eq!(UtxoPlanner::fee(dust).unwrap_err(), SignerError::DustThreshold, "an amount under the dust limit is dust with or without coins");
     }
 
     #[test]

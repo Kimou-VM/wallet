@@ -286,7 +286,13 @@ mod tests {
 
     use primitives::{AddressName, AddressType, VerificationStatus};
 
-    use super::super::testkit::{ConfirmTestkit, TEST_TRON_RECIPIENT, mock_tron_transfer, mock_tron_wallet};
+    use super::super::error::GemConfirmErrorDisplay;
+    use super::super::model::{GemConfirmAction, GemConfirmFeeValue, GemConfirmPhase, GemFeeRateKind};
+    use super::super::testkit::{ConfirmTestkit, TEST_TRON_RECIPIENT, mock_bitcoin_transfer, mock_bitcoin_wallet, mock_tron_transfer, mock_tron_wallet};
+    use crate::models::button::GemButtonState;
+    use crate::models::placeholder::EMPTY_VALUE;
+    use crate::services::amount::model::GemNumberFormat;
+    use crate::services::balance::GemBalanceRequirement;
     use crate::services::confirm::{ConfirmState, GemConfirmDetails, GemConfirmError, GemConfirmFeeSelection, GemConfirmLoad, GemConfirmLoadOptions, GemConfirmRowContent, GemConfirmSection, GemConfirmViewState};
     use crate::services::simulation::warning_rows;
     use crate::services::swap::model::swap_quote_details;
@@ -337,14 +343,87 @@ mod tests {
 
         assert_eq!(state.button, screen.button().authenticated(confirmation.authentication));
         assert_eq!(state.fee_row, super::super::GemConfirmFeeRow::new(screen.fee_value(None), confirmation.transfer().fee_asset(), false));
-        assert_eq!(
-            confirmation.network_fee_screen(crate::services::amount::model::GemNumberFormat { decimal_separator: ".".to_string() }),
-            None,
-            "nothing loaded, no fee screen"
-        );
+        assert_eq!(confirmation.network_fee_screen(GemNumberFormat { decimal_separator: ".".to_string() }), None, "nothing loaded, no fee screen");
         assert_eq!(details(&state), confirmation.row_contents(None));
         assert_eq!(state.title, confirmation.transfer().title());
         assert_eq!(state.verification, None);
+    }
+
+    #[test]
+    fn test_a_bitcoin_send_without_utxos_keeps_the_fee_options_above_its_balance_error() {
+        block_on(async {
+            let testkit = ConfirmTestkit::with_bitcoin_utxos(129_576, &[]);
+            let confirmation = testkit.service.confirmation(mock_bitcoin_wallet(), mock_bitcoin_transfer(10_000.into()), None);
+
+            let load = confirmation.load(confirmation.load_options()).await.unwrap();
+            let fee = load.fee.clone().unwrap().value;
+            let screen = confirmation.screen().on_loaded(load);
+            let state = confirmation.view_state(screen.clone());
+            let rates = confirmation.network_fee_screen(GemNumberFormat { decimal_separator: ".".to_string() }).and_then(|screen| screen.rates).unwrap();
+
+            assert_eq!(screen.phase, GemConfirmPhase::Ready);
+            assert_eq!(screen.button().state, GemButtonState::Disabled);
+            assert!(state.fee_row.opens_details);
+            assert_eq!(
+                rates.rows.into_iter().map(|row| row.kind).collect::<Vec<_>>(),
+                vec![GemFeeRateKind::Priority { priority: FeePriority::Normal }, GemFeeRateKind::Priority { priority: FeePriority::Fast }, GemFeeRateKind::Custom,],
+            );
+            assert_eq!(
+                state.sections.last(),
+                Some(&GemConfirmSection::Error {
+                    error: GemConfirmError::InsufficientBalance {
+                        asset: Asset::mock_btc(),
+                        requirement: GemBalanceRequirement::new(BigInt::from(10_000) + fee, 0u64.into()),
+                    },
+                }),
+            );
+        });
+    }
+
+    #[test]
+    fn test_a_fee_that_fails_the_load_can_be_changed_back() {
+        block_on(async {
+            let testkit = ConfirmTestkit::with_bitcoin_utxos(2_000, &[2_000]);
+            let transfer = GemTransferData {
+                use_max_amount: true,
+                ..mock_bitcoin_transfer(2_000.into())
+            };
+            let confirmation = testkit.service.confirmation(mock_bitcoin_wallet(), transfer, None);
+            let normal = confirmation.load_options();
+
+            confirmation.load(normal.clone()).await.unwrap();
+            let leaves_only_dust = GemConfirmLoadOptions {
+                fee_selection: GemConfirmFeeSelection::Custom {
+                    base_fee: None,
+                    rate: Some(BigInt::from(170)),
+                },
+                ..normal.clone()
+            };
+            let error = confirmation.load(leaves_only_dust).await.unwrap_err();
+            assert_eq!(error.display(), GemConfirmErrorDisplay::DustThreshold { chain: Chain::Bitcoin });
+            let state = confirmation.view_state(confirmation.screen().on_load_failed(error));
+
+            assert_eq!(state.fee_row.value, GemConfirmFeeValue::Unavailable { text: EMPTY_VALUE.to_string() });
+            assert!(state.fee_row.opens_details, "the fee that failed is the one the user has to change");
+            assert!(confirmation.network_fee_screen(GemNumberFormat { decimal_separator: ".".to_string() }).and_then(|screen| screen.rates).is_some());
+
+            let load = confirmation.load(normal).await.unwrap();
+            assert_eq!(confirmation.screen().on_loaded(load).action(), Some(GemConfirmAction::Execute));
+        });
+    }
+
+    #[test]
+    fn test_a_failed_first_load_has_no_fee_options_to_open() {
+        block_on(async {
+            let wallet = mock_tron_wallet();
+            let testkit = ConfirmTestkit::new(wallet.clone(), wallet.clone());
+            let confirmation = testkit.service.confirmation(wallet, mock_tron_transfer(10.into()), None);
+
+            let error = confirmation.load(confirmation.load_options()).await.unwrap_err();
+            let state = confirmation.view_state(confirmation.screen().on_load_failed(error));
+
+            assert!(!state.fee_row.opens_details);
+        });
     }
 
     #[test]

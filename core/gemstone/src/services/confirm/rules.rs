@@ -212,13 +212,12 @@ impl GemConfirmData {
 
     pub(super) fn preload_amount(&self, metadata: &GemConfirmMetadata, fee_asset: &Asset) -> GemTransferAmountResult {
         let transfer = &self.input.transfer;
-        let available_value = transfer.available_value(&metadata.asset_balance);
         let input = TransferAmountInput {
             input_type: transfer.input_type.clone(),
             value: transfer.value.clone(),
-            available_value,
+            available_value: self.spendable_value(transfer.available_value(&metadata.asset_balance)),
             fee_asset: fee_asset.id.clone(),
-            fee_asset_balance: transfer.fee_available_value(&metadata.fee_asset_balance),
+            fee_asset_balance: self.spendable_value(transfer.fee_available_value(&metadata.fee_asset_balance)),
             fee: self.fee.fee.clone(),
             is_max_amount: transfer.use_max_amount,
             destination_account_exists: self.metadata.get_is_destination_address_exist().ok(),
@@ -228,6 +227,13 @@ impl GemConfirmData {
             Err(error) => GemTransferAmountResult::Error {
                 error: amount_error(error, transfer.input_type.get_asset(), fee_asset),
             },
+        }
+    }
+
+    fn spendable_value(&self, balance: GemBigInt) -> GemBigInt {
+        match self.metadata.get_bitcoin_family_utxo_value() {
+            Some(value) => balance.min(GemBigInt::from(value)),
+            None => balance,
         }
     }
 }
@@ -724,7 +730,7 @@ mod tests {
     use super::*;
     use crate::models::copy::GemCopy;
     use crate::models::list::{GemListFieldValue, GemRowMenuItem};
-    use crate::services::confirm::testkit::gwei;
+    use crate::services::confirm::testkit::{TEST_BITCOIN_FEE, gwei};
 
     #[test]
     fn test_the_confirm_screen_lists_its_blocks_in_one_order() {
@@ -1656,6 +1662,61 @@ mod tests {
             other => panic!("expected an insufficient balance error, got {other:?}"),
         }
         assert!(matches!(data.preload_amount(&funded, &asset), GemTransferAmountResult::Amount { .. }));
+    }
+
+    #[test]
+    fn test_preload_amount_counts_only_what_the_utxos_hold() {
+        let asset = Asset::mock_btc();
+        let wallet_shows = GemConfirmMetadata::mock(&asset.id, 129_576);
+
+        for (utxos, available, spendable, reason) in [
+            (vec![], 129_576, 0u64, "a pending send spent every UTXO, while the balance still shows them"),
+            (vec![5_000], 129_576, 5_000, "the balance looks fine but the UTXOs can't cover the send"),
+            (vec![129_576], 5_000, 5_000, "an unconfirmed deposit in the UTXOs is not available balance yet"),
+        ] {
+            assert_eq!(
+                GemConfirmData::mock_bitcoin(10_000, false, &utxos).preload_amount(&GemConfirmMetadata::mock(&asset.id, available), &asset),
+                GemTransferAmountResult::Error {
+                    error: GemConfirmError::InsufficientBalance {
+                        asset: asset.clone(),
+                        requirement: GemBalanceRequirement::new((10_000 + TEST_BITCOIN_FEE).into(), spendable.into()),
+                    },
+                },
+                "{reason}"
+            );
+        }
+        assert_eq!(
+            GemConfirmData::mock_bitcoin(10_000, false, &[5_000, 20_000]).preload_amount(&wallet_shows, &asset),
+            GemTransferAmountResult::Amount {
+                amount: TransferAmount {
+                    value: BigInt::from(10_000),
+                    network_fee: BigInt::from(TEST_BITCOIN_FEE),
+                    is_max_amount: false,
+                },
+            },
+            "UTXOs that cover the send change nothing"
+        );
+        assert_eq!(
+            GemConfirmData::mock_bitcoin(129_576, true, &[5_000]).preload_amount(&wallet_shows, &asset),
+            GemTransferAmountResult::Amount {
+                amount: TransferAmount {
+                    value: BigInt::from(5_000 - TEST_BITCOIN_FEE),
+                    network_fee: BigInt::from(TEST_BITCOIN_FEE),
+                    is_max_amount: true,
+                },
+            },
+            "a Max send shows what the transaction will send, not the balance"
+        );
+        assert_eq!(
+            GemConfirmData::mock_bitcoin(129_576, true, &[]).preload_amount(&wallet_shows, &asset),
+            GemTransferAmountResult::Error {
+                error: GemConfirmError::InsufficientNetworkFee {
+                    asset: asset.clone(),
+                    requirement: Some(GemBalanceRequirement::new(TEST_BITCOIN_FEE.into(), 0u64.into())),
+                },
+            },
+            "a Max send with nothing unspent can't pay the fee"
+        );
     }
 
     #[test]
