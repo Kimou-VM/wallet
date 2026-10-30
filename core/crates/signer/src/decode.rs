@@ -1,6 +1,6 @@
 use crate::{CARDANO_EXTENDED_PRIVATE_KEY_LENGTH, SignatureScheme, SignerError};
 use primitives::hex::encode_with_0x;
-use primitives::{BitcoinChain, Chain, ChainType, decode_hex};
+use primitives::{Chain, ChainType, decode_hex};
 use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Copy)]
@@ -9,10 +9,7 @@ enum KeyEncoding {
     Base58,
     PrefixedBase58(SignatureScheme),
     StellarStrKey,
-    Wif(u8),
 }
-
-const WIF_COMPRESSED: u8 = 0x01;
 
 fn import_encodings_for_chain(chain: &Chain) -> &'static [KeyEncoding] {
     match chain.chain_type() {
@@ -24,21 +21,15 @@ fn import_encodings_for_chain(chain: &Chain) -> &'static [KeyEncoding] {
     }
 }
 
-fn export_encoding_for_chain(chain: &Chain) -> Option<KeyEncoding> {
+fn export_encoding_for_chain(chain: &Chain) -> KeyEncoding {
     match chain.chain_type() {
-        ChainType::Cardano => None,
-        ChainType::Bitcoin => BitcoinChain::from_chain(*chain).map(|chain| KeyEncoding::Wif(chain.wif_version())),
-        ChainType::Solana => Some(KeyEncoding::Base58),
-        _ => Some(KeyEncoding::Hex),
+        ChainType::Bitcoin | ChainType::Solana => KeyEncoding::Base58,
+        _ => KeyEncoding::Hex,
     }
 }
 
 pub fn supports_private_key_import(chain: &Chain) -> bool {
     !import_encodings_for_chain(chain).is_empty()
-}
-
-pub fn supports_private_key_export(chain: &Chain) -> bool {
-    export_encoding_for_chain(chain).is_some()
 }
 
 fn scheme_for_chain(chain: &Chain) -> SignatureScheme {
@@ -154,7 +145,6 @@ fn decode_key(value: &str, encodings: &[KeyEncoding], scheme: SignatureScheme) -
                 }
             }
             KeyEncoding::StellarStrKey => decode_stellar_strkey(value).map(Zeroizing::new),
-            KeyEncoding::Wif(_) => None,
         };
         if let Some(bytes) = decoded
             && validate_key(&bytes, scheme).is_ok()
@@ -169,10 +159,6 @@ fn encode_key(bytes: &[u8], encoding: KeyEncoding) -> Result<String, SignerError
     match encoding {
         KeyEncoding::Hex => Ok(encode_with_0x(bytes)),
         KeyEncoding::Base58 => Ok(bs58::encode(bytes).into_string()),
-        KeyEncoding::Wif(version) => {
-            let payload = Zeroizing::new([&[version], bytes, &[WIF_COMPRESSED]].concat());
-            Ok(bs58::encode(payload.as_slice()).with_check().into_string())
-        }
         KeyEncoding::PrefixedBase58(_) | KeyEncoding::StellarStrKey => Err(SignerError::invalid_input("Unsupported private key export encoding")),
     }
 }
@@ -184,29 +170,12 @@ pub fn decode_private_key(chain: &Chain, value: &str) -> Result<Zeroizing<Vec<u8
 }
 
 pub fn encode_private_key(chain: &Chain, private_key: &[u8]) -> Result<String, SignerError> {
-    let encoding = export_encoding_for_chain(chain).ok_or_else(|| SignerError::invalid_input("Unsupported private key export encoding"))?;
-    encode_key(private_key, encoding)
+    encode_key(private_key, export_encoding_for_chain(chain))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_encode_bitcoin_family_as_compressed_wif() {
-        let key = hex::decode("0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D").unwrap();
-        assert_eq!(encode_private_key(&Chain::Bitcoin, &key).unwrap(), "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617");
-        assert_eq!(encode_private_key(&Chain::Litecoin, &key).unwrap(), "T3TccUZx4EXBZaHnFiP9eTr8igDEZoqSjNvbA56Z8vV74oyAcjTK");
-        assert_eq!(encode_private_key(&Chain::Doge, &key).unwrap(), "QP2GKa5kuU2i2G3xJMH5KL9NErbVYGxMoRiF5trrJJvHzrJ2Ebp7");
-        assert_eq!(encode_private_key(&Chain::Dash, &key).unwrap(), "XBhGczf8xYB2r4fHjqS9wLVmgqqVwXRoHkNEpnoCtKb2x5RsXrCP");
-    }
-
-    #[test]
-    fn test_private_key_export_skips_cardano_only() {
-        assert!(supports_private_key_export(&Chain::Bitcoin));
-        assert!(!supports_private_key_export(&Chain::Cardano));
-        assert!(encode_private_key(&Chain::Cardano, &[1; 32]).is_err());
-    }
 
     #[test]
     fn test_decode_solana_base58() {
@@ -270,6 +239,14 @@ mod tests {
         let encoded = encode_private_key(&Chain::Ethereum, &bytes).unwrap();
 
         assert_eq!(encoded, "0x30df0ffc2b43717f4653c2a1e827e9dfb3d9364e019cc60092496cd4997d5d6e");
+    }
+
+    #[test]
+    fn test_encode_bitcoin_base58() {
+        let bytes = decode_private_key(&Chain::Ethereum, "0x30df0ffc2b43717f4653c2a1e827e9dfb3d9364e019cc60092496cd4997d5d6e").unwrap();
+        let encoded = encode_private_key(&Chain::Bitcoin, &bytes).unwrap();
+
+        assert_eq!(encoded, "4Hmr8TxnwVB7m6fzfPRcASMn2hLRgzUz3gDGwF4ZnpVK");
     }
 
     #[test]

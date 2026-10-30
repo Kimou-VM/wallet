@@ -17,7 +17,7 @@ struct SecretDataTypeView: View {
             switch secret {
             case let .words(words):
                 SecretPhraseGridView(words: words)
-            case let .privateKey(key, _, _):
+            case let .privateKey(key):
                 Text(key.preventingHyphenation)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, .medium)

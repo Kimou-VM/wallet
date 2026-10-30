@@ -100,8 +100,6 @@ wallet_add_token_title = Dodaj token
 wallet_sell = Sprzedaj
 wallet_receive_collection = Odbierz kolekcję
 wallet_more = Więcej
-wallet_backup = Kopia zapasowa
-wallet_advanced = Zaawansowane
 wallet_import_contract_address_field = Kontrakt lub ID tokena
 wallet_import_address_warning = Możesz przeglądać salda i transakcje dla tego adresu, ale **nie możesz wysyłać ani sprzedawać środków**.
 wallet_deposit = Depozyt
@@ -446,22 +444,6 @@ private_key_reminder_no_recovery_subtitle = Jeśli zgubisz swój klucz prywatny,
 private_key_do_not_share_title = Nie udostępniaj swojego klucza prywatnego!
 private_key_do_not_share_description = Jeśli ktoś zna Twój klucz prywatny, będzie miał pełną kontrolę nad tym kontem!
 private_key_screenshot_detected_description = Zrzuty ekranu mogą być dostępne dla innych aplikacji, a zapisanie ich w ten sposób może narazić Twój klucz prywatny na ryzyko.
-private_key_export_reminder_intro = Twój klucz prywatny daje pełny dostęp do tego konta.
-private_key_export_reminder_keep_safe_title = Przechowuj go w bezpiecznym miejscu
-private_key_export_reminder_keep_safe_subtitle = Każdy, kto go ma, może korzystać z tego konta.
-private_key_export_reminder_do_not_share_title = Nie udostępniaj go nikomu
-private_key_export_reminder_do_not_share_subtitle = Żadna osoba, strona ani aplikacja nie powinna o niego prosić.
-private_key_export_reminder_no_recovery_title = Nie możemy pomóc Ci ich odzyskać
-private_key_export_reminder_no_recovery_subtitle = Jeśli ktoś zabierze Twoje środki, nie da się ich zwrócić.
-private_key_select_account = Wybierz swoje konto
-private_key_scope_evm = Ten klucz kontroluje również Twoje konta we wszystkich sieciach EVM.
-private_key_scope_cosmos = Ten klucz kontroluje również Twoje konta we wszystkich sieciach Cosmos.
-private_key_accounts_info = Twoje tajne wyrażenie już tworzy kopię zapasową tych kont. Eksportuj klucz tylko, aby użyć jednego konta w innym portfelu.
-private_key_derivation_path = Ścieżka derywacji
-private_key_address_type = Typ adresu
-private_key_address_type_native_segwit = Native SegWit
-private_key_address_type_legacy = Legacy
-private_key_address_type_hint = Podczas importu wybierz %@, w przeciwnym razie portfel może pokazać inny adres.
 
 # Social
 

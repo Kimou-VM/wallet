@@ -226,9 +226,6 @@ fun WalletNavGraph(
                 onSelectImage = { navigator.openWalletImage(it) },
                 onSecurityReminder = navigator::openWalletSecurityReminder,
                 onSecurityReminderAccepted = navigator::finishWalletSecurityReminder,
-                onPrivateKeyWarning = navigator::openPrivateKeyWarning,
-                onPrivateKeyWarningAccepted = navigator::finishPrivateKeyWarning,
-                onPrivateKeyAccount = navigator::openExportPrivateKey,
             )
 
             stake(

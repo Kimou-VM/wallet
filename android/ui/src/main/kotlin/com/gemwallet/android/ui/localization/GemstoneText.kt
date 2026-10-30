@@ -49,7 +49,6 @@ import uniffi.gemstone.GemBalanceRowValue
 import uniffi.gemstone.GemBannerButton
 import uniffi.gemstone.GemBannerDescription
 import uniffi.gemstone.GemBannerTitle
-import uniffi.gemstone.GemBitcoinAddressType
 import uniffi.gemstone.GemCandleTooltipRow
 import uniffi.gemstone.GemChainSettingsSection
 import uniffi.gemstone.GemChainsFilterSummary
@@ -101,14 +100,12 @@ import uniffi.gemstone.GemPositionChange
 import uniffi.gemstone.GemPriceAlertLabel
 import uniffi.gemstone.GemPriceAlertPrompt
 import uniffi.gemstone.GemPriceAlertSectionKind
-import uniffi.gemstone.GemPrivateKeyScope
 import uniffi.gemstone.GemReceiveWarning
 import uniffi.gemstone.GemRecipientErrorDisplay
 import uniffi.gemstone.GemRecipientSectionKind
 import uniffi.gemstone.GemRewardsIntroItem
 import uniffi.gemstone.GemRowText
 import uniffi.gemstone.GemSecurityReminderItem
-import uniffi.gemstone.GemSecurityReminderKind
 import uniffi.gemstone.GemSelectAssetSection
 import uniffi.gemstone.GemSelectAssetTitle
 import uniffi.gemstone.GemSlippageFooter
@@ -532,10 +529,9 @@ fun TpslType.autocloseRes(): Int = when (this) {
 }
 
 @StringRes
-fun GemSecurityReminderKind.introRes(): Int = when (this) {
-    GemSecurityReminderKind.PHRASE -> R.string.onboarding_security_create_wallet_intro_title
-    GemSecurityReminderKind.PRIVATE_KEY -> R.string.private_key_reminder_intro
-    GemSecurityReminderKind.ACCOUNT_KEY -> R.string.private_key_export_reminder_intro
+fun GemWalletSecretKind.reminderIntroRes(): Int = when (this) {
+    GemWalletSecretKind.PHRASE -> R.string.onboarding_security_create_wallet_intro_title
+    GemWalletSecretKind.PRIVATE_KEY -> R.string.private_key_reminder_intro
 }
 
 @StringRes
@@ -1343,56 +1339,33 @@ fun GemSubmitMessage.text(context: Context): String = when (this) {
 @StringRes
 fun GemSecurityReminderItem.titleRes(): Int = when (this) {
     is GemSecurityReminderItem.KeepSafe -> when (kind) {
-        GemSecurityReminderKind.PHRASE -> R.string.onboarding_security_create_wallet_keep_safe_title
-        GemSecurityReminderKind.PRIVATE_KEY -> R.string.private_key_reminder_keep_safe_title
-        GemSecurityReminderKind.ACCOUNT_KEY -> R.string.private_key_export_reminder_keep_safe_title
+        GemWalletSecretKind.PHRASE -> R.string.onboarding_security_create_wallet_keep_safe_title
+        GemWalletSecretKind.PRIVATE_KEY -> R.string.private_key_reminder_keep_safe_title
     }
-
     is GemSecurityReminderItem.DoNotShare -> when (kind) {
-        GemSecurityReminderKind.PHRASE -> R.string.onboarding_security_create_wallet_do_not_share_title
-        GemSecurityReminderKind.PRIVATE_KEY -> R.string.private_key_reminder_do_not_share_title
-        GemSecurityReminderKind.ACCOUNT_KEY -> R.string.private_key_export_reminder_do_not_share_title
+        GemWalletSecretKind.PHRASE -> R.string.onboarding_security_create_wallet_do_not_share_title
+        GemWalletSecretKind.PRIVATE_KEY -> R.string.private_key_reminder_do_not_share_title
     }
-
     is GemSecurityReminderItem.NoRecovery -> when (kind) {
-        GemSecurityReminderKind.PHRASE -> R.string.onboarding_security_create_wallet_no_recovery_title
-        GemSecurityReminderKind.PRIVATE_KEY -> R.string.private_key_reminder_no_recovery_title
-        GemSecurityReminderKind.ACCOUNT_KEY -> R.string.private_key_export_reminder_no_recovery_title
+        GemWalletSecretKind.PHRASE -> R.string.onboarding_security_create_wallet_no_recovery_title
+        GemWalletSecretKind.PRIVATE_KEY -> R.string.private_key_reminder_no_recovery_title
     }
 }
 
 @StringRes
 fun GemSecurityReminderItem.subtitleRes(): Int = when (this) {
     is GemSecurityReminderItem.KeepSafe -> when (kind) {
-        GemSecurityReminderKind.PHRASE -> R.string.onboarding_security_create_wallet_keep_safe_subtitle
-        GemSecurityReminderKind.PRIVATE_KEY -> R.string.private_key_reminder_keep_safe_subtitle
-        GemSecurityReminderKind.ACCOUNT_KEY -> R.string.private_key_export_reminder_keep_safe_subtitle
+        GemWalletSecretKind.PHRASE -> R.string.onboarding_security_create_wallet_keep_safe_subtitle
+        GemWalletSecretKind.PRIVATE_KEY -> R.string.private_key_reminder_keep_safe_subtitle
     }
-
     is GemSecurityReminderItem.DoNotShare -> when (kind) {
-        GemSecurityReminderKind.PHRASE -> R.string.onboarding_security_create_wallet_do_not_share_subtitle
-        GemSecurityReminderKind.PRIVATE_KEY -> R.string.private_key_reminder_do_not_share_subtitle
-        GemSecurityReminderKind.ACCOUNT_KEY -> R.string.private_key_export_reminder_do_not_share_subtitle
+        GemWalletSecretKind.PHRASE -> R.string.onboarding_security_create_wallet_do_not_share_subtitle
+        GemWalletSecretKind.PRIVATE_KEY -> R.string.private_key_reminder_do_not_share_subtitle
     }
-
     is GemSecurityReminderItem.NoRecovery -> when (kind) {
-        GemSecurityReminderKind.PHRASE -> R.string.onboarding_security_create_wallet_no_recovery_subtitle
-        GemSecurityReminderKind.PRIVATE_KEY -> R.string.private_key_reminder_no_recovery_subtitle
-        GemSecurityReminderKind.ACCOUNT_KEY -> R.string.private_key_export_reminder_no_recovery_subtitle
+        GemWalletSecretKind.PHRASE -> R.string.onboarding_security_create_wallet_no_recovery_subtitle
+        GemWalletSecretKind.PRIVATE_KEY -> R.string.private_key_reminder_no_recovery_subtitle
     }
-}
-
-@StringRes
-fun GemBitcoinAddressType.stringRes(): Int = when (this) {
-    GemBitcoinAddressType.NATIVE_SEGWIT -> R.string.private_key_address_type_native_segwit
-    GemBitcoinAddressType.LEGACY -> R.string.private_key_address_type_legacy
-}
-
-@StringRes
-fun GemPrivateKeyScope.stringRes(): Int? = when (this) {
-    GemPrivateKeyScope.ONE_CHAIN -> null
-    GemPrivateKeyScope.EVM_CHAINS -> R.string.private_key_scope_evm
-    GemPrivateKeyScope.COSMOS_CHAINS -> R.string.private_key_scope_cosmos
 }
 
 @StringRes

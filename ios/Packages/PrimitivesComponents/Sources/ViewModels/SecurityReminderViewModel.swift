@@ -3,7 +3,7 @@
 import Components
 import Foundation
 import enum Gemstone.GemSecurityReminderItem
-import enum Gemstone.GemSecurityReminderKind
+import enum Gemstone.GemWalletSecretKind
 import func Gemstone.securityReminderItems
 import GemstonePrimitives
 import Style
@@ -11,12 +11,12 @@ import Style
 @Observable
 public final class SecurityReminderViewModel {
     let title: String
-    let kind: GemSecurityReminderKind
+    let kind: GemWalletSecretKind
     let onNext: () -> Void
 
     public init(
         title: String,
-        kind: GemSecurityReminderKind,
+        kind: GemWalletSecretKind,
         onNext: @escaping () -> Void,
     ) {
         self.title = title

@@ -1,9 +1,8 @@
 use std::fmt;
 
 use crate::models::list::GemAddressRow;
-use crate::services::chain::GemChainRow;
 use crate::services::localization::GemLocalizedText;
-use crate::services::onboarding::{GemSecurityReminderItem, GemSecurityReminderKind};
+use crate::services::onboarding::GemSecurityReminderItem;
 use primitives::{Chain, NameRecord, Wallet, WalletId, WalletListItem, WalletSource};
 
 use super::rules;
@@ -112,18 +111,17 @@ pub enum GemWalletDeletion {
     LastWalletDeleted,
 }
 
-#[allow(clippy::large_enum_variant)]
 #[derive(Clone, PartialEq, uniffi::Enum)]
 pub enum GemWalletSecret {
     Words { words: Vec<String> },
-    PrivateKey { key: String, scope: GemPrivateKeyScope, details: Option<GemPrivateKeyDetails> },
+    PrivateKey { key: String },
 }
 
 impl fmt::Debug for GemWalletSecret {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Words { words } => f.debug_struct("Words").field("word_count", &words.len()).finish(),
-            Self::PrivateKey { scope, details, .. } => f.debug_struct("PrivateKey").field("scope", scope).field("details", details).finish_non_exhaustive(),
+            Self::PrivateKey { .. } => f.debug_struct("PrivateKey").finish_non_exhaustive(),
         }
     }
 }
@@ -158,7 +156,7 @@ pub fn secret_screen(kind: GemWalletSecretKind, is_new: bool) -> GemSecretScreen
 }
 
 #[uniffi::export]
-pub fn security_reminder_items(kind: GemSecurityReminderKind) -> Vec<GemSecurityReminderItem> {
+pub fn security_reminder_items(kind: GemWalletSecretKind) -> Vec<GemSecurityReminderItem> {
     rules::security_reminder_items(kind)
 }
 
@@ -213,49 +211,9 @@ pub fn wallet_sections(wallets: Vec<WalletListItem>, current_wallet_id: Option<W
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct GemWalletDetails {
     pub row: GemWalletRow,
-    pub backup: Option<GemSecretRow>,
-    pub advanced: Option<GemSecretRow>,
+    pub secret_kind: Option<GemWalletSecretKind>,
+    pub show_secret: Option<GemLocalizedText>,
     pub address: Option<GemAddressRow>,
-}
-
-#[derive(Debug, Clone, PartialEq, uniffi::Record)]
-pub struct GemSecretRow {
-    pub title: GemLocalizedText,
-    pub export: GemSecretExport,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
-pub enum GemSecretExport {
-    Secret { kind: GemWalletSecretKind },
-    PrivateKey { chain: Chain },
-    PrivateKeyAccounts,
-}
-
-#[derive(Debug, Clone, PartialEq, uniffi::Record)]
-pub struct GemPrivateKeyAccount {
-    pub row: GemChainRow,
-    pub address: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
-pub enum GemPrivateKeyScope {
-    OneChain,
-    EvmChains,
-    CosmosChains,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
-pub enum GemBitcoinAddressType {
-    NativeSegwit,
-    Legacy,
-}
-
-#[derive(Debug, Clone, PartialEq, uniffi::Record)]
-pub struct GemPrivateKeyDetails {
-    pub row: GemChainRow,
-    pub address: String,
-    pub address_type: GemBitcoinAddressType,
-    pub derivation_path: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
@@ -283,11 +241,7 @@ mod secret_debug_tests {
                 chain: Chain::Ethereum
             },
             GemWalletSecret::Words { words },
-            GemWalletSecret::PrivateKey {
-                key: "0xsecretkey".into(),
-                scope: GemPrivateKeyScope::OneChain,
-                details: None,
-            },
+            GemWalletSecret::PrivateKey { key: "0xsecretkey".into() },
         );
 
         assert!(!printed.contains("abandon") && !printed.contains("ability") && !printed.contains("secretkey"), "{printed}");

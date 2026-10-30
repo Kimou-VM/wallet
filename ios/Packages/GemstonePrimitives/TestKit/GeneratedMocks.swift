@@ -1409,14 +1409,14 @@ public extension Gemstone.GemWalletConnectTransactionRequest {
 public extension Gemstone.GemWalletDetails {
     static func mock(
         row: Gemstone.GemWalletRow = .mock(),
-        backup: Gemstone.GemSecretRow? = nil,
-        advanced: Gemstone.GemSecretRow? = nil,
+        secretKind: Gemstone.GemWalletSecretKind? = nil,
+        showSecret: Gemstone.GemLocalizedText? = nil,
         address: Gemstone.GemAddressRow? = nil,
     ) -> Gemstone.GemWalletDetails {
         Gemstone.GemWalletDetails(
             row: row,
-            backup: backup,
-            advanced: advanced,
+            secretKind: secretKind,
+            showSecret: showSecret,
             address: address,
         )
     }
