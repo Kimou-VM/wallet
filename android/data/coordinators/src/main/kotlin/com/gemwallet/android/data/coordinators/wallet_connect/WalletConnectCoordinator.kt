@@ -310,7 +310,7 @@ class WalletConnectCoordinator(
         scope.launch(Dispatchers.IO) {
             runCatchingCancellable {
                 activeSessions().orEmpty()
-                    .filter { it.topic !in activeBefore }
+                    .filter { it.topic !in activeBefore && it.belongsTo(wallet) }
                     .forEach { storeSession(it, wallet) }
             }.onSuccess {
                 onSuccess()
@@ -340,3 +340,9 @@ private fun WalletConnectSessionRequest.toGem(verifyContext: WalletConnectVerify
 )
 
 private fun Map<String, WalletConnectSessionNamespace>.accounts(): Set<String> = values.flatMapTo(mutableSetOf()) { it.accounts }
+
+private fun WalletConnectSession.belongsTo(wallet: Wallet): Boolean {
+    val addresses = wallet.accounts.map { it.address }
+    val accounts = namespaces.accounts()
+    return accounts.isNotEmpty() && accounts.all { it.substringAfterLast(':') in addresses }
+}

@@ -11,12 +11,14 @@ import com.gemwallet.android.application.wallet_connect.addingAccount
 import com.gemwallet.android.ext.GemConstants
 import com.gemwallet.android.ext.toGem
 import com.gemwallet.android.ext.toPrimitives
+import com.gemwallet.android.testkit.mockAccount
 import com.gemwallet.android.testkit.mockApplicationMetadata
 import com.gemwallet.android.testkit.mockWallet
 import com.gemwallet.android.testkit.mockWalletConnectSessionProposal
 import com.gemwallet.android.testkit.mockWalletConnectSessionRequest
 import com.gemwallet.android.testkit.mockWalletConnectVerifyContext
 import com.gemwallet.android.testkit.mockWalletConnectionSession
+import com.wallet.core.primitives.Chain
 import com.wallet.core.primitives.Wallet
 import com.wallet.core.primitives.WalletConnection
 import com.wallet.core.primitives.WalletId
@@ -58,7 +60,7 @@ import uniffi.gemstone.WalletConnectionVerificationStatus
 @OptIn(ExperimentalCoroutinesApi::class)
 class WalletConnectCoordinatorTest {
 
-    private val wallet = mockWallet(id = WalletId("wallet-1"))
+    private val wallet = mockWallet(id = WalletId("wallet-1"), accounts = listOf(mockAccount(chain = Chain.Ethereum, address = "0xabc")))
     private val metadata = mockApplicationMetadata()
     private val proposal = mockWalletConnectSessionProposal()
     private val sessionRequest = mockWalletConnectSessionRequest(id = 42L, topic = "topic-1")
@@ -165,6 +167,18 @@ class WalletConnectCoordinatorTest {
     fun `an authenticated session is stored for the wallet that approved it`() = runBlocking {
         val existingSession = settledSession.copy(topic = "topic-0")
         every { client.activeSessions() } returnsMany listOf(listOf(existingSession), listOf(existingSession, settledSession))
+        val approved = CompletableDeferred<Unit>()
+
+        subject.approveAuthentication(mockk<WalletConnectAuthenticationRequest>(), emptyList(), wallet, onSuccess = { approved.complete(Unit) }, onError = {})
+        withTimeout(2_000) { approved.await() }
+
+        assertEquals(listOf(wallet.id to "topic-1"), stored.values.map { it.wallet.id to it.session.sessionId })
+    }
+
+    @Test
+    fun `a sign-in stores only its own wallet's session when another dapp connects at the same time`() = runBlocking {
+        val otherSession = settledSession.copy(topic = "topic-2", namespaces = mapOf("eip155" to settledSession.namespaces.getValue("eip155").copy(accounts = listOf("eip155:1:0xdef"))))
+        every { client.activeSessions() } returnsMany listOf(emptyList(), listOf(otherSession, settledSession))
         val approved = CompletableDeferred<Unit>()
 
         subject.approveAuthentication(mockk<WalletConnectAuthenticationRequest>(), emptyList(), wallet, onSuccess = { approved.complete(Unit) }, onError = {})

@@ -36,6 +36,7 @@ flowchart LR
 | A message to sign comes from a site flagged as malicious | it is refused before anything is signed | a message to sign is checked like a transaction |
 | A permit to sign names a flagged spender | a critical warning on the review | |
 | A one-click sign-in names a different site than the app asking | it is refused and the app is told so | the signature would log the user in to that other site |
+| A one-click sign-in is approved while another dapp connects with another wallet | each connection is listed under, and signs with, the wallet it was approved with | a sign-in keeps only the connections of the wallet that signed in |
 | A transaction approves a token: an approval, an allowance increase or a Permit2 approval | the review shows a token approval with the token, spender and amount; a flagged spender or token stops Confirm | the spender is who can move the token afterwards |
 | A transaction approves a token and also sends coins | the review shows a contract call headed by the coins it sends, not the approval, with the predicted balance changes | the review shows everything that leaves the wallet, even when the balance trace fails |
 | A transaction on Solana, TRON or TON sends the network's coin from the wallet | the review is headed by the amount it sends, and the balance must cover that amount plus the fee | the review shows everything that leaves the wallet, even without a simulation |
