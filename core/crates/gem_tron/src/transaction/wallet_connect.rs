@@ -65,6 +65,12 @@ pub fn decode_wallet_connect_contract(data: &str) -> Result<Option<WalletConnect
     raw_data.wallet_connect_contract()
 }
 
+pub fn decode_wallet_connect_owners(data: &str) -> Result<Vec<String>, SignerError> {
+    let payload: WalletConnectRequest = serde_json::from_str(data)?;
+    let (_, raw_data) = payload.transaction.validate()?;
+    raw_data.owners()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

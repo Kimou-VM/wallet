@@ -60,6 +60,13 @@ impl RawDataJson {
         }
     }
 
+    pub(crate) fn owners(&self) -> Result<Vec<String>, SignerError> {
+        self.contract
+            .iter()
+            .map(|contract| TronContract::from_json_value(contract.contract_type, contract.parameter.value.clone()).map(|contract| contract.owner().encode()))
+            .collect()
+    }
+
     pub(crate) fn encode(&self) -> Result<Vec<u8>, SignerError> {
         let contracts = self
             .contract
